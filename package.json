@@ -12,6 +12,7 @@
     "@auth/core": "latest",
     "@aws-sdk/credential-providers": "latest",
     "@cfworker/json-schema": "latest",
+    "@emotion/is-prop-valid": "latest",
     "@google/generative-ai": "latest",
     "@hookform/resolvers": "^3.10.0",
     "@modelcontextprotocol/sdk": "latest",

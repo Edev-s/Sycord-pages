@@ -56,6 +56,10 @@ export function WebsitePreviewCard({
 
   const formattedDate = new Date(createdAt).toLocaleDateString("hu-HU")
 
+  const formatDomain = (url: string) => {
+    return url.replace(/^https?:\/\//, "")
+  }
+
   const getWebsiteIcon = () => {
     switch (style) {
       case "default":
@@ -123,7 +127,7 @@ export function WebsitePreviewCard({
           <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between z-20">
             <div className="flex items-center gap-2">
               <WebsiteIcon className="h-4 w-4 text-white" />
-              <p className="text-white text-sm font-medium truncate">{domain}</p>
+              <p className="text-white text-sm font-medium truncate">{formatDomain(domain)}</p>
             </div>
             {isLive && (
               <div className="flex items-center gap-1 bg-green-500/20 px-3 py-1 rounded-full border border-green-500/30 backdrop-blur-sm">

@@ -21,7 +21,6 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { WebsitePreviewCard } from "@/components/website-preview-card"
 import { WelcomeOverlay } from "@/components/welcome-overlay"
 import { CreateProjectModal } from "@/components/create-project-modal"
-import { ThemeToggle } from "@/components/theme-toggle"
 
 function DashboardContent() {
   const { data: session, status } = useSession()
@@ -49,10 +48,10 @@ function DashboardContent() {
     }
 
     if (openCreateModal === "true") {
-        setIsModalOpen(true)
-        const newUrl = new URL(window.location.href)
-        newUrl.searchParams.delete("open_create_modal")
-        window.history.replaceState({}, "", newUrl.toString())
+      setIsModalOpen(true)
+      const newUrl = new URL(window.location.href)
+      newUrl.searchParams.delete("open_create_modal")
+      window.history.replaceState({}, "", newUrl.toString())
     }
   }, [searchParams])
 
@@ -198,7 +197,7 @@ function DashboardContent() {
     <>
       <div className="min-h-screen bg-background md:ml-16">
         <header className="border-b border-border sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50">
-          <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="container mx-auto px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-4 md:gap-8">
               <Link href="/" className="flex items-center gap-2">
                 <Image src="/logo.png" alt="Logo" width={32} height={32} />
@@ -280,7 +279,7 @@ function DashboardContent() {
           </div>
         </header>
 
-        <main className="container mx-auto px-4 py-6 md:py-8 pb-20 md:pb-6">
+        <main className="container mx-auto px-4 py-3 md:py-4 pb-20 md:pb-6">
           <div className="flex flex-col gap-4 mb-6 md:mb-8">
             <div className="flex items-center justify-between">
               <h1 className="text-lg font-semibold text-foreground">Projektek</h1>
@@ -374,7 +373,11 @@ function DashboardContent() {
             {debugError}
           </div>
           <div className="flex justify-end">
-            <Button variant="outline" onClick={() => setDebugError(null)} className="border-red-200 hover:bg-red-100 hover:text-red-700 dark:border-red-900 dark:hover:bg-red-900/40">
+            <Button
+              variant="outline"
+              onClick={() => setDebugError(null)}
+              className="border-red-200 hover:bg-red-100 hover:text-red-700 dark:border-red-900 dark:hover:bg-red-900/40"
+            >
               Close
             </Button>
           </div>
