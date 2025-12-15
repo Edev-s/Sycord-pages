@@ -37,7 +37,11 @@ import {
   LogOut,
   User,
   Rocket,
+  Globe,
+  Save,
+  Upload,
 } from "lucide-react"
+import { CloudflareDomainManager } from "@/components/cloudflare-domain-manager"
 import { currencySymbols } from "@/lib/webshop-types"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -50,6 +54,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useSession, signOut } from "next-auth/react"
 import Image from "next/image"
+import { motion, AnimatePresence, PanInfo } from "framer-motion"
 
 const headerComponents = {
   simple: { name: "Simple", description: "A clean, minimalist header" },
@@ -122,7 +127,21 @@ export default function SiteSettingsPage() {
   const [selectedPage, setSelectedPage] = useState<string>("landing")
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [isDeploying, setIsDeploying] = useState(false)
+  const [showDomainManager, setShowDomainManager] = useState(false)
+  const [isDesktop, setIsDesktop] = useState(false)
   const { data: session } = useSession()
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsDesktop(window.innerWidth >= 768)
+    }
+
+    // Set initial value
+    handleResize()
+
+    window.addEventListener("resize", handleResize)
+    return () => window.removeEventListener("resize", handleResize)
+  }, [])
 
   // Settings State
   const [shopName, setShopName] = useState("")
@@ -473,6 +492,15 @@ export default function SiteSettingsPage() {
       <header className="border-b border-border sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4 md:gap-8">
+            {/* Mobile Back Button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => router.push("/dashboard")}
+              className="md:hidden"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
             <button
               onClick={() => router.push("/dashboard")}
               className="flex items-center gap-2 hover:opacity-80 transition-opacity"
@@ -486,6 +514,16 @@ export default function SiteSettingsPage() {
             </div>
           </div>
           <div className="flex items-center gap-2 md:gap-3">
+            {/* Mobile Menu Toggle */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="md:hidden"
+            >
+              {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </Button>
+
             <Button
               variant="ghost"
               size="sm"
@@ -535,93 +573,120 @@ export default function SiteSettingsPage() {
         </div>
       </header>
 
-      {/* Mobile Back Button */}
-      <div className="fixed top-28 left-4 z-50 md:hidden">
-        <Button
-          variant="secondary"
-          size="icon"
-          onClick={() => router.push("/dashboard")}
-          className="shadow-lg bg-background/60 backdrop-blur-md border border-border text-foreground hover:bg-accent hover:text-accent-foreground"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-      </div>
 
-      {/* Mobile Menu Toggle */}
-      <div className="fixed top-28 right-4 z-50 md:hidden">
-        <Button
-          variant="secondary"
-          size="icon"
-          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className="shadow-lg bg-background/60 backdrop-blur-md border border-border text-foreground hover:bg-accent hover:text-accent-foreground"
-        >
-          {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </Button>
-      </div>
+      {/* Mobile Swipe Trigger Zone (Left Edge) - Always present on mobile */}
+      <div
+        className="md:hidden fixed inset-y-0 left-0 z-50 w-10"
+        onTouchStart={(e) => {
+          const startX = e.touches[0].clientX
+          const handleTouchMove = (e: TouchEvent) => {
+            if (e.touches[0].clientX - startX > 15) {
+              setIsSidebarOpen(true)
+              document.removeEventListener("touchmove", handleTouchMove)
+            }
+          }
+          document.addEventListener("touchmove", handleTouchMove)
+          document.addEventListener(
+            "touchend",
+            () => document.removeEventListener("touchmove", handleTouchMove),
+            { once: true },
+          )
+        }}
+      />
 
-      {activeTab !== "styles" && (
-        <aside
-          className={`fixed inset-y-0 left-0 z-40 w-56 transform transition-transform duration-300 ease-in-out md:translate-x-0 ${
-            isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-          } backdrop-blur-xl bg-black/40 border-r border-white/10 flex flex-col`}
-        >
-          <div className="p-6 flex flex-col h-full">
-            <div className="flex items-center gap-2 mb-8 text-foreground">
-              <WebsiteIcon className="h-6 w-6" />
-              <span className="font-bold text-lg truncate">{project?.businessName || "Site Settings"}</span>
-            </div>
+      <AnimatePresence>
+        {(isSidebarOpen || (activeTab !== "styles" && isDesktop)) && (
+          <motion.aside
+            initial={{ x: "-100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "-100%" }}
+            transition={{ type: "spring", stiffness: 200, damping: 25 }}
+            drag="x"
+            dragConstraints={{ left: -300, right: 0 }}
+            dragElastic={0.2}
+            onDragEnd={(e, info) => {
+              if (info.offset.x < -100) {
+                setIsSidebarOpen(false)
+              }
+            }}
+            className={`fixed inset-y-0 left-0 z-40 w-56 backdrop-blur-xl bg-black/40 border-r border-white/10 flex flex-col md:translate-x-0 ${
+              // On desktop, we want it always visible (or controlled by other means if collapsible)
+              // The motion.aside handles the animation, but we need to ensure CSS doesn't hide it on desktop
+              ""
+            }`}
+            // Override framer motion styles for desktop to ensure it's always visible
+            style={
+              activeTab !== "styles" && isDesktop
+                ? { transform: "none" }
+                : undefined
+            }
+          >
+                <div className="p-6 flex flex-col h-full">
+                  <div className="flex items-center gap-2 mb-8 text-foreground">
+                    <WebsiteIcon className="h-6 w-6" />
+                    <span className="font-bold text-lg truncate">{project?.businessName || "Site Settings"}</span>
+                  </div>
 
-            <nav className="flex-1 space-y-6 overflow-y-auto pr-2">
-              {navGroups.map((group) => (
-                <div key={group.title}>
-                  <h3 className="px-4 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    {group.title}
-                  </h3>
-                  <div className="space-y-1">
-                    {group.items.map((item) => {
-                      const Icon = item.icon
-                      const isActive = activeTab === item.id
-                      return (
-                        <button
-                          key={item.id}
-                          onClick={() => {
-                            setActiveTab(item.id as any)
-                            setIsSidebarOpen(false)
-                          }}
-                          className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 group ${
-                            isActive
-                              ? "bg-white/10 text-foreground shadow-sm backdrop-blur-sm"
-                              : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
-                          }`}
-                        >
-                          <Icon className="h-4 w-4" />
-                          <span className="font-medium text-sm">{item.label}</span>
-                        </button>
-                      )
-                    })}
+                  <nav className="flex-1 space-y-6 overflow-y-auto pr-2">
+                    {navGroups.map((group) => (
+                      <div key={group.title}>
+                        <h3 className="px-4 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                          {group.title}
+                        </h3>
+                        <div className="space-y-1">
+                          {group.items.map((item) => {
+                            const Icon = item.icon
+                            const isActive = activeTab === item.id
+                            return (
+                              <button
+                                key={item.id}
+                                onClick={() => {
+                                  setActiveTab(item.id as any)
+                                  setIsSidebarOpen(false)
+                                }}
+                                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 group ${
+                                  isActive
+                                    ? "bg-white/10 text-foreground shadow-sm backdrop-blur-sm"
+                                    : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                                }`}
+                              >
+                                <Icon className="h-4 w-4" />
+                                <span className="font-medium text-sm">{item.label}</span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </nav>
+
+                  <div className="mt-auto pt-6 border-t border-white/10">
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-start text-muted-foreground hover:text-foreground hover:bg-white/5 gap-3 px-4"
+                      onClick={() => router.push("/dashboard")}
+                    >
+                      <ArrowLeft className="h-5 w-5" />
+                      <span className="font-medium text-sm">Back to Dashboard</span>
+                    </Button>
                   </div>
                 </div>
-              ))}
-            </nav>
+          </motion.aside>
+        )}
+      </AnimatePresence>
 
-            <div className="mt-auto pt-6 border-t border-white/10">
-              <Button
-                variant="ghost"
-                className="w-full justify-start text-muted-foreground hover:text-foreground hover:bg-white/5 gap-3 px-4"
-                onClick={() => router.push("/dashboard")}
-              >
-                <ArrowLeft className="h-5 w-5" />
-                <span className="font-medium text-sm">Back to Dashboard</span>
-              </Button>
-            </div>
-          </div>
-        </aside>
+      {/* Overlay for mobile */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/50 backdrop-blur-sm md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
       )}
 
       <main className={`flex-1 min-h-screen pt-16 ${activeTab !== "styles" ? "md:ml-56" : ""}`}>
         {activeTab === "styles" && (
           <div className="border-b border-border/30 bg-background/50 backdrop-blur-sm">
-            <div className="container mx-auto px-4 py-8 max-w-7xl">
+            <div className="container mx-auto px-5 py-4 md:px-4 md:py-8 max-w-7xl">
               <div className="flex flex-col lg:flex-row gap-8 items-start">
                 {/* Left side - Preview Box */}
                 <div className="relative w-full lg:w-[400px] xl:w-[480px] h-[280px] bg-card border-2 border-border rounded-3xl overflow-hidden shadow-xl flex-shrink-0">
@@ -672,19 +737,23 @@ export default function SiteSettingsPage() {
                       <span className="text-sm font-medium">main</span>
                       <span className="text-sm">•</span>
                       <span className="text-sm">
-                        {new Date()
-                          .toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-                          .toLowerCase()}
+                        {project?.cloudflareDeployedAt
+                          ? new Date(project.cloudflareDeployedAt).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            }).toLowerCase()
+                          : "Not deployed"}
                       </span>
                     </div>
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex flex-wrap gap-4 mt-4">
+                  <div className="grid grid-cols-2 lg:flex flex-wrap gap-4 mt-4">
                     <Button
                       size="lg"
                       variant="default"
-                      className="flex-1 min-w-[200px] h-14 rounded-2xl text-base font-medium"
+                      className="col-span-2 lg:flex-1 min-w-[200px] h-14 rounded-2xl text-base font-medium"
                       onClick={handleDeploy}
                       disabled={isDeploying}
                     >
@@ -704,12 +773,37 @@ export default function SiteSettingsPage() {
                     <Button
                       size="lg"
                       variant="outline"
-                      className="flex-1 min-w-[200px] h-14 rounded-2xl text-base font-medium bg-transparent"
+                      className="col-span-1 lg:flex-1 h-14 rounded-2xl text-base font-medium bg-transparent"
                       onClick={() => previewUrl && window.open(previewUrl, "_blank")}
                       disabled={!previewUrl}
                     >
                       <ExternalLink className="h-4 w-4 mr-2" />
                       Visit Site
+                    </Button>
+
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      className="col-span-1 lg:flex-1 h-14 rounded-2xl text-base font-medium bg-transparent"
+                      onClick={() => setShowDomainManager(!showDomainManager)}
+                    >
+                      <Globe className="h-4 w-4 mr-2" />
+                      Domains
+                    </Button>
+
+                    <Button
+                      size="lg"
+                      variant="secondary"
+                      className="col-span-2 lg:flex-1 h-14 rounded-2xl text-base font-medium"
+                      onClick={handleSettingsUpdate}
+                      disabled={isSaving}
+                    >
+                      {isSaving ? (
+                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                         <Save className="h-4 w-4 mr-2" />
+                      )}
+                      Save Changes
                     </Button>
                   </div>
                 </div>
@@ -721,19 +815,11 @@ export default function SiteSettingsPage() {
         <div className="container mx-auto px-4 py-8 max-w-7xl flex-1">
           {activeTab === "styles" && (
             <div className="space-y-6">
-              <ServerCard
-                project={project}
-                deployment={deployment}
-                deploymentLogs={deploymentLogs}
-                isDeploying={isDeploying}
-                onDeploy={handleDeploy}
-                settings={settings}
-                profileImage={profileImage}
-                onProfileImageChange={handleImageUpload}
-                onSettingsUpdate={handleSettingsUpdate}
-                isSaving={isSaving}
-                siteUrl={siteUrl}
-              />
+              {showDomainManager && (
+                 <div className="animate-in fade-in slide-in-from-top-4 mb-6">
+                    <CloudflareDomainManager projectId={id} />
+                 </div>
+              )}
 
               {/* Sub-tabs Navigation */}
               <div className="flex border-b border-border/50">
@@ -765,6 +851,35 @@ export default function SiteSettingsPage() {
                       <CardDescription>Update your shop's basic details</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                      <div className="flex flex-col items-center sm:items-start gap-4 mb-6">
+                         <Label>Shop Logo</Label>
+                         <div className="flex items-center gap-4">
+                           <div className="relative h-20 w-20 rounded-full overflow-hidden bg-muted border border-border">
+                             {profileImage ? (
+                               <img src={profileImage} alt="Profile" className="h-full w-full object-cover" />
+                             ) : (
+                               <div className="h-full w-full flex items-center justify-center text-muted-foreground">
+                                 <Store className="h-8 w-8" />
+                               </div>
+                             )}
+                           </div>
+                           <div className="flex flex-col gap-2">
+                             <Label htmlFor="profile-upload" className="cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-secondary text-secondary-foreground hover:bg-secondary/80 h-9 px-4 py-2">
+                               <Upload className="mr-2 h-4 w-4" />
+                               Upload Logo
+                             </Label>
+                             <Input
+                               id="profile-upload"
+                               type="file"
+                               accept="image/*"
+                               className="hidden"
+                               onChange={handleImageUpload}
+                             />
+                             <p className="text-xs text-muted-foreground">Recommended: 200x200px</p>
+                           </div>
+                         </div>
+                      </div>
+
                       <div className="space-y-2">
                         <Label>Shop Name</Label>
                         <Input
