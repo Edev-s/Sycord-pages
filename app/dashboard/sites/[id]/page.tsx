@@ -53,7 +53,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useSession, signOut } from "next-auth/react"
 import Image from "next/image"
-import { motion, AnimatePresence, PanInfo } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 
 const headerComponents = {
   simple: { name: "Simple", description: "A clean, minimalist header" },
@@ -485,19 +485,16 @@ export default function SiteSettingsPage() {
   // Construct preview URL safely - Prioritize Cloudflare Worker URL
   const previewUrl =
     project?.cloudflareUrl || deployment?.cloudflareUrl || (deployment?.domain ? `https://${deployment.domain}` : null)
+  // Construct preview URL safely - Prioritize Cloudflare Worker URL
+  const displayUrl = previewUrl ? previewUrl.replace(/^https?:\/\//, "") : null
 
   return (
     <div className="min-h-screen bg-background relative">
       <header className="border-b border-border sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4 md:gap-8">
             {/* Mobile Back Button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => router.push("/dashboard")}
-              className="md:hidden"
-            >
+            <Button variant="ghost" size="icon" onClick={() => router.push("/dashboard")} className="md:hidden">
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <button
@@ -514,12 +511,7 @@ export default function SiteSettingsPage() {
           </div>
           <div className="flex items-center gap-2 md:gap-3">
             {/* Mobile Menu Toggle */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="md:hidden"
-            >
+            <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="md:hidden">
               {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </Button>
 
@@ -593,11 +585,7 @@ export default function SiteSettingsPage() {
               ""
             }`}
             // Override framer motion styles for desktop to ensure it's always visible
-            style={
-              activeTab !== "styles" && isDesktop
-                ? { transform: "none" }
-                : undefined
-            }
+            style={activeTab !== "styles" && isDesktop ? { transform: "none" } : undefined}
           >
             <div className="p-6 flex flex-col h-full">
               <div className="flex items-center gap-2 mb-8 text-foreground">
@@ -667,42 +655,40 @@ export default function SiteSettingsPage() {
         onTouchStart={(e) => {
           // Placeholder for visual clarity if needed, but logic is on main
         }}
-        style={{ display: 'none' }}
+        style={{ display: "none" }}
       />
 
       <main
         className={`flex-1 min-h-screen pt-16 ${activeTab !== "styles" ? "md:ml-56" : ""}`}
         onTouchStart={(e) => {
-           // We only want to trigger on mobile
-           if (typeof window !== 'undefined' && window.innerWidth >= 768) return
+          // We only want to trigger on mobile
+          if (typeof window !== "undefined" && window.innerWidth >= 768) return
 
-           const startX = e.touches[0].clientX
-           const startY = e.touches[0].clientY
+          const startX = e.touches[0].clientX
+          const startY = e.touches[0].clientY
 
-           const handleTouchMove = (e: TouchEvent) => {
-             const diffX = e.touches[0].clientX - startX
-             const diffY = e.touches[0].clientY - startY
+          const handleTouchMove = (e: TouchEvent) => {
+            const diffX = e.touches[0].clientX - startX
+            const diffY = e.touches[0].clientY - startY
 
-             // Check for swipe right (open menu)
-             // Threshold > 50px horizontal, < 30px vertical drift
-             // Only if starting near edge? No, user said "anywhere".
-             if (diffX > 50 && Math.abs(diffY) < 30) {
-               setIsSidebarOpen(true)
-               document.removeEventListener("touchmove", handleTouchMove)
-             }
-           }
+            // Check for swipe right (open menu)
+            // Threshold > 50px horizontal, < 30px vertical drift
+            // Only if starting near edge? No, user said "anywhere".
+            if (diffX > 50 && Math.abs(diffY) < 30) {
+              setIsSidebarOpen(true)
+              document.removeEventListener("touchmove", handleTouchMove)
+            }
+          }
 
-           document.addEventListener("touchmove", handleTouchMove)
-           document.addEventListener(
-             "touchend",
-             () => document.removeEventListener("touchmove", handleTouchMove),
-             { once: true }
-           )
+          document.addEventListener("touchmove", handleTouchMove)
+          document.addEventListener("touchend", () => document.removeEventListener("touchmove", handleTouchMove), {
+            once: true,
+          })
         }}
       >
         {activeTab === "styles" && (
           <div className="border-b border-border/30 bg-background/50 backdrop-blur-sm">
-            <div className="container mx-auto px-5 py-4 md:px-4 md:py-8 max-w-7xl">
+            <div className="container mx-auto px-5 py-2 md:px-4 md:py-4 max-w-7xl">
               <div className="flex flex-col lg:flex-row gap-8 items-start">
                 {/* Left side - Preview Box */}
                 <div className="relative w-full lg:w-[400px] xl:w-[480px] h-[280px] bg-card border-2 border-border rounded-3xl overflow-hidden shadow-xl flex-shrink-0">
@@ -741,7 +727,7 @@ export default function SiteSettingsPage() {
                   <div className="flex flex-col gap-3 min-w-0">
                     <div className="flex items-center gap-3">
                       <h2 className="text-2xl md:text-3xl font-bold text-foreground truncate max-w-full">
-                        {previewUrl || "Not deployed yet"}
+                        {displayUrl || "Not deployed yet"}
                       </h2>
                       <div
                         className={`w-3 h-3 rounded-full flex-shrink-0 ${previewUrl ? "bg-green-500" : "bg-gray-400"}`}
@@ -754,11 +740,13 @@ export default function SiteSettingsPage() {
                       <span className="text-sm">•</span>
                       <span className="text-sm truncate">
                         {project?.cloudflareDeployedAt
-                          ? new Date(project.cloudflareDeployedAt).toLocaleDateString("en-US", {
-                              month: "short",
-                              day: "numeric",
-                              year: "numeric",
-                            }).toLowerCase()
+                          ? new Date(project.cloudflareDeployedAt)
+                              .toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              })
+                              .toLowerCase()
                           : "Not deployed"}
                       </span>
                     </div>
@@ -814,11 +802,7 @@ export default function SiteSettingsPage() {
                       onClick={handleSettingsUpdate}
                       disabled={isSaving}
                     >
-                      {isSaving ? (
-                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                         <Save className="h-4 w-4 mr-2" />
-                      )}
+                      {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                       Save Changes
                     </Button>
                   </div>
@@ -832,9 +816,9 @@ export default function SiteSettingsPage() {
           {activeTab === "styles" && (
             <div className="space-y-6">
               {showDomainManager && (
-                 <div className="animate-in fade-in slide-in-from-top-4 mb-6">
-                    <CloudflareDomainManager projectId={id} />
-                 </div>
+                <div className="animate-in fade-in slide-in-from-top-4 mb-6">
+                  <CloudflareDomainManager projectId={id} />
+                </div>
               )}
 
               {/* Sub-tabs Navigation */}
@@ -868,32 +852,39 @@ export default function SiteSettingsPage() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div className="flex flex-col items-center sm:items-start gap-4 mb-6">
-                         <Label>Shop Logo</Label>
-                         <div className="flex items-center gap-4">
-                           <div className="relative h-20 w-20 rounded-full overflow-hidden bg-muted border border-border">
-                             {profileImage ? (
-                               <img src={profileImage} alt="Profile" className="h-full w-full object-cover" />
-                             ) : (
-                               <div className="h-full w-full flex items-center justify-center text-muted-foreground">
-                                 <Store className="h-8 w-8" />
-                               </div>
-                             )}
-                           </div>
-                           <div className="flex flex-col gap-2">
-                             <Label htmlFor="profile-upload" className="cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-secondary text-secondary-foreground hover:bg-secondary/80 h-9 px-4 py-2">
-                               <Upload className="mr-2 h-4 w-4" />
-                               Upload Logo
-                             </Label>
-                             <Input
-                               id="profile-upload"
-                               type="file"
-                               accept="image/*"
-                               className="hidden"
-                               onChange={handleImageUpload}
-                             />
-                             <p className="text-xs text-muted-foreground">Recommended: 200x200px</p>
-                           </div>
-                         </div>
+                        <Label>Shop Logo</Label>
+                        <div className="flex items-center gap-4">
+                          <div className="relative h-20 w-20 rounded-full overflow-hidden bg-muted border border-border">
+                            {profileImage ? (
+                              <img
+                                src={profileImage || "/placeholder.svg"}
+                                alt="Profile"
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="h-full w-full flex items-center justify-center text-muted-foreground">
+                                <Store className="h-8 w-8" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <Label
+                              htmlFor="profile-upload"
+                              className="cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-secondary text-secondary-foreground hover:bg-secondary/80 h-9 px-4 py-2"
+                            >
+                              <Upload className="mr-2 h-4 w-4" />
+                              Upload Logo
+                            </Label>
+                            <Input
+                              id="profile-upload"
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={handleImageUpload}
+                            />
+                            <p className="text-xs text-muted-foreground">Recommended: 200x200px</p>
+                          </div>
+                        </div>
                       </div>
 
                       <div className="space-y-2">
