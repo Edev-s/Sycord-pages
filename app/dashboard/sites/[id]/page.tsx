@@ -688,7 +688,7 @@ export default function SiteSettingsPage() {
       >
         {activeTab === "styles" && (
           <div className="border-b border-border/30 bg-background/50 backdrop-blur-sm">
-            <div className="container mx-auto px-5 py-2 md:px-4 md:py-4 max-w-7xl">
+            <div className="container mx-auto px-5 md:px-4 max-w-7xl">
               <div className="flex flex-col lg:flex-row gap-8 items-start">
                 {/* Left side - Preview Box */}
                 <div className="relative w-full lg:w-[400px] xl:w-[480px] h-[280px] bg-card border-2 border-border rounded-3xl overflow-hidden shadow-xl flex-shrink-0">
@@ -753,11 +753,11 @@ export default function SiteSettingsPage() {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="grid grid-cols-2 lg:flex flex-wrap gap-4 mt-4">
+                  <div className="grid grid-cols-1 gap-3 mt-4">
                     <Button
                       size="lg"
                       variant="default"
-                      className="col-span-2 lg:flex-1 min-w-[200px] h-14 rounded-2xl text-base font-medium"
+                      className="w-full h-14 rounded-2xl text-base font-medium"
                       onClick={handleDeploy}
                       disabled={isDeploying}
                     >
@@ -774,31 +774,33 @@ export default function SiteSettingsPage() {
                       )}
                     </Button>
 
-                    <Button
-                      size="lg"
-                      variant="outline"
-                      className="col-span-1 lg:flex-1 h-14 rounded-2xl text-base font-medium bg-transparent"
-                      onClick={() => previewUrl && window.open(previewUrl, "_blank")}
-                      disabled={!previewUrl}
-                    >
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      Visit Site
-                    </Button>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Button
+                        size="lg"
+                        variant="outline"
+                        className="w-full h-14 rounded-2xl text-base font-medium bg-transparent"
+                        onClick={() => previewUrl && window.open(previewUrl, "_blank")}
+                        disabled={!previewUrl}
+                      >
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        Visit Site
+                      </Button>
 
-                    <Button
-                      size="lg"
-                      variant="outline"
-                      className="col-span-1 lg:flex-1 h-14 rounded-2xl text-base font-medium bg-transparent"
-                      onClick={() => setShowDomainManager(!showDomainManager)}
-                    >
-                      <Globe className="h-4 w-4 mr-2" />
-                      Domains
-                    </Button>
+                      <Button
+                        size="lg"
+                        variant="outline"
+                        className="w-full h-14 rounded-2xl text-base font-medium bg-transparent"
+                        onClick={() => setShowDomainManager(!showDomainManager)}
+                      >
+                        <Globe className="h-4 w-4 mr-2" />
+                        Domains
+                      </Button>
+                    </div>
 
                     <Button
                       size="lg"
                       variant="secondary"
-                      className="col-span-2 lg:flex-1 h-14 rounded-2xl text-base font-medium"
+                      className="w-full h-14 rounded-2xl text-base font-medium"
                       onClick={handleSettingsUpdate}
                       disabled={isSaving}
                     >
