@@ -130,6 +130,10 @@ export default function SiteSettingsPage() {
   const [isDesktop, setIsDesktop] = useState(false)
   const { data: session } = useSession()
 
+  // Renamed to match the button name and be consistent
+  const saving = isSaving
+  const setSaving = setIsSaving
+
   useEffect(() => {
     const handleResize = () => {
       setIsDesktop(window.innerWidth >= 768)
@@ -255,43 +259,72 @@ export default function SiteSettingsPage() {
     }
   }
 
-  const handleSettingsUpdate = async () => {
+  // Combined save handler for settings and general changes
+  const handleSave = async () => {
+    setSaving(true)
     setSaveError(null)
     setSaveSuccess(false)
-    setIsSaving(true)
 
     try {
-      console.log("[v0] Sending settings to API:", settings)
-
-      const updatedSettings = {
-        ...settings,
-        shopName: shopName,
-        profileImage: profileImage || settings.profileImage,
+      // Update project details if business name changed
+      let projectUpdateNeeded = false
+      const updatedProjectData = { ...project }
+      if (project?.businessName !== shopName) {
+        updatedProjectData.businessName = shopName
+        projectUpdateNeeded = true
+      }
+      // This is simplified; a real app might handle image updates separately or via project API
+      if (profileImage && !profileImage.startsWith("http") && !profileImage.startsWith("data:image")) {
+        // Assume profileImage needs uploading if it's a file URL and not already a data URL or external URL
+        // In a real scenario, this would involve an upload API call
+        console.warn("Image upload not fully implemented in this example. Placeholder logic used.")
+        // For now, we'll just update the settings object if the image is a data URL
+        if (profileImage.startsWith("data:image")) {
+          updatedProjectData.profileImage = profileImage // Assuming project stores profile image directly
+          projectUpdateNeeded = true
+        }
       }
 
-      const response = await fetch(`/api/projects/${id}/settings`, {
+      if (projectUpdateNeeded) {
+        const projectResponse = await fetch(`/api/projects/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updatedProjectData),
+        })
+        if (!projectResponse.ok) {
+          const errorData = await projectResponse.json()
+          throw new Error(errorData.message || "Failed to update project details")
+        }
+        setProject(updatedProjectData) // Update local state
+      }
+
+      // Update settings
+      const settingsPayload = {
+        ...settings,
+        shopName: shopName, // Redundant if handled by project API, but safe
+        profileImage: profileImage || settings?.profileImage, // Redundant if handled by project API
+      }
+
+      const settingsResponse = await fetch(`/api/projects/${id}/settings`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updatedSettings),
+        body: JSON.stringify(settingsPayload),
       })
 
-      const responseData = await response.json()
+      const settingsResponseData = await settingsResponse.json()
 
-      if (!response.ok) {
-        throw new Error(responseData.message || "Failed to save settings")
+      if (!settingsResponse.ok) {
+        throw new Error(settingsResponseData.message || "Failed to save settings")
       }
 
+      setSettings(settingsPayload) // Update local state
       setSaveSuccess(true)
-      fetch(`/api/projects/${id}/settings`)
-        .then((r) => r.json())
-        .then(setSettings)
-
       setTimeout(() => setSaveSuccess(false), 3000)
     } catch (error: any) {
       setSaveError(error.message || "An error occurred while saving")
-      console.error("[v0] Settings save error:", error)
+      console.error("[v0] Save error:", error)
     } finally {
-      setIsSaving(false)
+      setSaving(false)
     }
   }
 
@@ -314,7 +347,7 @@ export default function SiteSettingsPage() {
       const response = await fetch(`/api/projects/${id}/products`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.JSON.stringify(newProduct),
+        body: JSON.stringify(newProduct), // Corrected from JSON.JSON.stringify
       })
 
       if (!response.ok) {
@@ -688,10 +721,10 @@ export default function SiteSettingsPage() {
       >
         {activeTab === "styles" && (
           <div className="bg-background/50 backdrop-blur-sm">
-            <div className="container mx-auto px-0 md:px-4 max-w-7xl">
+            <div className="container mx-auto px-2 md:px-4 max-w-7xl pt-2">
               <div className="flex flex-col lg:flex-row lg:gap-8 items-start">
                 {/* Left side - Preview Box */}
-                <div className="relative w-full lg:w-[400px] xl:w-[480px] h-[280px] bg-card border-0 md:border-2 border-border rounded-none md:rounded-3xl overflow-hidden shadow-xl flex-shrink-0">
+                <div className="relative w-full lg:w-[400px] xl:w-[480px] h-[280px] bg-card border-2 border-border rounded-2xl overflow-hidden shadow-xl flex-shrink-0">
                   {!deploymentLoading && previewUrl && (
                     <iframe
                       src={previewUrl}
@@ -722,7 +755,7 @@ export default function SiteSettingsPage() {
                 </div>
 
                 {/* Right side - Domain, Status, and Info */}
-                <div className="flex flex-col gap-4 flex-1 w-full px-4 md:px-0 py-4 md:py-0">
+                <div className="flex flex-col gap-2 flex-1 w-full px-0 md:px-0 py-2 md:py-0">
                   {/* Domain and Status */}
                   <div className="flex flex-col gap-2 min-w-0">
                     <div className="flex items-center gap-3">
@@ -757,7 +790,7 @@ export default function SiteSettingsPage() {
                     <Button
                       size="lg"
                       variant="default"
-                      className="w-full h-12 rounded-xl text-base font-medium"
+                      className="w-full h-11 rounded-xl text-base font-medium"
                       onClick={handleDeploy}
                       disabled={isDeploying}
                     >
@@ -774,11 +807,11 @@ export default function SiteSettingsPage() {
                       )}
                     </Button>
 
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-2 w-full">
                       <Button
                         size="lg"
                         variant="outline"
-                        className="w-full h-12 rounded-xl text-base font-medium bg-transparent"
+                        className="w-full h-11 rounded-xl text-base font-medium bg-transparent"
                         onClick={() => previewUrl && window.open(previewUrl, "_blank")}
                         disabled={!previewUrl}
                       >
@@ -789,7 +822,7 @@ export default function SiteSettingsPage() {
                       <Button
                         size="lg"
                         variant="outline"
-                        className="w-full h-12 rounded-xl text-base font-medium bg-transparent"
+                        className="w-full h-11 rounded-xl text-base font-medium bg-transparent"
                         onClick={() => setShowDomainManager(!showDomainManager)}
                       >
                         <Globe className="h-4 w-4 mr-2" />
@@ -800,11 +833,11 @@ export default function SiteSettingsPage() {
                     <Button
                       size="lg"
                       variant="secondary"
-                      className="w-full h-12 rounded-xl text-base font-medium"
-                      onClick={handleSettingsUpdate}
-                      disabled={isSaving}
+                      className="w-full h-11 rounded-xl text-base font-medium"
+                      onClick={handleSave}
+                      disabled={saving}
                     >
-                      {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                      {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                       Save Changes
                     </Button>
                   </div>
