@@ -659,7 +659,7 @@ export default function SiteSettingsPage() {
       />
 
       <main
-        className={`flex-1 min-h-screen pt-16 ${activeTab !== "styles" ? "md:ml-56" : ""}`}
+        className={`flex-1 min-h-screen ${activeTab !== "styles" ? "md:ml-56" : ""}`}
         onTouchStart={(e) => {
           // We only want to trigger on mobile
           if (typeof window !== "undefined" && window.innerWidth >= 768) return
@@ -687,11 +687,11 @@ export default function SiteSettingsPage() {
         }}
       >
         {activeTab === "styles" && (
-          <div className="border-b border-border/30 bg-background/50 backdrop-blur-sm">
-            <div className="container mx-auto px-5 md:px-4 max-w-7xl">
-              <div className="flex flex-col lg:flex-row gap-8 items-start">
+          <div className="bg-background/50 backdrop-blur-sm">
+            <div className="container mx-auto px-0 md:px-4 max-w-7xl">
+              <div className="flex flex-col lg:flex-row lg:gap-8 items-start">
                 {/* Left side - Preview Box */}
-                <div className="relative w-full lg:w-[400px] xl:w-[480px] h-[280px] bg-card border-2 border-border rounded-3xl overflow-hidden shadow-xl flex-shrink-0">
+                <div className="relative w-full lg:w-[400px] xl:w-[480px] h-[280px] bg-card border-0 md:border-2 border-border rounded-none md:rounded-3xl overflow-hidden shadow-xl flex-shrink-0">
                   {!deploymentLoading && previewUrl && (
                     <iframe
                       src={previewUrl}
@@ -722,9 +722,9 @@ export default function SiteSettingsPage() {
                 </div>
 
                 {/* Right side - Domain, Status, and Info */}
-                <div className="flex flex-col gap-6 flex-1">
+                <div className="flex flex-col gap-4 flex-1 w-full px-4 md:px-0 py-4 md:py-0">
                   {/* Domain and Status */}
-                  <div className="flex flex-col gap-3 min-w-0">
+                  <div className="flex flex-col gap-2 min-w-0">
                     <div className="flex items-center gap-3">
                       <h2 className="text-2xl md:text-3xl font-bold text-foreground truncate max-w-full">
                         {displayUrl || "Not deployed yet"}
@@ -753,11 +753,11 @@ export default function SiteSettingsPage() {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="grid grid-cols-1 gap-3 mt-4">
+                  <div className="flex flex-col gap-2 w-full">
                     <Button
                       size="lg"
                       variant="default"
-                      className="w-full h-14 rounded-2xl text-base font-medium"
+                      className="w-full h-12 rounded-xl text-base font-medium"
                       onClick={handleDeploy}
                       disabled={isDeploying}
                     >
@@ -774,11 +774,11 @@ export default function SiteSettingsPage() {
                       )}
                     </Button>
 
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 gap-2">
                       <Button
                         size="lg"
                         variant="outline"
-                        className="w-full h-14 rounded-2xl text-base font-medium bg-transparent"
+                        className="w-full h-12 rounded-xl text-base font-medium bg-transparent"
                         onClick={() => previewUrl && window.open(previewUrl, "_blank")}
                         disabled={!previewUrl}
                       >
@@ -789,7 +789,7 @@ export default function SiteSettingsPage() {
                       <Button
                         size="lg"
                         variant="outline"
-                        className="w-full h-14 rounded-2xl text-base font-medium bg-transparent"
+                        className="w-full h-12 rounded-xl text-base font-medium bg-transparent"
                         onClick={() => setShowDomainManager(!showDomainManager)}
                       >
                         <Globe className="h-4 w-4 mr-2" />
@@ -800,7 +800,7 @@ export default function SiteSettingsPage() {
                     <Button
                       size="lg"
                       variant="secondary"
-                      className="w-full h-14 rounded-2xl text-base font-medium"
+                      className="w-full h-12 rounded-xl text-base font-medium"
                       onClick={handleSettingsUpdate}
                       disabled={isSaving}
                     >
