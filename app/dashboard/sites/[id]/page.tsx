@@ -11,7 +11,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Switch } from "@/components/ui/switch"
 import AIWebsiteBuilder, { type GeneratedPage } from "@/components/ai-website-builder"
 import { CloudflareDeployment } from "@/components/cloudflare-deployment"
-import { ServerCard } from "@/components/server-card"
 import {
   Trash2,
   Plus,
@@ -573,27 +572,6 @@ export default function SiteSettingsPage() {
         </div>
       </header>
 
-
-      {/* Mobile Swipe Trigger Zone (Left Edge) - Always present on mobile */}
-      <div
-        className="md:hidden fixed inset-y-0 left-0 z-50 w-10"
-        onTouchStart={(e) => {
-          const startX = e.touches[0].clientX
-          const handleTouchMove = (e: TouchEvent) => {
-            if (e.touches[0].clientX - startX > 15) {
-              setIsSidebarOpen(true)
-              document.removeEventListener("touchmove", handleTouchMove)
-            }
-          }
-          document.addEventListener("touchmove", handleTouchMove)
-          document.addEventListener(
-            "touchend",
-            () => document.removeEventListener("touchmove", handleTouchMove),
-            { once: true },
-          )
-        }}
-      />
-
       <AnimatePresence>
         {(isSidebarOpen || (activeTab !== "styles" && isDesktop)) && (
           <motion.aside
@@ -621,56 +599,56 @@ export default function SiteSettingsPage() {
                 : undefined
             }
           >
-                <div className="p-6 flex flex-col h-full">
-                  <div className="flex items-center gap-2 mb-8 text-foreground">
-                    <WebsiteIcon className="h-6 w-6" />
-                    <span className="font-bold text-lg truncate">{project?.businessName || "Site Settings"}</span>
-                  </div>
+            <div className="p-6 flex flex-col h-full">
+              <div className="flex items-center gap-2 mb-8 text-foreground">
+                <WebsiteIcon className="h-6 w-6" />
+                <span className="font-bold text-lg truncate">{project?.businessName || "Site Settings"}</span>
+              </div>
 
-                  <nav className="flex-1 space-y-6 overflow-y-auto pr-2">
-                    {navGroups.map((group) => (
-                      <div key={group.title}>
-                        <h3 className="px-4 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                          {group.title}
-                        </h3>
-                        <div className="space-y-1">
-                          {group.items.map((item) => {
-                            const Icon = item.icon
-                            const isActive = activeTab === item.id
-                            return (
-                              <button
-                                key={item.id}
-                                onClick={() => {
-                                  setActiveTab(item.id as any)
-                                  setIsSidebarOpen(false)
-                                }}
-                                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 group ${
-                                  isActive
-                                    ? "bg-white/10 text-foreground shadow-sm backdrop-blur-sm"
-                                    : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
-                                }`}
-                              >
-                                <Icon className="h-4 w-4" />
-                                <span className="font-medium text-sm">{item.label}</span>
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    ))}
-                  </nav>
-
-                  <div className="mt-auto pt-6 border-t border-white/10">
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start text-muted-foreground hover:text-foreground hover:bg-white/5 gap-3 px-4"
-                      onClick={() => router.push("/dashboard")}
-                    >
-                      <ArrowLeft className="h-5 w-5" />
-                      <span className="font-medium text-sm">Back to Dashboard</span>
-                    </Button>
+              <nav className="flex-1 space-y-6 overflow-y-auto pr-2">
+                {navGroups.map((group) => (
+                  <div key={group.title}>
+                    <h3 className="px-4 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      {group.title}
+                    </h3>
+                    <div className="space-y-1">
+                      {group.items.map((item) => {
+                        const Icon = item.icon
+                        const isActive = activeTab === item.id
+                        return (
+                          <button
+                            key={item.id}
+                            onClick={() => {
+                              setActiveTab(item.id as any)
+                              setIsSidebarOpen(false)
+                            }}
+                            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 group ${
+                              isActive
+                                ? "bg-white/10 text-foreground shadow-sm backdrop-blur-sm"
+                                : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                            }`}
+                          >
+                            <Icon className="h-4 w-4" />
+                            <span className="font-medium text-sm">{item.label}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
                   </div>
-                </div>
+                ))}
+              </nav>
+
+              <div className="mt-auto pt-6 border-t border-white/10">
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start text-muted-foreground hover:text-foreground hover:bg-white/5 gap-3 px-4"
+                  onClick={() => router.push("/dashboard")}
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                  <span className="font-medium text-sm">Back to Dashboard</span>
+                </Button>
+              </div>
+            </div>
           </motion.aside>
         )}
       </AnimatePresence>
@@ -683,7 +661,45 @@ export default function SiteSettingsPage() {
         />
       )}
 
-      <main className={`flex-1 min-h-screen pt-16 ${activeTab !== "styles" ? "md:ml-56" : ""}`}>
+      {/* Global Swipe Handler for Mobile */}
+      <div
+        className="md:hidden fixed inset-0 z-0 pointer-events-auto"
+        onTouchStart={(e) => {
+          // Placeholder for visual clarity if needed, but logic is on main
+        }}
+        style={{ display: 'none' }}
+      />
+
+      <main
+        className={`flex-1 min-h-screen pt-16 ${activeTab !== "styles" ? "md:ml-56" : ""}`}
+        onTouchStart={(e) => {
+           // We only want to trigger on mobile
+           if (typeof window !== 'undefined' && window.innerWidth >= 768) return
+
+           const startX = e.touches[0].clientX
+           const startY = e.touches[0].clientY
+
+           const handleTouchMove = (e: TouchEvent) => {
+             const diffX = e.touches[0].clientX - startX
+             const diffY = e.touches[0].clientY - startY
+
+             // Check for swipe right (open menu)
+             // Threshold > 50px horizontal, < 30px vertical drift
+             // Only if starting near edge? No, user said "anywhere".
+             if (diffX > 50 && Math.abs(diffY) < 30) {
+               setIsSidebarOpen(true)
+               document.removeEventListener("touchmove", handleTouchMove)
+             }
+           }
+
+           document.addEventListener("touchmove", handleTouchMove)
+           document.addEventListener(
+             "touchend",
+             () => document.removeEventListener("touchmove", handleTouchMove),
+             { once: true }
+           )
+        }}
+      >
         {activeTab === "styles" && (
           <div className="border-b border-border/30 bg-background/50 backdrop-blur-sm">
             <div className="container mx-auto px-5 py-4 md:px-4 md:py-8 max-w-7xl">
@@ -722,9 +738,9 @@ export default function SiteSettingsPage() {
                 {/* Right side - Domain, Status, and Info */}
                 <div className="flex flex-col gap-6 flex-1">
                   {/* Domain and Status */}
-                  <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-3 min-w-0">
                     <div className="flex items-center gap-3">
-                      <h2 className="text-2xl md:text-3xl font-bold text-foreground">
+                      <h2 className="text-2xl md:text-3xl font-bold text-foreground truncate max-w-full">
                         {previewUrl || "Not deployed yet"}
                       </h2>
                       <div
@@ -733,10 +749,10 @@ export default function SiteSettingsPage() {
                     </div>
 
                     {/* Branch and Date */}
-                    <div className="flex items-center gap-2 text-muted-foreground">
+                    <div className="flex items-center gap-2 text-muted-foreground min-w-0">
                       <span className="text-sm font-medium">main</span>
                       <span className="text-sm">•</span>
-                      <span className="text-sm">
+                      <span className="text-sm truncate">
                         {project?.cloudflareDeployedAt
                           ? new Date(project.cloudflareDeployedAt).toLocaleDateString("en-US", {
                               month: "short",
