@@ -80,9 +80,77 @@ const productComponents = {
 
 const paymentOptions = [
   { id: "stripe", name: "Stripe", description: "Credit cards and digital wallets" },
-  { id: "paypal", name: "PayPal", name: "PayPal payments" },
+  { id: "paypal", name: "PayPal", description: "PayPal payments" },
   { id: "bank", name: "Bank Transfer", description: "Direct bank transfers" },
 ]
+
+// Extract SidebarContent to a separate component to avoid re-renders
+const SidebarContent = ({
+  project,
+  activeTab,
+  setActiveTab,
+  setIsSidebarOpen,
+  navGroups,
+  router,
+  getWebsiteIcon
+}: any) => {
+  const WebsiteIcon = getWebsiteIcon()
+
+  return (
+    <div className="flex flex-col h-full p-4">
+      <div className="flex items-center gap-3 mb-8 px-2 text-foreground">
+        <div className="p-2 rounded-lg bg-primary/10 flex-shrink-0">
+          <WebsiteIcon className="h-5 w-5 text-primary" />
+        </div>
+        <span className="font-bold text-lg truncate">{project?.businessName || "Site Settings"}</span>
+      </div>
+
+      <nav className="flex-1 space-y-6 overflow-y-auto pr-2 custom-scrollbar">
+        {navGroups.map((group: any) => (
+          <div key={group.title}>
+            <h3 className="px-3 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              {group.title}
+            </h3>
+            <div className="space-y-1">
+              {group.items.map((item: any) => {
+                const Icon = item.icon
+                const isActive = activeTab === item.id
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setActiveTab(item.id)
+                      setIsSidebarOpen(false)
+                    }}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group text-sm ${
+                      isActive
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4 flex-shrink-0" />
+                    <span className="font-medium truncate">{item.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        ))}
+      </nav>
+
+      <div className="mt-auto pt-4 border-t border-white/10">
+        <Button
+          variant="ghost"
+          className="w-full justify-start text-muted-foreground hover:text-foreground hover:bg-white/5 gap-3 px-3"
+          onClick={() => router.push("/dashboard")}
+        >
+          <ArrowLeft className="h-5 w-5" />
+          <span className="font-medium text-sm">Back to Dashboard</span>
+        </Button>
+      </div>
+    </div>
+  )
+}
 
 export default function SiteSettingsPage() {
   const params = useParams()
@@ -273,14 +341,11 @@ export default function SiteSettingsPage() {
         updatedProjectData.businessName = shopName
         projectUpdateNeeded = true
       }
-      // This is simplified; a real app might handle image updates separately or via project API
+
       if (profileImage && !profileImage.startsWith("http") && !profileImage.startsWith("data:image")) {
-        // Assume profileImage needs uploading if it's a file URL and not already a data URL or external URL
-        // In a real scenario, this would involve an upload API call
         console.warn("Image upload not fully implemented in this example. Placeholder logic used.")
-        // For now, we'll just update the settings object if the image is a data URL
         if (profileImage.startsWith("data:image")) {
-          updatedProjectData.profileImage = profileImage // Assuming project stores profile image directly
+          updatedProjectData.profileImage = profileImage
           projectUpdateNeeded = true
         }
       }
@@ -301,8 +366,8 @@ export default function SiteSettingsPage() {
       // Update settings
       const settingsPayload = {
         ...settings,
-        shopName: shopName, // Redundant if handled by project API, but safe
-        profileImage: profileImage || settings?.profileImage, // Redundant if handled by project API
+        shopName: shopName,
+        profileImage: profileImage || settings?.profileImage,
       }
 
       const settingsResponse = await fetch(`/api/projects/${id}/settings`, {
@@ -347,7 +412,7 @@ export default function SiteSettingsPage() {
       const response = await fetch(`/api/projects/${id}/products`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newProduct), // Corrected from JSON.JSON.stringify
+        body: JSON.stringify(newProduct),
       })
 
       if (!response.ok) {
@@ -451,7 +516,6 @@ export default function SiteSettingsPage() {
   }
 
   const subdomain = (project.businessName || "").toLowerCase().replace(/\s+/g, "-")
-  // Prefer the deployed Cloudflare URL if available, otherwise fallback to subdomain or placeholder
   const siteUrl = project.cloudflareUrl || `https://${subdomain}.ltpd.xyz`
 
   const getWebsiteIcon = () => {
@@ -467,15 +531,6 @@ export default function SiteSettingsPage() {
         return Package
     }
   }
-
-  const WebsiteIcon = getWebsiteIcon()
-
-  const pages = [
-    { id: "landing", name: "Landing" },
-    { id: "shop", name: "Shop" },
-    { id: "about", name: "About" },
-    { id: "contact", name: "Contact" },
-  ]
 
   const navGroups = [
     {
@@ -515,816 +570,651 @@ export default function SiteSettingsPage() {
       .join("")
       .toUpperCase() || "U"
 
-  // Construct preview URL safely - Prioritize Cloudflare Worker URL
   const previewUrl =
     project?.cloudflareUrl || deployment?.cloudflareUrl || (deployment?.domain ? `https://${deployment.domain}` : null)
-  // Construct preview URL safely - Prioritize Cloudflare Worker URL
   const displayUrl = previewUrl ? previewUrl.replace(/^https?:\/\//, "") : null
 
   return (
-    <div className="min-h-screen bg-background relative">
-      <header className="border-b border-border sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-4 md:gap-8">
-            {/* Mobile Back Button */}
-            <Button variant="ghost" size="icon" onClick={() => router.push("/dashboard")} className="md:hidden">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <button
-              onClick={() => router.push("/dashboard")}
-              className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-            >
-              <Image src="/logo.png" alt="Logo" width={32} height={32} />
-              <span className="text-xl font-semibold text-foreground">Sycord</span>
-            </button>
+    <div className="flex h-screen bg-background overflow-hidden">
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:flex flex-col w-64 border-r border-white/10 bg-black/40 backdrop-blur-xl shrink-0">
+        <SidebarContent
+          project={project}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          setIsSidebarOpen={setIsSidebarOpen}
+          navGroups={navGroups}
+          router={router}
+          getWebsiteIcon={getWebsiteIcon}
+        />
+      </aside>
+
+      {/* Main Content Wrapper */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Header */}
+        <header className="border-b border-white/10 bg-background/50 backdrop-blur-sm z-20 shrink-0">
+          <div className="flex items-center justify-between h-16 px-4 md:px-6">
+             {/* Mobile Menu Trigger */}
+             <div className="flex items-center gap-3 md:hidden">
+              <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(true)} className="-ml-2">
+                <Menu className="h-5 w-5" />
+              </Button>
+              <span className="font-semibold text-lg truncate max-w-[150px]">{project?.businessName}</span>
+            </div>
+
+            {/* Desktop Breadcrumbs/Title */}
             <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
+              <button onClick={() => router.push("/dashboard")} className="hover:text-foreground transition-colors">Dashboard</button>
               <span>/</span>
-              <span className="font-medium text-foreground">{project?.businessName || "Settings"}</span>
+              <span className="text-foreground font-medium">{project?.businessName}</span>
+              <span>/</span>
+              <span className="capitalize text-foreground">{activeTab.replace("-", " ")}</span>
+            </div>
+
+            {/* Right Actions */}
+            <div className="flex items-center gap-3 ml-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                className="hidden md:flex bg-white/5 border-white/10 hover:bg-white/10"
+                onClick={() => previewUrl && window.open(previewUrl, "_blank")}
+                disabled={!previewUrl}
+              >
+                 <ExternalLink className="h-4 w-4 mr-2" />
+                 Visit Site
+              </Button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-9 w-9 rounded-full p-0 ring-offset-background transition-all hover:ring-2 hover:ring-ring hover:ring-offset-2">
+                    <Avatar className="h-9 w-9">
+                      <AvatarImage src={session?.user?.image || ""} alt={session?.user?.name || ""} />
+                      <AvatarFallback className="bg-primary text-primary-foreground">{userInitials}</AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">{session?.user?.name}</p>
+                      <p className="text-xs leading-none text-muted-foreground">{session?.user?.email}</p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => router.push("/profile")}>
+                    <User className="mr-2 h-4 w-4" />
+                    <span>Profile</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => signOut({ callbackUrl: "/" })}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Log out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
-          <div className="flex items-center gap-2 md:gap-3">
-            {/* Mobile Menu Toggle */}
-            <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="md:hidden">
-              {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </Button>
+        </header>
 
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.push("/dashboard")}
-              className="hidden md:flex items-center gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back to Dashboard
-            </Button>
+        {/* Scrollable Main Content */}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 lg:p-8 custom-scrollbar">
+          <div className="mx-auto max-w-6xl space-y-8 pb-10">
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0">
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={session?.user?.image || ""} alt={session?.user?.name || ""} />
-                    <AvatarFallback className="bg-primary text-primary-foreground">{userInitials}</AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{session?.user?.name}</p>
-                    <p className="text-xs leading-none text-muted-foreground">{session?.user?.email}</p>
+            {/* Mobile Sidebar (Drawer) */}
+            <AnimatePresence>
+              {isSidebarOpen && (
+                <>
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40 md:hidden"
+                    onClick={() => setIsSidebarOpen(false)}
+                  />
+                  <motion.aside
+                    initial={{ x: "-100%" }}
+                    animate={{ x: 0 }}
+                    exit={{ x: "-100%" }}
+                    transition={{ type: "spring", bounce: 0, duration: 0.3 }}
+                    className="fixed inset-y-0 left-0 z-50 w-64 bg-background border-r border-border md:hidden"
+                  >
+                    <SidebarContent
+                      project={project}
+                      activeTab={activeTab}
+                      setActiveTab={setActiveTab}
+                      setIsSidebarOpen={setIsSidebarOpen}
+                      navGroups={navGroups}
+                      router={router}
+                      getWebsiteIcon={getWebsiteIcon}
+                    />
+                  </motion.aside>
+                </>
+              )}
+            </AnimatePresence>
+
+            {/* TAB CONTENT: STYLES (OVERVIEW) */}
+            {activeTab === "styles" && (
+              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                {/* Deployment & Preview Section */}
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                  {/* Left: Preview */}
+                  <div className="xl:col-span-2 space-y-4">
+                     <div className="flex items-center justify-between">
+                       <h2 className="text-xl font-semibold">Live Preview</h2>
+                       <div className="flex items-center gap-2">
+                          <span className={`h-2.5 w-2.5 rounded-full ${previewUrl ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-gray-500'}`} />
+                          <span className="text-sm text-muted-foreground">{previewUrl ? 'Live' : 'Offline'}</span>
+                       </div>
+                     </div>
+
+                     <div className="relative aspect-video w-full bg-black/20 rounded-xl border border-white/10 overflow-hidden shadow-2xl">
+                        {!deploymentLoading && previewUrl ? (
+                          <iframe
+                            src={previewUrl}
+                            className="w-full h-full border-0"
+                            title="Live Preview"
+                          />
+                        ) : (
+                           <div className="flex items-center justify-center w-full h-full">
+                             {deploymentLoading ? (
+                               <div className="flex flex-col items-center">
+                                  <Loader2 className="h-8 w-8 animate-spin mb-2 text-primary" />
+                                  <p className="text-sm text-muted-foreground">Loading preview...</p>
+                               </div>
+                             ) : (
+                                <div className="text-center">
+                                  <AlertCircle className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
+                                  <p className="text-sm text-muted-foreground">No preview available</p>
+                                </div>
+                             )}
+                           </div>
+                        )}
+                     </div>
                   </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <User className="mr-2 h-4 w-4" />
-                  <span>Profil</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Beállítások</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => signOut({ callbackUrl: "/" })}
-                  className="text-destructive focus:text-destructive"
-                >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Kijelentkezés</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-      </header>
 
-      <AnimatePresence>
-        {(isSidebarOpen || (activeTab !== "styles" && isDesktop)) && (
-          <motion.aside
-            initial={{ x: "-100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "-100%" }}
-            transition={{ type: "spring", stiffness: 200, damping: 25 }}
-            drag="x"
-            dragConstraints={{ left: -300, right: 0 }}
-            dragElastic={0.2}
-            onDragEnd={(e, info) => {
-              if (info.offset.x < -100) {
-                setIsSidebarOpen(false)
-              }
-            }}
-            className={`fixed inset-y-0 left-0 z-40 w-56 backdrop-blur-xl bg-black/40 border-r border-white/10 flex flex-col md:translate-x-0 ${
-              // On desktop, we want it always visible (or controlled by other means if collapsible)
-              // The motion.aside handles the animation, but we need to ensure CSS doesn't hide it on desktop
-              ""
-            }`}
-            // Override framer motion styles for desktop to ensure it's always visible
-            style={activeTab !== "styles" && isDesktop ? { transform: "none" } : undefined}
-          >
-            <div className="p-6 flex flex-col h-full">
-              <div className="flex items-center gap-2 mb-8 text-foreground">
-                <WebsiteIcon className="h-6 w-6" />
-                <span className="font-bold text-lg truncate">{project?.businessName || "Site Settings"}</span>
-              </div>
+                  {/* Right: Actions */}
+                  <div className="xl:col-span-1 flex flex-col gap-4">
+                     <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-lg flex-1">
+                       <CardHeader>
+                         <CardTitle>Deployment</CardTitle>
+                         <CardDescription>Manage your live website</CardDescription>
+                       </CardHeader>
+                       <CardContent className="space-y-4">
+                         <div className="p-3 rounded-lg bg-black/20 border border-white/5">
+                           <p className="text-xs text-muted-foreground mb-1">Public URL</p>
+                           <a
+                            href={previewUrl || '#'}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm font-medium text-primary hover:underline truncate block"
+                           >
+                             {displayUrl || 'Not deployed yet'}
+                           </a>
+                         </div>
 
-              <nav className="flex-1 space-y-6 overflow-y-auto pr-2">
-                {navGroups.map((group) => (
-                  <div key={group.title}>
-                    <h3 className="px-4 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      {group.title}
-                    </h3>
-                    <div className="space-y-1">
-                      {group.items.map((item) => {
-                        const Icon = item.icon
-                        const isActive = activeTab === item.id
+                         <div className="grid grid-cols-2 gap-3">
+                           <div className="p-3 rounded-lg bg-black/20 border border-white/5 text-center">
+                              <p className="text-xs text-muted-foreground mb-1">Last Deploy</p>
+                              <p className="text-sm font-medium">
+                                {project?.cloudflareDeployedAt
+                                  ? new Date(project.cloudflareDeployedAt).toLocaleDateString()
+                                  : "-"}
+                              </p>
+                           </div>
+                           <div className="p-3 rounded-lg bg-black/20 border border-white/5 text-center">
+                              <p className="text-xs text-muted-foreground mb-1">Status</p>
+                              <p className="text-sm font-medium text-green-400">Active</p>
+                           </div>
+                         </div>
+
+                         <Button
+                           size="lg"
+                           className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary"
+                           onClick={handleDeploy}
+                           disabled={isDeploying}
+                         >
+                            {isDeploying ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <Rocket className="h-4 w-4 mr-2" />
+                            )}
+                            {isDeploying ? "Deploying..." : "Deploy to Live"}
+                         </Button>
+
+                         <div className="grid grid-cols-2 gap-2">
+                            <Button variant="outline" className="bg-transparent border-white/10" onClick={handleSave} disabled={saving}>
+                              {saving ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Save className="h-3 w-3 mr-2" />}
+                              Save
+                            </Button>
+                            <Button variant="outline" className="bg-transparent border-white/10" onClick={() => setShowDomainManager(!showDomainManager)}>
+                              <Globe className="h-3 w-3 mr-2" />
+                              Domains
+                            </Button>
+                         </div>
+                       </CardContent>
+                     </Card>
+                  </div>
+                </div>
+
+                {showDomainManager && (
+                  <div className="animate-in fade-in slide-in-from-top-4">
+                    <CloudflareDomainManager projectId={id} />
+                  </div>
+                )}
+
+                {/* Configuration Tabs */}
+                <div className="flex flex-col gap-6">
+                   <div className="flex items-center gap-2 border-b border-white/10 overflow-x-auto">
+                      {subTabs.map((tab) => {
+                        const Icon = tab.icon
                         return (
                           <button
-                            key={item.id}
-                            onClick={() => {
-                              setActiveTab(item.id as any)
-                              setIsSidebarOpen(false)
-                            }}
-                            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 group ${
-                              isActive
-                                ? "bg-white/10 text-foreground shadow-sm backdrop-blur-sm"
-                                : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                            key={tab.id}
+                            onClick={() => setActiveSubTab(tab.id as any)}
+                            className={`flex items-center gap-2 px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                              activeSubTab === tab.id
+                                ? "border-primary text-primary"
+                                : "border-transparent text-muted-foreground hover:text-foreground hover:bg-white/5"
                             }`}
                           >
                             <Icon className="h-4 w-4" />
-                            <span className="font-medium text-sm">{item.label}</span>
+                            {tab.label}
                           </button>
                         )
                       })}
+                   </div>
+
+                   {/* Settings Sub-Tab Content */}
+                   {activeSubTab === "settings" && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-2">
+                       <Card className="bg-white/5 backdrop-blur-md border-white/10">
+                          <CardHeader>
+                            <CardTitle>Branding</CardTitle>
+                            <CardDescription>Logo and store name configuration</CardDescription>
+                          </CardHeader>
+                          <CardContent className="space-y-6">
+                             <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-white/10 rounded-xl bg-black/20">
+                                <div className="relative h-24 w-24 rounded-full overflow-hidden bg-muted mb-4 ring-4 ring-black/40">
+                                  {profileImage ? (
+                                    <img src={profileImage} alt="Profile" className="h-full w-full object-cover" />
+                                  ) : (
+                                    <div className="h-full w-full flex items-center justify-center text-muted-foreground bg-white/5">
+                                      <Store className="h-10 w-10 opacity-50" />
+                                    </div>
+                                  )}
+                                </div>
+                                <Label
+                                  htmlFor="profile-upload"
+                                  className="cursor-pointer inline-flex items-center justify-center rounded-md text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 h-8 px-4 py-2"
+                                >
+                                  <Upload className="mr-2 h-3 w-3" />
+                                  Upload New Logo
+                                </Label>
+                                <Input id="profile-upload" type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                             </div>
+
+                             <div className="space-y-2">
+                               <Label>Store Name</Label>
+                               <Input
+                                 value={shopName}
+                                 onChange={(e) => setShopName(e.target.value)}
+                                 className="bg-black/20 border-white/10"
+                               />
+                             </div>
+                          </CardContent>
+                       </Card>
+
+                       <Card className="bg-white/5 backdrop-blur-md border-white/10">
+                          <CardHeader>
+                            <CardTitle>Preferences</CardTitle>
+                            <CardDescription>General store settings</CardDescription>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                             <div className="space-y-2">
+                                <Label>Currency</Label>
+                                <div className="p-3 rounded-md bg-black/20 border border-white/10 text-sm text-muted-foreground">
+                                   USD ($) - Default
+                                </div>
+                             </div>
+                             <div className="space-y-2">
+                                <Label>Language</Label>
+                                <div className="p-3 rounded-md bg-black/20 border border-white/10 text-sm text-muted-foreground">
+                                   English (US)
+                                </div>
+                             </div>
+                          </CardContent>
+                       </Card>
                     </div>
-                  </div>
-                ))}
-              </nav>
+                   )}
 
-              <div className="mt-auto pt-6 border-t border-white/10">
-                <Button
-                  variant="ghost"
-                  className="w-full justify-start text-muted-foreground hover:text-foreground hover:bg-white/5 gap-3 px-4"
-                  onClick={() => router.push("/dashboard")}
-                >
-                  <ArrowLeft className="h-5 w-5" />
-                  <span className="font-medium text-sm">Back to Dashboard</span>
-                </Button>
-              </div>
-            </div>
-          </motion.aside>
-        )}
-      </AnimatePresence>
-
-      {/* Overlay for mobile */}
-      {isSidebarOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/50 backdrop-blur-sm md:hidden"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
-
-      {/* Global Swipe Handler for Mobile */}
-      <div
-        className="md:hidden fixed inset-0 z-0 pointer-events-auto"
-        onTouchStart={(e) => {
-          // Placeholder for visual clarity if needed, but logic is on main
-        }}
-        style={{ display: "none" }}
-      />
-
-      <main
-        className={`flex-1 min-h-screen ${activeTab !== "styles" ? "md:ml-56" : ""}`}
-        onTouchStart={(e) => {
-          // We only want to trigger on mobile
-          if (typeof window !== "undefined" && window.innerWidth >= 768) return
-
-          const startX = e.touches[0].clientX
-          const startY = e.touches[0].clientY
-
-          const handleTouchMove = (e: TouchEvent) => {
-            const diffX = e.touches[0].clientX - startX
-            const diffY = e.touches[0].clientY - startY
-
-            // Check for swipe right (open menu)
-            // Threshold > 50px horizontal, < 30px vertical drift
-            // Only if starting near edge? No, user said "anywhere".
-            if (diffX > 50 && Math.abs(diffY) < 30) {
-              setIsSidebarOpen(true)
-              document.removeEventListener("touchmove", handleTouchMove)
-            }
-          }
-
-          document.addEventListener("touchmove", handleTouchMove)
-          document.addEventListener("touchend", () => document.removeEventListener("touchmove", handleTouchMove), {
-            once: true,
-          })
-        }}
-      >
-        {activeTab === "styles" && (
-          <div className="bg-background/50 backdrop-blur-sm">
-            <div className="container mx-auto px-2 md:px-4 max-w-7xl pt-2">
-              <div className="flex flex-col lg:flex-row lg:gap-8 items-start">
-                {/* Left side - Preview Box */}
-                <div className="relative w-full lg:w-[400px] xl:w-[480px] h-[280px] bg-card border-2 border-border rounded-2xl overflow-hidden shadow-xl flex-shrink-0">
-                  {!deploymentLoading && previewUrl && (
-                    <iframe
-                      src={previewUrl}
-                      className="w-full h-full border-0"
-                      title="Live Preview"
-                      sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals allow-presentation"
-                    />
-                  )}
-
-                  {deploymentLoading && (
-                    <div className="flex items-center justify-center w-full h-full bg-background">
-                      <div className="text-center">
-                        <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-foreground" />
-                        <p className="text-sm text-muted-foreground">Loading preview...</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {!previewUrl && !deploymentLoading && (
-                    <div className="flex items-center justify-center w-full h-full bg-background">
-                      <div className="text-center px-4">
-                        <AlertCircle className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                        <p className="text-sm text-muted-foreground">Preview not available</p>
-                        <p className="text-xs text-muted-foreground mt-1">Deploy your website first</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Right side - Domain, Status, and Info */}
-                <div className="flex flex-col gap-2 flex-1 w-full px-0 md:px-0 py-2 md:py-0">
-                  {/* Domain and Status */}
-                  <div className="flex flex-col gap-2 min-w-0">
-                    <div className="flex items-center gap-3">
-                      <h2 className="text-2xl md:text-3xl font-bold text-foreground truncate max-w-full">
-                        {displayUrl || "Not deployed yet"}
-                      </h2>
-                      <div
-                        className={`w-3 h-3 rounded-full flex-shrink-0 ${previewUrl ? "bg-green-500" : "bg-gray-400"}`}
-                      />
-                    </div>
-
-                    {/* Branch and Date */}
-                    <div className="flex items-center gap-2 text-muted-foreground min-w-0">
-                      <span className="text-sm font-medium">main</span>
-                      <span className="text-sm">•</span>
-                      <span className="text-sm truncate">
-                        {project?.cloudflareDeployedAt
-                          ? new Date(project.cloudflareDeployedAt)
-                              .toLocaleDateString("en-US", {
-                                month: "short",
-                                day: "numeric",
-                                year: "numeric",
-                              })
-                              .toLowerCase()
-                          : "Not deployed"}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="flex flex-col gap-2 w-full">
-                    <Button
-                      size="lg"
-                      variant="default"
-                      className="w-full h-11 rounded-xl text-base font-medium"
-                      onClick={handleDeploy}
-                      disabled={isDeploying}
-                    >
-                      {isDeploying ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Deploying...
-                        </>
-                      ) : (
-                        <>
-                          <Rocket className="h-4 w-4 mr-2" />
-                          Deploy Now
-                        </>
-                      )}
-                    </Button>
-
-                    <div className="grid grid-cols-2 gap-2 w-full">
-                      <Button
-                        size="lg"
-                        variant="outline"
-                        className="w-full h-11 rounded-xl text-base font-medium bg-transparent"
-                        onClick={() => previewUrl && window.open(previewUrl, "_blank")}
-                        disabled={!previewUrl}
-                      >
-                        <ExternalLink className="h-4 w-4 mr-2" />
-                        Visit Site
-                      </Button>
-
-                      <Button
-                        size="lg"
-                        variant="outline"
-                        className="w-full h-11 rounded-xl text-base font-medium bg-transparent"
-                        onClick={() => setShowDomainManager(!showDomainManager)}
-                      >
-                        <Globe className="h-4 w-4 mr-2" />
-                        Domains
-                      </Button>
-                    </div>
-
-                    <Button
-                      size="lg"
-                      variant="secondary"
-                      className="w-full h-11 rounded-xl text-base font-medium"
-                      onClick={handleSave}
-                      disabled={saving}
-                    >
-                      {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                      Save Changes
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="container mx-auto px-4 py-8 max-w-7xl flex-1">
-          {activeTab === "styles" && (
-            <div className="space-y-6">
-              {showDomainManager && (
-                <div className="animate-in fade-in slide-in-from-top-4 mb-6">
-                  <CloudflareDomainManager projectId={id} />
-                </div>
-              )}
-
-              {/* Sub-tabs Navigation */}
-              <div className="flex border-b border-border/50">
-                {subTabs.map((tab) => {
-                  const Icon = tab.icon
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveSubTab(tab.id as any)}
-                      className={`flex items-center gap-2 px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-                        activeSubTab === tab.id
-                          ? "border-primary text-primary"
-                          : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                      }`}
-                    >
-                      <Icon className="h-4 w-4" />
-                      {tab.label}
-                    </button>
-                  )
-                })}
-              </div>
-
-              {/* Settings Sub-tab */}
-              {activeSubTab === "settings" && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  <Card className="bg-white/5 backdrop-blur-lg border-white/10">
-                    <CardHeader>
-                      <CardTitle>General Information</CardTitle>
-                      <CardDescription>Update your shop's basic details</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="flex flex-col items-center sm:items-start gap-4 mb-6">
-                        <Label>Shop Logo</Label>
-                        <div className="flex items-center gap-4">
-                          <div className="relative h-20 w-20 rounded-full overflow-hidden bg-muted border border-border">
-                            {profileImage ? (
-                              <img
-                                src={profileImage || "/placeholder.svg"}
-                                alt="Profile"
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <div className="h-full w-full flex items-center justify-center text-muted-foreground">
-                                <Store className="h-8 w-8" />
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex flex-col gap-2">
-                            <Label
-                              htmlFor="profile-upload"
-                              className="cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-secondary text-secondary-foreground hover:bg-secondary/80 h-9 px-4 py-2"
+                   {/* Store Sub-Tab Content */}
+                   {activeSubTab === "store" && (
+                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+                       <h3 className="text-lg font-medium">Product Listing Layout</h3>
+                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          {Object.entries(productComponents).map(([key, comp]) => (
+                            <div
+                              key={key}
+                              onClick={() => handleComponentSelect("productComponent", key)}
+                              className={`cursor-pointer rounded-xl border-2 p-4 text-center transition-all ${
+                                settings?.productComponent === key
+                                  ? "border-primary bg-primary/10 ring-1 ring-primary"
+                                  : "border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20"
+                              }`}
                             >
-                              <Upload className="mr-2 h-4 w-4" />
-                              Upload Logo
-                            </Label>
-                            <Input
-                              id="profile-upload"
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={handleImageUpload}
-                            />
-                            <p className="text-xs text-muted-foreground">Recommended: 200x200px</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Shop Name</Label>
-                        <Input
-                          value={shopName}
-                          onChange={(e) => setShopName(e.target.value)}
-                          placeholder="My Awesome Shop"
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-
-              {/* Store Sub-tab */}
-              {activeSubTab === "store" && (
-                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  <div>
-                    <h3 className="text-lg font-medium mb-4">Product Layout</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {Object.entries(productComponents).map(([key, comp]) => (
-                        <div
-                          key={key}
-                          onClick={() => handleComponentSelect("productComponent", key)}
-                          className={`cursor-pointer rounded-lg border-2 p-4 text-center transition-all ${
-                            settings?.productComponent === key
-                              ? "border-primary bg-primary/5 ring-1 ring-primary"
-                              : "border-white/10 bg-white/5 hover:bg-white/10 shadow-sm"
-                          }`}
-                        >
-                          <div className="mb-3 h-20 bg-black/20 rounded flex items-center justify-center">
-                            {/* Placeholder visual */}
-                            <div className="w-12 h-12 bg-black/30 rounded grid grid-cols-2 gap-1 p-1">
-                              <div className="bg-white/10 rounded" />
-                              <div className="bg-white/10 rounded" />
-                              <div className="bg-white/10 rounded" />
-                              <div className="bg-white/10 rounded" />
+                              <div className="mb-3 h-24 bg-black/20 rounded-lg flex items-center justify-center border border-white/5">
+                                 {/* Simple visual representation */}
+                                 {key === 'grid' && <div className="grid grid-cols-2 gap-1 w-12"><div className="h-5 bg-white/20 rounded"/><div className="h-5 bg-white/20 rounded"/><div className="h-5 bg-white/20 rounded"/><div className="h-5 bg-white/20 rounded"/></div>}
+                                 {key === 'list' && <div className="flex flex-col gap-1 w-12"><div className="h-2 bg-white/20 rounded w-full"/><div className="h-2 bg-white/20 rounded w-full"/><div className="h-2 bg-white/20 rounded w-full"/></div>}
+                                 {key === 'masonry' && <div className="flex gap-1 w-12 h-10 items-start"><div className="w-1/2 bg-white/20 rounded h-full"/><div className="w-1/2 bg-white/20 rounded h-1/2"/></div>}
+                                 {key === 'carousel' && <div className="flex gap-1 w-12 overflow-hidden"><div className="h-8 w-8 shrink-0 bg-white/20 rounded"/><div className="h-8 w-8 shrink-0 bg-white/20 rounded"/></div>}
+                              </div>
+                              <p className="font-medium text-sm">{comp.name}</p>
                             </div>
-                          </div>
-                          <p className="font-medium text-sm">{comp.name}</p>
-                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{comp.description}</p>
-                        </div>
-                      ))}
+                          ))}
+                       </div>
                     </div>
-                  </div>
+                   )}
+
+                   {/* Pages Sub-Tab Content */}
+                   {activeSubTab === "pages" && (
+                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
+                       <Card className="bg-transparent border-none shadow-none">
+                         <CardHeader className="px-0 pt-0">
+                           <CardTitle>Header Style</CardTitle>
+                         </CardHeader>
+                         <CardContent className="px-0">
+                           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                              {Object.entries(headerComponents).map(([key, comp]) => (
+                                <div
+                                  key={key}
+                                  onClick={() => handleComponentSelect("headerComponent", key)}
+                                  className={`cursor-pointer rounded-xl border-2 p-4 transition-all ${
+                                    settings?.headerComponent === key
+                                      ? "border-primary bg-primary/10 ring-1 ring-primary"
+                                      : "border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20"
+                                  }`}
+                                >
+                                  <p className="font-medium text-sm mb-1">{comp.name}</p>
+                                  <p className="text-xs text-muted-foreground line-clamp-2">{comp.description}</p>
+                                </div>
+                              ))}
+                           </div>
+                         </CardContent>
+                       </Card>
+
+                       <Card className="bg-transparent border-none shadow-none">
+                         <CardHeader className="px-0 pt-0">
+                           <CardTitle>Hero Section</CardTitle>
+                         </CardHeader>
+                         <CardContent className="px-0">
+                           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                              {Object.entries(heroComponents).map(([key, comp]) => (
+                                <div
+                                  key={key}
+                                  onClick={() => handleComponentSelect("heroComponent", key)}
+                                  className={`cursor-pointer rounded-xl border-2 p-4 transition-all ${
+                                    settings?.heroComponent === key
+                                      ? "border-primary bg-primary/10 ring-1 ring-primary"
+                                      : "border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20"
+                                  }`}
+                                >
+                                  <p className="font-medium text-sm mb-1">{comp.name}</p>
+                                  <p className="text-xs text-muted-foreground line-clamp-2">{comp.description}</p>
+                                </div>
+                              ))}
+                           </div>
+                         </CardContent>
+                       </Card>
+                    </div>
+                   )}
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* Pages Sub-tab */}
-              {activeSubTab === "pages" && (
-                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  <div>
-                    <h3 className="text-lg font-medium mb-4">Header Style</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                      {Object.entries(headerComponents).map(([key, comp]) => (
-                        <div
-                          key={key}
-                          onClick={() => handleComponentSelect("headerComponent", key)}
-                          className={`cursor-pointer rounded-lg border-2 p-4 transition-all ${
-                            settings?.headerComponent === key
-                              ? "border-primary bg-primary/5 ring-1 ring-primary"
-                              : "border-white/10 bg-white/5 hover:bg-white/10 shadow-sm"
-                          }`}
-                        >
-                          <p className="font-medium text-sm mb-1">{comp.name}</p>
-                          <p className="text-xs text-muted-foreground">{comp.description}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="text-lg font-medium mb-4">Hero Section</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                      {Object.entries(heroComponents).map(([key, comp]) => (
-                        <div
-                          key={key}
-                          onClick={() => handleComponentSelect("heroComponent", key)}
-                          className={`cursor-pointer rounded-lg border-2 p-4 transition-all ${
-                            settings?.heroComponent === key
-                              ? "border-primary bg-primary/5 ring-1 ring-primary"
-                              : "border-white/10 bg-white/5 hover:bg-white/10 shadow-sm"
-                          }`}
-                        >
-                          <p className="font-medium text-sm mb-1">{comp.name}</p>
-                          <p className="text-xs text-muted-foreground">{comp.description}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+            {/* TAB CONTENT: PRODUCTS */}
+            {activeTab === "products" && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-bold">Products</h2>
+                  <Button onClick={() => document.getElementById('add-product-form')?.scrollIntoView({ behavior: 'smooth' })}>
+                    <Plus className="h-4 w-4 mr-2" /> Add Product
+                  </Button>
                 </div>
-              )}
-            </div>
-          )}
 
-          {activeTab === "products" && (
-            <div className="space-y-6">
-              {productsLoading ? (
-                <Card className="bg-white/5 backdrop-blur-lg border-white/10">
-                  <CardContent className="py-12">
-                    <div className="flex items-center justify-center">
-                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                      <span className="ml-2 text-muted-foreground">Loading products...</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : (
-                <>
-                  {productError && (
-                    <div className="flex items-center gap-3 p-4 bg-destructive/10 border border-destructive text-destructive rounded-lg">
-                      <AlertCircle className="h-5 w-5 flex-shrink-0" />
-                      <p>{productError}</p>
-                    </div>
-                  )}
-
-                  <Card className="bg-white/5 backdrop-blur-lg border-white/10">
+                <div className="grid grid-cols-1 gap-6">
+                  {/* Product List */}
+                  <Card className="bg-white/5 backdrop-blur-md border-white/10">
                     <CardHeader>
-                      <CardTitle>Add New Product</CardTitle>
-                      <CardDescription>Add products with price, description, and image</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label>Product Name*</Label>
-                          <Input
-                            value={newProduct.name}
-                            onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
-                            placeholder="Enter product name"
-                            disabled={isAddingProduct}
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label>Price*</Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={newProduct.price}
-                            onChange={(e) => setNewProduct({ ...newProduct, price: Number.parseFloat(e.target.value) })}
-                            placeholder="0.00"
-                            disabled={isAddingProduct}
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label>Category</Label>
-                          <Input
-                            value={newProduct.category}
-                            onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
-                            placeholder="e.g., Clothing, Electronics"
-                            disabled={isAddingProduct}
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label>Image URL</Label>
-                          <Input
-                            value={newProduct.image}
-                            onChange={(e) => setNewProduct({ ...newProduct, image: e.target.value })}
-                            placeholder="https://..."
-                            disabled={isAddingProduct}
-                          />
-                        </div>
-
-                        <div className="space-y-2 md:col-span-2">
-                          <Label>Description</Label>
-                          <Input
-                            value={newProduct.description}
-                            onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
-                            placeholder="Product description"
-                            disabled={isAddingProduct}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          checked={newProduct.inStock}
-                          onCheckedChange={(checked) => setNewProduct({ ...newProduct, inStock: checked })}
-                          disabled={isAddingProduct}
-                        />
-                        <Label>In Stock</Label>
-                      </div>
-
-                      <Button onClick={handleAddProduct} disabled={isAddingProduct} className="w-full">
-                        {isAddingProduct ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Adding...
-                          </>
-                        ) : (
-                          <>
-                            <Plus className="mr-2 h-4 w-4" />
-                            Add Product
-                          </>
-                        )}
-                      </Button>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="bg-white/5 backdrop-blur-lg border-white/10">
-                    <CardHeader>
-                      <CardTitle>Your Products ({products.length})</CardTitle>
-                      <CardDescription>Manage all your products</CardDescription>
+                      <CardTitle>Inventory ({products.length})</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      {products.length === 0 ? (
+                      {productsLoading ? (
+                        <div className="flex items-center justify-center py-12">
+                          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                        </div>
+                      ) : products.length === 0 ? (
                         <div className="text-center py-12">
-                          <ShoppingCart className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
-                          <p className="text-muted-foreground">No products yet. Add your first product above.</p>
+                          <ShoppingCart className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-20" />
+                          <p className="text-muted-foreground">No products found.</p>
                         </div>
                       ) : (
-                        <div className="space-y-3">
-                          {products.map((product) => (
-                            <div
-                              key={product._id}
-                              className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 border border-white/10 rounded-lg hover:bg-white/5 transition-colors"
-                            >
-                              <div className="flex items-start gap-4 flex-1">
-                                {product.image && (
-                                  <img
-                                    src={product.image || "/placeholder.svg"}
-                                    alt={product.name}
-                                    className="w-16 h-16 object-cover rounded"
-                                    onError={(e) => {
-                                      ;(e.target as any).style.display = "none"
-                                    }}
-                                  />
-                                )}
+                        <div className="space-y-4">
+                           {products.map((product) => (
+                             <div key={product._id} className="group flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 rounded-lg bg-black/20 border border-white/5 hover:border-white/10 transition-colors">
+                                <div className="h-16 w-16 bg-white/5 rounded-md overflow-hidden flex-shrink-0">
+                                   {product.image ? (
+                                     <img src={product.image} alt={product.name} className="h-full w-full object-cover" />
+                                   ) : (
+                                     <div className="h-full w-full flex items-center justify-center text-muted-foreground">
+                                       <Package className="h-6 w-6 opacity-50" />
+                                     </div>
+                                   )}
+                                </div>
                                 <div className="flex-1 min-w-0">
-                                  <h3 className="font-semibold truncate">{product.name}</h3>
-                                  <p className="text-sm text-muted-foreground truncate">{product.description}</p>
-                                  <div className="flex flex-wrap gap-2 mt-2">
-                                    <span className="text-sm font-medium bg-primary/10 px-2 py-1 rounded">
-                                      {currencySymbols[settings?.currency || "USD"]}
-                                      {product.price}
-                                    </span>
-                                    {product.category && (
-                                      <span className="text-xs text-muted-foreground px-2 py-1 rounded bg-white/10">
-                                        {product.category}
-                                      </span>
-                                    )}
-                                    <span
-                                      className={`text-xs px-2 py-1 rounded font-medium ${
-                                        product.inStock ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-                                      }`}
-                                    >
-                                      {product.inStock ? "In Stock" : "Out of Stock"}
+                                  <h4 className="font-medium truncate">{product.name}</h4>
+                                  <p className="text-sm text-muted-foreground truncate">{product.category || 'Uncategorized'}</p>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <span className="text-sm font-semibold">{currencySymbols[settings?.currency || "USD"]}{product.price}</span>
+                                    <span className={`text-[10px] uppercase px-1.5 py-0.5 rounded ${product.inStock ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                                      {product.inStock ? 'In Stock' : 'Out of Stock'}
                                     </span>
                                   </div>
                                 </div>
-                              </div>
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => handleDeleteProduct(product._id, product.name)}
-                                className="w-full md:w-auto"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          ))}
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={() => handleDeleteProduct(product._id, product.name)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                             </div>
+                           ))}
                         </div>
                       )}
                     </CardContent>
                   </Card>
-                </>
-              )}
-            </div>
-          )}
 
-          {activeTab === "payments" && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-2xl font-bold mb-2">Payment Methods</h2>
-                <p className="text-muted-foreground mb-6">Choose how your customers can pay</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {paymentOptions.map((option) => (
-                  <Card
-                    key={option.id}
-                    className="cursor-pointer hover:border-primary hover:shadow-md transition-all bg-white/5 backdrop-blur-lg border-white/10"
-                  >
+                  {/* Add Product Form */}
+                  <Card id="add-product-form" className="bg-white/5 backdrop-blur-md border-white/10">
                     <CardHeader>
-                      <CardTitle className="text-lg">{option.name}</CardTitle>
-                      <CardDescription>{option.description}</CardDescription>
+                      <CardTitle>Add New Product</CardTitle>
                     </CardHeader>
-                    <CardContent>
-                      <Button className="w-full">Enable</Button>
+                    <CardContent className="space-y-4">
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                         <div className="space-y-2">
+                           <Label>Product Name</Label>
+                           <Input
+                             value={newProduct.name}
+                             onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
+                             placeholder="e.g. Premium T-Shirt"
+                             className="bg-black/20"
+                           />
+                         </div>
+                         <div className="space-y-2">
+                           <Label>Price</Label>
+                           <Input
+                             type="number"
+                             value={newProduct.price}
+                             onChange={(e) => setNewProduct({...newProduct, price: parseFloat(e.target.value)})}
+                             className="bg-black/20"
+                           />
+                         </div>
+                         <div className="space-y-2">
+                           <Label>Category</Label>
+                           <Input
+                             value={newProduct.category}
+                             onChange={(e) => setNewProduct({...newProduct, category: e.target.value})}
+                             className="bg-black/20"
+                           />
+                         </div>
+                         <div className="space-y-2">
+                           <Label>Image URL</Label>
+                           <Input
+                             value={newProduct.image}
+                             onChange={(e) => setNewProduct({...newProduct, image: e.target.value})}
+                             className="bg-black/20"
+                           />
+                         </div>
+                         <div className="md:col-span-2 space-y-2">
+                           <Label>Description</Label>
+                           <Input
+                             value={newProduct.description}
+                             onChange={(e) => setNewProduct({...newProduct, description: e.target.value})}
+                             className="bg-black/20"
+                           />
+                         </div>
+                       </div>
+                       <div className="flex items-center gap-2 pt-2">
+                         <Switch
+                           checked={newProduct.inStock}
+                           onCheckedChange={(c) => setNewProduct({...newProduct, inStock: c})}
+                         />
+                         <Label>In Stock</Label>
+                       </div>
+                       <Button onClick={handleAddProduct} disabled={isAddingProduct} className="w-full mt-2">
+                         {isAddingProduct ? <Loader2 className="h-4 w-4 animate-spin mr-2"/> : <Plus className="h-4 w-4 mr-2"/>}
+                         Save Product
+                       </Button>
+                       {productError && <p className="text-sm text-destructive text-center">{productError}</p>}
                     </CardContent>
                   </Card>
-                ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {activeTab === "ai" && (
-            <div className="h-[calc(100vh-200px)] min-h-96 flex flex-col -mx-4 -mb-8">
-              <div className="flex-1 bg-background overflow-hidden">
-                {id ? (
-                  <AIWebsiteBuilder
-                    projectId={id}
-                    generatedPages={generatedPages}
-                    setGeneratedPages={setGeneratedPages}
-                  />
-                ) : (
-                  <div className="flex items-center justify-center h-full">
-                    <AlertCircle className="h-6 w-6 text-destructive mr-2" />
-                    <span className="text-destructive">Project ID not available</span>
+            {/* TAB CONTENT: AI BUILDER */}
+            {activeTab === "ai" && (
+              <div className="h-[calc(100vh-140px)] min-h-[600px] flex flex-col -mx-4 md:-mx-6 lg:-mx-8 -my-6">
+                <div className="flex-1 bg-background/50 overflow-hidden rounded-xl border border-white/10 m-4 relative">
+                  {id ? (
+                    <div className="absolute inset-0 overflow-y-auto custom-scrollbar">
+                      <AIWebsiteBuilder
+                        projectId={id}
+                        generatedPages={generatedPages}
+                        setGeneratedPages={setGeneratedPages}
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center h-full">
+                      <AlertCircle className="h-6 w-6 text-destructive mr-2" />
+                      <span className="text-destructive">Project ID error</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* TAB CONTENT: PAYMENTS */}
+            {activeTab === "payments" && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+                <h2 className="text-2xl font-bold">Payment Methods</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                   {paymentOptions.map((option) => (
+                     <Card key={option.id} className="bg-white/5 backdrop-blur-md border-white/10 hover:border-primary/50 transition-all">
+                        <CardHeader>
+                          <CardTitle>{option.name}</CardTitle>
+                          <CardDescription>{option.description}</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <Button variant="outline" className="w-full">Configure</Button>
+                        </CardContent>
+                     </Card>
+                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* TAB CONTENT: PAGES */}
+            {activeTab === "pages" && (
+               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-2xl font-bold">Site Pages</h2>
+                      <p className="text-muted-foreground">Manage AI-generated content</p>
+                    </div>
+                    <Button onClick={() => setActiveTab("ai")}>
+                       <Sparkles className="h-4 w-4 mr-2" />
+                       Generate New
+                    </Button>
                   </div>
-                )}
-              </div>
-            </div>
-          )}
 
-          {activeTab === "deploy" && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div>
-                <h2 className="text-2xl font-bold mb-2">Cloudflare Pages Deployment</h2>
-                <p className="text-muted-foreground mb-6">
-                  Deploy your website to Cloudflare Pages with automatic SSL and global CDN
+                  {generatedPages.length === 0 ? (
+                    <div className="border-2 border-dashed border-white/10 rounded-xl p-12 text-center bg-white/5">
+                       <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4 opacity-50" />
+                       <h3 className="text-lg font-medium mb-2">No pages yet</h3>
+                       <Button variant="link" onClick={() => setActiveTab("ai")}>Go to AI Builder</Button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                       {generatedPages.map((page, i) => (
+                         <Card key={i} className="bg-white/5 backdrop-blur-md border-white/10 overflow-hidden group">
+                            <CardHeader className="pb-2">
+                               <CardTitle className="flex items-center justify-between text-base">
+                                  <span className="truncate flex items-center gap-2">
+                                    <FileText className="h-4 w-4 text-primary"/>
+                                    {page.name}
+                                  </span>
+                               </CardTitle>
+                               <CardDescription className="text-xs">
+                                  {new Date(page.timestamp).toLocaleDateString()}
+                               </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                               <div className="h-32 bg-black/40 rounded border border-white/5 p-2 overflow-hidden text-[10px] font-mono text-muted-foreground opacity-70">
+                                  {page.code}
+                               </div>
+                            </CardContent>
+                         </Card>
+                       ))}
+                    </div>
+                  )}
+               </div>
+            )}
+
+            {/* TAB CONTENT: PLACEHOLDERS */}
+            {["orders", "customers", "analytics", "discount"].includes(activeTab) && (
+              <div className="flex flex-col items-center justify-center h-[50vh] text-center border-2 border-dashed border-white/10 rounded-xl bg-white/5 animate-in fade-in slide-in-from-bottom-2">
+                <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mb-4">
+                  {activeTab === "orders" && <History className="h-8 w-8 text-muted-foreground" />}
+                  {activeTab === "customers" && <Users className="h-8 w-8 text-muted-foreground" />}
+                  {activeTab === "analytics" && <BarChart3 className="h-8 w-8 text-muted-foreground" />}
+                  {activeTab === "discount" && <Tag className="h-8 w-8 text-muted-foreground" />}
+                </div>
+                <h3 className="text-xl font-semibold capitalize mb-2">{activeTab}</h3>
+                <p className="text-muted-foreground max-w-md">
+                  This feature is coming soon.
                 </p>
               </div>
-              <CloudflareDeployment projectId={id} projectName={project?.businessName || "Site"} />
-            </div>
-          )}
+            )}
 
-          {["orders", "customers", "analytics", "discount"].includes(activeTab) && (
-            <div className="flex flex-col items-center justify-center h-[60vh] text-center border-2 border-dashed border-white/10 rounded-xl bg-white/5 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mb-4">
-                {activeTab === "orders" && <History className="h-8 w-8 text-muted-foreground" />}
-                {activeTab === "customers" && <Users className="h-8 w-8 text-muted-foreground" />}
-                {activeTab === "analytics" && <BarChart3 className="h-8 w-8 text-muted-foreground" />}
-                {activeTab === "discount" && <Tag className="h-8 w-8 text-muted-foreground" />}
-              </div>
-              <h3 className="text-xl font-semibold capitalize mb-2">{activeTab}</h3>
-              <p className="text-muted-foreground max-w-md">
-                This feature is coming soon. You will be able to manage your {activeTab} here.
-              </p>
-            </div>
-          )}
-
-          {activeTab === "pages" && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold">Site Pages</h2>
-                  <p className="text-muted-foreground">Manage your AI-generated pages and content.</p>
-                </div>
-                <Button onClick={() => setActiveTab("ai")}>
-                  <Plus className="h-4 w-4 mr-2" /> Create New Page
-                </Button>
-              </div>
-
-              {generatedPages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-[40vh] text-center border-2 border-dashed border-white/10 rounded-xl bg-white/5">
-                  <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mb-4">
-                    <FileText className="h-8 w-8 text-muted-foreground" />
-                  </div>
-                  <h3 className="text-xl font-semibold mb-2">No Pages Yet</h3>
-                  <p className="text-muted-foreground max-w-md mb-6">
-                    Use the AI Builder to generate your website structure and pages.
-                  </p>
-                  <Button onClick={() => setActiveTab("ai")}>Go to AI Builder</Button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {generatedPages.map((page, i) => (
-                    <Card
-                      key={i}
-                      className="overflow-hidden hover:border-primary/50 transition-all group bg-white/5 backdrop-blur-lg border-white/10"
-                    >
-                      <CardHeader className="pb-3">
-                        <CardTitle className="flex items-center justify-between">
-                          <span className="flex items-center gap-2 truncate">
-                            <FileText className="h-4 w-4 text-primary" />
-                            {page.name}
-                          </span>
-                        </CardTitle>
-                        <CardDescription className="text-xs">
-                          Generated {new Date(page.timestamp).toLocaleTimeString()}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="pb-3">
-                        <div className="bg-black/20 rounded-md p-3 font-mono text-[10px] text-muted-foreground h-32 overflow-hidden relative border border-white/10">
-                          {page.code}
-                          <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-black/20 to-transparent" />
-                        </div>
-                      </CardContent>
-                      <CardFooter className="pt-0 flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button size="sm" variant="outline" className="h-7 text-xs bg-transparent">
-                          View Code
-                        </Button>
-                      </CardFooter>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </main>
+          </div>
+        </main>
+      </div>
     </div>
   )
 }
