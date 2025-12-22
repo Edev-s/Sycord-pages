@@ -7,10 +7,9 @@ import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import AIWebsiteBuilder, { type GeneratedPage } from "@/components/ai-website-builder"
-import { CloudflareDeployment } from "@/components/cloudflare-deployment"
 import {
   Trash2,
   Plus,
@@ -23,7 +22,6 @@ import {
   Package,
   Sparkles,
   Menu,
-  X,
   Settings,
   Store,
   Layout,
@@ -39,6 +37,8 @@ import {
   Globe,
   Save,
   Upload,
+  Smartphone,
+  Monitor,
 } from "lucide-react"
 import { CloudflareDomainManager } from "@/components/cloudflare-domain-manager"
 import { currencySymbols } from "@/lib/webshop-types"
@@ -52,8 +52,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useSession, signOut } from "next-auth/react"
-import Image from "next/image"
 import { motion, AnimatePresence } from "framer-motion"
+import { cn } from "@/lib/utils"
 
 const headerComponents = {
   simple: { name: "Simple", description: "A clean, minimalist header" },
@@ -122,14 +122,15 @@ const SidebarContent = ({
                       setActiveTab(item.id)
                       setIsSidebarOpen(false)
                     }}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group text-sm ${
+                    className={cn(
+                      "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group text-sm font-medium",
                       isActive
                         ? "bg-primary text-primary-foreground shadow-sm"
                         : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
-                    }`}
+                    )}
                   >
                     <Icon className="h-4 w-4 flex-shrink-0" />
-                    <span className="font-medium truncate">{item.label}</span>
+                    <span className="truncate">{item.label}</span>
                   </button>
                 )
               })}
@@ -165,7 +166,6 @@ export default function SiteSettingsPage() {
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [deployment, setDeployment] = useState<any>(null)
-  const [isFrozen, setIsFrozen] = useState(false)
   const [deploymentLogs, setDeploymentLogs] = useState<string[]>([])
   const [deploymentError, setDeploymentError] = useState<string | null>(null)
 
@@ -191,28 +191,42 @@ export default function SiteSettingsPage() {
   const [activeSubTab, setActiveSubTab] = useState<"settings" | "store" | "pages">("settings")
 
   const [selectedStyle, setSelectedStyle] = useState<string | null>(null)
-  const [selectedPage, setSelectedPage] = useState<string>("landing")
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [isDeploying, setIsDeploying] = useState(false)
   const [showDomainManager, setShowDomainManager] = useState(false)
-  const [isDesktop, setIsDesktop] = useState(false)
+  const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop")
   const { data: session } = useSession()
 
   // Renamed to match the button name and be consistent
   const saving = isSaving
   const setSaving = setIsSaving
 
-  useEffect(() => {
-    const handleResize = () => {
-      setIsDesktop(window.innerWidth >= 768)
+  // Swipe to open detection
+  const [touchStart, setTouchStart] = useState<number | null>(null)
+  const [touchEnd, setTouchEnd] = useState<number | null>(null)
+
+  const minSwipeDistance = 50
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null)
+    setTouchStart(e.targetTouches[0].clientX)
+  }
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX)
+  }
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return
+    const distance = touchStart - touchEnd
+    const isLeftSwipe = distance > minSwipeDistance
+    const isRightSwipe = distance < -minSwipeDistance
+
+    // If starting from the left edge (first 50px), trigger sidebar
+    if (touchStart < 50 && isRightSwipe) {
+        setIsSidebarOpen(true)
     }
-
-    // Set initial value
-    handleResize()
-
-    window.addEventListener("resize", handleResize)
-    return () => window.removeEventListener("resize", handleResize)
-  }, [])
+  }
 
   // Settings State
   const [shopName, setShopName] = useState("")
@@ -575,7 +589,14 @@ export default function SiteSettingsPage() {
   const displayUrl = previewUrl ? previewUrl.replace(/^https?:\/\//, "") : null
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
+    <div className="flex h-screen bg-background overflow-hidden relative"
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
+        {/* Invisible Left Edge Swipe Zone */}
+        <div className="absolute top-0 left-0 bottom-0 w-8 z-30 md:hidden" />
+
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex flex-col w-64 border-r border-white/10 bg-black/40 backdrop-blur-xl shrink-0">
         <SidebarContent
@@ -703,76 +724,105 @@ export default function SiteSettingsPage() {
                   {/* Left: Preview */}
                   <div className="xl:col-span-2 space-y-4">
                      <div className="flex items-center justify-between">
-                       <h2 className="text-xl font-semibold">Live Preview</h2>
-                       <div className="flex items-center gap-2">
-                          <span className={`h-2.5 w-2.5 rounded-full ${previewUrl ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-gray-500'}`} />
-                          <span className="text-sm text-muted-foreground">{previewUrl ? 'Live' : 'Offline'}</span>
+                       <h2 className="text-xl font-semibold tracking-tight">Live Preview</h2>
+                       <div className="flex items-center gap-3 bg-muted/30 p-1 rounded-lg border border-white/5">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className={cn("h-7 px-3 rounded-md", previewMode === "desktop" ? "bg-white/10 text-foreground" : "text-muted-foreground")}
+                                onClick={() => setPreviewMode("desktop")}
+                            >
+                                <Monitor className="h-4 w-4 mr-2" />
+                                Desktop
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className={cn("h-7 px-3 rounded-md", previewMode === "mobile" ? "bg-white/10 text-foreground" : "text-muted-foreground")}
+                                onClick={() => setPreviewMode("mobile")}
+                            >
+                                <Smartphone className="h-4 w-4 mr-2" />
+                                Mobile
+                            </Button>
                        </div>
                      </div>
 
-                     <div className="relative aspect-video w-full bg-black/20 rounded-xl border border-white/10 overflow-hidden shadow-2xl">
-                        {!deploymentLoading && previewUrl ? (
-                          <iframe
-                            src={previewUrl}
-                            className="w-full h-full border-0"
-                            title="Live Preview"
-                          />
-                        ) : (
-                           <div className="flex items-center justify-center w-full h-full">
-                             {deploymentLoading ? (
-                               <div className="flex flex-col items-center">
-                                  <Loader2 className="h-8 w-8 animate-spin mb-2 text-primary" />
-                                  <p className="text-sm text-muted-foreground">Loading preview...</p>
-                               </div>
-                             ) : (
-                                <div className="text-center">
-                                  <AlertCircle className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
-                                  <p className="text-sm text-muted-foreground">No preview available</p>
+                     <div className="flex justify-center bg-black/10 rounded-xl border border-white/5 p-4 min-h-[400px]">
+                         <div className={cn(
+                             "relative transition-all duration-300 ease-in-out bg-background shadow-2xl overflow-hidden border border-border",
+                             previewMode === "desktop" ? "w-full aspect-video rounded-lg" : "w-[320px] h-[640px] rounded-[3rem] border-8 border-black/80"
+                         )}>
+                            {/* Mobile Notch (Only visible in mobile mode) */}
+                            {previewMode === "mobile" && (
+                                <div className="absolute top-0 left-1/2 -translate-x-1/2 h-6 w-32 bg-black rounded-b-xl z-20"></div>
+                            )}
+
+                            {!deploymentLoading && previewUrl ? (
+                            <iframe
+                                src={previewUrl}
+                                className="w-full h-full border-0 bg-white"
+                                title="Live Preview"
+                            />
+                            ) : (
+                            <div className="flex items-center justify-center w-full h-full bg-muted/20">
+                                {deploymentLoading ? (
+                                <div className="flex flex-col items-center">
+                                    <Loader2 className="h-8 w-8 animate-spin mb-2 text-primary" />
+                                    <p className="text-sm text-muted-foreground">Loading preview...</p>
                                 </div>
-                             )}
-                           </div>
-                        )}
+                                ) : (
+                                <div className="text-center">
+                                    <AlertCircle className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
+                                    <p className="text-sm text-muted-foreground">No preview available</p>
+                                </div>
+                                )}
+                            </div>
+                            )}
+                         </div>
                      </div>
                   </div>
 
                   {/* Right: Actions */}
                   <div className="xl:col-span-1 flex flex-col gap-4">
-                     <Card className="bg-white/5 backdrop-blur-md border-white/10 shadow-lg flex-1">
+                     <Card className="bg-card/50 backdrop-blur-sm border-white/10 shadow-sm">
                        <CardHeader>
-                         <CardTitle>Deployment</CardTitle>
-                         <CardDescription>Manage your live website</CardDescription>
+                         <CardTitle className="text-lg">Deployment Status</CardTitle>
+                         <CardDescription>Manage your live production build</CardDescription>
                        </CardHeader>
-                       <CardContent className="space-y-4">
-                         <div className="p-3 rounded-lg bg-black/20 border border-white/5">
-                           <p className="text-xs text-muted-foreground mb-1">Public URL</p>
-                           <a
-                            href={previewUrl || '#'}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm font-medium text-primary hover:underline truncate block"
-                           >
-                             {displayUrl || 'Not deployed yet'}
-                           </a>
+                       <CardContent className="space-y-5">
+                         <div className="flex items-center gap-3 p-3 rounded-lg bg-black/20 border border-white/5">
+                            <div className={cn("h-2.5 w-2.5 rounded-full shrink-0", previewUrl ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" : "bg-gray-500")} />
+                            <div className="min-w-0 flex-1">
+                                <p className="text-xs text-muted-foreground mb-0.5">Public URL</p>
+                                <a
+                                    href={previewUrl || '#'}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sm font-medium text-primary hover:underline truncate block"
+                                >
+                                    {displayUrl || 'Not deployed'}
+                                </a>
+                            </div>
                          </div>
 
                          <div className="grid grid-cols-2 gap-3">
-                           <div className="p-3 rounded-lg bg-black/20 border border-white/5 text-center">
-                              <p className="text-xs text-muted-foreground mb-1">Last Deploy</p>
+                           <div className="p-3 rounded-lg bg-black/20 border border-white/5">
+                              <p className="text-xs text-muted-foreground mb-1">Last Update</p>
                               <p className="text-sm font-medium">
                                 {project?.cloudflareDeployedAt
                                   ? new Date(project.cloudflareDeployedAt).toLocaleDateString()
-                                  : "-"}
+                                  : "Never"}
                               </p>
                            </div>
-                           <div className="p-3 rounded-lg bg-black/20 border border-white/5 text-center">
-                              <p className="text-xs text-muted-foreground mb-1">Status</p>
-                              <p className="text-sm font-medium text-green-400">Active</p>
+                           <div className="p-3 rounded-lg bg-black/20 border border-white/5">
+                              <p className="text-xs text-muted-foreground mb-1">Environment</p>
+                              <p className="text-sm font-medium">Production</p>
                            </div>
                          </div>
 
                          <Button
                            size="lg"
-                           className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary"
+                           className="w-full font-semibold shadow-lg shadow-primary/20"
                            onClick={handleDeploy}
                            disabled={isDeploying}
                          >
@@ -781,15 +831,15 @@ export default function SiteSettingsPage() {
                             ) : (
                               <Rocket className="h-4 w-4 mr-2" />
                             )}
-                            {isDeploying ? "Deploying..." : "Deploy to Live"}
+                            {isDeploying ? "Deploying..." : "Publish Changes"}
                          </Button>
 
-                         <div className="grid grid-cols-2 gap-2">
-                            <Button variant="outline" className="bg-transparent border-white/10" onClick={handleSave} disabled={saving}>
+                         <div className="grid grid-cols-2 gap-3 pt-2">
+                            <Button variant="outline" className="w-full bg-transparent border-white/10 hover:bg-white/5" onClick={handleSave} disabled={saving}>
                               {saving ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Save className="h-3 w-3 mr-2" />}
-                              Save
+                              Save Draft
                             </Button>
-                            <Button variant="outline" className="bg-transparent border-white/10" onClick={() => setShowDomainManager(!showDomainManager)}>
+                            <Button variant="outline" className="w-full bg-transparent border-white/10 hover:bg-white/5" onClick={() => setShowDomainManager(!showDomainManager)}>
                               <Globe className="h-3 w-3 mr-2" />
                               Domains
                             </Button>
@@ -805,21 +855,28 @@ export default function SiteSettingsPage() {
                   </div>
                 )}
 
-                {/* Configuration Tabs */}
+                {/* Configuration Tabs - Modern Pill Style */}
                 <div className="flex flex-col gap-6">
-                   <div className="flex items-center gap-2 border-b border-white/10 overflow-x-auto">
+                   <div className="bg-muted/30 p-1.5 rounded-xl border border-white/5 self-start inline-flex">
                       {subTabs.map((tab) => {
                         const Icon = tab.icon
+                        const isActive = activeSubTab === tab.id
                         return (
                           <button
                             key={tab.id}
                             onClick={() => setActiveSubTab(tab.id as any)}
-                            className={`flex items-center gap-2 px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                              activeSubTab === tab.id
-                                ? "border-primary text-primary"
-                                : "border-transparent text-muted-foreground hover:text-foreground hover:bg-white/5"
-                            }`}
+                            className={cn(
+                              "relative flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-lg transition-all z-10",
+                              isActive ? "text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                            )}
                           >
+                             {isActive && (
+                                <motion.div
+                                    layoutId="activeSubTab"
+                                    className="absolute inset-0 bg-primary rounded-lg -z-10"
+                                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                                />
+                             )}
                             <Icon className="h-4 w-4" />
                             {tab.label}
                           </button>
@@ -830,14 +887,14 @@ export default function SiteSettingsPage() {
                    {/* Settings Sub-Tab Content */}
                    {activeSubTab === "settings" && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-2">
-                       <Card className="bg-white/5 backdrop-blur-md border-white/10">
+                       <Card className="bg-card/50 backdrop-blur-sm border-white/10">
                           <CardHeader>
                             <CardTitle>Branding</CardTitle>
                             <CardDescription>Logo and store name configuration</CardDescription>
                           </CardHeader>
                           <CardContent className="space-y-6">
-                             <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-white/10 rounded-xl bg-black/20">
-                                <div className="relative h-24 w-24 rounded-full overflow-hidden bg-muted mb-4 ring-4 ring-black/40">
+                             <div className="flex items-center gap-6">
+                                <div className="relative h-24 w-24 rounded-full overflow-hidden bg-muted mb-4 ring-2 ring-border shrink-0">
                                   {profileImage ? (
                                     <img src={profileImage} alt="Profile" className="h-full w-full object-cover" />
                                   ) : (
@@ -846,14 +903,18 @@ export default function SiteSettingsPage() {
                                     </div>
                                   )}
                                 </div>
-                                <Label
-                                  htmlFor="profile-upload"
-                                  className="cursor-pointer inline-flex items-center justify-center rounded-md text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 h-8 px-4 py-2"
-                                >
-                                  <Upload className="mr-2 h-3 w-3" />
-                                  Upload New Logo
-                                </Label>
-                                <Input id="profile-upload" type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                                <div className="flex-1 space-y-3">
+                                    <Label htmlFor="profile-upload" className="block text-sm font-medium mb-1">Store Logo</Label>
+                                    <Label
+                                        htmlFor="profile-upload"
+                                        className="cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80 h-9 px-4 py-2 transition-colors"
+                                    >
+                                        <Upload className="mr-2 h-4 w-4" />
+                                        Upload Image
+                                    </Label>
+                                    <Input id="profile-upload" type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                                    <p className="text-xs text-muted-foreground">Recommended: 400x400px</p>
+                                </div>
                              </div>
 
                              <div className="space-y-2">
@@ -867,7 +928,7 @@ export default function SiteSettingsPage() {
                           </CardContent>
                        </Card>
 
-                       <Card className="bg-white/5 backdrop-blur-md border-white/10">
+                       <Card className="bg-card/50 backdrop-blur-sm border-white/10">
                           <CardHeader>
                             <CardTitle>Preferences</CardTitle>
                             <CardDescription>General store settings</CardDescription>
@@ -875,14 +936,16 @@ export default function SiteSettingsPage() {
                           <CardContent className="space-y-4">
                              <div className="space-y-2">
                                 <Label>Currency</Label>
-                                <div className="p-3 rounded-md bg-black/20 border border-white/10 text-sm text-muted-foreground">
-                                   USD ($) - Default
+                                <div className="p-3 rounded-md bg-black/20 border border-white/10 text-sm text-muted-foreground flex justify-between items-center">
+                                   <span>USD ($)</span>
+                                   <span className="text-xs bg-white/10 px-2 py-0.5 rounded">Default</span>
                                 </div>
                              </div>
                              <div className="space-y-2">
                                 <Label>Language</Label>
-                                <div className="p-3 rounded-md bg-black/20 border border-white/10 text-sm text-muted-foreground">
-                                   English (US)
+                                <div className="p-3 rounded-md bg-black/20 border border-white/10 text-sm text-muted-foreground flex justify-between items-center">
+                                   <span>English (US)</span>
+                                   <span className="text-xs bg-white/10 px-2 py-0.5 rounded">Default</span>
                                 </div>
                              </div>
                           </CardContent>
@@ -899,18 +962,19 @@ export default function SiteSettingsPage() {
                             <div
                               key={key}
                               onClick={() => handleComponentSelect("productComponent", key)}
-                              className={`cursor-pointer rounded-xl border-2 p-4 text-center transition-all ${
+                              className={cn(
+                                "cursor-pointer rounded-xl border-2 p-4 text-center transition-all",
                                 settings?.productComponent === key
-                                  ? "border-primary bg-primary/10 ring-1 ring-primary"
-                                  : "border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20"
-                              }`}
+                                  ? "border-primary bg-primary/5 ring-1 ring-primary"
+                                  : "border-white/10 bg-card hover:bg-accent/50 hover:border-white/20"
+                              )}
                             >
-                              <div className="mb-3 h-24 bg-black/20 rounded-lg flex items-center justify-center border border-white/5">
+                              <div className="mb-3 h-24 bg-black/20 rounded-lg flex items-center justify-center border border-white/5 overflow-hidden">
                                  {/* Simple visual representation */}
-                                 {key === 'grid' && <div className="grid grid-cols-2 gap-1 w-12"><div className="h-5 bg-white/20 rounded"/><div className="h-5 bg-white/20 rounded"/><div className="h-5 bg-white/20 rounded"/><div className="h-5 bg-white/20 rounded"/></div>}
-                                 {key === 'list' && <div className="flex flex-col gap-1 w-12"><div className="h-2 bg-white/20 rounded w-full"/><div className="h-2 bg-white/20 rounded w-full"/><div className="h-2 bg-white/20 rounded w-full"/></div>}
-                                 {key === 'masonry' && <div className="flex gap-1 w-12 h-10 items-start"><div className="w-1/2 bg-white/20 rounded h-full"/><div className="w-1/2 bg-white/20 rounded h-1/2"/></div>}
-                                 {key === 'carousel' && <div className="flex gap-1 w-12 overflow-hidden"><div className="h-8 w-8 shrink-0 bg-white/20 rounded"/><div className="h-8 w-8 shrink-0 bg-white/20 rounded"/></div>}
+                                 {key === 'grid' && <div className="grid grid-cols-2 gap-1 w-12"><div className="h-6 bg-muted-foreground/30 rounded"/><div className="h-6 bg-muted-foreground/30 rounded"/><div className="h-6 bg-muted-foreground/30 rounded"/><div className="h-6 bg-muted-foreground/30 rounded"/></div>}
+                                 {key === 'list' && <div className="flex flex-col gap-1 w-12"><div className="h-2.5 bg-muted-foreground/30 rounded w-full"/><div className="h-2.5 bg-muted-foreground/30 rounded w-full"/><div className="h-2.5 bg-muted-foreground/30 rounded w-full"/></div>}
+                                 {key === 'masonry' && <div className="flex gap-1 w-12 h-10 items-start"><div className="w-1/2 bg-muted-foreground/30 rounded h-full"/><div className="w-1/2 bg-muted-foreground/30 rounded h-1/2"/></div>}
+                                 {key === 'carousel' && <div className="flex gap-1 w-12 overflow-hidden"><div className="h-8 w-8 shrink-0 bg-muted-foreground/30 rounded"/><div className="h-8 w-8 shrink-0 bg-muted-foreground/30 rounded"/></div>}
                               </div>
                               <p className="font-medium text-sm">{comp.name}</p>
                             </div>
@@ -922,53 +986,47 @@ export default function SiteSettingsPage() {
                    {/* Pages Sub-Tab Content */}
                    {activeSubTab === "pages" && (
                     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
-                       <Card className="bg-transparent border-none shadow-none">
-                         <CardHeader className="px-0 pt-0">
-                           <CardTitle>Header Style</CardTitle>
-                         </CardHeader>
-                         <CardContent className="px-0">
-                           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                       <div className="space-y-4">
+                         <h3 className="text-lg font-medium">Header Style</h3>
+                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                               {Object.entries(headerComponents).map(([key, comp]) => (
                                 <div
                                   key={key}
                                   onClick={() => handleComponentSelect("headerComponent", key)}
-                                  className={`cursor-pointer rounded-xl border-2 p-4 transition-all ${
+                                  className={cn(
+                                    "cursor-pointer rounded-xl border-2 p-4 transition-all relative group overflow-hidden",
                                     settings?.headerComponent === key
-                                      ? "border-primary bg-primary/10 ring-1 ring-primary"
-                                      : "border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20"
-                                  }`}
+                                      ? "border-primary bg-primary/5 ring-1 ring-primary"
+                                      : "border-white/10 bg-card hover:bg-accent/50 hover:border-white/20"
+                                  )}
                                 >
                                   <p className="font-medium text-sm mb-1">{comp.name}</p>
                                   <p className="text-xs text-muted-foreground line-clamp-2">{comp.description}</p>
                                 </div>
                               ))}
                            </div>
-                         </CardContent>
-                       </Card>
+                       </div>
 
-                       <Card className="bg-transparent border-none shadow-none">
-                         <CardHeader className="px-0 pt-0">
-                           <CardTitle>Hero Section</CardTitle>
-                         </CardHeader>
-                         <CardContent className="px-0">
-                           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                       <div className="space-y-4">
+                         <h3 className="text-lg font-medium">Hero Section</h3>
+                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                               {Object.entries(heroComponents).map(([key, comp]) => (
                                 <div
                                   key={key}
                                   onClick={() => handleComponentSelect("heroComponent", key)}
-                                  className={`cursor-pointer rounded-xl border-2 p-4 transition-all ${
+                                  className={cn(
+                                    "cursor-pointer rounded-xl border-2 p-4 transition-all",
                                     settings?.heroComponent === key
-                                      ? "border-primary bg-primary/10 ring-1 ring-primary"
-                                      : "border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20"
-                                  }`}
+                                      ? "border-primary bg-primary/5 ring-1 ring-primary"
+                                      : "border-white/10 bg-card hover:bg-accent/50 hover:border-white/20"
+                                  )}
                                 >
                                   <p className="font-medium text-sm mb-1">{comp.name}</p>
                                   <p className="text-xs text-muted-foreground line-clamp-2">{comp.description}</p>
                                 </div>
                               ))}
                            </div>
-                         </CardContent>
-                       </Card>
+                       </div>
                     </div>
                    )}
                 </div>
@@ -987,7 +1045,7 @@ export default function SiteSettingsPage() {
 
                 <div className="grid grid-cols-1 gap-6">
                   {/* Product List */}
-                  <Card className="bg-white/5 backdrop-blur-md border-white/10">
+                  <Card className="bg-card/50 backdrop-blur-sm border-white/10">
                     <CardHeader>
                       <CardTitle>Inventory ({products.length})</CardTitle>
                     </CardHeader>
@@ -1040,7 +1098,7 @@ export default function SiteSettingsPage() {
                   </Card>
 
                   {/* Add Product Form */}
-                  <Card id="add-product-form" className="bg-white/5 backdrop-blur-md border-white/10">
+                  <Card id="add-product-form" className="bg-card/50 backdrop-blur-sm border-white/10">
                     <CardHeader>
                       <CardTitle>Add New Product</CardTitle>
                     </CardHeader>
@@ -1135,7 +1193,7 @@ export default function SiteSettingsPage() {
                 <h2 className="text-2xl font-bold">Payment Methods</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                    {paymentOptions.map((option) => (
-                     <Card key={option.id} className="bg-white/5 backdrop-blur-md border-white/10 hover:border-primary/50 transition-all">
+                     <Card key={option.id} className="bg-card/50 backdrop-blur-sm border-white/10 hover:border-primary/50 transition-all">
                         <CardHeader>
                           <CardTitle>{option.name}</CardTitle>
                           <CardDescription>{option.description}</CardDescription>
@@ -1172,7 +1230,7 @@ export default function SiteSettingsPage() {
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                        {generatedPages.map((page, i) => (
-                         <Card key={i} className="bg-white/5 backdrop-blur-md border-white/10 overflow-hidden group">
+                         <Card key={i} className="bg-card/50 backdrop-blur-sm border-white/10 overflow-hidden group">
                             <CardHeader className="pb-2">
                                <CardTitle className="flex items-center justify-between text-base">
                                   <span className="truncate flex items-center gap-2">
