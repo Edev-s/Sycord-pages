@@ -636,6 +636,17 @@ export default function SiteSettingsPage() {
 
             {/* Right Actions */}
             <div className="flex items-center gap-3 ml-auto">
+              {/* Mobile Save Action (Icon Only to save space) */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="md:hidden text-primary"
+                onClick={handleSave}
+                disabled={saving}
+              >
+                 {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
+              </Button>
+
               <Button
                 variant="outline"
                 size="sm"
@@ -683,7 +694,7 @@ export default function SiteSettingsPage() {
         </header>
 
         {/* Scrollable Main Content */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 lg:p-8 custom-scrollbar">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 lg:p-8 custom-scrollbar relative">
           <div className="mx-auto max-w-6xl space-y-8 pb-10">
 
             {/* Mobile Sidebar (Drawer) */}
@@ -721,134 +732,205 @@ export default function SiteSettingsPage() {
             {/* TAB CONTENT: STYLES (OVERVIEW) */}
             {activeTab === "styles" && (
               <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                {/* Deployment & Preview Section */}
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                  {/* Left: Preview */}
-                  <div className="xl:col-span-2 space-y-4">
-                     <div className="flex items-center justify-between">
-                       <h2 className="text-xl font-semibold tracking-tight">Live Preview</h2>
-                       <div className="flex items-center gap-3 bg-muted/30 p-1 rounded-lg border border-white/5">
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className={cn("h-7 px-3 rounded-md", previewMode === "desktop" ? "bg-white/10 text-foreground" : "text-muted-foreground")}
-                                onClick={() => setPreviewMode("desktop")}
-                            >
-                                <Monitor className="h-4 w-4 mr-2" />
-                                Desktop
-                            </Button>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className={cn("h-7 px-3 rounded-md", previewMode === "mobile" ? "bg-white/10 text-foreground" : "text-muted-foreground")}
-                                onClick={() => setPreviewMode("mobile")}
-                            >
-                                <Smartphone className="h-4 w-4 mr-2" />
-                                Mobile
-                            </Button>
-                       </div>
-                     </div>
 
-                     <div className="flex justify-center bg-black/10 rounded-xl border border-white/5 p-4 min-h-[400px]">
-                         <div className={cn(
-                             "relative transition-all duration-300 ease-in-out bg-background shadow-2xl overflow-hidden border border-border",
-                             previewMode === "desktop" ? "w-full aspect-video rounded-lg" : "w-full max-w-[320px] aspect-[9/19.5] rounded-[3rem] border-8 border-black/80"
-                         )}>
-                            {/* Mobile Notch (Only visible in mobile mode) */}
-                            {previewMode === "mobile" && (
-                                <div className="absolute top-0 left-1/2 -translate-x-1/2 h-6 w-32 bg-black rounded-b-xl z-20"></div>
-                            )}
-
-                            {!deploymentLoading && previewUrl ? (
-                            <iframe
-                                src={previewUrl}
-                                className="w-full h-full border-0 bg-white"
-                                title="Live Preview"
-                            />
+                {/* Mobile Specific Header/Status - Visible only on mobile */}
+                <div className="block md:hidden space-y-8">
+                    {/* Domain Status Card Row */}
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="flex-1 space-y-1">
+                            <div className="flex items-center gap-2">
+                                <div className={cn("h-2.5 w-2.5 rounded-full shrink-0", previewUrl ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" : "bg-gray-500")} />
+                                <h3 className="font-semibold text-lg truncate text-foreground">{displayUrl || 'Not deployed'}</h3>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground pl-4.5">
+                                <span>main</span>
+                                <span className="text-muted-foreground/50">•</span>
+                                <span>{project?.cloudflareDeployedAt ? new Date(project.cloudflareDeployedAt).toLocaleDateString().replace(/\./g, ' ') : "Not deployed"}</span>
+                            </div>
+                        </div>
+                        {/* Compact Preview Thumbnail */}
+                         <div className="w-32 h-20 rounded-xl overflow-hidden border border-white/10 bg-black/20 shrink-0 relative shadow-sm">
+                            {previewUrl ? (
+                                <iframe
+                                    src={previewUrl}
+                                    className="w-[200%] h-[200%] origin-top-left scale-50 border-0 pointer-events-none"
+                                    title="Mini Preview"
+                                    tabIndex={-1}
+                                />
                             ) : (
-                            <div className="flex items-center justify-center w-full h-full bg-muted/20">
-                                {deploymentLoading ? (
-                                <div className="flex flex-col items-center">
-                                    <Loader2 className="h-8 w-8 animate-spin mb-2 text-primary" />
-                                    <p className="text-sm text-muted-foreground">Loading preview...</p>
+                                <div className="flex items-center justify-center w-full h-full bg-muted/20">
+                                   <div className="text-xs text-muted-foreground/50">No Preview</div>
                                 </div>
+                            )}
+                         </div>
+                    </div>
+
+                    {/* Action Buttons Row */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <Button
+                            variant="secondary"
+                            className="h-12 text-base font-medium bg-secondary/80 hover:bg-secondary border-none"
+                            onClick={() => setShowDomainManager(true)}
+                        >
+                            Connect Domain
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            className="h-12 text-base font-medium bg-secondary/80 hover:bg-secondary border-none"
+                            onClick={() => previewUrl && window.open(previewUrl, "_blank")}
+                            disabled={!previewUrl}
+                        >
+                            Open
+                        </Button>
+                    </div>
+
+                    {/* Mobile Deploy Button (Separate full width) */}
+                    <Button
+                        size="lg"
+                        className="w-full font-semibold shadow-lg shadow-primary/20"
+                        onClick={handleDeploy}
+                        disabled={isDeploying}
+                    >
+                        {isDeploying ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                            <Rocket className="h-4 w-4 mr-2" />
+                        )}
+                        {isDeploying ? "Deploying..." : "Publish Changes"}
+                    </Button>
+                </div>
+
+                {/* Desktop Specific Preview/Status - Visible only on desktop */}
+                <div className="hidden md:block">
+                     {/* Deployment & Preview Section */}
+                    <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                    {/* Left: Preview */}
+                    <div className="xl:col-span-2 space-y-4">
+                        <div className="flex items-center justify-between">
+                        <h2 className="text-xl font-semibold tracking-tight">Live Preview</h2>
+                        <div className="flex items-center gap-3 bg-muted/30 p-1 rounded-lg border border-white/5">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className={cn("h-7 px-3 rounded-md", previewMode === "desktop" ? "bg-white/10 text-foreground" : "text-muted-foreground")}
+                                    onClick={() => setPreviewMode("desktop")}
+                                >
+                                    <Monitor className="h-4 w-4 mr-2" />
+                                    Desktop
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className={cn("h-7 px-3 rounded-md", previewMode === "mobile" ? "bg-white/10 text-foreground" : "text-muted-foreground")}
+                                    onClick={() => setPreviewMode("mobile")}
+                                >
+                                    <Smartphone className="h-4 w-4 mr-2" />
+                                    Mobile
+                                </Button>
+                        </div>
+                        </div>
+
+                        <div className="flex justify-center bg-black/10 rounded-xl border border-white/5 p-4 min-h-[400px]">
+                            <div className={cn(
+                                "relative transition-all duration-300 ease-in-out bg-background shadow-2xl overflow-hidden border border-border",
+                                previewMode === "desktop" ? "w-full aspect-video rounded-lg" : "w-full max-w-[320px] aspect-[9/19.5] rounded-[3rem] border-8 border-black/80"
+                            )}>
+                                {/* Mobile Notch (Only visible in mobile mode) */}
+                                {previewMode === "mobile" && (
+                                    <div className="absolute top-0 left-1/2 -translate-x-1/2 h-6 w-32 bg-black rounded-b-xl z-20"></div>
+                                )}
+
+                                {!deploymentLoading && previewUrl ? (
+                                <iframe
+                                    src={previewUrl}
+                                    className="w-full h-full border-0 bg-white"
+                                    title="Live Preview"
+                                />
                                 ) : (
-                                <div className="text-center">
-                                    <AlertCircle className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
-                                    <p className="text-sm text-muted-foreground">No preview available</p>
+                                <div className="flex items-center justify-center w-full h-full bg-muted/20">
+                                    {deploymentLoading ? (
+                                    <div className="flex flex-col items-center">
+                                        <Loader2 className="h-8 w-8 animate-spin mb-2 text-primary" />
+                                        <p className="text-sm text-muted-foreground">Loading preview...</p>
+                                    </div>
+                                    ) : (
+                                    <div className="text-center">
+                                        <AlertCircle className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
+                                        <p className="text-sm text-muted-foreground">No preview available</p>
+                                    </div>
+                                    )}
                                 </div>
                                 )}
                             </div>
-                            )}
-                         </div>
-                     </div>
-                  </div>
+                        </div>
+                    </div>
 
-                  {/* Right: Actions */}
-                  <div className="xl:col-span-1 flex flex-col gap-4">
-                     <Card className="bg-card/50 backdrop-blur-sm border-white/10 shadow-sm">
-                       <CardHeader className="p-4 md:p-6">
-                         <CardTitle className="text-lg">Deployment Status</CardTitle>
-                         <CardDescription>Manage your live production build</CardDescription>
-                       </CardHeader>
-                       <CardContent className="space-y-5 p-4 md:p-6 pt-0">
-                         <div className="flex items-center gap-3 p-3 rounded-lg bg-black/20 border border-white/5">
-                            <div className={cn("h-2.5 w-2.5 rounded-full shrink-0", previewUrl ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" : "bg-gray-500")} />
-                            <div className="min-w-0 flex-1">
-                                <p className="text-xs text-muted-foreground mb-0.5">Public URL</p>
-                                <a
-                                    href={previewUrl || '#'}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-sm font-medium text-primary hover:underline truncate block"
-                                >
-                                    {displayUrl || 'Not deployed'}
-                                </a>
+                    {/* Right: Actions */}
+                    <div className="xl:col-span-1 flex flex-col gap-4">
+                        <Card className="bg-card/50 backdrop-blur-sm border-white/10 shadow-sm">
+                        <CardHeader className="p-4 md:p-6">
+                            <CardTitle className="text-lg">Deployment Status</CardTitle>
+                            <CardDescription>Manage your live production build</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-5 p-4 md:p-6 pt-0">
+                            <div className="flex items-center gap-3 p-3 rounded-lg bg-black/20 border border-white/5">
+                                <div className={cn("h-2.5 w-2.5 rounded-full shrink-0", previewUrl ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" : "bg-gray-500")} />
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-xs text-muted-foreground mb-0.5">Public URL</p>
+                                    <a
+                                        href={previewUrl || '#'}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-sm font-medium text-primary hover:underline truncate block"
+                                    >
+                                        {displayUrl || 'Not deployed'}
+                                    </a>
+                                </div>
                             </div>
-                         </div>
 
-                         <div className="grid grid-cols-2 gap-3">
-                           <div className="p-3 rounded-lg bg-black/20 border border-white/5">
-                              <p className="text-xs text-muted-foreground mb-1">Last Update</p>
-                              <p className="text-sm font-medium">
-                                {project?.cloudflareDeployedAt
-                                  ? new Date(project.cloudflareDeployedAt).toLocaleDateString()
-                                  : "Never"}
-                              </p>
-                           </div>
-                           <div className="p-3 rounded-lg bg-black/20 border border-white/5">
-                              <p className="text-xs text-muted-foreground mb-1">Environment</p>
-                              <p className="text-sm font-medium">Production</p>
-                           </div>
-                         </div>
+                            <div className="grid grid-cols-2 gap-3">
+                            <div className="p-3 rounded-lg bg-black/20 border border-white/5">
+                                <p className="text-xs text-muted-foreground mb-1">Last Update</p>
+                                <p className="text-sm font-medium">
+                                    {project?.cloudflareDeployedAt
+                                    ? new Date(project.cloudflareDeployedAt).toLocaleDateString()
+                                    : "Never"}
+                                </p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-black/20 border border-white/5">
+                                <p className="text-xs text-muted-foreground mb-1">Environment</p>
+                                <p className="text-sm font-medium">Production</p>
+                            </div>
+                            </div>
 
-                         <Button
-                           size="lg"
-                           className="w-full font-semibold shadow-lg shadow-primary/20"
-                           onClick={handleDeploy}
-                           disabled={isDeploying}
-                         >
-                            {isDeploying ? (
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            ) : (
-                              <Rocket className="h-4 w-4 mr-2" />
-                            )}
-                            {isDeploying ? "Deploying..." : "Publish Changes"}
-                         </Button>
-
-                         <div className="grid grid-cols-2 gap-3 pt-2">
-                            <Button variant="outline" className="w-full bg-transparent border-white/10 hover:bg-white/5" onClick={handleSave} disabled={saving}>
-                              {saving ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Save className="h-3 w-3 mr-2" />}
-                              Save Draft
+                            <Button
+                            size="lg"
+                            className="w-full font-semibold shadow-lg shadow-primary/20"
+                            onClick={handleDeploy}
+                            disabled={isDeploying}
+                            >
+                                {isDeploying ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                ) : (
+                                <Rocket className="h-4 w-4 mr-2" />
+                                )}
+                                {isDeploying ? "Deploying..." : "Publish Changes"}
                             </Button>
-                            <Button variant="outline" className="w-full bg-transparent border-white/10 hover:bg-white/5" onClick={() => setShowDomainManager(!showDomainManager)}>
-                              <Globe className="h-3 w-3 mr-2" />
-                              Domains
-                            </Button>
-                         </div>
-                       </CardContent>
-                     </Card>
-                  </div>
+
+                            <div className="grid grid-cols-2 gap-3 pt-2">
+                                <Button variant="outline" className="w-full bg-transparent border-white/10 hover:bg-white/5" onClick={handleSave} disabled={saving}>
+                                {saving ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Save className="h-3 w-3 mr-2" />}
+                                Save Draft
+                                </Button>
+                                <Button variant="outline" className="w-full bg-transparent border-white/10 hover:bg-white/5" onClick={() => setShowDomainManager(!showDomainManager)}>
+                                <Globe className="h-3 w-3 mr-2" />
+                                Domains
+                                </Button>
+                            </div>
+                        </CardContent>
+                        </Card>
+                    </div>
+                    </div>
                 </div>
 
                 {showDomainManager && (
@@ -857,184 +939,203 @@ export default function SiteSettingsPage() {
                   </div>
                 )}
 
-                {/* Configuration Tabs - Modern Pill Style */}
-                <div className="flex flex-col gap-6">
-                   {/* Scrollable Container for Tabs */}
-                   <div className="w-full overflow-x-auto pb-2 scrollbar-hide">
-                       <div className="bg-muted/30 p-1.5 rounded-xl border border-white/5 self-start inline-flex whitespace-nowrap min-w-min">
-                          {subTabs.map((tab) => {
-                            const Icon = tab.icon
-                            const isActive = activeSubTab === tab.id
-                            return (
-                              <button
-                                key={tab.id}
-                                onClick={() => setActiveSubTab(tab.id as any)}
-                                className={cn(
-                                  "relative flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-lg transition-all z-10",
-                                  isActive ? "text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                                )}
-                              >
-                                 {isActive && (
-                                    <motion.div
-                                        layoutId="activeSubTab"
-                                        className="absolute inset-0 bg-primary rounded-lg -z-10"
-                                        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                                    />
-                                 )}
-                                <Icon className="h-4 w-4" />
-                                {tab.label}
-                              </button>
-                            )
-                          })}
-                       </div>
-                   </div>
-
-                   {/* Settings Sub-Tab Content */}
-                   {activeSubTab === "settings" && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-2">
-                       <Card className="bg-card/50 backdrop-blur-sm border-white/10">
-                          <CardHeader className="p-4 md:p-6">
-                            <CardTitle>Branding</CardTitle>
-                            <CardDescription>Logo and store name configuration</CardDescription>
-                          </CardHeader>
-                          <CardContent className="space-y-6 p-4 md:p-6 pt-0">
-                             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
-                                <div className="relative h-24 w-24 rounded-full overflow-hidden bg-muted mb-4 sm:mb-0 ring-2 ring-border shrink-0">
-                                  {profileImage ? (
-                                    <img src={profileImage} alt="Profile" className="h-full w-full object-cover" />
-                                  ) : (
-                                    <div className="h-full w-full flex items-center justify-center text-muted-foreground bg-white/5">
-                                      <Store className="h-10 w-10 opacity-50" />
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="flex-1 space-y-3 w-full text-center sm:text-left">
-                                    <Label htmlFor="profile-upload" className="block text-sm font-medium mb-1">Store Logo</Label>
-                                    <Label
-                                        htmlFor="profile-upload"
-                                        className="cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80 h-9 px-4 py-2 transition-colors w-full sm:w-auto"
+                {/* Shared Content Area - Visible on BOTH Mobile and Desktop */}
+                <div className="space-y-8">
+                    {/* Configuration Tabs - Modern Pill Style */}
+                    <div className="flex flex-col gap-6">
+                        {/* Scrollable Container for Tabs */}
+                        <div className="w-full overflow-x-auto pb-2 scrollbar-hide">
+                            <div className="bg-muted/30 p-1.5 rounded-xl border border-white/5 self-start inline-flex whitespace-nowrap min-w-min">
+                                {subTabs.map((tab) => {
+                                    const Icon = tab.icon
+                                    const isActive = activeSubTab === tab.id
+                                    return (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => setActiveSubTab(tab.id as any)}
+                                        className={cn(
+                                        "relative flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-lg transition-all z-10",
+                                        isActive ? "text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                                        )}
                                     >
-                                        <Upload className="mr-2 h-4 w-4" />
-                                        Upload Image
-                                    </Label>
-                                    <Input id="profile-upload" type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-                                    <p className="text-xs text-muted-foreground">Recommended: 400x400px</p>
-                                </div>
-                             </div>
-
-                             <div className="space-y-2">
-                               <Label>Store Name</Label>
-                               <Input
-                                 value={shopName}
-                                 onChange={(e) => setShopName(e.target.value)}
-                                 className="bg-black/20 border-white/10"
-                               />
-                             </div>
-                          </CardContent>
-                       </Card>
-
-                       <Card className="bg-card/50 backdrop-blur-sm border-white/10">
-                          <CardHeader className="p-4 md:p-6">
-                            <CardTitle>Preferences</CardTitle>
-                            <CardDescription>General store settings</CardDescription>
-                          </CardHeader>
-                          <CardContent className="space-y-4 p-4 md:p-6 pt-0">
-                             <div className="space-y-2">
-                                <Label>Currency</Label>
-                                <div className="p-3 rounded-md bg-black/20 border border-white/10 text-sm text-muted-foreground flex justify-between items-center">
-                                   <span>USD ($)</span>
-                                   <span className="text-xs bg-white/10 px-2 py-0.5 rounded">Default</span>
-                                </div>
-                             </div>
-                             <div className="space-y-2">
-                                <Label>Language</Label>
-                                <div className="p-3 rounded-md bg-black/20 border border-white/10 text-sm text-muted-foreground flex justify-between items-center">
-                                   <span>English (US)</span>
-                                   <span className="text-xs bg-white/10 px-2 py-0.5 rounded">Default</span>
-                                </div>
-                             </div>
-                          </CardContent>
-                       </Card>
-                    </div>
-                   )}
-
-                   {/* Store Sub-Tab Content */}
-                   {activeSubTab === "store" && (
-                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
-                       <h3 className="text-lg font-medium">Product Listing Layout</h3>
-                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                          {Object.entries(productComponents).map(([key, comp]) => (
-                            <div
-                              key={key}
-                              onClick={() => handleComponentSelect("productComponent", key)}
-                              className={cn(
-                                "cursor-pointer rounded-xl border-2 p-4 text-center transition-all",
-                                settings?.productComponent === key
-                                  ? "border-primary bg-primary/5 ring-1 ring-primary"
-                                  : "border-white/10 bg-card hover:bg-accent/50 hover:border-white/20"
-                              )}
-                            >
-                              <div className="mb-3 h-24 bg-black/20 rounded-lg flex items-center justify-center border border-white/5 overflow-hidden">
-                                 {/* Simple visual representation */}
-                                 {key === 'grid' && <div className="grid grid-cols-2 gap-1 w-12"><div className="h-6 bg-muted-foreground/30 rounded"/><div className="h-6 bg-muted-foreground/30 rounded"/><div className="h-6 bg-muted-foreground/30 rounded"/><div className="h-6 bg-muted-foreground/30 rounded"/></div>}
-                                 {key === 'list' && <div className="flex flex-col gap-1 w-12"><div className="h-2.5 bg-muted-foreground/30 rounded w-full"/><div className="h-2.5 bg-muted-foreground/30 rounded w-full"/><div className="h-2.5 bg-muted-foreground/30 rounded w-full"/></div>}
-                                 {key === 'masonry' && <div className="flex gap-1 w-12 h-10 items-start"><div className="w-1/2 bg-muted-foreground/30 rounded h-full"/><div className="w-1/2 bg-muted-foreground/30 rounded h-1/2"/></div>}
-                                 {key === 'carousel' && <div className="flex gap-1 w-12 overflow-hidden"><div className="h-8 w-8 shrink-0 bg-muted-foreground/30 rounded"/><div className="h-8 w-8 shrink-0 bg-muted-foreground/30 rounded"/></div>}
-                              </div>
-                              <p className="font-medium text-sm">{comp.name}</p>
+                                        {isActive && (
+                                            <motion.div
+                                                layoutId="activeSubTab"
+                                                className="absolute inset-0 bg-primary rounded-lg -z-10"
+                                                transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                                            />
+                                        )}
+                                        <Icon className="h-4 w-4" />
+                                        {tab.label}
+                                    </button>
+                                    )
+                                })}
                             </div>
-                          ))}
-                       </div>
-                    </div>
-                   )}
+                        </div>
 
-                   {/* Pages Sub-Tab Content */}
-                   {activeSubTab === "pages" && (
-                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
-                       <div className="space-y-4">
-                         <h3 className="text-lg font-medium">Header Style</h3>
-                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                              {Object.entries(headerComponents).map(([key, comp]) => (
-                                <div
-                                  key={key}
-                                  onClick={() => handleComponentSelect("headerComponent", key)}
-                                  className={cn(
-                                    "cursor-pointer rounded-xl border-2 p-4 transition-all relative group overflow-hidden",
-                                    settings?.headerComponent === key
-                                      ? "border-primary bg-primary/5 ring-1 ring-primary"
-                                      : "border-white/10 bg-card hover:bg-accent/50 hover:border-white/20"
-                                  )}
-                                >
-                                  <p className="font-medium text-sm mb-1">{comp.name}</p>
-                                  <p className="text-xs text-muted-foreground line-clamp-2">{comp.description}</p>
-                                </div>
-                              ))}
-                           </div>
-                       </div>
+                        {/* Settings Sub-Tab Content */}
+                        {activeSubTab === "settings" && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-2">
+                            <Card className="bg-card/50 backdrop-blur-sm border-white/10">
+                                <CardHeader className="p-4 md:p-6">
+                                    <CardTitle>Branding</CardTitle>
+                                    <CardDescription>Logo and store name configuration</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-6 p-4 md:p-6 pt-0">
+                                    <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
+                                        <div className="relative h-24 w-24 rounded-full overflow-hidden bg-muted mb-4 sm:mb-0 ring-2 ring-border shrink-0">
+                                        {profileImage ? (
+                                            <img src={profileImage} alt="Profile" className="h-full w-full object-cover" />
+                                        ) : (
+                                            <div className="h-full w-full flex items-center justify-center text-muted-foreground bg-white/5">
+                                            <Store className="h-10 w-10 opacity-50" />
+                                            </div>
+                                        )}
+                                        </div>
+                                        <div className="flex-1 space-y-3 w-full text-center sm:text-left">
+                                            <Label htmlFor="profile-upload" className="block text-sm font-medium mb-1">Store Logo</Label>
+                                            <Label
+                                                htmlFor="profile-upload"
+                                                className="cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80 h-9 px-4 py-2 transition-colors w-full sm:w-auto"
+                                            >
+                                                <Upload className="mr-2 h-4 w-4" />
+                                                Upload Image
+                                            </Label>
+                                            <Input id="profile-upload" type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                                            <p className="text-xs text-muted-foreground">Recommended: 400x400px</p>
+                                        </div>
+                                    </div>
 
-                       <div className="space-y-4">
-                         <h3 className="text-lg font-medium">Hero Section</h3>
-                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                              {Object.entries(heroComponents).map(([key, comp]) => (
-                                <div
-                                  key={key}
-                                  onClick={() => handleComponentSelect("heroComponent", key)}
-                                  className={cn(
-                                    "cursor-pointer rounded-xl border-2 p-4 transition-all",
-                                    settings?.heroComponent === key
-                                      ? "border-primary bg-primary/5 ring-1 ring-primary"
-                                      : "border-white/10 bg-card hover:bg-accent/50 hover:border-white/20"
-                                  )}
-                                >
-                                  <p className="font-medium text-sm mb-1">{comp.name}</p>
-                                  <p className="text-xs text-muted-foreground line-clamp-2">{comp.description}</p>
+                                    <div className="space-y-2">
+                                    <Label>Store Name</Label>
+                                    <Input
+                                        value={shopName}
+                                        onChange={(e) => setShopName(e.target.value)}
+                                        className="bg-black/20 border-white/10"
+                                    />
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            <Card className="bg-card/50 backdrop-blur-sm border-white/10">
+                                <CardHeader className="p-4 md:p-6">
+                                    <CardTitle>Preferences</CardTitle>
+                                    <CardDescription>General store settings</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-4 p-4 md:p-6 pt-0">
+                                    <div className="space-y-2">
+                                        <Label>Currency</Label>
+                                        <div className="p-3 rounded-md bg-black/20 border border-white/10 text-sm text-muted-foreground flex justify-between items-center">
+                                        <span>USD ($)</span>
+                                        <span className="text-xs bg-white/10 px-2 py-0.5 rounded">Default</span>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Language</Label>
+                                        <div className="p-3 rounded-md bg-black/20 border border-white/10 text-sm text-muted-foreground flex justify-between items-center">
+                                        <span>English (US)</span>
+                                        <span className="text-xs bg-white/10 px-2 py-0.5 rounded">Default</span>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                            </div>
+                        )}
+
+                        {/* Store Sub-Tab Content */}
+                        {activeSubTab === "store" && (
+                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+                            <h3 className="text-lg font-medium">Product Listing Layout</h3>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                {Object.entries(productComponents).map(([key, comp]) => (
+                                    <div
+                                    key={key}
+                                    onClick={() => handleComponentSelect("productComponent", key)}
+                                    className={cn(
+                                        "cursor-pointer rounded-xl border-2 p-4 text-center transition-all",
+                                        settings?.productComponent === key
+                                        ? "border-primary bg-primary/5 ring-1 ring-primary"
+                                        : "border-white/10 bg-card hover:bg-accent/50 hover:border-white/20"
+                                    )}
+                                    >
+                                    <div className="mb-3 h-24 bg-black/20 rounded-lg flex items-center justify-center border border-white/5 overflow-hidden">
+                                        {/* Simple visual representation */}
+                                        {key === 'grid' && <div className="grid grid-cols-2 gap-1 w-12"><div className="h-6 bg-muted-foreground/30 rounded"/><div className="h-6 bg-muted-foreground/30 rounded"/><div className="h-6 bg-muted-foreground/30 rounded"/><div className="h-6 bg-muted-foreground/30 rounded"/></div>}
+                                        {key === 'list' && <div className="flex flex-col gap-1 w-12"><div className="h-2.5 bg-muted-foreground/30 rounded w-full"/><div className="h-2.5 bg-muted-foreground/30 rounded w-full"/><div className="h-2.5 bg-muted-foreground/30 rounded w-full"/></div>}
+                                        {key === 'masonry' && <div className="flex gap-1 w-12 h-10 items-start"><div className="w-1/2 bg-muted-foreground/30 rounded h-full"/><div className="w-1/2 bg-muted-foreground/30 rounded h-1/2"/></div>}
+                                        {key === 'carousel' && <div className="flex gap-1 w-12 overflow-hidden"><div className="h-8 w-8 shrink-0 bg-muted-foreground/30 rounded"/><div className="h-8 w-8 shrink-0 bg-muted-foreground/30 rounded"/></div>}
+                                    </div>
+                                    <p className="font-medium text-sm">{comp.name}</p>
+                                    </div>
+                                ))}
+                            </div>
+                            </div>
+                        )}
+
+                        {/* Pages Sub-Tab Content */}
+                        {activeSubTab === "pages" && (
+                            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
+                            <div className="space-y-4">
+                                <h3 className="text-lg font-medium">Header Style</h3>
+                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                                    {Object.entries(headerComponents).map(([key, comp]) => (
+                                        <div
+                                        key={key}
+                                        onClick={() => handleComponentSelect("headerComponent", key)}
+                                        className={cn(
+                                            "cursor-pointer rounded-xl border-2 p-4 transition-all relative group overflow-hidden",
+                                            settings?.headerComponent === key
+                                            ? "border-primary bg-primary/5 ring-1 ring-primary"
+                                            : "border-white/10 bg-card hover:bg-accent/50 hover:border-white/20"
+                                        )}
+                                        >
+                                        <p className="font-medium text-sm mb-1">{comp.name}</p>
+                                        <p className="text-xs text-muted-foreground line-clamp-2">{comp.description}</p>
+                                        </div>
+                                    ))}
                                 </div>
-                              ))}
-                           </div>
-                       </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <h3 className="text-lg font-medium">Hero Section</h3>
+                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                                    {Object.entries(heroComponents).map(([key, comp]) => (
+                                        <div
+                                        key={key}
+                                        onClick={() => handleComponentSelect("heroComponent", key)}
+                                        className={cn(
+                                            "cursor-pointer rounded-xl border-2 p-4 transition-all",
+                                            settings?.heroComponent === key
+                                            ? "border-primary bg-primary/5 ring-1 ring-primary"
+                                            : "border-white/10 bg-card hover:bg-accent/50 hover:border-white/20"
+                                        )}
+                                        >
+                                        <p className="font-medium text-sm mb-1">{comp.name}</p>
+                                        <p className="text-xs text-muted-foreground line-clamp-2">{comp.description}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            </div>
+                        )}
                     </div>
-                   )}
                 </div>
+
+                {/* Footer Section - Visible only on mobile for now as per design request */}
+                <div className="block md:hidden">
+                    <footer className="pt-12 pb-6 text-center space-y-4">
+                         <div className="flex items-center justify-center gap-2 text-muted-foreground text-sm">
+                             <span className="opacity-50">Draft</span>
+                             <span>&copy; 2024 Sycord. Minden jog fenntartva.</span>
+                         </div>
+                         <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground font-medium">
+                            <a href="#" className="hover:text-foreground transition-colors">Twitter</a>
+                            <a href="#" className="hover:text-foreground transition-colors">GitHub</a>
+                            <a href="#" className="hover:text-foreground transition-colors">Discord</a>
+                         </div>
+                    </footer>
+                </div>
+
               </div>
             )}
 
