@@ -39,6 +39,15 @@ import {
   Upload,
   Smartphone,
   Monitor,
+  Github,
+  Twitter,
+  MessageCircle,
+  Disc,
+  Link,
+  HelpCircle,
+  Activity,
+  HardDrive,
+  Square
 } from "lucide-react"
 import { CloudflareDomainManager } from "@/components/cloudflare-domain-manager"
 import { currencySymbols } from "@/lib/webshop-types"
@@ -54,6 +63,7 @@ import {
 import { useSession, signOut } from "next-auth/react"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
+import { Progress } from "@/components/ui/progress"
 
 const headerComponents = {
   simple: { name: "Simple", description: "A clean, minimalist header" },
@@ -186,9 +196,9 @@ export default function SiteSettingsPage() {
   const [productError, setProductError] = useState<string | null>(null)
 
   const [activeTab, setActiveTab] = useState<
-    "styles" | "products" | "payments" | "ai" | "pages" | "orders" | "customers" | "analytics" | "discount" | "deploy"
+    "styles" | "products" | "payments" | "ai" | "pages" | "orders" | "customers" | "analytics" | "discount" | "deploy" | "domain"
   >("styles")
-  const [activeSubTab, setActiveSubTab] = useState<"settings" | "store" | "pages">("settings")
+  const [activeSubTab, setActiveSubTab] = useState<"limits" | "connections" | "help">("limits")
 
   const [selectedStyle, setSelectedStyle] = useState<string | null>(null)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
@@ -205,7 +215,7 @@ export default function SiteSettingsPage() {
   const [touchStart, setTouchStart] = useState<number | null>(null)
   const [touchEnd, setTouchEnd] = useState<number | null>(null)
 
-  const minSwipeDistance = 30 // Reduced threshold for better responsiveness
+  const minSwipeDistance = 30
 
   const onTouchStart = (e: React.TouchEvent) => {
     setTouchEnd(null)
@@ -222,9 +232,8 @@ export default function SiteSettingsPage() {
     const isLeftSwipe = distance > minSwipeDistance
     const isRightSwipe = distance < -minSwipeDistance
 
-    // Trigger sidebar on any right swipe starting from left area or generally if intention is clear
-    // Relaxed condition: touchStart < 80 (wider area)
-    if (touchStart < 80 && isRightSwipe) {
+    // Trigger sidebar on any right swipe (swipe to open)
+    if (isRightSwipe) {
         setIsSidebarOpen(true)
     }
   }
@@ -556,6 +565,7 @@ export default function SiteSettingsPage() {
         { id: "pages", label: "Pages", icon: FileText },
         { id: "products", label: "Products", icon: ShoppingCart },
         { id: "payments", label: "Payments", icon: CreditCard },
+        { id: "domain", label: "Domain", icon: Globe }, // Added Domain segment
       ],
     },
     {
@@ -573,9 +583,9 @@ export default function SiteSettingsPage() {
   ]
 
   const subTabs = [
-    { id: "settings", label: "Settings", icon: Settings },
-    { id: "store", label: "Store", icon: Store },
-    { id: "pages", label: "Pages", icon: Layout },
+    { id: "limits", label: "Limits", icon: Activity },
+    { id: "connections", label: "Connections", icon: Link },
+    { id: "help", label: "Help", icon: HelpCircle },
   ]
 
   const userInitials =
@@ -590,15 +600,11 @@ export default function SiteSettingsPage() {
   const displayUrl = previewUrl ? previewUrl.replace(/^https?:\/\//, "") : null
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden relative">
-        {/* Transparent Left Edge Swipe Zone - Captures Touch Events Explicitly */}
-        <div
-            className="absolute top-0 left-0 bottom-0 w-8 z-50 md:hidden bg-transparent"
-            onTouchStart={onTouchStart}
-            onTouchMove={onTouchMove}
-            onTouchEnd={onTouchEnd}
-        />
-
+    <div className="flex h-screen bg-background overflow-hidden relative"
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+    >
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex flex-col w-64 border-r border-white/10 bg-black/40 backdrop-blur-xl shrink-0">
         <SidebarContent
@@ -770,9 +776,10 @@ export default function SiteSettingsPage() {
                         <Button
                             variant="secondary"
                             className="h-12 text-base font-medium bg-secondary/80 hover:bg-secondary border-none"
-                            onClick={() => setShowDomainManager(true)}
+                            onClick={() => setActiveTab("domain")}
                         >
-                            Connect Domain
+                            <Globe className="mr-2 h-4 w-4" />
+                            Domain
                         </Button>
                         <Button
                             variant="secondary"
@@ -780,7 +787,8 @@ export default function SiteSettingsPage() {
                             onClick={() => previewUrl && window.open(previewUrl, "_blank")}
                             disabled={!previewUrl}
                         >
-                            Open
+                            <ExternalLink className="mr-2 h-4 w-4" />
+                            Visit
                         </Button>
                     </div>
 
@@ -922,7 +930,7 @@ export default function SiteSettingsPage() {
                                 {saving ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Save className="h-3 w-3 mr-2" />}
                                 Save Draft
                                 </Button>
-                                <Button variant="outline" className="w-full bg-transparent border-white/10 hover:bg-white/5" onClick={() => setShowDomainManager(!showDomainManager)}>
+                                <Button variant="outline" className="w-full bg-transparent border-white/10 hover:bg-white/5" onClick={() => setActiveTab("domain")}>
                                 <Globe className="h-3 w-3 mr-2" />
                                 Domains
                                 </Button>
@@ -973,149 +981,72 @@ export default function SiteSettingsPage() {
                             </div>
                         </div>
 
-                        {/* Settings Sub-Tab Content */}
-                        {activeSubTab === "settings" && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-2">
-                            <Card className="bg-card/50 backdrop-blur-sm border-white/10">
-                                <CardHeader className="p-4 md:p-6">
-                                    <CardTitle>Branding</CardTitle>
-                                    <CardDescription>Logo and store name configuration</CardDescription>
-                                </CardHeader>
-                                <CardContent className="space-y-6 p-4 md:p-6 pt-0">
-                                    <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
-                                        <div className="relative h-24 w-24 rounded-full overflow-hidden bg-muted mb-4 sm:mb-0 ring-2 ring-border shrink-0">
-                                        {profileImage ? (
-                                            <img src={profileImage} alt="Profile" className="h-full w-full object-cover" />
-                                        ) : (
-                                            <div className="h-full w-full flex items-center justify-center text-muted-foreground bg-white/5">
-                                            <Store className="h-10 w-10 opacity-50" />
+                        {/* Limits Sub-Tab Content */}
+                        {activeSubTab === "limits" && (
+                            <div className="animate-in fade-in slide-in-from-bottom-2">
+                                <Card className="bg-card/50 backdrop-blur-sm border-white/10 max-w-md mx-auto md:mx-0">
+                                    <CardHeader>
+                                        <div className="flex items-center gap-3">
+                                            <CardTitle className="text-xl">Statistics</CardTitle>
+                                            <span className="bg-white/10 text-white text-xs px-2 py-1 rounded-full">Free</span>
+                                        </div>
+                                    </CardHeader>
+                                    <CardContent className="space-y-6">
+                                        {/* Changes */}
+                                        <div className="flex items-center gap-4">
+                                            <Square className="h-5 w-5 text-white fill-white shrink-0" />
+                                            <div className="flex-1 space-y-1">
+                                                <Progress value={0} className="h-3 bg-white/5" />
                                             </div>
-                                        )}
+                                            <span className="text-xs text-muted-foreground whitespace-nowrap min-w-[120px] text-right">300 messages remain</span>
                                         </div>
-                                        <div className="flex-1 space-y-3 w-full text-center sm:text-left">
-                                            <Label htmlFor="profile-upload" className="block text-sm font-medium mb-1">Store Logo</Label>
-                                            <Label
-                                                htmlFor="profile-upload"
-                                                className="cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80 h-9 px-4 py-2 transition-colors w-full sm:w-auto"
-                                            >
-                                                <Upload className="mr-2 h-4 w-4" />
-                                                Upload Image
-                                            </Label>
-                                            <Input id="profile-upload" type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-                                            <p className="text-xs text-muted-foreground">Recommended: 400x400px</p>
-                                        </div>
-                                    </div>
 
-                                    <div className="space-y-2">
-                                    <Label>Store Name</Label>
-                                    <Input
-                                        value={shopName}
-                                        onChange={(e) => setShopName(e.target.value)}
-                                        className="bg-black/20 border-white/10"
-                                    />
-                                    </div>
-                                </CardContent>
-                            </Card>
+                                        {/* AI Chat Build */}
+                                        <div className="flex items-center gap-4">
+                                            <Square className="h-5 w-5 text-white fill-white shrink-0" />
+                                            <div className="flex-1 space-y-1">
+                                                <Progress value={30} className="h-3 bg-white/5" />
+                                            </div>
+                                            <span className="text-xs text-muted-foreground whitespace-nowrap min-w-[120px] text-right">100/mo AI builds</span>
+                                        </div>
 
-                            <Card className="bg-card/50 backdrop-blur-sm border-white/10">
-                                <CardHeader className="p-4 md:p-6">
-                                    <CardTitle>Preferences</CardTitle>
-                                    <CardDescription>General store settings</CardDescription>
-                                </CardHeader>
-                                <CardContent className="space-y-4 p-4 md:p-6 pt-0">
-                                    <div className="space-y-2">
-                                        <Label>Currency</Label>
-                                        <div className="p-3 rounded-md bg-black/20 border border-white/10 text-sm text-muted-foreground flex justify-between items-center">
-                                        <span>USD ($)</span>
-                                        <span className="text-xs bg-white/10 px-2 py-0.5 rounded">Default</span>
+                                        {/* Storage */}
+                                        <div className="flex items-center gap-4">
+                                            <Square className="h-5 w-5 text-white fill-white shrink-0" />
+                                            <div className="flex-1 space-y-1">
+                                                <Progress value={50} className="h-3 bg-white/5" />
+                                            </div>
+                                            <span className="text-xs text-muted-foreground whitespace-nowrap min-w-[120px] text-right">50MB Storage</span>
                                         </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>Language</Label>
-                                        <div className="p-3 rounded-md bg-black/20 border border-white/10 text-sm text-muted-foreground flex justify-between items-center">
-                                        <span>English (US)</span>
-                                        <span className="text-xs bg-white/10 px-2 py-0.5 rounded">Default</span>
+
+                                         {/* Products */}
+                                         <div className="flex items-center gap-4">
+                                            <Square className="h-5 w-5 text-white fill-white shrink-0" />
+                                            <div className="flex-1 space-y-1">
+                                                <Progress value={10} className="h-3 bg-white/5" />
+                                            </div>
+                                            <span className="text-xs text-muted-foreground whitespace-nowrap min-w-[120px] text-right">500 Products</span>
                                         </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
+                                    </CardContent>
+                                </Card>
                             </div>
                         )}
 
-                        {/* Store Sub-Tab Content */}
-                        {activeSubTab === "store" && (
-                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
-                            <h3 className="text-lg font-medium">Product Listing Layout</h3>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                {Object.entries(productComponents).map(([key, comp]) => (
-                                    <div
-                                    key={key}
-                                    onClick={() => handleComponentSelect("productComponent", key)}
-                                    className={cn(
-                                        "cursor-pointer rounded-xl border-2 p-4 text-center transition-all",
-                                        settings?.productComponent === key
-                                        ? "border-primary bg-primary/5 ring-1 ring-primary"
-                                        : "border-white/10 bg-card hover:bg-accent/50 hover:border-white/20"
-                                    )}
-                                    >
-                                    <div className="mb-3 h-24 bg-black/20 rounded-lg flex items-center justify-center border border-white/5 overflow-hidden">
-                                        {/* Simple visual representation */}
-                                        {key === 'grid' && <div className="grid grid-cols-2 gap-1 w-12"><div className="h-6 bg-muted-foreground/30 rounded"/><div className="h-6 bg-muted-foreground/30 rounded"/><div className="h-6 bg-muted-foreground/30 rounded"/><div className="h-6 bg-muted-foreground/30 rounded"/></div>}
-                                        {key === 'list' && <div className="flex flex-col gap-1 w-12"><div className="h-2.5 bg-muted-foreground/30 rounded w-full"/><div className="h-2.5 bg-muted-foreground/30 rounded w-full"/><div className="h-2.5 bg-muted-foreground/30 rounded w-full"/></div>}
-                                        {key === 'masonry' && <div className="flex gap-1 w-12 h-10 items-start"><div className="w-1/2 bg-muted-foreground/30 rounded h-full"/><div className="w-1/2 bg-muted-foreground/30 rounded h-1/2"/></div>}
-                                        {key === 'carousel' && <div className="flex gap-1 w-12 overflow-hidden"><div className="h-8 w-8 shrink-0 bg-muted-foreground/30 rounded"/><div className="h-8 w-8 shrink-0 bg-muted-foreground/30 rounded"/></div>}
-                                    </div>
-                                    <p className="font-medium text-sm">{comp.name}</p>
-                                    </div>
-                                ))}
-                            </div>
+                        {/* Connections Sub-Tab Content */}
+                        {activeSubTab === "connections" && (
+                            <div className="flex flex-col items-center justify-center h-[30vh] text-center border-2 border-dashed border-white/10 rounded-xl bg-white/5 animate-in fade-in slide-in-from-bottom-2">
+                                <Link className="h-10 w-10 text-muted-foreground mb-3 opacity-50" />
+                                <h3 className="text-lg font-medium mb-1">Connections</h3>
+                                <p className="text-muted-foreground text-sm">Currently under construction</p>
                             </div>
                         )}
 
-                        {/* Pages Sub-Tab Content */}
-                        {activeSubTab === "pages" && (
-                            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
-                            <div className="space-y-4">
-                                <h3 className="text-lg font-medium">Header Style</h3>
-                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                                    {Object.entries(headerComponents).map(([key, comp]) => (
-                                        <div
-                                        key={key}
-                                        onClick={() => handleComponentSelect("headerComponent", key)}
-                                        className={cn(
-                                            "cursor-pointer rounded-xl border-2 p-4 transition-all relative group overflow-hidden",
-                                            settings?.headerComponent === key
-                                            ? "border-primary bg-primary/5 ring-1 ring-primary"
-                                            : "border-white/10 bg-card hover:bg-accent/50 hover:border-white/20"
-                                        )}
-                                        >
-                                        <p className="font-medium text-sm mb-1">{comp.name}</p>
-                                        <p className="text-xs text-muted-foreground line-clamp-2">{comp.description}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="space-y-4">
-                                <h3 className="text-lg font-medium">Hero Section</h3>
-                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                                    {Object.entries(heroComponents).map(([key, comp]) => (
-                                        <div
-                                        key={key}
-                                        onClick={() => handleComponentSelect("heroComponent", key)}
-                                        className={cn(
-                                            "cursor-pointer rounded-xl border-2 p-4 transition-all",
-                                            settings?.heroComponent === key
-                                            ? "border-primary bg-primary/5 ring-1 ring-primary"
-                                            : "border-white/10 bg-card hover:bg-accent/50 hover:border-white/20"
-                                        )}
-                                        >
-                                        <p className="font-medium text-sm mb-1">{comp.name}</p>
-                                        <p className="text-xs text-muted-foreground line-clamp-2">{comp.description}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
+                        {/* Help Sub-Tab Content */}
+                        {activeSubTab === "help" && (
+                            <div className="flex flex-col items-center justify-center h-[30vh] text-center border-2 border-dashed border-white/10 rounded-xl bg-white/5 animate-in fade-in slide-in-from-bottom-2">
+                                <HelpCircle className="h-10 w-10 text-muted-foreground mb-3 opacity-50" />
+                                <h3 className="text-lg font-medium mb-1">Help Center</h3>
+                                <p className="text-muted-foreground text-sm">Currently under construction</p>
                             </div>
                         )}
                     </div>
@@ -1137,6 +1068,14 @@ export default function SiteSettingsPage() {
                 </div>
 
               </div>
+            )}
+
+            {/* TAB CONTENT: DOMAIN MANAGER */}
+            {activeTab === "domain" && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+                    <h2 className="text-2xl font-bold">Domain Management</h2>
+                    <CloudflareDomainManager projectId={id} />
+                </div>
             )}
 
             {/* TAB CONTENT: PRODUCTS */}
