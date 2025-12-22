@@ -47,7 +47,8 @@ import {
   HelpCircle,
   Activity,
   HardDrive,
-  Square
+  MessageSquare,
+  Bot
 } from "lucide-react"
 import { CloudflareDomainManager } from "@/components/cloudflare-domain-manager"
 import { currencySymbols } from "@/lib/webshop-types"
@@ -599,6 +600,35 @@ export default function SiteSettingsPage() {
     project?.cloudflareUrl || deployment?.cloudflareUrl || (deployment?.domain ? `https://${deployment.domain}` : null)
   const displayUrl = previewUrl ? previewUrl.replace(/^https?:\/\//, "") : null
 
+  // Calculate real usage stats
+  // Limit values (mocked for now, but usage is real)
+  const stats = {
+    changes: {
+      used: generatedPages.length, // Using generated pages as "changes" proxy
+      limit: 300,
+      label: "messages remain",
+      icon: MessageSquare
+    },
+    aiBuilds: {
+      used: generatedPages.length, // Using pages as AI builds proxy
+      limit: 100,
+      label: "/mo AI builds",
+      icon: Bot
+    },
+    storage: {
+      used: parseFloat((generatedPages.length * 0.2 + products.length * 0.1).toFixed(1)), // Estimated size
+      limit: 50,
+      label: "MB Storage",
+      icon: HardDrive
+    },
+    products: {
+      used: products.length,
+      limit: 500,
+      label: "Products",
+      icon: Package
+    }
+  }
+
   return (
     <div className="flex h-screen bg-background overflow-hidden relative"
         onTouchStart={onTouchStart}
@@ -962,7 +992,7 @@ export default function SiteSettingsPage() {
                                         key={tab.id}
                                         onClick={() => setActiveSubTab(tab.id as any)}
                                         className={cn(
-                                        "relative flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-lg transition-all z-10",
+                                        "relative flex items-center gap-2 px-4 py-1.5 text-xs font-medium rounded-lg transition-all z-10",
                                         isActive ? "text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                                         )}
                                     >
@@ -973,7 +1003,7 @@ export default function SiteSettingsPage() {
                                                 transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                                             />
                                         )}
-                                        <Icon className="h-4 w-4" />
+                                        <Icon className="h-3.5 w-3.5" />
                                         {tab.label}
                                     </button>
                                     )
@@ -984,7 +1014,7 @@ export default function SiteSettingsPage() {
                         {/* Limits Sub-Tab Content */}
                         {activeSubTab === "limits" && (
                             <div className="animate-in fade-in slide-in-from-bottom-2">
-                                <Card className="bg-card/50 backdrop-blur-sm border-white/10 max-w-md mx-auto md:mx-0">
+                                <Card className="bg-white/5 backdrop-blur-xl border-white/10 max-w-md mx-auto md:mx-0">
                                     <CardHeader>
                                         <div className="flex items-center gap-3">
                                             <CardTitle className="text-xl">Statistics</CardTitle>
@@ -994,38 +1024,58 @@ export default function SiteSettingsPage() {
                                     <CardContent className="space-y-6">
                                         {/* Changes */}
                                         <div className="flex items-center gap-4">
-                                            <Square className="h-5 w-5 text-white fill-white shrink-0" />
-                                            <div className="flex-1 space-y-1">
-                                                <Progress value={0} className="h-3 bg-white/5" />
+                                            <div className="bg-gradient-to-br from-white/10 to-transparent p-2 rounded-lg shrink-0 border border-white/5">
+                                                <stats.changes.icon className="h-5 w-5 text-white" />
                                             </div>
-                                            <span className="text-xs text-muted-foreground whitespace-nowrap min-w-[120px] text-right">300 messages remain</span>
+                                            <div className="flex-1 space-y-1.5">
+                                                <Progress value={(stats.changes.used / stats.changes.limit) * 100} className="h-4 bg-white/5" />
+                                            </div>
+                                            <div className="min-w-[120px] text-right">
+                                                <span className="text-xs font-semibold block">{stats.changes.limit - stats.changes.used}</span>
+                                                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{stats.changes.label}</span>
+                                            </div>
                                         </div>
 
                                         {/* AI Chat Build */}
                                         <div className="flex items-center gap-4">
-                                            <Square className="h-5 w-5 text-white fill-white shrink-0" />
-                                            <div className="flex-1 space-y-1">
-                                                <Progress value={30} className="h-3 bg-white/5" />
+                                            <div className="bg-gradient-to-br from-white/10 to-transparent p-2 rounded-lg shrink-0 border border-white/5">
+                                                <stats.aiBuilds.icon className="h-5 w-5 text-white" />
                                             </div>
-                                            <span className="text-xs text-muted-foreground whitespace-nowrap min-w-[120px] text-right">100/mo AI builds</span>
+                                            <div className="flex-1 space-y-1.5">
+                                                <Progress value={(stats.aiBuilds.used / stats.aiBuilds.limit) * 100} className="h-4 bg-white/5" />
+                                            </div>
+                                            <div className="min-w-[120px] text-right">
+                                                <span className="text-xs font-semibold block">{stats.aiBuilds.used} / {stats.aiBuilds.limit}</span>
+                                                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{stats.aiBuilds.label}</span>
+                                            </div>
                                         </div>
 
                                         {/* Storage */}
                                         <div className="flex items-center gap-4">
-                                            <Square className="h-5 w-5 text-white fill-white shrink-0" />
-                                            <div className="flex-1 space-y-1">
-                                                <Progress value={50} className="h-3 bg-white/5" />
+                                            <div className="bg-gradient-to-br from-white/10 to-transparent p-2 rounded-lg shrink-0 border border-white/5">
+                                                <stats.storage.icon className="h-5 w-5 text-white" />
                                             </div>
-                                            <span className="text-xs text-muted-foreground whitespace-nowrap min-w-[120px] text-right">50MB Storage</span>
+                                            <div className="flex-1 space-y-1.5">
+                                                <Progress value={(stats.storage.used / stats.storage.limit) * 100} className="h-4 bg-white/5" />
+                                            </div>
+                                            <div className="min-w-[120px] text-right">
+                                                <span className="text-xs font-semibold block">{stats.storage.used}MB</span>
+                                                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{stats.storage.label}</span>
+                                            </div>
                                         </div>
 
                                          {/* Products */}
                                          <div className="flex items-center gap-4">
-                                            <Square className="h-5 w-5 text-white fill-white shrink-0" />
-                                            <div className="flex-1 space-y-1">
-                                                <Progress value={10} className="h-3 bg-white/5" />
+                                            <div className="bg-gradient-to-br from-white/10 to-transparent p-2 rounded-lg shrink-0 border border-white/5">
+                                                <stats.products.icon className="h-5 w-5 text-white" />
                                             </div>
-                                            <span className="text-xs text-muted-foreground whitespace-nowrap min-w-[120px] text-right">500 Products</span>
+                                            <div className="flex-1 space-y-1.5">
+                                                <Progress value={(stats.products.used / stats.products.limit) * 100} className="h-4 bg-white/5" />
+                                            </div>
+                                            <div className="min-w-[120px] text-right">
+                                                <span className="text-xs font-semibold block">{stats.products.used} / {stats.products.limit}</span>
+                                                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{stats.products.label}</span>
+                                            </div>
                                         </div>
                                     </CardContent>
                                 </Card>

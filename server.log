@@ -1,0 +1,18 @@
+
+> my-v0-project@0.1.0 dev /app
+> next dev
+
+ ⚠ Port 3000 is in use by an unknown process, using available port 3001 instead.
+ ⚠ `eslint` configuration in next.config.mjs is no longer supported. See more info here: https://nextjs.org/docs/app/api-reference/cli/next#next-lint-options
+ ⚠ Invalid next.config.mjs options detected:
+ ⚠     Unrecognized key(s) in object: 'eslint'
+ ⚠ See more info here: https://nextjs.org/docs/messages/invalid-next-config
+   ▲ Next.js 16.0.10 (Turbopack)
+   - Local:         http://localhost:3001
+   - Network:       http://192.168.0.2:3001
+
+ ✓ Starting...
+ ⨯ Unable to acquire lock at /app/.next/dev/lock, is another instance of next dev running?
+   Suggestion: If you intended to restart next dev, terminate the other process, and then try again.
+[?25h
+ ELIFECYCLE  Command failed with exit code 1.
