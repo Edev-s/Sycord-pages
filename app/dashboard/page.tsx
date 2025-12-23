@@ -145,48 +145,16 @@ function DashboardContent() {
     </Sheet>
   )
 
-  const handleDeleteDeployment = async (deploymentId: string, projectId: string) => {
-    if (!confirm("Are you sure you want to delete this deployment? This action cannot be undone.")) return
+  const handleDeleteProject = async (projectId: string) => {
+    // The actual API call is handled inside WebsitePreviewCard for now,
+    // or we can move it here.
+    // Given the component structure, WebsitePreviewCard handles the fetch,
+    // and calls this callback on success.
+    // So we just need to update the local state.
 
-    setDeletingDeployments((prev) => new Set([...prev, deploymentId]))
-
-    try {
-      const response = await fetch(`/api/deployments?id=${deploymentId}`, {
-        method: "DELETE",
-      })
-
-      if (response.ok) {
-        setFlaggedDeployments((prev) => {
-          const next = new Set(prev)
-          next.delete(deploymentId)
-          return next
-        })
-
-        setProjects((prevProjects: any) =>
-          prevProjects.map((p: any) =>
-            p._id === projectId
-              ? {
-                  ...p,
-                  domain: null,
-                  subdomain: null,
-                  deploymentId: null,
-                }
-              : p,
-          ),
-        )
-      } else {
-        alert("Failed to delete deployment")
-      }
-    } catch (error) {
-      console.error("[v0] Error deleting deployment:", error)
-      alert("Error deleting deployment")
-    } finally {
-      setDeletingDeployments((prev) => {
-        const next = new Set(prev)
-        next.delete(deploymentId)
-        return next
-      })
-    }
+    setProjects((prevProjects: any) =>
+      prevProjects.filter((p: any) => p._id !== projectId)
+    )
   }
 
   return (
@@ -331,7 +299,7 @@ function DashboardContent() {
                       businessName={project.businessName}
                       createdAt={project.createdAt}
                       style={project.style || "default"}
-                      onDelete={(deploymentId) => handleDeleteDeployment(deploymentId, project._id)}
+                      onDelete={() => handleDeleteProject(project._id)}
                     />
                   ) : (
                     <div className="w-full h-64 sm:h-80 md:h-96 bg-gray-100 rounded-lg flex items-center justify-center border border-border">

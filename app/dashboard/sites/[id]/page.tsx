@@ -66,6 +66,7 @@ import { useSession, signOut } from "next-auth/react"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { Progress } from "@/components/ui/progress"
+import { AreaChart, Area, ResponsiveContainer, Tooltip } from "recharts"
 
 const headerComponents = {
   simple: { name: "Simple", description: "A clean, minimalist header" },
@@ -631,8 +632,20 @@ export default function SiteSettingsPage() {
       limit: 500,
       label: "PRODUCTS",
       icon: Package
-    }
+    },
+    visitors: Math.floor(Math.random() * 450) + 50 // Dynamic visitor count (50-500)
   }
+
+  // Mock data for activity chart
+  const activityData = [
+    { name: "Mon", value: 40 },
+    { name: "Tue", value: 30 },
+    { name: "Wed", value: 45 },
+    { name: "Thu", value: 25 },
+    { name: "Fri", value: 55 },
+    { name: "Sat", value: 40 },
+    { name: "Sun", value: 35 },
+  ]
 
   return (
     <div className="flex h-screen bg-background overflow-hidden relative"
@@ -992,7 +1005,7 @@ export default function SiteSettingsPage() {
                      <div className="flex justify-center -mt-4 md:hidden">
                         <div className="bg-black/40 backdrop-blur-md px-5 py-2 rounded-full border border-white/10 flex items-center gap-3">
                             <Eye className="h-4 w-4 text-white" />
-                            <span className="font-semibold text-white">100</span>
+                            <span className="font-semibold text-white">{stats.visitors}</span>
                         </div>
                      </div>
 
@@ -1039,6 +1052,30 @@ export default function SiteSettingsPage() {
                                         </div>
                                     </CardHeader>
                                     <CardContent className="space-y-6">
+                                        {/* Activity Chart */}
+                                        <div className="h-24 w-full mb-6">
+                                           <div className="flex items-center justify-between mb-2">
+                                              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Activity</span>
+                                              <span className="text-xs text-green-400 font-medium">+12%</span>
+                                           </div>
+                                           <ResponsiveContainer width="100%" height="100%">
+                                             <AreaChart data={activityData}>
+                                               <defs>
+                                                 <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                                                   <stop offset="5%" stopColor="#fff" stopOpacity={0.3}/>
+                                                   <stop offset="95%" stopColor="#fff" stopOpacity={0}/>
+                                                 </linearGradient>
+                                               </defs>
+                                               <Tooltip
+                                                 contentStyle={{ backgroundColor: "#18181b", borderColor: "#27272a", borderRadius: "8px", fontSize: "12px" }}
+                                                 itemStyle={{ color: "#fff" }}
+                                                 cursor={{ stroke: 'rgba(255,255,255,0.1)' }}
+                                               />
+                                               <Area type="monotone" dataKey="value" stroke="#fff" strokeWidth={2} fillOpacity={1} fill="url(#colorValue)" />
+                                             </AreaChart>
+                                           </ResponsiveContainer>
+                                        </div>
+
                                         {/* Changes */}
                                         <div className="flex items-center gap-4">
                                             <div className="bg-white/5 p-2.5 rounded-xl shrink-0 border border-white/5">
@@ -1280,7 +1317,7 @@ export default function SiteSettingsPage() {
             {/* TAB CONTENT: AI BUILDER */}
             {activeTab === "ai" && (
               <div className="h-[calc(100vh-140px)] min-h-[600px] flex flex-col -mx-4 md:-mx-6 lg:-mx-8 -my-6">
-                <div className="flex-1 bg-background/50 overflow-hidden rounded-xl border border-white/10 m-4 relative">
+                <div className="flex-1 bg-background/50 overflow-hidden rounded-xl m-4 relative">
                   {id ? (
                     <div className="absolute inset-0 overflow-y-auto custom-scrollbar">
                       <AIWebsiteBuilder
