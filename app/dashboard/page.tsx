@@ -5,7 +5,7 @@ import Image from "next/image"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useSession, signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
-import { Settings, Plus, LogOut, User, Menu, TriangleAlert } from "lucide-react"
+import { Settings, Plus, LogOut, User, Menu, TriangleAlert, Search, LayoutTemplate } from "lucide-react"
 import { useState, useEffect, Suspense } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import {
@@ -251,12 +251,15 @@ function DashboardContent() {
               </Button>
             </div>
             <div className="flex gap-3 items-center">
-              <input
-                type="text"
-                placeholder="Keresés a webhelyek között..."
-                className="flex-1 p-3 border border-input rounded-md bg-transparent text-sm"
-              />
-              <div className="px-4 py-3 border border-input rounded-md bg-muted text-sm font-medium whitespace-nowrap">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Keresés a webhelyek között..."
+                  className="w-full pl-10 pr-4 py-3 border border-input rounded-xl bg-background/50 backdrop-blur-sm text-sm focus:ring-2 focus:ring-primary/20 transition-all outline-none"
+                />
+              </div>
+              <div className="px-4 py-3 border border-input rounded-xl bg-muted/50 backdrop-blur-sm text-sm font-medium whitespace-nowrap">
                 {projects.length}/3
               </div>
             </div>
@@ -288,7 +291,7 @@ function DashboardContent() {
               {projects.map((project: any) => (
                 <div
                   key={project._id}
-                  className="border border-border rounded-lg overflow-hidden flex flex-col hover:border-foreground/20 transition-colors"
+                  className="group relative border border-border/50 bg-card/30 backdrop-blur-sm rounded-xl overflow-hidden flex flex-col hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300"
                 >
                   {project.domain && project.deploymentId ? (
                     <WebsitePreviewCard
@@ -302,8 +305,15 @@ function DashboardContent() {
                       onDelete={() => handleDeleteProject(project._id)}
                     />
                   ) : (
-                    <div className="w-full h-64 sm:h-80 md:h-96 bg-gray-100 rounded-lg flex items-center justify-center border border-border">
-                      <p className="text-xs text-muted-foreground">Nincs preview</p>
+                    <div className="w-full h-64 sm:h-80 md:h-96 bg-gradient-to-br from-muted/50 to-muted/10 flex flex-col items-center justify-center p-6 text-center group-hover:bg-muted/30 transition-colors">
+                      <div className="h-16 w-16 rounded-full bg-background/50 flex items-center justify-center mb-4 shadow-sm border border-border/50">
+                        <LayoutTemplate className="h-8 w-8 text-muted-foreground/50" />
+                      </div>
+                      <h3 className="font-medium text-foreground mb-1">{project.businessName}</h3>
+                      <p className="text-xs text-muted-foreground mb-4">Még nincs publikálva</p>
+                      <Button variant="outline" size="sm" onClick={() => router.push(`/dashboard/sites/${project._id}`)}>
+                        Szerkesztés
+                      </Button>
                     </div>
                   )}
                 </div>

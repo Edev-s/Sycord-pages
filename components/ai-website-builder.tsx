@@ -342,10 +342,15 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
   return (
     <div className="flex flex-col h-full bg-background text-foreground font-sans">
       {/* Header / Model Selector - Redesigned to Circled Input Style */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border/50 bg-background/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="flex items-center gap-2 text-sm font-medium">
-          <Bot className="h-4 w-4" />
-          <span>AI Architect</span>
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border/50 bg-background/80 backdrop-blur-md sticky top-0 z-10 supports-[backdrop-filter]:bg-background/50">
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center border border-primary/20">
+             <Bot className="h-4 w-4 text-primary" />
+          </div>
+          <div className="flex flex-col">
+             <span className="text-sm font-semibold leading-none tracking-tight">AI Architect</span>
+             <span className="text-[10px] text-muted-foreground font-medium">Auto-pilot active</span>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {/* Task Progress Indicator */}
@@ -400,8 +405,8 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
             {/* User Message */}
             {message.role === "user" && (
               <div className="flex justify-end">
-                <div className="max-w-2xl bg-primary/10 text-primary-foreground rounded-2xl px-5 py-3 text-sm border border-primary/20">
-                  <p className="text-foreground">{message.content}</p>
+                <div className="max-w-2xl bg-primary text-primary-foreground rounded-2xl rounded-tr-sm px-5 py-3.5 text-sm shadow-md shadow-primary/5">
+                  <p className="leading-relaxed">{message.content}</p>
                 </div>
               </div>
             )}
