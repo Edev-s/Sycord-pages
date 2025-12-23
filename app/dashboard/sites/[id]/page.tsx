@@ -1045,33 +1045,45 @@ export default function SiteSettingsPage() {
                         {activeSubTab === "limits" && (
                             <div className="animate-in fade-in slide-in-from-bottom-2">
                                 <Card className="bg-card/50 backdrop-blur-xl border-white/10 max-w-md mx-auto md:mx-0">
-                                    <CardHeader>
-                                        <div className="flex items-center gap-3">
-                                            <CardTitle className="text-xl">Statistics</CardTitle>
-                                            <span className="bg-white/10 text-white text-xs px-2 py-1 rounded-full border border-white/5">Free</span>
+                                    <CardHeader className="pb-2">
+                                        <div className="flex items-center justify-between">
+                                            <CardTitle className="text-lg font-medium">Statistics</CardTitle>
+                                            <span className="bg-primary/10 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full border border-primary/20 tracking-wide uppercase">Free Plan</span>
                                         </div>
                                     </CardHeader>
                                     <CardContent className="space-y-6">
                                         {/* Activity Chart */}
-                                        <div className="h-24 w-full mb-6">
-                                           <div className="flex items-center justify-between mb-2">
-                                              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Activity</span>
-                                              <span className="text-xs text-green-400 font-medium">+12%</span>
+                                        <div className="h-32 w-full mb-6 bg-black/20 rounded-xl p-3 border border-white/5 relative overflow-hidden group hover:border-white/10 transition-colors">
+                                           <div className="flex items-center justify-between mb-2 px-1">
+                                              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                                                  <Activity className="h-3 w-3" /> Activity
+                                              </span>
+                                              <span className="text-[10px] text-green-400 font-bold bg-green-400/10 px-1.5 py-0.5 rounded">+12%</span>
                                            </div>
                                            <ResponsiveContainer width="100%" height="100%">
                                              <AreaChart data={activityData}>
                                                <defs>
                                                  <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                                                   <stop offset="5%" stopColor="#fff" stopOpacity={0.3}/>
-                                                   <stop offset="95%" stopColor="#fff" stopOpacity={0}/>
+                                                   <stop offset="5%" stopColor="white" stopOpacity={0.2}/>
+                                                   <stop offset="95%" stopColor="white" stopOpacity={0}/>
                                                  </linearGradient>
                                                </defs>
                                                <Tooltip
-                                                 contentStyle={{ backgroundColor: "#18181b", borderColor: "#27272a", borderRadius: "8px", fontSize: "12px" }}
-                                                 itemStyle={{ color: "#fff" }}
-                                                 cursor={{ stroke: 'rgba(255,255,255,0.1)' }}
+                                                 contentStyle={{ backgroundColor: "#09090b", borderColor: "#27272a", borderRadius: "8px", fontSize: "12px", boxShadow: "0 4px 12px rgba(0,0,0,0.5)" }}
+                                                 itemStyle={{ color: "#e4e4e7" }}
+                                                 cursor={{ stroke: 'rgba(255,255,255,0.2)', strokeDasharray: '4 4' }}
+                                                 formatter={(value: any) => [`${value} visits`, 'Traffic']}
+                                                 labelStyle={{ display: 'none' }}
                                                />
-                                               <Area type="monotone" dataKey="value" stroke="#fff" strokeWidth={2} fillOpacity={1} fill="url(#colorValue)" />
+                                               <Area
+                                                   type="monotone"
+                                                   dataKey="value"
+                                                   stroke="white"
+                                                   strokeWidth={2}
+                                                   fillOpacity={1}
+                                                   fill="url(#colorValue)"
+                                                   activeDot={{ r: 4, fill: "white", strokeWidth: 0 }}
+                                               />
                                              </AreaChart>
                                            </ResponsiveContainer>
                                         </div>
