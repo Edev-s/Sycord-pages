@@ -18,7 +18,25 @@ export async function POST(request: Request) {
   console.log("==========================================");
   console.log(`[Project Creation] Start for User: ${session.user.email}`);
 
-  const body = await request.json()
+  let body;
+  try {
+      body = await request.json();
+  } catch (e) {
+      return NextResponse.json({ message: "Invalid JSON body" }, { status: 400 });
+  }
+
+  // Validate businessName
+  if (!body.businessName || typeof body.businessName !== 'string' || body.businessName.trim().length === 0) {
+      return NextResponse.json({ message: "Business name is required" }, { status: 400 });
+  }
+  if (body.businessName.length > 100) {
+      return NextResponse.json({ message: "Business name is too long (max 100 chars)" }, { status: 400 });
+  }
+
+  // Validate description if present
+  if (body.businessDescription && (typeof body.businessDescription !== 'string' || body.businessDescription.length > 1000)) {
+       return NextResponse.json({ message: "Business description is invalid or too long" }, { status: 400 });
+  }
 
   const userProjects = await db.collection("projects").find({ userId: session.user.id }).toArray()
 
@@ -38,8 +56,17 @@ export async function POST(request: Request) {
   const userIP = getClientIP(request)
   const webpageId = generateWebpageId()
 
+  // sanitize body fields to prevent injection of unexpected fields
+  const safeBody = {
+      businessName: body.businessName.trim(),
+      businessDescription: (body.businessDescription || "").trim(),
+      subdomain: body.subdomain,
+      style: body.style,
+      // explicitly exclude fields that shouldn't be user-settable if any
+  };
+
   const newProject = {
-    ...body,
+    ...safeBody,
     webpageId,
     userId: session.user.id,
     userEmail: session.user.email,
@@ -55,44 +82,48 @@ export async function POST(request: Request) {
     const projectId = projectResult.insertedId.toString()
 
     if (body.subdomain) {
-      const sanitizedSubdomain = body.subdomain
-        .toLowerCase()
-        .trim()
-        .replace(/[^a-z0-9-]/g, "-")
-        .replace(/^-+|-+$/g, "")
+      if (typeof body.subdomain !== 'string') {
+          // just ignore invalid subdomain type
+      } else {
+          const sanitizedSubdomain = body.subdomain
+            .toLowerCase()
+            .trim()
+            .replace(/[^a-z0-9-]/g, "-")
+            .replace(/^-+|-+$/g, "")
 
-      if (sanitizedSubdomain.length >= 3 && !containsCurseWords(sanitizedSubdomain)) {
-        try {
-          const deployment = {
-            projectId: projectResult.insertedId,
-            userId: session.user.id,
-            subdomain: sanitizedSubdomain,
-            domain: `${sanitizedSubdomain}.ltpd.xyz`,
-            status: "active",
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            deploymentData: {
-              businessName: body.businessName,
-              businessDescription: body.businessDescription || "",
-            },
-          }
-
-          const deploymentResult = await db.collection("deployments").insertOne(deployment)
-
-          await db.collection("projects").updateOne(
-            { _id: projectResult.insertedId },
-            {
-              $set: {
-                deploymentId: deploymentResult.insertedId,
+          if (sanitizedSubdomain.length >= 3 && !containsCurseWords(sanitizedSubdomain)) {
+            try {
+              const deployment = {
+                projectId: projectResult.insertedId,
+                userId: session.user.id,
                 subdomain: sanitizedSubdomain,
                 domain: `${sanitizedSubdomain}.ltpd.xyz`,
-                deployedAt: new Date(),
-              },
-            },
-          )
-        } catch (deploymentError: any) {
-          console.error("[v0] Error creating deployment record:", deploymentError.message)
-        }
+                status: "active",
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                deploymentData: {
+                  businessName: safeBody.businessName,
+                  businessDescription: safeBody.businessDescription,
+                },
+              }
+
+              const deploymentResult = await db.collection("deployments").insertOne(deployment)
+
+              await db.collection("projects").updateOne(
+                { _id: projectResult.insertedId },
+                {
+                  $set: {
+                    deploymentId: deploymentResult.insertedId,
+                    subdomain: sanitizedSubdomain,
+                    domain: `${sanitizedSubdomain}.ltpd.xyz`,
+                    deployedAt: new Date(),
+                  },
+                },
+              )
+            } catch (deploymentError: any) {
+              console.error("[v0] Error creating deployment record:", deploymentError.message)
+            }
+          }
       }
     }
 

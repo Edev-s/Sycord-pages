@@ -14,8 +14,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const { id } = await params
     const { name, content } = await request.json()
 
+    if (!ObjectId.isValid(id)) {
+        return NextResponse.json({ message: "Invalid project ID" }, { status: 400 })
+    }
+
     if (!name || !content) {
       return NextResponse.json({ message: "Name and content required" }, { status: 400 })
+    }
+
+    // Basic sanitization/validation for page name to prevent path traversal or invalid filenames
+    // Although Cloudflare Worker handles routing, we want to enforce clean names
+    if (name.includes('..') || name.includes('/') || name.includes('\\')) {
+         return NextResponse.json({ message: "Invalid page name" }, { status: 400 })
     }
 
     const client = await clientPromise
