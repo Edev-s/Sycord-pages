@@ -42,23 +42,23 @@ export function WebsitePreviewCard({
   const [isDeleting, setIsDeleting] = useState(false)
 
   const handleDelete = async () => {
-    if (!deploymentId) return
+    if (!projectId) return
 
     setIsDeleting(true)
     try {
-      const response = await fetch(`/api/deployments?id=${deploymentId}`, {
+      const response = await fetch(`/api/projects/${projectId}`, {
         method: "DELETE",
       })
 
       if (response.ok) {
-        console.log("[v0] Website deleted successfully")
-        onDelete?.(deploymentId)
+        console.log("[v0] Project deleted successfully")
+        onDelete?.(projectId)
       } else {
-        alert("Failed to delete website")
+        alert("Failed to delete project")
       }
     } catch (error) {
-      console.error("[v0] Error deleting website:", error)
-      alert("Error deleting website")
+      console.error("[v0] Error deleting project:", error)
+      alert("Error deleting project")
     } finally {
       setIsDeleting(false)
     }
@@ -173,7 +173,7 @@ export function WebsitePreviewCard({
               <AlertDialogHeader>
                 <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete your website deployment
+                  This action cannot be undone. This will permanently delete your project
                   and remove it from our servers.
                 </AlertDialogDescription>
               </AlertDialogHeader>
