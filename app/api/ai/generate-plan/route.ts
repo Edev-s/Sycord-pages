@@ -21,13 +21,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "AI service not configured (Google)" }, { status: 500 })
     }
 
-    // Initialize inside try/catch to catch initialization errors
     const genAI = new GoogleGenerativeAI(apiKey)
     const model = genAI.getGenerativeModel({
         model: PLAN_MODEL,
-        generationConfig: {
-            responseMimeType: "application/json"
-        }
     })
 
     const lastUserMessage = messages[messages.length - 1]
@@ -38,20 +34,19 @@ export async function POST(request: Request) {
     Your goal is to create a detailed architectural plan and file structure.
 
     OUTPUT FORMAT:
-    Return a single JSON object with exactly these two keys:
-    1.  "thoughtProcess": A detailed narrative explaining the user flow, core functionality, and data strategy.
-    2.  "files": A JSON array of strings listing the files.
+    You must output a single text block strictly following this format:
+
+    [0] The user base plan is to create [Overview of the site]. As an AI web builder, I will generate the following files: {index.html, style.css, script.js, ...}. I will mention to myself that the backend will help to identify the file I am building, this happen by the backend will replace the number mark [1] with a [Done] mark.
+
+    [1] index.html : <description of file>
+    [2] style.css : <description of file>
+    [3] script.js : <description of file>
+    ...
 
     REQUIREMENTS:
-    1.  **Scale**: Plan for a COMPLETE experience.
-    2.  **File Count**: Aim for **5 to 15 files**.
-    3.  **Production Ready**: Ensure functional logic.
-
-    Example Output:
-    {
-      "thoughtProcess": "...",
-      "files": ["index.html", "styles.css", "script.js", "shop.html"]
-    }
+    1.  **Scale**: Plan for a COMPLETE experience (5-10 files typically).
+    2.  **Files**: Must include at least index.html and style.css (or styles inside html if preferred, but separate is better for complex apps).
+    3.  **Strict Syntax**: Use brackets [1], [2], etc. for file steps.
     `
 
     // Combine history for context
@@ -64,17 +59,9 @@ export async function POST(request: Request) {
     const response = await result.response
     const responseText = response.text()
 
-    // Clean JSON if needed (SDK usually handles this with responseMimeType, but safety check)
-    let cleanJson = responseText.replace(/```json/g, "").replace(/```/g, "").trim()
-
-    const jsonStart = cleanJson.indexOf('{')
-    const jsonEnd = cleanJson.lastIndexOf('}')
-    if (jsonStart !== -1 && jsonEnd !== -1) {
-        cleanJson = cleanJson.substring(jsonStart, jsonEnd + 1)
-    }
-
+    // Return the raw instruction text
     return NextResponse.json({
-      plan: cleanJson,
+      instruction: responseText,
     })
   } catch (error: any) {
     console.error("[v0] Plan generation error:", error)

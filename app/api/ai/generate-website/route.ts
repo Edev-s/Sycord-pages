@@ -12,6 +12,42 @@ const MODEL_CONFIGS: Record<string, { url: string, envVar: string, provider: str
   "deepseek-v3.2-exp": { url: DEEPSEEK_API_URL, envVar: "DEEPSEEK_API", provider: "DeepSeek" }
 }
 
+const UI_UX_PROMPT = `
+Set prompt : Here is a clean, text-only, large styling prompt with no formatting, no emojis, no markdown, ready to copy and paste anywhere.
+
+You are a senior UI/UX designer and front-end stylist. Your task is to design the complete visual style and user experience of a modern web application.
+
+The interface must feel fast, clean, professional, and intuitive. The design should be minimalist, avoiding clutter while maintaining strong visual hierarchy and clarity. Accessibility and readability are top priorities.
+
+Use a modern sans-serif font with a clear typographic hierarchy. Page titles should be prominent, section headers clearly separated, body text comfortable to read, and small helper text still legible. Use font weight and spacing to create hierarchy rather than excessive color variation. Limit font families to a maximum of two. Use a monospace font only for code, logs, or technical data.
+
+Define a structured color system. Choose a primary color for main actions and highlights, a secondary color for accents, and a neutral grayscale palette for backgrounds, borders, and text. Include clear success, warning, error, and informational colors. Avoid pure black and pure white; use softened tones. The color system must be compatible with dark mode, even if dark mode is not enabled.
+
+Layout must be responsive and mobile-first. Use a grid-based structure with consistent padding and margins. Content should be centered within a maximum width on large screens. Separate sections using spacing instead of heavy borders. Use cards to group related content. Headers may remain sticky while scrolling.
+
+Navigation should be simple and intuitive. Clearly indicate the active page. On desktop, use a horizontal navigation bar. On mobile, use a hamburger menu or bottom navigation. Avoid unnecessary menu items. Support breadcrumbs for deeper navigation levels.
+
+Buttons must have clear variants: primary, secondary, outline, and danger. All buttons must include hover, active, disabled, and loading states. Corners should be slightly rounded. Buttons should support icons alongside text. Hover effects should be subtle and responsive.
+
+Forms and inputs must be easy to use and accessible. Inputs should be large enough for touch interaction. Labels must always be visible and not rely solely on placeholders. Focus states must be clearly visible. Display inline validation messages with helpful guidance. Error states should be clear and non-ambiguous. Support password visibility toggles and autofill behavior.
+
+Cards and containers should use subtle elevation through soft shadows or light borders. Corner radius should be consistent throughout the application. Interactive cards should include hover feedback. Padding should scale appropriately across screen sizes.
+
+Modals and popups must be centered with background dimming. Provide a clear close action and support closing with the Escape key. Avoid blocking modals unless necessary. Animations should be smooth and quick. Modal content must never exceed viewport height.
+
+Tables and lists should be clean and readable. Use subtle row dividers or alternating backgrounds. Table headers should remain visible when scrolling long content. Tables must adapt to smaller screens by collapsing or stacking content. Row hover states should be visible when interactive.
+
+Icons must be consistent in style and size. Use icons to reinforce meaning, not as decoration. SVG icons are preferred. Images should be optimized, responsive, and purposeful.
+
+Animations and interactions should feel natural and fast. Use short transitions with smooth easing. No animation should exceed 300 milliseconds. Provide visual feedback for hover, click, success, error, and loading states. Prefer skeleton loaders over spinners when possible.
+
+All states must be clearly handled. Provide loading states for asynchronous actions. Empty states should include helpful explanations or next steps. Error states must explain what went wrong and how the user can resolve it. Success feedback should be visible but non-disruptive.
+
+The application must work flawlessly on mobile, tablet, and desktop devices. All interactive elements must be touch-friendly. Avoid horizontal scrolling. Typography and spacing should adapt smoothly to screen size.
+
+Overall, the interface should feel reliable, calm, and professional. It should support long usage sessions without fatigue, feel performant even under load, and scale visually as the application grows.
+`
+
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) {
@@ -19,106 +55,93 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { messages, systemPrompt, plan, model } = await request.json()
+    const { messages, instruction, model } = await request.json()
 
     // Default to Google if not specified
     const modelId = model || "gemini-2.5-flash-lite"
     const config = MODEL_CONFIGS[modelId] || MODEL_CONFIGS["gemini-2.5-flash-lite"]
 
-    // Retrieve the correct API key
     let apiKey = process.env[config.envVar]
-
-    // Fallback for Google if strictly GOOGLE_AI_API is missing but GOOGLE_API_KEY exists (common pattern)
     if (config.provider === "Google" && !apiKey) {
         apiKey = process.env.GOOGLE_API_KEY
     }
 
     if (!apiKey) {
-      console.error(`[v0] AI Service Not Configured: ${config.envVar} missing`)
       return NextResponse.json({ message: `AI service not configured (${config.provider})` }, { status: 500 })
     }
 
-    // Prepare messages array
-    // Standardize system prompt
-    let effectiveSystemPrompt = systemPrompt
-    effectiveSystemPrompt += `\n\nREQUIREMENTS:
-      1.  **Production Ready**: Include working JavaScript for all interactive elements. Use <script> tags.
-      2.  **Interconnectivity**: Ensure all <a> links point to the correct .html files as planned.
-      3.  **Context**: You are building ONE cohesive website.
-      4.  **Modern Styling**: Use Tailwind CSS utility classes.
-      5.  **Output Format**: You MUST wrap the code in [1] and [1<filename>] markers.
-      6.  **Token Efficiency**: Do NOT generate binary files (images, PDFs). Use placeholder URLs (e.g. LoremFlickr) instead. Be concise.
-      7.  **File Naming**: Use strictly lowercase filenames with extensions (e.g., index.html, style.css).
-      8.  **Structure**: Generate a self-contained HTML file (including CSS/JS) compatible with Cloudflare Workers. Start with <!DOCTYPE html>.
-      `
+    // 1. Parse Instruction to find next task
+    // Looking for [N] filename : description
+    // ignoring [0] (overview) and [Done]
+    const taskRegex = /\[(\d+)\]\s*([\w\-\.]+)\s*:/g
+    let match
+    let currentTask = null
+    let taskNumber = null
 
-    // Map messages to OpenAI format
-    const conversationHistory = messages.map((msg: any) => {
-      let textContent = msg.content
-      if (msg.role === "assistant" && msg.code) {
-        textContent += `\n\n[PREVIOUS GENERATED CODE START]\nPage: ${msg.pageName || 'unknown'}\n${msg.code}\n[PREVIOUS GENERATED CODE END]`
-      }
-      return {
-        role: msg.role === "user" ? "user" : "assistant",
-        content: textContent,
-      }
-    })
+    // We loop to find the first one that hasn't been replaced by "Done" logic (which would presumably change the marker)
+    // Actually the logic is: find the first [N].
+    // If the instruction string has [Done] replacing [N], then the regex won't match [N].
+    // So the first match of `[\d+]` is our next task. (Assuming [0] is the overview, we might skip it if needed, but user said [0] is base plan. The file tasks start at [1]?)
+    // User said: "[0] The user base plan... [1] name.html"
+    // So we skip [0].
 
-    // Construct raw payload messages
-    const rawMessages = [
-        { role: "system", content: effectiveSystemPrompt },
-        ...conversationHistory
-    ]
+    while ((match = taskRegex.exec(instruction)) !== null) {
+        if (match[1] === "0") continue; // Skip overview
+        currentTask = {
+            fullMatch: match[0],
+            number: match[1],
+            filename: match[2].trim(),
+            description: instruction.substring(match.index + match[0].length).split('\n')[0]
+        }
+        break; // Stop at first valid file task
+    }
 
-    // If 'plan' (current task) is provided, append it as a USER message
-    if (plan) {
-        rawMessages.push({
-            role: "user",
-            content: `\n\nIMPORTANT: You must strictly follow this implementation plan:\n${plan}\n\n`
+    if (!currentTask) {
+        // No more tasks
+        return NextResponse.json({
+            isComplete: true,
+            updatedInstruction: instruction
         })
     }
 
-    // Sanitize messages to ensure strict alternation (System -> User -> Assistant -> User ...)
-    const sanitizedMessages: any[] = []
+    console.log(`[v0] Generating file: ${currentTask.filename} (Task [${currentTask.number}])`)
 
-    if (rawMessages.length > 0 && rawMessages[0].role === "system") {
-        sanitizedMessages.push(rawMessages[0])
-    }
+    // 2. Prepare System Prompt
+    const systemPrompt = `
+      ${UI_UX_PROMPT}
 
-    for (let i = (rawMessages.length > 0 && rawMessages[0].role === "system" ? 1 : 0); i < rawMessages.length; i++) {
-        const msg = rawMessages[i]
-        const lastMsg = sanitizedMessages[sanitizedMessages.length - 1]
+      CRITICAL: You MUST generate valid, complete HTML/CSS/JS code for the requested file.
 
-        if (!lastMsg) {
-            // First non-system message MUST be user
-            if (msg.role === "user") {
-                sanitizedMessages.push(msg)
-            } else {
-                if (sanitizedMessages.length > 0 && sanitizedMessages[0].role === "system") {
-                     sanitizedMessages.push({ role: "user", content: "Continue." })
-                     sanitizedMessages.push(msg)
-                } else {
-                    sanitizedMessages.push(msg)
-                }
-            }
-        } else {
-            // Alternation check
-            if (lastMsg.role === msg.role) {
-                lastMsg.content += `\n\n${msg.content}`
-            } else {
-                sanitizedMessages.push(msg)
-            }
-        }
-    }
+      CURRENT FILE: ${currentTask.filename}
+      CONTEXT: ${currentTask.description}
+
+      MARKER INSTRUCTIONS:
+      Wrap code EXACTLY like this with NO backticks:
+      [1]
+      ... content ...
+      [1<${currentTask.filename}>]
+
+      REQUIREMENTS:
+      1. Use Tailwind CSS via CDN.
+      2. No React/JSX. Pure HTML/JS.
+      3. Be production ready.
+    `
+
+    // 3. Call AI
+    const conversationHistory = messages.map((msg: any) => ({
+        role: msg.role === "user" ? "user" : "assistant",
+        content: msg.content
+    }))
 
     const payload = {
-      model: modelId, // Google OpenAI compat endpoint handles Gemini IDs
-      messages: sanitizedMessages,
-      temperature: 0.7,
-      stream: false
+      model: modelId,
+      messages: [
+          { role: "system", content: systemPrompt },
+          ...conversationHistory,
+          { role: "user", content: `Generate code for ${currentTask.filename} based on the plan.` }
+      ],
+      temperature: 0.7
     }
-
-    console.log(`[v0] Generating code with ${config.provider} model: ${modelId}`)
 
     const response = await fetch(config.url, {
       method: "POST",
@@ -129,95 +152,40 @@ export async function POST(request: Request) {
       body: JSON.stringify(payload),
     })
 
-    if (!response.ok) {
-      let errorMsg = `${config.provider} API error: ${response.status}`
-      try {
-          const errorData = await response.json()
-          console.error(`[v0] ${config.provider} API Error:`, errorData)
-          if (errorData.error?.message) {
-              errorMsg = errorData.error.message
-          }
-      } catch (e) {
-          console.error(`[v0] ${config.provider} API returned non-JSON error:`, response.status, response.statusText)
-          const text = await response.text()
-          console.error(`[v0] ${config.provider} Error Body:`, text.substring(0, 500))
-      }
-      throw new Error(errorMsg)
-    }
-
+    if (!response.ok) throw new Error(`${config.provider} API error: ${response.status}`)
     const data = await response.json()
-    // Standard OpenAI response format
     const responseText = data.choices?.[0]?.message?.content || ""
 
-    if (!responseText) {
-        console.error(`[v0] Empty response payload from ${config.provider}. Full response:`, JSON.stringify(data, null, 2))
-        throw new Error(`Empty response from AI provider (${config.provider})`)
-    }
-
-    console.log(`[v0] Success with ${modelId}, response length:`, responseText.length)
-
-    // Regex to capture code and page name
-    let codeMarkerRegex = /\[1\]([\s\S]*?)\[1<(.+?)>\]/
-    let codeMarkerMatch = responseText.match(codeMarkerRegex)
-
+    // 4. Extract Code
     let extractedCode = null
-    let extractedPageName = null
+    const markerRegex = /\[1\]([\s\S]*?)\[1<(.+?)>\]/
+    const markerMatch = responseText.match(markerRegex)
 
-    if (!codeMarkerMatch) {
-        codeMarkerRegex = /\[1<(.+?)>\]([\s\S]*?)\[1<\1>\]/
-        const match = responseText.match(codeMarkerRegex)
-        if (match) {
-            extractedPageName = match[1].trim()
-            extractedCode = match[2].trim()
-            codeMarkerMatch = match
-        }
+    if (markerMatch) {
+        extractedCode = markerMatch[1].trim()
     } else {
-        extractedCode = codeMarkerMatch[1].trim()
-        extractedPageName = codeMarkerMatch[2].trim()
-    }
-
-    if (extractedCode) {
-      console.log("[v0] Code extracted with page name:", extractedPageName)
-    } else {
-      console.warn("[v0] No code markers found, checking for HTML/Markdown in response")
-      const markdownRegex = /```(?:html)?([\s\S]*?)```/i
-      const markdownMatch = responseText.match(markdownRegex)
-
-      if (markdownMatch) {
-        extractedCode = markdownMatch[1].trim()
-        extractedPageName = "index.html"
-      } else {
-        const htmlRegex = /<!DOCTYPE html>[\s\S]*<\/html>|<html[\s\S]*<\/html>/i
-        const htmlMatch = responseText.match(htmlRegex)
-        if (htmlMatch) {
-          extractedCode = htmlMatch[0].trim()
-          extractedPageName = "index.html"
+        // Fallback checks
+        if (responseText.includes("<!DOCTYPE html") || responseText.includes("<html")) {
+            extractedCode = responseText
         }
-      }
     }
 
-    if (!extractedCode) {
-       if (responseText.length > 50 && (responseText.includes("<html") || responseText.includes("<div"))) {
-           extractedCode = responseText
-           extractedPageName = "index.html"
-       }
-    }
-
-    if (extractedCode && !extractedCode.toLowerCase().includes("<!doctype")) {
-      extractedCode = "<!DOCTYPE html>\n" + extractedCode
-    }
-
-    const shouldContinue = responseText.includes("[continue]")
+    // 5. Update Instruction
+    // Replace `[N]` with `[Done]`
+    // The user prompt said "backend will help to identify... by replacing the number mark [1] with a [Done] mark"
+    // So `[1] index.html` becomes `[Done] index.html`
+    const updatedInstruction = instruction.replace(`[${currentTask.number}]`, `[Done]`)
 
     return NextResponse.json({
-      content: responseText,
-      code: extractedCode || null,
-      pageName: extractedPageName || null,
-      shouldContinue: shouldContinue,
-      modelUsed: modelId,
+        content: responseText,
+        code: extractedCode,
+        pageName: currentTask.filename,
+        updatedInstruction: updatedInstruction,
+        isComplete: false
     })
+
   } catch (error: any) {
-    console.error("[v0] AI generation error:", error)
-    return NextResponse.json({ message: error.message || "Failed to generate content" }, { status: 500 })
+    console.error("[v0] Generation error:", error)
+    return NextResponse.json({ message: error.message }, { status: 500 })
   }
 }
