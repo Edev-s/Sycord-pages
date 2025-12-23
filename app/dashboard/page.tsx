@@ -19,9 +19,8 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { WebsitePreviewCard } from "@/components/website-preview-card"
-import { WelcomeOverlay } from "@/components/welcome-overlay"
 import { CreateProjectModal } from "@/components/create-project-modal"
-import { ThemeToggle } from "@/components/theme-toggle"
+import { Skeleton } from "@/components/ui/skeleton"
 
 function DashboardContent() {
   const { data: session, status } = useSession()
@@ -30,7 +29,6 @@ function DashboardContent() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [projects, setProjects] = useState([])
   const [isLoading, setIsLoading] = useState(true)
-  const [showWelcome, setShowWelcome] = useState(true)
   const [deletingDeployments, setDeletingDeployments] = useState<Set<string>>(new Set())
   const [flaggedDeployments, setFlaggedDeployments] = useState<Set<string>>(new Set())
   const [debugError, setDebugError] = useState<string | null>(null)
@@ -76,22 +74,21 @@ function DashboardContent() {
     }
   }, [status])
 
-  useEffect(() => {
-    const welcomeTimer = setTimeout(() => {
-      setShowWelcome(false)
-    }, 2000)
-
-    return () => clearTimeout(welcomeTimer)
-  }, [])
-
   if (status === "loading") {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-foreground mx-auto mb-4"></div>
-          <p className="text-foreground">Betöltés...</p>
-        </div>
-      </div>
+       <div className="min-h-screen bg-background md:ml-16 p-6">
+         <div className="container mx-auto space-y-8">
+            <div className="flex items-center justify-between">
+                <Skeleton className="h-8 w-32" />
+                <Skeleton className="h-10 w-32" />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+               {[1, 2, 3].map((i) => (
+                   <Skeleton key={i} className="h-[300px] w-full rounded-xl" />
+               ))}
+            </div>
+         </div>
+       </div>
     )
   }
 
@@ -149,7 +146,7 @@ function DashboardContent() {
   )
 
   const handleDeleteDeployment = async (deploymentId: string, projectId: string) => {
-    if (!confirm("Are you sure you want to delete this deployment?")) return
+    if (!confirm("Are you sure you want to delete this deployment? This action cannot be undone.")) return
 
     setDeletingDeployments((prev) => new Set([...prev, deploymentId]))
 
@@ -192,8 +189,6 @@ function DashboardContent() {
     }
   }
 
-  // handleDeleteProject function omitted or same as before...
-
   return (
     <>
       <div className="min-h-screen bg-background md:ml-16">
@@ -230,8 +225,6 @@ function DashboardContent() {
             </div>
             <div className="flex items-center gap-2 md:gap-3">
               <MobileNav />
-              {/* ThemeToggle removed as we force dark mode */}
-
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0">
@@ -302,9 +295,12 @@ function DashboardContent() {
           </div>
 
           {isLoading ? (
-            <div className="border border-dashed border-border rounded-lg p-12 text-center bg-card">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-foreground mx-auto mb-4"></div>
-              <p className="text-muted-foreground">Betöltés...</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="border border-border rounded-lg overflow-hidden flex flex-col h-[300px]">
+                   <Skeleton className="h-full w-full" />
+                </div>
+              ))}
             </div>
           ) : projects.length === 0 ? (
             <div className="border border-dashed border-border rounded-lg p-12 text-center">
@@ -350,13 +346,6 @@ function DashboardContent() {
       </div>
 
       <CreateProjectModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
-
-      <WelcomeOverlay
-        userName={session?.user?.name || "Felhasználó"}
-        userImage={session?.user?.image}
-        isVisible={showWelcome}
-        onComplete={() => setShowWelcome(false)}
-      />
 
       {/* Debug Error Popup */}
       <Dialog open={!!debugError} onOpenChange={(open) => !open && setDebugError(null)}>

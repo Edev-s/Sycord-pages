@@ -146,6 +146,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing projectId" }, { status: 400 });
     }
 
+    if (!ObjectId.isValid(projectId)) {
+      return NextResponse.json({ error: "Invalid projectId format" }, { status: 400 });
+    }
+
     const client = await clientPromise;
     const db = client.db();
 

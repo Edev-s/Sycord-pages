@@ -1,9 +1,20 @@
 "use client"
 
 import { useState } from "react"
-import { AlertCircle, Trash2, Edit2, CheckCircle2, Package, Sparkles, Zap } from "lucide-react"
+import { AlertCircle, Trash2, Edit2, CheckCircle2, Package, Sparkles, Zap, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 interface WebsitePreviewCardProps {
   domain: string
@@ -32,7 +43,6 @@ export function WebsitePreviewCard({
 
   const handleDelete = async () => {
     if (!deploymentId) return
-    if (!confirm("Are you sure you want to delete this website?")) return
 
     setIsDeleting(true)
     try {
@@ -147,15 +157,34 @@ export function WebsitePreviewCard({
               Szerkesztés
             </Button>
           </Link>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleDelete}
-            disabled={isDeleting}
-            className="px-3 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-600 border-none"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={isDeleting}
+                className="px-3 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-600 border-none"
+              >
+                {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete your website deployment
+                  and remove it from our servers.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
     </div>

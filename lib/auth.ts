@@ -46,23 +46,14 @@ export const authOptions: AuthOptions = {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  // cookies: {
-  //   sessionToken: {
-  //     name: process.env.NODE_ENV === "production" ? "__Secure-next-auth.session-token" : "next-auth.session-token",
-  //     options: {
-  //       httpOnly: true,
-  //       sameSite: "lax",
-  //       path: "/",
-  //       secure: process.env.NODE_ENV === "production",
-  //       domain: getCookieDomain(),
-  //     },
-  //   },
-  // },
   callbacks: {
     async jwt({ token, account, profile }) {
       // console.log("[v0-DEBUG] JWT Callback Triggered")
+      const client = await clientPromise
+      const db = client.db()
 
       if (account && profile) {
+        // Initial Sign In
         const profileId = profile.sub || profile.user?.uid || profile.id
         if (profileId) {
           token.id = profileId
@@ -73,17 +64,18 @@ export const authOptions: AuthOptions = {
         token.name = profile.name || profile.user?.name || profile.user?.username
         token.isPremium = false
 
+        // Initialize sessionVersion if not present
+        token.sessionVersion = Date.now();
+
         // ALWAYS save/update user in MongoDB on login
         try {
-          const client = await clientPromise
-          const db = client.db()
-
           const updateData: any = {
             id: token.id,
             email: token.email,
             name: token.name,
             image: token.picture,
             updatedAt: new Date(),
+            sessionVersion: token.sessionVersion // Set initial session version
           }
 
           await db.collection("users").updateOne(
@@ -91,13 +83,24 @@ export const authOptions: AuthOptions = {
             { $set: updateData },
             { upsert: true },
           )
-
-          // console.log("[v0-DEBUG] Stored/Updated user in MongoDB:", token.id, "Provider:", account.provider)
         } catch (error) {
           console.error("[v0-ERROR] Failed to store/fetch user in MongoDB:", error)
         }
       } else {
-        // Session update - no additional data needed
+        // Subsequent requests (check session version)
+        if (token.id) {
+            try {
+                const user = await db.collection("users").findOne({ id: token.id });
+                if (user && user.sessionVersion) {
+                    if (token.sessionVersion && (token.sessionVersion as number) < user.sessionVersion) {
+                        // Token is older than server session version - invalidate
+                        return null as any; // This will trigger a sign out / error
+                    }
+                }
+            } catch (error) {
+                console.error("Error validating session version:", error);
+            }
+        }
       }
 
       return token
@@ -134,6 +137,21 @@ export const authOptions: AuthOptions = {
   events: {
     async signIn(message) {
       // console.log("[v0-EVENT] signIn", message.user.email, "Provider:", message.account?.provider)
+    },
+    async signOut(message) {
+      try {
+        const client = await clientPromise
+        const db = client.db()
+        // Invalidate session by updating version in DB
+        // @ts-ignore
+        const userId = message.token?.id || message.session?.user?.id
+        if (userId) {
+          await db.collection("users").updateOne({ id: userId }, { $set: { sessionVersion: Date.now() } })
+          // console.log(`[v0-EVENT] signOut: Invalidated session for user ${userId}`)
+        }
+      } catch (error) {
+        console.error("[v0-EVENT] signOut ERROR:", error)
+      }
     },
     async error(message) {
       console.error("[v0-EVENT] ERROR:", message)
