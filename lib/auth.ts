@@ -138,6 +138,21 @@ export const authOptions: AuthOptions = {
     async signIn(message) {
       // console.log("[v0-EVENT] signIn", message.user.email, "Provider:", message.account?.provider)
     },
+    async signOut(message) {
+      try {
+        const client = await clientPromise
+        const db = client.db()
+        // Invalidate session by updating version in DB
+        // @ts-ignore
+        const userId = message.token?.id || message.session?.user?.id
+        if (userId) {
+          await db.collection("users").updateOne({ id: userId }, { $set: { sessionVersion: Date.now() } })
+          // console.log(`[v0-EVENT] signOut: Invalidated session for user ${userId}`)
+        }
+      } catch (error) {
+        console.error("[v0-EVENT] signOut ERROR:", error)
+      }
+    },
     async error(message) {
       console.error("[v0-EVENT] ERROR:", message)
     },

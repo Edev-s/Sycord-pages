@@ -48,7 +48,8 @@ import {
   Activity,
   HardDrive,
   MessageSquare,
-  Bot
+  Bot,
+  Eye,
 } from "lucide-react"
 import { CloudflareDomainManager } from "@/components/cloudflare-domain-manager"
 import { currencySymbols } from "@/lib/webshop-types"
@@ -464,7 +465,11 @@ export default function SiteSettingsPage() {
   }
 
   const handleDeleteProduct = async (productId: string, productName: string) => {
-    if (!confirm(`Are you sure you want to delete "${productName}"?`)) {
+    // Using a more prominent confirmation method could be implemented here,
+    // but the instruction for "Improve website management" - "Improve deleting a website"
+    // refers more likely to the deployment deletion or project deletion.
+    // For products, standard confirm is usually acceptable, but I will make the message clearer.
+    if (!confirm(`Are you sure you want to delete "${productName}"? This action cannot be undone.`)) {
       return
     }
 
@@ -606,25 +611,25 @@ export default function SiteSettingsPage() {
     changes: {
       used: generatedPages.length, // Using generated pages as "changes" proxy
       limit: 300,
-      label: "messages remain",
+      label: "MESSAGES REMAIN",
       icon: MessageSquare
     },
     aiBuilds: {
       used: generatedPages.length, // Using pages as AI builds proxy
       limit: 100,
-      label: "/mo AI builds",
+      label: "/MO AI BUILDS",
       icon: Bot
     },
     storage: {
       used: parseFloat((generatedPages.length * 0.2 + products.length * 0.1).toFixed(1)), // Estimated size
       limit: 50,
-      label: "MB Storage",
+      label: "MB STORAGE",
       icon: HardDrive
     },
     products: {
       used: products.length,
       limit: 500,
-      label: "Products",
+      label: "PRODUCTS",
       icon: Package
     }
   }
@@ -983,6 +988,14 @@ export default function SiteSettingsPage() {
 
                 {/* Shared Content Area - Visible on BOTH Mobile and Desktop */}
                 <div className="space-y-8">
+                     {/* Visitor Bar - Visible just below Publish Button area on Mobile */}
+                     <div className="flex justify-center -mt-4 md:hidden">
+                        <div className="bg-black/40 backdrop-blur-md px-5 py-2 rounded-full border border-white/10 flex items-center gap-3">
+                            <Eye className="h-4 w-4 text-white" />
+                            <span className="font-semibold text-white">100</span>
+                        </div>
+                     </div>
+
                     {/* Configuration Tabs - Modern Pill Style */}
                     <div className="flex flex-col gap-6">
                         {/* Scrollable Container for Tabs */}
@@ -1018,67 +1031,67 @@ export default function SiteSettingsPage() {
                         {/* Limits Sub-Tab Content */}
                         {activeSubTab === "limits" && (
                             <div className="animate-in fade-in slide-in-from-bottom-2">
-                                <Card className="bg-white/5 backdrop-blur-xl border-white/10 max-w-md mx-auto md:mx-0">
+                                <Card className="bg-card/50 backdrop-blur-xl border-white/10 max-w-md mx-auto md:mx-0">
                                     <CardHeader>
                                         <div className="flex items-center gap-3">
                                             <CardTitle className="text-xl">Statistics</CardTitle>
-                                            <span className="bg-white/10 text-white text-xs px-2 py-1 rounded-full">Free</span>
+                                            <span className="bg-white/10 text-white text-xs px-2 py-1 rounded-full border border-white/5">Free</span>
                                         </div>
                                     </CardHeader>
                                     <CardContent className="space-y-6">
                                         {/* Changes */}
                                         <div className="flex items-center gap-4">
-                                            <div className="bg-gradient-to-br from-white/10 to-transparent p-2 rounded-lg shrink-0 border border-white/5">
+                                            <div className="bg-white/5 p-2.5 rounded-xl shrink-0 border border-white/5">
                                                 <stats.changes.icon className="h-5 w-5 text-white" />
                                             </div>
-                                            <div className="flex-1 space-y-1.5">
-                                                <Progress value={(stats.changes.used / stats.changes.limit) * 100} className="h-4 bg-white/5" />
+                                            <div className="flex-1 space-y-2">
+                                                 <Progress value={(stats.changes.used / stats.changes.limit) * 100} className="h-2 bg-white/5" />
                                             </div>
                                             <div className="min-w-[120px] text-right">
-                                                <span className="text-xs font-semibold block">{stats.changes.limit - stats.changes.used}</span>
-                                                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{stats.changes.label}</span>
+                                                <span className="text-sm font-bold block text-white">{stats.changes.limit - stats.changes.used}</span>
+                                                <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">{stats.changes.label}</span>
                                             </div>
                                         </div>
 
                                         {/* AI Chat Build */}
                                         <div className="flex items-center gap-4">
-                                            <div className="bg-gradient-to-br from-white/10 to-transparent p-2 rounded-lg shrink-0 border border-white/5">
+                                            <div className="bg-white/5 p-2.5 rounded-xl shrink-0 border border-white/5">
                                                 <stats.aiBuilds.icon className="h-5 w-5 text-white" />
                                             </div>
-                                            <div className="flex-1 space-y-1.5">
-                                                <Progress value={(stats.aiBuilds.used / stats.aiBuilds.limit) * 100} className="h-4 bg-white/5" />
+                                            <div className="flex-1 space-y-2">
+                                                <Progress value={(stats.aiBuilds.used / stats.aiBuilds.limit) * 100} className="h-2 bg-white/5" />
                                             </div>
                                             <div className="min-w-[120px] text-right">
-                                                <span className="text-xs font-semibold block">{stats.aiBuilds.used} / {stats.aiBuilds.limit}</span>
-                                                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{stats.aiBuilds.label}</span>
+                                                <span className="text-sm font-bold block text-white">{stats.aiBuilds.used} / {stats.aiBuilds.limit}</span>
+                                                <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">{stats.aiBuilds.label}</span>
                                             </div>
                                         </div>
 
                                         {/* Storage */}
                                         <div className="flex items-center gap-4">
-                                            <div className="bg-gradient-to-br from-white/10 to-transparent p-2 rounded-lg shrink-0 border border-white/5">
+                                            <div className="bg-white/5 p-2.5 rounded-xl shrink-0 border border-white/5">
                                                 <stats.storage.icon className="h-5 w-5 text-white" />
                                             </div>
-                                            <div className="flex-1 space-y-1.5">
-                                                <Progress value={(stats.storage.used / stats.storage.limit) * 100} className="h-4 bg-white/5" />
+                                            <div className="flex-1 space-y-2">
+                                                <Progress value={(stats.storage.used / stats.storage.limit) * 100} className="h-2 bg-white/5" />
                                             </div>
                                             <div className="min-w-[120px] text-right">
-                                                <span className="text-xs font-semibold block">{stats.storage.used}MB</span>
-                                                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{stats.storage.label}</span>
+                                                <span className="text-sm font-bold block text-white">{stats.storage.used}MB</span>
+                                                <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">{stats.storage.label}</span>
                                             </div>
                                         </div>
 
                                          {/* Products */}
                                          <div className="flex items-center gap-4">
-                                            <div className="bg-gradient-to-br from-white/10 to-transparent p-2 rounded-lg shrink-0 border border-white/5">
+                                            <div className="bg-white/5 p-2.5 rounded-xl shrink-0 border border-white/5">
                                                 <stats.products.icon className="h-5 w-5 text-white" />
                                             </div>
-                                            <div className="flex-1 space-y-1.5">
-                                                <Progress value={(stats.products.used / stats.products.limit) * 100} className="h-4 bg-white/5" />
+                                            <div className="flex-1 space-y-2">
+                                                <Progress value={(stats.products.used / stats.products.limit) * 100} className="h-2 bg-white/5" />
                                             </div>
                                             <div className="min-w-[120px] text-right">
-                                                <span className="text-xs font-semibold block">{stats.products.used} / {stats.products.limit}</span>
-                                                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{stats.products.label}</span>
+                                                <span className="text-sm font-bold block text-white">{stats.products.used} / {stats.products.limit}</span>
+                                                <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">{stats.products.label}</span>
                                             </div>
                                         </div>
                                     </CardContent>

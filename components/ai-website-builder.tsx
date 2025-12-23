@@ -20,7 +20,8 @@ import {
   File,
   Layers,
   ListTodo,
-  BrainCircuit
+  BrainCircuit,
+  MessageSquare
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -28,10 +29,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { cn } from "@/lib/utils"
 
 const MODELS = [
-  { id: "gemini-2.5-flash-lite", name: "GOGL-dev (Google)", provider: "Google" },
-  { id: "deepseek-v3.2-exp", name: "DEEP-dev (DeepSeek)", provider: "DeepSeek" },
+  { id: "gemini-2.5-flash-lite", name: "Google", provider: "Google" },
+  { id: "deepseek-v3.2-exp", name: "DeepSeek", provider: "DeepSeek" },
 ]
 
 const SYSTEM_PROMPT = `You are an expert web developer creating beautiful, production-ready HTML websites.
@@ -339,7 +341,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
 
   return (
     <div className="flex flex-col h-full bg-background text-foreground font-sans">
-      {/* Header / Model Selector */}
+      {/* Header / Model Selector - Redesigned to Circled Input Style */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-border/50 bg-background/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="flex items-center gap-2 text-sm font-medium">
           <Bot className="h-4 w-4" />
@@ -354,23 +356,27 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
              </div>
           )}
 
+          {/* Model Chooser - Circled/Pill Style */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 gap-2 text-xs font-medium border-border/50 bg-background">
-                <Cpu className="h-3.5 w-3.5" />
-                {selectedModel.name}
-                <ChevronDown className="h-3 w-3 opacity-50" />
+              <Button variant="outline" size="sm" className="h-8 rounded-full px-4 border-border/50 bg-background/50 hover:bg-background/80 transition-all">
+                <span className="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse"></span>
+                <span className="text-xs font-medium">{selectedModel.name}</span>
+                <ChevronDown className="h-3 w-3 ml-2 opacity-50" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="w-48">
               {MODELS.map(model => (
                 <DropdownMenuItem
                   key={model.id}
                   onClick={() => setSelectedModel(model)}
-                  className="gap-2 text-xs"
+                  className="gap-2 text-xs py-2 cursor-pointer"
                 >
-                  {model.id === selectedModel.id && <Check className="h-3 w-3" />}
-                  <span className={model.id === selectedModel.id ? "ml-0" : "ml-5"}>{model.name}</span>
+                  {model.id === selectedModel.id && <Check className="h-3 w-3 text-primary" />}
+                  <span className={cn(model.id === selectedModel.id ? "ml-0" : "ml-5", "flex-1")}>
+                     {model.name}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground uppercase">{model.provider}</span>
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -379,7 +385,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-8">
+      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-8 custom-scrollbar">
         {messages.length === 0 && step === "idle" && (
           <div className="flex flex-col items-center justify-center h-full text-center opacity-30 space-y-4">
             <div className="h-16 w-16 rounded-full bg-foreground/5 flex items-center justify-center">
@@ -394,8 +400,8 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
             {/* User Message */}
             {message.role === "user" && (
               <div className="flex justify-end">
-                <div className="max-w-2xl bg-foreground/5 rounded-2xl px-5 py-3 text-sm">
-                  <p>{message.content}</p>
+                <div className="max-w-2xl bg-primary/10 text-primary-foreground rounded-2xl px-5 py-3 text-sm border border-primary/20">
+                  <p className="text-foreground">{message.content}</p>
                 </div>
               </div>
             )}
@@ -409,7 +415,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
                             <BrainCircuit className="h-3 w-3" /> Architectural Strategy
                         </div>
                     )}
-                    <div className="bg-muted/50 rounded-2xl px-5 py-4 text-sm leading-relaxed border border-border/50">
+                    <div className="bg-muted/30 rounded-2xl px-5 py-4 text-sm leading-relaxed border border-border/30 backdrop-blur-sm">
                        {message.content}
                     </div>
                  </div>
@@ -420,44 +426,52 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
             {message.role === "assistant" && message.code && (
               <div className="flex justify-start w-full">
                 <div className="w-full max-w-3xl space-y-4">
-                  {/* Deploy Card */}
-                  <Card className={`border-border/50 shadow-sm bg-card/50 ${message.isIntermediate ? 'opacity-70' : ''}`}>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base flex items-center justify-between">
+                  {/* Deploy Card - Optimized Style */}
+                  <Card className={cn(
+                      "border-border/30 shadow-sm bg-card/30 backdrop-blur-md overflow-hidden transition-all duration-300",
+                      message.isIntermediate ? 'opacity-70 scale-[0.98]' : 'hover:border-primary/20'
+                  )}>
+                    <CardHeader className="pb-3 px-4 py-3 bg-muted/20 border-b border-border/10">
+                      <CardTitle className="text-sm font-medium flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <FileCode className="h-4 w-4" />
-                          <span>File: {message.pageName || "Unknown"}</span>
+                          <FileCode className="h-4 w-4 text-primary" />
+                          <span className="font-mono text-xs">{message.pageName || "Unknown"}</span>
                         </div>
                         {message.isIntermediate && (
-                           <div className="text-xs text-muted-foreground flex items-center gap-1">
+                           <div className="text-[10px] text-muted-foreground flex items-center gap-1 bg-black/20 px-2 py-0.5 rounded-full">
                              <ListTodo className="h-3 w-3" />
-                             In Progress
+                             Processing...
                            </div>
                         )}
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="pb-3">
-                      <div className="bg-muted/30 rounded-md p-3 font-mono text-xs text-muted-foreground border border-border/30 max-h-32 overflow-hidden relative">
-                        {message.code.substring(0, 300)}...
-                        <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-muted/30 to-transparent" />
+                    <CardContent className="p-0">
+                      <div className="bg-black/40 font-mono text-[10px] text-muted-foreground p-4 max-h-32 overflow-hidden relative leading-relaxed">
+                        <div className="opacity-60">{message.code.substring(0, 300)}...</div>
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+                        <div className="absolute bottom-2 left-4 text-xs text-muted-foreground flex items-center gap-1">
+                            <Terminal className="h-3 w-3" /> {message.code.length} bytes
+                        </div>
                       </div>
                     </CardContent>
                     {!message.isIntermediate && (
-                      <CardFooter className="pt-0">
+                      <CardFooter className="p-2 bg-muted/10 border-t border-border/10">
                         <Button
-                          className="w-full sm:w-auto gap-2 bg-foreground text-background hover:bg-foreground/90"
+                          variant="ghost"
+                          size="sm"
+                          className="w-full gap-2 hover:bg-primary/10 hover:text-primary h-8 text-xs font-medium"
                           onClick={handleDeployCode}
                           disabled={deployedCode === message.code}
                         >
                           {deployedCode === message.code ? (
                             <>
-                              <Check className="h-4 w-4" />
+                              <Check className="h-3.5 w-3.5" />
                               Deployed
                             </>
                           ) : (
                             <>
-                              <Rocket className="h-4 w-4" />
-                              Deploy Site
+                              <Rocket className="h-3.5 w-3.5" />
+                              Push to Staging
                             </>
                           )}
                         </Button>
@@ -472,24 +486,28 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
 
         {/* Live Status Area (While working) */}
         {(step === "planning" || step === "coding") && (
-          <div className="flex justify-start w-full max-w-3xl">
-            <div className="w-full space-y-6">
-              <div className="flex items-center gap-3 text-sm font-medium animate-pulse">
-                <div className="h-2 w-2 rounded-full bg-foreground" />
+          <div className="flex justify-start w-full max-w-3xl animate-in fade-in slide-in-from-bottom-4">
+            <div className="w-full space-y-4 bg-muted/10 p-4 rounded-xl border border-dashed border-border/30">
+              <div className="flex items-center gap-3 text-sm font-medium text-foreground/80">
+                <div className="relative">
+                    <div className="h-2.5 w-2.5 rounded-full bg-primary animate-ping absolute inset-0 opacity-75"></div>
+                    <div className="h-2.5 w-2.5 rounded-full bg-primary relative"></div>
+                </div>
                 {currentPlan}
               </div>
 
               {/* Task List Visualization */}
               {plannedFiles.length > 0 && (
-                 <div className="pl-5 border-l border-foreground/10 ml-1 space-y-2">
+                 <div className="pl-6 space-y-1.5 border-l-2 border-border/30 ml-1.5">
                     {plannedFiles.map((file, i) => (
-                       <div key={file} className={`flex items-center gap-2 text-xs ${
-                          i === currentFileIndex ? "text-foreground font-medium" :
-                          i < currentFileIndex ? "text-muted-foreground line-through opacity-50" : "text-muted-foreground opacity-30"
-                       }`}>
+                       <div key={file} className={cn(
+                           "flex items-center gap-2 text-xs transition-colors duration-300",
+                           i === currentFileIndex ? "text-primary font-medium" :
+                           i < currentFileIndex ? "text-muted-foreground line-through opacity-50" : "text-muted-foreground opacity-30"
+                       )}>
                           {i < currentFileIndex ? <Check className="h-3 w-3" /> :
                            i === currentFileIndex ? <Loader2 className="h-3 w-3 animate-spin" /> :
-                           <div className="w-3 h-3 rounded-full border border-current" />}
+                           <div className="w-3 h-3 rounded-full border border-current opacity-20" />}
                           {file}
                        </div>
                     ))}
@@ -500,7 +518,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
         )}
 
         {error && (
-          <div className="flex items-center gap-2 text-red-500 text-sm bg-red-500/5 p-3 rounded-lg border border-red-500/10">
+          <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/10 p-3 rounded-lg border border-destructive/20">
             <span className="font-bold">Error:</span> {error}
           </div>
         )}
@@ -520,15 +538,15 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
                 startGeneration()
               }
             }}
-            placeholder={step === "idle" || step === "done" ? "Describe the website you want to build..." : "AI is working..."}
+            placeholder={step === "idle" || step === "done" ? "Describe your website vision..." : "AI Architect is working..."}
             disabled={step === "planning" || step === "coding"}
-            className="pr-12 h-12 rounded-xl bg-muted/30 border-border/50 focus-visible:ring-1 focus-visible:ring-foreground/20"
+            className="pr-12 h-12 rounded-2xl bg-muted/40 border-border/40 focus-visible:ring-1 focus-visible:ring-primary/50 text-base"
           />
           <Button
             size="icon"
             disabled={!input.trim() || step === "planning" || step === "coding"}
             onClick={startGeneration}
-            className="absolute right-1.5 top-1.5 h-9 w-9 rounded-lg bg-foreground text-background hover:bg-foreground/90 transition-all"
+            className="absolute right-1.5 top-1.5 h-9 w-9 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-sm"
           >
             {step === "planning" || step === "coding" ? (
               <Loader2 className="h-4 w-4 animate-spin" />
