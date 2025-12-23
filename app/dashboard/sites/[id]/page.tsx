@@ -717,7 +717,10 @@ export default function SiteSettingsPage() {
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    onClick={() => signOut({ callbackUrl: "/" })}
+                    onClick={async () => {
+                        await fetch('/api/auth/logout', { method: 'POST' });
+                        signOut({ callbackUrl: "/" });
+                    }}
                     className="text-destructive focus:text-destructive"
                   >
                     <LogOut className="mr-2 h-4 w-4" />
@@ -878,11 +881,12 @@ export default function SiteSettingsPage() {
                                     <div className="absolute top-0 left-1/2 -translate-x-1/2 h-6 w-32 bg-black rounded-b-xl z-20"></div>
                                 )}
 
-                                {!deploymentLoading && previewUrl ? (
+                                {!deploymentLoading && previewUrl && (previewUrl.startsWith("http://") || previewUrl.startsWith("https://")) ? (
                                 <iframe
                                     src={previewUrl}
                                     className="w-full h-full border-0 bg-white"
                                     title="Live Preview"
+                                    sandbox="allow-scripts allow-forms"
                                 />
                                 ) : (
                                 <div className="flex items-center justify-center w-full h-full bg-muted/20">
