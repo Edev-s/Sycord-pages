@@ -791,72 +791,66 @@ export default function SiteSettingsPage() {
               <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
 
                 {/* Mobile Specific Header/Status - Visible only on mobile */}
-                <div className="block md:hidden space-y-8">
-                    {/* Domain Status Card Row */}
-                    <div className="flex items-center justify-between gap-4">
-                        <div className="flex-1 space-y-1">
-                            <div className="flex items-center gap-2">
-                                <div className={cn("h-2.5 w-2.5 rounded-full shrink-0", previewUrl ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" : "bg-gray-500")} />
-                                <h3 className="font-semibold text-lg truncate text-foreground">{displayUrl || 'Not deployed'}</h3>
-                            </div>
-                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground pl-4.5">
-                                <span>main</span>
-                                <span className="text-muted-foreground/50">•</span>
-                                <span>{project?.cloudflareDeployedAt ? new Date(project.cloudflareDeployedAt).toLocaleDateString().replace(/\./g, ' ') : "Not deployed"}</span>
-                            </div>
+                <div className="block md:hidden space-y-6">
+                    {/* Domain Status Header */}
+                    <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                            <div className={cn("h-2.5 w-2.5 rounded-full shrink-0", previewUrl ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" : "bg-gray-500")} />
+                            <h3 className="font-bold text-xl truncate text-foreground tracking-tight">{displayUrl || 'Not deployed'}</h3>
                         </div>
-                        {/* Compact Preview Thumbnail */}
-                         <div className="w-32 h-20 rounded-xl overflow-hidden border border-white/10 bg-black/20 shrink-0 relative shadow-sm">
-                            {previewUrl ? (
-                                <iframe
-                                    src={previewUrl}
-                                    className="w-[200%] h-[200%] origin-top-left scale-50 border-0 pointer-events-none"
-                                    title="Mini Preview"
-                                    tabIndex={-1}
-                                />
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground pl-4.5 font-medium">
+                            <span>main</span>
+                            <span className="text-muted-foreground/30">•</span>
+                            <span>{project?.cloudflareDeployedAt ? new Date(project.cloudflareDeployedAt).toISOString().split('T')[0].replace(/-/g, ' ') : "Not deployed"}</span>
+                        </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <Button
+                                variant="outline"
+                                className="h-14 text-base font-medium bg-card/50 border-white/10 hover:bg-accent rounded-xl"
+                                onClick={() => setActiveTab("domain")}
+                            >
+                                <Globe className="mr-2 h-5 w-5 opacity-70" />
+                                Domain
+                            </Button>
+                            <Button
+                                variant="outline"
+                                className="h-14 text-base font-medium bg-card/50 border-white/10 hover:bg-accent rounded-xl"
+                                onClick={() => previewUrl && window.open(previewUrl, "_blank")}
+                                disabled={!previewUrl}
+                            >
+                                <ExternalLink className="mr-2 h-5 w-5 opacity-70" />
+                                Visit
+                            </Button>
+                        </div>
+
+                        <Button
+                            size="lg"
+                            className="w-full h-14 font-semibold text-base shadow-lg shadow-primary/10 rounded-xl"
+                            onClick={handleDeploy}
+                            disabled={isDeploying}
+                        >
+                            {isDeploying ? (
+                                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
                             ) : (
-                                <div className="flex items-center justify-center w-full h-full bg-muted/20">
-                                   <div className="text-xs text-muted-foreground/50">No Preview</div>
-                                </div>
+                                <Rocket className="h-5 w-5 mr-2" />
                             )}
-                         </div>
-                    </div>
-
-                    {/* Action Buttons Row */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <Button
-                            variant="secondary"
-                            className="h-12 text-base font-medium bg-secondary/80 hover:bg-secondary border-none"
-                            onClick={() => setActiveTab("domain")}
-                        >
-                            <Globe className="mr-2 h-4 w-4" />
-                            Domain
-                        </Button>
-                        <Button
-                            variant="secondary"
-                            className="h-12 text-base font-medium bg-secondary/80 hover:bg-secondary border-none"
-                            onClick={() => previewUrl && window.open(previewUrl, "_blank")}
-                            disabled={!previewUrl}
-                        >
-                            <ExternalLink className="mr-2 h-4 w-4" />
-                            Visit
+                            {isDeploying ? "Deploying..." : "Publish Changes"}
                         </Button>
                     </div>
 
-                    {/* Mobile Deploy Button (Separate full width) */}
-                    <Button
-                        size="lg"
-                        className="w-full font-semibold shadow-lg shadow-primary/20"
-                        onClick={handleDeploy}
-                        disabled={isDeploying}
-                    >
-                        {isDeploying ? (
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                            <Rocket className="h-4 w-4 mr-2" />
-                        )}
-                        {isDeploying ? "Deploying..." : "Publish Changes"}
-                    </Button>
+                    {/* Visitor Divider */}
+                    <div className="flex items-center gap-4 py-2">
+                         <div className="h-px bg-border/40 flex-1"></div>
+                         <div className="bg-card/50 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 flex items-center gap-2 shadow-sm">
+                            <Eye className="h-3.5 w-3.5 text-foreground/70" />
+                            <span className="font-bold text-sm text-foreground">{stats.visitors}</span>
+                        </div>
+                         <div className="h-px bg-border/40 flex-1"></div>
+                    </div>
                 </div>
 
                 {/* Desktop Specific Preview/Status - Visible only on desktop */}
@@ -1000,20 +994,12 @@ export default function SiteSettingsPage() {
                 )}
 
                 {/* Shared Content Area - Visible on BOTH Mobile and Desktop */}
-                <div className="space-y-8">
-                     {/* Visitor Bar - Visible just below Publish Button area on Mobile */}
-                     <div className="flex justify-center -mt-4 md:hidden">
-                        <div className="bg-black/40 backdrop-blur-md px-5 py-2 rounded-full border border-white/10 flex items-center gap-3">
-                            <Eye className="h-4 w-4 text-white" />
-                            <span className="font-semibold text-white">{stats.visitors}</span>
-                        </div>
-                     </div>
+                <div className="space-y-6">
 
-                    {/* Configuration Tabs - Modern Pill Style */}
+                    {/* Configuration Tabs - Segmented Control Style */}
                     <div className="flex flex-col gap-6">
-                        {/* Scrollable Container for Tabs */}
-                        <div className="w-full overflow-x-auto pb-2 scrollbar-hide">
-                            <div className="bg-muted/30 p-1.5 rounded-xl border border-white/5 self-start inline-flex whitespace-nowrap min-w-min">
+                        <div className="w-full bg-muted/40 p-1.5 rounded-xl border border-white/5">
+                            <div className="flex items-center gap-1">
                                 {subTabs.map((tab) => {
                                     const Icon = tab.icon
                                     const isActive = activeSubTab === tab.id
@@ -1022,18 +1008,11 @@ export default function SiteSettingsPage() {
                                         key={tab.id}
                                         onClick={() => setActiveSubTab(tab.id as any)}
                                         className={cn(
-                                        "relative flex items-center gap-2 px-4 py-1.5 text-xs font-medium rounded-lg transition-all z-10",
-                                        isActive ? "text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                                        "flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium rounded-lg transition-all duration-200",
+                                        isActive ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-white/5"
                                         )}
                                     >
-                                        {isActive && (
-                                            <motion.div
-                                                layoutId="activeSubTab"
-                                                className="absolute inset-0 bg-primary rounded-lg -z-10"
-                                                transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                                            />
-                                        )}
-                                        <Icon className="h-3.5 w-3.5" />
+                                        <Icon className="h-4 w-4" />
                                         {tab.label}
                                     </button>
                                     )
@@ -1044,103 +1023,67 @@ export default function SiteSettingsPage() {
                         {/* Limits Sub-Tab Content */}
                         {activeSubTab === "limits" && (
                             <div className="animate-in fade-in slide-in-from-bottom-2">
-                                <Card className="bg-card/50 backdrop-blur-xl border-white/10 max-w-md mx-auto md:mx-0">
-                                    <CardHeader className="pb-2">
-                                        <div className="flex items-center justify-between">
-                                            <CardTitle className="text-lg font-medium">Statistics</CardTitle>
-                                            <span className="bg-primary/10 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full border border-primary/20 tracking-wide uppercase">Free Plan</span>
+                                <Card className="bg-card/50 backdrop-blur-xl border-white/10 shadow-sm">
+                                    <CardHeader className="pb-4 pt-6 px-6">
+                                        <div className="flex items-center gap-3">
+                                            <CardTitle className="text-xl font-bold">Statistics</CardTitle>
+                                            <span className="bg-muted text-muted-foreground text-[10px] font-medium px-2 py-0.5 rounded-md border border-border/50 uppercase tracking-wide">Free</span>
                                         </div>
                                     </CardHeader>
-                                    <CardContent className="space-y-6">
-                                        {/* Activity Chart */}
-                                        <div className="h-32 w-full mb-6 bg-black/20 rounded-xl p-3 border border-white/5 relative overflow-hidden group hover:border-white/10 transition-colors">
-                                           <div className="flex items-center justify-between mb-2 px-1">
-                                              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                                                  <Activity className="h-3 w-3" /> Activity
-                                              </span>
-                                              <span className="text-[10px] text-green-400 font-bold bg-green-400/10 px-1.5 py-0.5 rounded">+12%</span>
-                                           </div>
-                                           <ResponsiveContainer width="100%" height="100%">
-                                             <AreaChart data={activityData}>
-                                               <defs>
-                                                 <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                                                   <stop offset="5%" stopColor="white" stopOpacity={0.2}/>
-                                                   <stop offset="95%" stopColor="white" stopOpacity={0}/>
-                                                 </linearGradient>
-                                               </defs>
-                                               <Tooltip
-                                                 contentStyle={{ backgroundColor: "#09090b", borderColor: "#27272a", borderRadius: "8px", fontSize: "12px", boxShadow: "0 4px 12px rgba(0,0,0,0.5)" }}
-                                                 itemStyle={{ color: "#e4e4e7" }}
-                                                 cursor={{ stroke: 'rgba(255,255,255,0.2)', strokeDasharray: '4 4' }}
-                                                 formatter={(value: any) => [`${value} visits`, 'Traffic']}
-                                                 labelStyle={{ display: 'none' }}
-                                               />
-                                               <Area
-                                                   type="monotone"
-                                                   dataKey="value"
-                                                   stroke="white"
-                                                   strokeWidth={2}
-                                                   fillOpacity={1}
-                                                   fill="url(#colorValue)"
-                                                   activeDot={{ r: 4, fill: "white", strokeWidth: 0 }}
-                                               />
-                                             </AreaChart>
-                                           </ResponsiveContainer>
-                                        </div>
-
+                                    <CardContent className="space-y-8 px-6 pb-8">
                                         {/* Changes */}
-                                        <div className="flex items-center gap-4">
-                                            <div className="bg-white/5 p-2.5 rounded-xl shrink-0 border border-white/5">
-                                                <stats.changes.icon className="h-5 w-5 text-white" />
+                                        <div className="flex items-center gap-5">
+                                            <div className="h-12 w-12 bg-muted/50 rounded-xl shrink-0 flex items-center justify-center border border-white/5">
+                                                <stats.changes.icon className="h-6 w-6 text-foreground/70" />
                                             </div>
-                                            <div className="flex-1 space-y-2">
-                                                 <Progress value={(stats.changes.used / stats.changes.limit) * 100} className="h-2 bg-white/5" />
+                                            <div className="flex-1">
+                                                 <Progress value={(stats.changes.used / stats.changes.limit) * 100} className="h-1.5 bg-muted/50" />
                                             </div>
-                                            <div className="min-w-[120px] text-right">
-                                                <span className="text-sm font-bold block text-white">{stats.changes.limit - stats.changes.used}</span>
-                                                <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">{stats.changes.label}</span>
+                                            <div className="text-right min-w-[80px]">
+                                                <span className="text-lg font-bold block leading-none mb-1">{stats.changes.limit - stats.changes.used}</span>
+                                                <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">{stats.changes.label}</span>
                                             </div>
                                         </div>
 
                                         {/* AI Chat Build */}
-                                        <div className="flex items-center gap-4">
-                                            <div className="bg-white/5 p-2.5 rounded-xl shrink-0 border border-white/5">
-                                                <stats.aiBuilds.icon className="h-5 w-5 text-white" />
+                                        <div className="flex items-center gap-5">
+                                            <div className="h-12 w-12 bg-muted/50 rounded-xl shrink-0 flex items-center justify-center border border-white/5">
+                                                <stats.aiBuilds.icon className="h-6 w-6 text-foreground/70" />
                                             </div>
-                                            <div className="flex-1 space-y-2">
-                                                <Progress value={(stats.aiBuilds.used / stats.aiBuilds.limit) * 100} className="h-2 bg-white/5" />
+                                            <div className="flex-1">
+                                                <Progress value={(stats.aiBuilds.used / stats.aiBuilds.limit) * 100} className="h-1.5 bg-muted/50" />
                                             </div>
-                                            <div className="min-w-[120px] text-right">
-                                                <span className="text-sm font-bold block text-white">{stats.aiBuilds.used} / {stats.aiBuilds.limit}</span>
-                                                <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">{stats.aiBuilds.label}</span>
+                                            <div className="text-right min-w-[80px]">
+                                                <span className="text-lg font-bold block leading-none mb-1">{stats.aiBuilds.used} / {stats.aiBuilds.limit}</span>
+                                                <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">{stats.aiBuilds.label}</span>
                                             </div>
                                         </div>
 
                                         {/* Storage */}
-                                        <div className="flex items-center gap-4">
-                                            <div className="bg-white/5 p-2.5 rounded-xl shrink-0 border border-white/5">
-                                                <stats.storage.icon className="h-5 w-5 text-white" />
+                                        <div className="flex items-center gap-5">
+                                            <div className="h-12 w-12 bg-muted/50 rounded-xl shrink-0 flex items-center justify-center border border-white/5">
+                                                <stats.storage.icon className="h-6 w-6 text-foreground/70" />
                                             </div>
-                                            <div className="flex-1 space-y-2">
-                                                <Progress value={(stats.storage.used / stats.storage.limit) * 100} className="h-2 bg-white/5" />
+                                            <div className="flex-1">
+                                                <Progress value={(stats.storage.used / stats.storage.limit) * 100} className="h-1.5 bg-muted/50" />
                                             </div>
-                                            <div className="min-w-[120px] text-right">
-                                                <span className="text-sm font-bold block text-white">{stats.storage.used}MB</span>
-                                                <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">{stats.storage.label}</span>
+                                            <div className="text-right min-w-[80px]">
+                                                <span className="text-lg font-bold block leading-none mb-1">{stats.storage.used}MB</span>
+                                                <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">{stats.storage.label}</span>
                                             </div>
                                         </div>
 
                                          {/* Products */}
-                                         <div className="flex items-center gap-4">
-                                            <div className="bg-white/5 p-2.5 rounded-xl shrink-0 border border-white/5">
-                                                <stats.products.icon className="h-5 w-5 text-white" />
+                                         <div className="flex items-center gap-5">
+                                            <div className="h-12 w-12 bg-muted/50 rounded-xl shrink-0 flex items-center justify-center border border-white/5">
+                                                <stats.products.icon className="h-6 w-6 text-foreground/70" />
                                             </div>
-                                            <div className="flex-1 space-y-2">
-                                                <Progress value={(stats.products.used / stats.products.limit) * 100} className="h-2 bg-white/5" />
+                                            <div className="flex-1">
+                                                <Progress value={(stats.products.used / stats.products.limit) * 100} className="h-1.5 bg-muted/50" />
                                             </div>
-                                            <div className="min-w-[120px] text-right">
-                                                <span className="text-sm font-bold block text-white">{stats.products.used} / {stats.products.limit}</span>
-                                                <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">{stats.products.label}</span>
+                                            <div className="text-right min-w-[80px]">
+                                                <span className="text-lg font-bold block leading-none mb-1">{stats.products.used} / {stats.products.limit}</span>
+                                                <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">{stats.products.label}</span>
                                             </div>
                                         </div>
                                     </CardContent>
