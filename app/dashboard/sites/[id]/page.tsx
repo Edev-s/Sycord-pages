@@ -633,7 +633,7 @@ export default function SiteSettingsPage() {
       label: "PRODUCTS",
       icon: Package
     },
-    visitors: Math.floor(Math.random() * 450) + 50 // Dynamic visitor count (50-500)
+    visitors: 0 // Default until functional
   }
 
   // Mock data for activity chart
@@ -792,17 +792,35 @@ export default function SiteSettingsPage() {
 
                 {/* Mobile Specific Header/Status - Visible only on mobile */}
                 <div className="block md:hidden space-y-6">
-                    {/* Domain Status Header */}
-                    <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                            <div className={cn("h-2.5 w-2.5 rounded-full shrink-0", previewUrl ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" : "bg-gray-500")} />
-                            <h3 className="font-bold text-xl truncate text-foreground tracking-tight">{displayUrl || 'Not deployed'}</h3>
+                    {/* Domain Status Header with Preview */}
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="flex-1 min-w-0 space-y-1">
+                            <div className="flex items-center gap-2">
+                                <div className={cn("h-2.5 w-2.5 rounded-full shrink-0", previewUrl ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" : "bg-gray-500")} />
+                                <h3 className="font-bold text-xl truncate text-foreground tracking-tight">{displayUrl || 'Not deployed'}</h3>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground pl-4.5 font-medium">
+                                <span>main</span>
+                                <span className="text-muted-foreground/30">•</span>
+                                <span>{project?.cloudflareDeployedAt ? new Date(project.cloudflareDeployedAt).toISOString().split('T')[0].replace(/-/g, ' ') : "Not deployed"}</span>
+                            </div>
                         </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground pl-4.5 font-medium">
-                            <span>main</span>
-                            <span className="text-muted-foreground/30">•</span>
-                            <span>{project?.cloudflareDeployedAt ? new Date(project.cloudflareDeployedAt).toISOString().split('T')[0].replace(/-/g, ' ') : "Not deployed"}</span>
-                        </div>
+
+                        {/* Compact Preview Thumbnail (Restored) */}
+                        <div className="w-24 h-14 rounded-lg overflow-hidden border border-white/10 bg-black/20 shrink-0 relative shadow-sm group">
+                            {previewUrl ? (
+                                <iframe
+                                    src={previewUrl}
+                                    className="w-[300%] h-[300%] origin-top-left scale-[0.33] border-0 pointer-events-none"
+                                    title="Mini Preview"
+                                    tabIndex={-1}
+                                />
+                            ) : (
+                                <div className="flex items-center justify-center w-full h-full bg-muted/20">
+                                   <div className="text-[10px] text-muted-foreground/50">No Preview</div>
+                                </div>
+                            )}
+                         </div>
                     </div>
 
                     {/* Action Buttons */}
