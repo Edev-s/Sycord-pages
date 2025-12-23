@@ -6,22 +6,16 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Loader2,
-  Send,
   Bot,
-  User,
   Check,
   ChevronDown,
   Terminal,
-  Cpu,
   Sparkles,
   FileCode,
   ArrowRight,
   Rocket,
-  File,
-  Layers,
   ListTodo,
   BrainCircuit,
-  MessageSquare
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -35,49 +29,6 @@ const MODELS = [
   { id: "gemini-2.5-flash-lite", name: "Google", provider: "Google" },
   { id: "deepseek-v3.2-exp", name: "DeepSeek", provider: "DeepSeek" },
 ]
-
-const SYSTEM_PROMPT = `You are an expert web developer creating beautiful, production-ready HTML websites.
-
-CRITICAL: You MUST generate valid, complete HTML code that can be rendered directly in a browser.
-
-MARKER INSTRUCTIONS:
-When providing code, wrap it EXACTLY like this with NO backticks:
-[1]
-<!DOCTYPE html>
-<html>
-...your complete HTML code...
-</html>
-[1<page_name>]
-
-Replace <page_name> with the specific name of the file you are generating (e.g., index.html, style.css).
-
-IMAGES:
-Use REAL photos from LoremFlickr for high-quality placeholders.
-Format: https://loremflickr.com/{width}/{height}/{keyword}
-Example: https://loremflickr.com/800/600/fashion,clothing
-
-PRODUCTION STANDARDS:
-1.  **Functionality**: All features must work in a static environment.
-    -   **Login**: Simulate login using localStorage. (e.g., save 'isLoggedIn' token).
-    -   **Cart**: Save items to localStorage. Update header cart count.
-    -   **Navigation**: Check localStorage state (e.g., show 'Logout' if logged in).
-2.  **Interactivity**: Use vanilla JavaScript to handle clicks, form submissions, and UI updates. Add event listeners in <script>.
-3.  **Forms**: Add 'submit' event listeners to all forms. Prevent default submission and handle logic (e.g. redirect to next page).
-4.  **Styling (HeroUI Aesthetic)**:
-    -   Use Tailwind CSS.
-    -   **Radius**: Use 'rounded-2xl' or 'rounded-3xl' for cards and buttons.
-    -   **Shadows**: Use 'shadow-lg' or 'shadow-xl' for depth.
-    -   **Glassmorphism**: Use 'backdrop-blur-md bg-white/80' for headers/modals.
-    -   **Typography**: Use 'font-sans', 'tracking-tight' for headings.
-    -   **Spacing**: Use generous padding ('p-8', 'py-12', 'gap-8').
-    -   **Gradients**: Use subtle gradients for backgrounds or text ('bg-gradient-to-r').
-
-ESSENTIAL REQUIREMENTS:
-1. Write ALL code in pure HTML/CSS/JS - NO REACT, NO JSX.
-2. Use Tailwind CSS classes for styling (include CDN).
-3. Make it fully responsive (mobile-first).
-4. NO backticks inside markers.
-`
 
 type Step = "idle" | "planning" | "coding" | "done"
 
@@ -107,18 +58,16 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [step, setStep] = useState<Step>("idle")
-  const [currentPlan, setCurrentPlan] = useState("") // Displayed text status
+  const [currentPlan, setCurrentPlan] = useState("") // UI Status Text
   const [deployedCode, setDeployedCode] = useState<string | null>(null)
   const [deploySuccess, setDeploySuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Instruction State (The "Plan" text)
+  const [instruction, setInstruction] = useState<string>("")
+
   // Model Selection State
   const [selectedModel, setSelectedModel] = useState(MODELS[0])
-
-  // Task List State
-  const [plannedFiles, setPlannedFiles] = useState<string[]>([])
-  const [currentFileIndex, setCurrentFileIndex] = useState(0)
-  const [isBuilding, setIsBuilding] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -130,7 +79,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
     scrollToBottom()
   }, [messages, currentPlan, step])
 
-  // Main Orchestration Function
+  // Start the process
   const startGeneration = async () => {
     if (!input.trim()) return
 
@@ -147,7 +96,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
     setCurrentPlan("Architecting solution...")
 
     try {
-      // Step 1: Brainstorm / Plan Files
+      // Step 1: Generate Plan / Instruction
       const planResponse = await fetch("/api/ai/generate-plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -159,35 +108,17 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
       if (!planResponse.ok) throw new Error("Failed to generate plan")
 
       const planData = await planResponse.json()
-      let files = []
-      let thoughtProcess = ""
+      const generatedInstruction = planData.instruction
 
-      try {
-        // Clean potential markdown before parsing
-        let rawJson = planData.plan
-        if (rawJson.includes("```")) {
-           rawJson = rawJson.replace(/```json/g, "").replace(/```/g, "").trim()
-        }
-        const parsed = JSON.parse(rawJson)
-        files = parsed.files || []
-        thoughtProcess = parsed.thoughtProcess || "Planning structure..."
+      if (!generatedInstruction) throw new Error("No instruction generated")
 
-        if (!Array.isArray(files) || files.length === 0) throw new Error("Invalid file list")
-      } catch (e) {
-        console.warn("Plan parsing failed, defaulting to index.html", e)
-        files = ["index.html"]
-        thoughtProcess = "I will start by creating the main index page."
-      }
+      setInstruction(generatedInstruction)
 
-      setPlannedFiles(files)
-      setCurrentFileIndex(0)
-      setIsBuilding(true)
-
-      // Add the architectural plan to chat
+      // Add Plan to chat history
       const planMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: thoughtProcess,
+        content: generatedInstruction,
         plan: "Architectural Strategy",
         isIntermediate: false
       }
@@ -195,8 +126,8 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
       const newHistory = [...messages, userMessage, planMessage]
       setMessages(newHistory)
 
-      // Start the loop
-      processNextFile(files, 0, newHistory, thoughtProcess)
+      // Step 2: Start generating files based on instruction
+      processNextStep(generatedInstruction, newHistory)
 
     } catch (err: any) {
       setError(err.message || "An error occurred during planning")
@@ -204,111 +135,77 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
     }
   }
 
-  // Recursive function to process files one by one
-  const processNextFile = async (files: string[], index: number, currentHistory: Message[], architecturalContext: string) => {
-    if (index >= files.length) {
-      setIsBuilding(false)
-      setStep("done")
-      setCurrentPlan("All files generated successfully!")
-      return
-    }
-
-    const filename = files[index]
+  // Recursive step processor
+  const processNextStep = async (currentInstruction: string, currentHistory: Message[]) => {
     setStep("coding")
-    setCurrentPlan(`Generating ${filename} (${index + 1}/${files.length})...`)
+    setCurrentPlan("Generating next file...")
 
     try {
-      const codeResponse = await fetch("/api/ai/generate-website", {
+      const response = await fetch("/api/ai/generate-website", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           projectId,
           messages: currentHistory,
-          systemPrompt: SYSTEM_PROMPT,
-          // Pass the specific file task + the global architectural context
-          plan: `CURRENT TASK: Generate code for file '${filename}'.\n\nARCHITECTURAL CONTEXT: ${architecturalContext}\n\nEnsure '${filename}' implements the features described in the context and integrates with other files.`,
-          model: selectedModel.id, // Pass selected model
+          instruction: currentInstruction,
+          model: selectedModel.id,
         }),
       })
 
-      if (!codeResponse.ok) throw new Error(`Failed to generate ${filename}`)
+      if (!response.ok) throw new Error("Failed to generate file")
 
-      const codeData = await codeResponse.json()
+      const data = await response.json()
 
+      if (data.isComplete) {
+        setStep("done")
+        setCurrentPlan("All files generated successfully!")
+        return
+      }
+
+      // We have a new file
       const assistantMessage: Message = {
         id: Date.now().toString(),
         role: "assistant",
-        content: codeData.content, // Often empty/short if code is extracted
-        code: codeData.code,
-        pageName: codeData.pageName || filename,
-        isIntermediate: index < files.length - 1
+        content: `Generated ${data.pageName}`,
+        code: data.code,
+        pageName: data.pageName,
+        isIntermediate: true
       }
 
-      // Update history
       const newHistory = [...currentHistory, assistantMessage]
       setMessages(prev => [...prev, assistantMessage])
 
-      // Update generated pages state
-      if (codeData.code) {
-        const finalName = codeData.pageName || filename
+      // Update Pages State
+      if (data.code && data.pageName) {
         setGeneratedPages(prev => {
-          const existing = prev.findIndex(p => p.name === finalName)
+          const existing = prev.findIndex(p => p.name === data.pageName)
           if (existing >= 0) {
             const updated = [...prev]
-            updated[existing] = { name: finalName, code: codeData.code, timestamp: Date.now() }
+            updated[existing] = { name: data.pageName, code: data.code, timestamp: Date.now() }
             return updated
           }
-          return [...prev, { name: finalName, code: codeData.code, timestamp: Date.now() }]
+          return [...prev, { name: data.pageName, code: data.code, timestamp: Date.now() }]
         })
 
-        // Auto-save to database
-        const saveRes = await fetch(`/api/projects/${projectId}/pages`, {
+        // Auto-save to DB
+        await fetch(`/api/projects/${projectId}/pages`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            name: finalName.replace(".html", ""),
-            content: codeData.code
+            name: data.pageName.replace(".html", ""),
+            content: data.code
           })
         })
-
-        if (saveRes.ok) {
-          console.log("[v0] Page auto-saved to DB")
-
-          // Trigger Auto-Deployment if this is a substantial file update
-          console.log("[v0] Triggering auto-deployment...")
-          try {
-            const deployRes = await fetch("/api/cloudflare/deploy", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ projectId })
-            })
-
-            if (deployRes.ok) {
-                console.log("[v0] Auto-deployment successful")
-                // Force a reload of the preview if iframe exists on the page
-                const iframe = document.querySelector('iframe[title="Live Preview"]') as HTMLIFrameElement
-                if (iframe) {
-                    // Force refresh by appending/updating a timestamp parameter
-                    const currentSrc = new URL(iframe.src)
-                    currentSrc.searchParams.set('t', Date.now().toString())
-                    iframe.src = currentSrc.toString()
-                }
-            } else {
-                console.error("[v0] Auto-deployment failed", await deployRes.text())
-            }
-          } catch (deployErr) {
-             console.error("[v0] Auto-deployment error:", deployErr)
-          }
-        }
       }
 
-      // Next iteration
-      setCurrentFileIndex(index + 1)
-      processNextFile(files, index + 1, newHistory, architecturalContext)
+      // Update Instruction State
+      setInstruction(data.updatedInstruction)
+
+      // Recurse
+      processNextStep(data.updatedInstruction, newHistory)
 
     } catch (err: any) {
-      setError(err.message || `Error generating ${filename}`)
-      setIsBuilding(false)
+      setError(err.message || "Error generating file")
       setStep("idle")
     }
   }
@@ -328,7 +225,6 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
 
       if (!response.ok) throw new Error("Deploy failed")
 
-      // Determine which code was "deployed" for the UI feedback
       const latestCode = generatedPages[generatedPages.length - 1]?.code
       setDeployedCode(latestCode)
 
@@ -341,7 +237,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
 
   return (
     <div className="flex flex-col h-full bg-background text-foreground font-sans">
-      {/* Header / Model Selector - Redesigned to Circled Input Style */}
+      {/* Header / Model Selector */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-border/50 bg-background/80 backdrop-blur-md sticky top-0 z-10 supports-[backdrop-filter]:bg-background/50">
         <div className="flex items-center gap-3">
           <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center border border-primary/20">
@@ -353,15 +249,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {/* Task Progress Indicator */}
-          {isBuilding && (
-             <div className="flex items-center gap-2 mr-4 px-3 py-1 bg-muted rounded-full text-xs animate-pulse">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                <span>{currentFileIndex + 1} / {plannedFiles.length}</span>
-             </div>
-          )}
-
-          {/* Model Chooser - Circled/Pill Style */}
+          {/* Model Chooser */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="h-8 rounded-full px-4 border-border/50 bg-background/50 hover:bg-background/80 transition-all">
@@ -420,7 +308,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
                             <BrainCircuit className="h-3 w-3" /> Architectural Strategy
                         </div>
                     )}
-                    <div className="bg-muted/30 rounded-2xl px-5 py-4 text-sm leading-relaxed border border-border/30 backdrop-blur-sm">
+                    <div className="bg-muted/30 rounded-2xl px-5 py-4 text-sm leading-relaxed border border-border/30 backdrop-blur-sm whitespace-pre-wrap font-mono text-xs">
                        {message.content}
                     </div>
                  </div>
@@ -431,7 +319,6 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
             {message.role === "assistant" && message.code && (
               <div className="flex justify-start w-full">
                 <div className="w-full max-w-3xl space-y-4">
-                  {/* Deploy Card - Optimized Style */}
                   <Card className={cn(
                       "border-border/30 shadow-sm bg-card/30 backdrop-blur-md overflow-hidden transition-all duration-300",
                       message.isIntermediate ? 'opacity-70 scale-[0.98]' : 'hover:border-primary/20'
@@ -489,7 +376,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
           </div>
         ))}
 
-        {/* Live Status Area (While working) */}
+        {/* Live Status Area */}
         {(step === "planning" || step === "coding") && (
           <div className="flex justify-start w-full max-w-3xl animate-in fade-in slide-in-from-bottom-4">
             <div className="w-full space-y-4 bg-muted/10 p-4 rounded-xl border border-dashed border-border/30">
@@ -501,23 +388,10 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
                 {currentPlan}
               </div>
 
-              {/* Task List Visualization */}
-              {plannedFiles.length > 0 && (
-                 <div className="pl-6 space-y-1.5 border-l-2 border-border/30 ml-1.5">
-                    {plannedFiles.map((file, i) => (
-                       <div key={file} className={cn(
-                           "flex items-center gap-2 text-xs transition-colors duration-300",
-                           i === currentFileIndex ? "text-primary font-medium" :
-                           i < currentFileIndex ? "text-muted-foreground line-through opacity-50" : "text-muted-foreground opacity-30"
-                       )}>
-                          {i < currentFileIndex ? <Check className="h-3 w-3" /> :
-                           i === currentFileIndex ? <Loader2 className="h-3 w-3 animate-spin" /> :
-                           <div className="w-3 h-3 rounded-full border border-current opacity-20" />}
-                          {file}
-                       </div>
-                    ))}
-                 </div>
-              )}
+              {/* Optional: Show raw instruction preview if debugging */}
+              {/* <div className="text-[10px] text-muted-foreground font-mono mt-2 opacity-50 whitespace-pre-wrap max-h-20 overflow-hidden">
+                 {instruction}
+              </div> */}
             </div>
           </div>
         )}
