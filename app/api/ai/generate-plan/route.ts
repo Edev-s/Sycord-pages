@@ -48,6 +48,7 @@ export async function POST(request: Request) {
     2.  **Files**: Must include at least index.html and style.css (or styles inside html if preferred, but separate is better for complex apps).
     3.  **Strict Syntax**: Use brackets [1], [2], etc. for file steps.
     4.  **Static Only**: Only suggest files that can run in a browser (HTML/CSS/JS). Do not suggest backend files (e.g., node.js servers, php) unless they are purely client-side mocks.
+    5.  **Language**: Plan for HTML files with embedded JS/CSS or separate .js/.css files. Note that JavaScript should be written in ES6+ with JSDoc/TS-Check patterns for type safety.
     `
 
     // Combine history for context
