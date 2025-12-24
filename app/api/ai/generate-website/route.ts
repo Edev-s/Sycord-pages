@@ -132,7 +132,7 @@ export async function POST(request: Request) {
       1. **Tailwind CSS**: You MUST use Tailwind CSS (https://tailwindcss.com/) for ALL styling. Do not use custom CSS classes unless absolutely necessary.
       2. **Functional Code**: CRITICAL: Do NOT generate functions that are empty or 'pass'. Every button and input MUST have working JavaScript logic (e.g., localStorage persistence, DOM manipulation, navigation). Do NOT use alerts for 'feature coming soon'. Build it or don't include it.
       3. **No Bloat**: Do NOT include 'Demo' sections, 'Lorem Ipsum', or placeholders that don't function. Only generate code that is relevant to the user's specific request.
-      4. **Language**: Use HTML with embedded ES6+ JavaScript. Use `// @ts-check` at the top of scripts to enforce type safety patterns where possible.
+      4. **Language**: Use HTML with embedded ES6+ JavaScript. Use '// @ts-check' at the top of scripts to enforce type safety patterns where possible.
       5. **Production Ready**: Code must be ready to deploy.
     `
 
