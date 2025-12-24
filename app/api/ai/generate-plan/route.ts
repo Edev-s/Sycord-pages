@@ -45,7 +45,7 @@ export async function POST(request: Request) {
 
     REQUIREMENTS:
     1.  **Scale**: Plan for a COMPLETE experience (5-10 files typically).
-    2.  **Files**: Do NOT include `index.html`. The entry point MUST be `index.ts`. The system will handle the HTML wrapper.
+    2.  **Files**: Do NOT include 'index.html'. The entry point MUST be 'index.ts'. The system will handle the HTML wrapper.
     3.  **Strict Syntax**: Use brackets [1], [2], etc. for file steps.
     4.  **Static Only**: Only suggest files that can run in a browser (HTML/CSS/JS). Do not suggest backend files (e.g., node.js servers, php) unless they are purely client-side mocks.
     5.  **Language**: The user prefers TypeScript. You should plan for '.ts' files instead of '.js'.
