@@ -224,6 +224,9 @@ export async function POST(request: Request) {
 </html>`;
         routes["/"] = defaultContent;
     } else {
+        let hasIndexHtml = false;
+        let indexTsPage = null;
+
         pages.forEach(page => {
             const content = page.content || "";
             const name = page.name;
@@ -235,13 +238,36 @@ export async function POST(request: Request) {
             if (name === "index" || name === "index.html") {
                 routes["/"] = content;
                 if (name === "index") routes["/index.html"] = content;
+                hasIndexHtml = true;
+            } else if (name === "index.ts") {
+                indexTsPage = page;
             } else if (!name.includes(".")) {
                 // If name has no extension, assume .html alias might be needed
                 routes[`/${name}.html`] = content;
             }
         });
-        // Set default to index or first page
-        defaultContent = routes["/"] || Object.values(routes)[0];
+
+        // If no index.html but index.ts exists, create a wrapper
+        if (!hasIndexHtml && indexTsPage) {
+            defaultContent = `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${project.name || "App"}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="module" src="/index.ts"></script>
+</body>
+</html>`;
+            routes["/"] = defaultContent;
+            routes["/index.html"] = defaultContent;
+        } else {
+            // Set default to index or first page
+            defaultContent = routes["/"] || Object.values(routes)[0];
+        }
     }
 
     // 5. Generate Worker Script
