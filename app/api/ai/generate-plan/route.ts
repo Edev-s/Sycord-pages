@@ -47,6 +47,7 @@ export async function POST(request: Request) {
     1.  **Scale**: Plan for a COMPLETE experience (5-10 files typically).
     2.  **Files**: Must include at least index.html and style.css (or styles inside html if preferred, but separate is better for complex apps).
     3.  **Strict Syntax**: Use brackets [1], [2], etc. for file steps.
+    4.  **Static Only**: Only suggest files that can run in a browser (HTML/CSS/JS). Do not suggest backend files (e.g., node.js servers, php) unless they are purely client-side mocks.
     `
 
     // Combine history for context
