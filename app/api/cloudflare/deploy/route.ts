@@ -225,14 +225,19 @@ export async function POST(request: Request) {
         routes["/"] = defaultContent;
     } else {
         pages.forEach(page => {
-            // Map "index" to "/" and "/index.html"
-            const content = page.content || `<h1>${page.name}</h1>`;
-            if (page.name === "index") {
+            const content = page.content || "";
+            const name = page.name;
+
+            // Map exact name
+            routes[`/${name}`] = content;
+
+            // Handle index conventions
+            if (name === "index" || name === "index.html") {
                 routes["/"] = content;
-                routes["/index.html"] = content;
-            } else {
-                routes[`/${page.name}`] = content;
-                routes[`/${page.name}.html`] = content;
+                if (name === "index") routes["/index.html"] = content;
+            } else if (!name.includes(".")) {
+                // If name has no extension, assume .html alias might be needed
+                routes[`/${name}.html`] = content;
             }
         });
         // Set default to index or first page
@@ -272,13 +277,41 @@ export default {
         }
     }
 
-    // SPA Fallback (Serve default content for unknown routes)
+    // SPA Fallback (Serve default content for unknown routes only if extension is empty or html)
     if (!content) {
-        content = DEFAULT_HTML;
+        // Only fallback to index if it looks like a page request, not an asset
+        const isAsset = path.includes('.') && !path.endsWith('.html');
+        if (!isAsset) {
+            content = DEFAULT_HTML;
+        } else {
+            return new Response("Not Found", { status: 404 });
+        }
+    }
+
+    // Determine Content-Type
+    let contentType = "text/html; charset=utf-8";
+    if (path !== "/") {
+        const lastSegment = path.split('/').pop();
+        if (lastSegment && lastSegment.includes('.')) {
+            const ext = lastSegment.split('.').pop().toLowerCase();
+            const mimeTypes = {
+                "js": "application/javascript; charset=utf-8",
+                "mjs": "application/javascript; charset=utf-8",
+                "ts": "application/javascript; charset=utf-8",
+                "css": "text/css; charset=utf-8",
+                "json": "application/json; charset=utf-8",
+                "png": "image/png",
+                "jpg": "image/jpeg",
+                "jpeg": "image/jpeg",
+                "svg": "image/svg+xml",
+                "ico": "image/x-icon"
+            };
+            if (mimeTypes[ext]) contentType = mimeTypes[ext];
+        }
     }
 
     return new Response(content, {
-      headers: { "content-type": "text/html; charset=utf-8" }
+      headers: { "content-type": contentType }
     });
   }
 };
