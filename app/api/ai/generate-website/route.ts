@@ -132,8 +132,8 @@ export async function POST(request: Request) {
       1. **Tailwind CSS**: You MUST use Tailwind CSS (https://tailwindcss.com/) for ALL styling. Do not use custom CSS classes unless absolutely necessary.
       2. **Functional Code**: CRITICAL: Do NOT generate functions that are empty or 'pass'. Every button and input MUST have working JavaScript logic (e.g., localStorage persistence, DOM manipulation, navigation). Do NOT use alerts for 'feature coming soon'. Build it or don't include it.
       3. **No Bloat**: Do NOT include 'Demo' sections, 'Lorem Ipsum', or placeholders that don't function. Only generate code that is relevant to the user's specific request.
-      4. **Language**: The user requested TypeScript (`.ts`). However, since this code runs directly in a browser without a build step, you MUST generate **valid JavaScript (ES Modules)** but labeled as `.ts`. Use JSDoc for type safety if needed. Do NOT use TS-specific syntax (like `interface` or type annotations) that causes runtime errors in browsers.
-      5. **Entry Point**: If generating `index.ts`, ensure it creates the DOM structure (e.g., `document.body.innerHTML = ...`) since there is no `index.html`.
+      4. **Language**: The user requested TypeScript ('.ts'). However, since this code runs directly in a browser without a build step, you MUST generate **valid JavaScript (ES Modules)** but labeled as '.ts'. Use JSDoc for type safety if needed. Do NOT use TS-specific syntax (like 'interface' or type annotations) that causes runtime errors in browsers.
+      5. **Entry Point**: If generating 'index.ts', ensure it creates the DOM structure (e.g., 'document.body.innerHTML = ...') since there is no 'index.html'.
       6. **Production Ready**: Code must be ready to deploy.
     `
 
