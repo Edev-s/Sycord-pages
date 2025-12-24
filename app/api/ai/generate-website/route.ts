@@ -8,6 +8,7 @@ const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions"
 
 // Map models to their specific endpoints and Env Vars
 const MODEL_CONFIGS: Record<string, { url: string, envVar: string, provider: string }> = {
+  "gemini-2.0-flash": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
   "gemini-2.5-flash-lite": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
   "deepseek-v3.2-exp": { url: DEEPSEEK_API_URL, envVar: "DEEPSEEK_API", provider: "DeepSeek" }
 }
@@ -114,6 +115,12 @@ export async function POST(request: Request) {
 
       CURRENT FILE: ${currentTask.filename}
       CONTEXT: ${currentTask.description}
+
+      CONSISTENCY & CONNECTION RULES:
+      1.  **Unified Design**: You are building a *single* cohesive website.
+      2.  **Inherit Layout**: If 'index.html' or other files exist in the history, you MUST use the EXACT SAME Navigation Bar, Footer, Layout Structure, Fonts, and Color Palette. Do not reinvent the style.
+      3.  **Functional Links**: Ensure navigation links point correctly to the other files in the plan (e.g., <a href="index.html">Home</a>).
+      4.  **Shared Resources**: Use the same CDN links (Tailwind, FontAwesome, etc.) as previous files.
 
       MARKER INSTRUCTIONS:
       Wrap code EXACTLY like this with NO backticks:
