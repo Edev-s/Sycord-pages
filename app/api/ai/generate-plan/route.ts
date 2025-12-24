@@ -36,19 +36,19 @@ export async function POST(request: Request) {
     OUTPUT FORMAT:
     You must output a single text block strictly following this format:
 
-    [0] The user base plan is to create [Overview of the site]. As an AI web builder, I will generate the following files: {index.html, style.css, script.js, ...}. I will mention to myself that the backend will help to identify the file I am building, this happen by the backend will replace the number mark [1] with a [Done] mark.
+    [0] The user base plan is to create [Overview of the site]. As an AI web builder, I will generate the following files: {index.ts, style.css, utils.ts, ...}. I will mention to myself that the backend will help to identify the file I am building, this happen by the backend will replace the number mark [1] with a [Done] mark.
 
-    [1] index.html : <description of file>
+    [1] index.ts : <entry point logic and DOM structure generation>
     [2] style.css : <description of file>
-    [3] script.js : <description of file>
+    [3] utils.ts : <description of file>
     ...
 
     REQUIREMENTS:
     1.  **Scale**: Plan for a COMPLETE experience (5-10 files typically).
-    2.  **Files**: Must include at least index.html and style.css (or styles inside html if preferred, but separate is better for complex apps).
+    2.  **Files**: Do NOT include `index.html`. The entry point MUST be `index.ts`. The system will handle the HTML wrapper.
     3.  **Strict Syntax**: Use brackets [1], [2], etc. for file steps.
     4.  **Static Only**: Only suggest files that can run in a browser (HTML/CSS/JS). Do not suggest backend files (e.g., node.js servers, php) unless they are purely client-side mocks.
-    5.  **Language**: The user prefers TypeScript. You should plan for '.ts' files instead of '.js' where possible. If the project requires an entry point, 'index.html' is still needed, but scripts should be '.ts'.
+    5.  **Language**: The user prefers TypeScript. You should plan for '.ts' files instead of '.js'.
     `
 
     // Combine history for context
