@@ -192,7 +192,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            name: data.pageName.replace(".html", ""),
+            name: data.pageName, // Keep extension to support .ts, .css, etc.
             content: data.code
           })
         })
