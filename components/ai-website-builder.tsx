@@ -26,8 +26,7 @@ import {
 import { cn } from "@/lib/utils"
 
 const MODELS = [
-  { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", provider: "Google" },
-  { id: "gemini-2.5-flash-lite", name: "Gemini 2.5 Lite", provider: "Google" },
+  { id: "gemini-2.0-flash", name: "Gemini 3.0 Flash (Latest)", provider: "Google" },
   { id: "deepseek-v3.2-exp", name: "DeepSeek", provider: "DeepSeek" },
 ]
 
