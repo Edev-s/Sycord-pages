@@ -238,7 +238,15 @@ export async function POST(request: Request) {
         let indexTsPage = null;
 
         pages.forEach(page => {
-            const content = page.content || "";
+            let content = page.content || "";
+            // Clean content (remove markdown code blocks if present)
+            if (content.trim().startsWith("```")) {
+                 const match = content.match(/```(?:typescript|js|jsx|tsx|html|css)?\s*([\s\S]*?)```/);
+                 if (match) {
+                     content = match[1].trim();
+                 }
+            }
+
             const name = page.name;
 
             // Map exact name
