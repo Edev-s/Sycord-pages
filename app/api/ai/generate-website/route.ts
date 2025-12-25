@@ -123,7 +123,7 @@ export async function POST(request: Request) {
       4.  **Shared Resources**: Use the same CDN links (Tailwind, FontAwesome, etc.) as previous files.
 
       MARKER INSTRUCTIONS:
-      Wrap code EXACTLY like this with NO backticks:
+      Wrap code EXACTLY like this with NO backticks or markdown code blocks:
       [1]
       ... content ...
       [1<${currentTask.filename}>]
@@ -172,7 +172,18 @@ export async function POST(request: Request) {
     const markerMatch = responseText.match(markerRegex)
 
     if (markerMatch) {
-        extractedCode = markerMatch[1].trim()
+        let rawCode = markerMatch[1].trim()
+
+        // Remove markdown code blocks if present (e.g. ```typescript ... ```)
+        // We look for the pattern ```lang? ... ``` and extract just the inner content
+        const markdownBlockRegex = /```(?:typescript|js|jsx|tsx|html|css)?\s*([\s\S]*?)```/
+        const codeBlockMatch = rawCode.match(markdownBlockRegex)
+
+        if (codeBlockMatch) {
+            extractedCode = codeBlockMatch[1].trim()
+        } else {
+            extractedCode = rawCode
+        }
     } else {
         // Fallback checks
         if (responseText.includes("<!DOCTYPE html") || responseText.includes("<html")) {
