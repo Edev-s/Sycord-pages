@@ -71,66 +71,96 @@ async function cloudflareApiCall(
   throw new Error(`API call failed after ${retries} retries: ${lastError}`);
 }
 
-async function getWorkersSubdomain(accountId: string, apiToken: string): Promise<string> {
-    const res = await cloudflareApiCall(
-        `${CLOUDFLARE_API_BASE}/accounts/${accountId}/workers/subdomain`,
+async function createPagesProject(accountId: string, projectName: string, apiToken: string) {
+    // Check if exists
+    const getRes = await cloudflareApiCall(
+        `${CLOUDFLARE_API_BASE}/accounts/${accountId}/pages/projects/${projectName}`,
         { method: "GET" },
         apiToken
     );
-    if (!res.ok) throw new Error("Failed to get workers subdomain");
-    const data = await res.json();
-    return data.result.subdomain;
+
+    if (getRes.ok) {
+        return; // Exists
+    }
+
+    // Create
+    const createRes = await cloudflareApiCall(
+        `${CLOUDFLARE_API_BASE}/accounts/${accountId}/pages/projects`,
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                name: projectName,
+                production_branch: "main",
+            })
+        },
+        apiToken
+    );
+
+    if (!createRes.ok) {
+        const err = await createRes.text();
+        throw new Error(`Failed to create Pages project: ${err}`);
+    }
 }
 
-async function deployWorkerScript(accountId: string, scriptName: string, content: string, apiToken: string) {
-    // 1. Upload Script (PUT) using multipart/form-data for ES Module support
+async function deployToPages(accountId: string, projectName: string, files: Record<string, string | Blob>, apiToken: string) {
     const form = new FormData();
 
-    // Metadata part: Defines the main module
-    const metadata = JSON.stringify({ main_module: "worker.js" });
-    const metadataBlob = new Blob([metadata], { type: "application/json" });
-    form.append("metadata", metadataBlob);
+    // Add files
+    for (const [path, content] of Object.entries(files)) {
+        // Remove leading slash for filename if present, Pages prefers relative paths or root based?
+        // API expects "files" part or individual parts?
+        // Actually, Direct Upload expects a FormData where keys are filenames and values are blobs.
+        const filename = path.startsWith('/') ? path.substring(1) : path;
 
-    // Script part: The ES Module content
-    const scriptBlob = new Blob([content], { type: "application/javascript+module" });
-    form.append("worker.js", scriptBlob, "worker.js");
+        let blob: Blob;
+        if (typeof content === 'string') {
+             let contentType = "text/plain";
+             if (filename.endsWith(".html")) contentType = "text/html";
+             else if (filename.endsWith(".js")) contentType = "application/javascript";
+             else if (filename.endsWith(".css")) contentType = "text/css";
 
-    const uploadRes = await cloudflareApiCall(
-        `${CLOUDFLARE_API_BASE}/accounts/${accountId}/workers/scripts/${scriptName}`,
+             blob = new Blob([content], { type: contentType });
+        } else {
+             blob = content;
+        }
+
+        form.append(filename, blob);
+    }
+
+    const deployRes = await cloudflareApiCall(
+        `${CLOUDFLARE_API_BASE}/accounts/${accountId}/pages/projects/${projectName}/deployments`,
         {
-            method: "PUT",
+            method: "POST",
             body: form,
-            // @ts-ignore - 'duplex' is often needed in Node fetch for streaming bodies
+            // @ts-ignore
             duplex: 'half'
         },
         apiToken
     );
 
-    if (!uploadRes.ok) {
-        const err = await uploadRes.text();
-        throw new Error(`Worker upload failed: ${err}`);
+    if (!deployRes.ok) {
+        const err = await deployRes.text();
+        throw new Error(`Pages deployment failed: ${err}`);
     }
 
-    // 2. Enable on Subdomain (POST)
-    const enableRes = await cloudflareApiCall(
-        `${CLOUDFLARE_API_BASE}/accounts/${accountId}/workers/scripts/${scriptName}/subdomain`,
-        {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ enabled: true })
-        },
+    return deployRes.json();
+}
+
+async function deleteWorkerScript(accountId: string, scriptName: string, apiToken: string) {
+    const res = await cloudflareApiCall(
+        `${CLOUDFLARE_API_BASE}/accounts/${accountId}/workers/scripts/${scriptName}`,
+        { method: "DELETE" },
         apiToken
     );
-
-    if (!enableRes.ok) {
-        const txt = await enableRes.text();
-        console.warn(`[Cloudflare] Subdomain enable warning: ${txt}`);
+    if (!res.ok && res.status !== 404) {
+        console.warn(`[Cloudflare] Failed to delete old worker ${scriptName}`);
     }
 }
 
 /**
  * POST /api/cloudflare/deploy
- * Deploys the project as a standard Cloudflare Worker (workers.dev)
+ * Deploys the project to Cloudflare Pages (Direct Upload)
  */
 export async function POST(request: Request) {
   try {
@@ -186,7 +216,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    // 3. Determine Cloudflare Worker Name
+    // 3. Determine Cloudflare Pages Project Name
     let cfProjectName = cloudflareProjectName || project.cloudflareProjectName;
     if (!cfProjectName) {
       const baseName = project.name || project.businessName || `project-${projectId}`;
@@ -198,16 +228,16 @@ export async function POST(request: Request) {
         .substring(0, 58);
     }
 
-    // 4. Collect Pages
+    // 4. Collect Pages from DB
     const pages = await db
       .collection("pages")
       .find({ projectId: new ObjectId(projectId) })
       .toArray();
 
-    // Construct a simple router map (Path -> HTML Content)
-    const routes: Record<string, string> = {};
+    const files: Record<string, string> = {};
     let defaultContent = "";
 
+    // 5. Build File Map
     if (pages.length === 0) {
         // Fallback "Start Imagining"
         defaultContent = `<!DOCTYPE html>
@@ -227,12 +257,12 @@ export async function POST(request: Request) {
 <body>
     <div class="card">
         <h1>${project.name || "New Site"}</h1>
-        <p>This site is successfully deployed as a Cloudflare Worker.</p>
-        <div class="badge">Workers Mode</div>
+        <p>This site is successfully deployed to Cloudflare Pages.</p>
+        <div class="badge">Pages Mode</div>
     </div>
 </body>
 </html>`;
-        routes["/"] = defaultContent;
+        files["index.html"] = defaultContent;
     } else {
         let hasIndexHtml = false;
         let indexTsPage = null;
@@ -249,19 +279,21 @@ export async function POST(request: Request) {
 
             const name = page.name;
 
-            // Map exact name
-            routes[`/${name}`] = content;
+            // If name has no extension, map to .html for direct serving, or keep as is?
+            // Pages serves /foo from /foo.html automatically.
+            let filename = name;
+            if (!filename.includes(".")) {
+                filename = `${filename}.html`;
+            }
+
+            files[filename] = content;
 
             // Handle index conventions
             if (name === "index" || name === "index.html") {
-                routes["/"] = content;
-                if (name === "index") routes["/index.html"] = content;
                 hasIndexHtml = true;
+                defaultContent = content; // Keep reference
             } else if (name === "index.ts") {
                 indexTsPage = page;
-            } else if (!name.includes(".")) {
-                // If name has no extension, assume .html alias might be needed
-                routes[`/${name}.html`] = content;
             }
         });
 
@@ -293,98 +325,39 @@ export async function POST(request: Request) {
     <script type="text/babel" data-type="module" data-presets="react,typescript" src="/index.ts"></script>
 </body>
 </html>`;
-            routes["/"] = defaultContent;
-            routes["/index.html"] = defaultContent;
+            files["index.html"] = defaultContent;
         } else {
-            // Set default to index or first page
-            defaultContent = routes["/"] || Object.values(routes)[0];
+            // Ensure we have an index.html if we didn't find one
+             if (!files["index.html"] && defaultContent) {
+                  files["index.html"] = defaultContent;
+             }
         }
     }
 
-    // 5. Generate Worker Script
-    const workerScript = `
-const ROUTES = ${JSON.stringify(routes)};
-const DEFAULT_HTML = ${JSON.stringify(defaultContent)};
-
-export default {
-  async fetch(request, env, ctx) {
-    const url = new URL(request.url);
-    const path = url.pathname;
-
-    // API Stub
-    if (path.startsWith("/api/")) {
-       return new Response(JSON.stringify({
-         msg: "API is working",
-         path: path,
-         time: new Date().toISOString()
-       }), {
-         headers: { "content-type": "application/json" }
-       });
+    // Add 404.html for SPA fallback (using index.html content)
+    if (files["index.html"] && !files["404.html"]) {
+        files["404.html"] = files["index.html"];
     }
 
-    // Router lookup
-    let content = ROUTES[path];
+    // 6. Deploy to Cloudflare Pages
+    console.log(`[Cloudflare] Creating/Updating Pages Project: ${cfProjectName}`);
+    await createPagesProject(accountId, cfProjectName, apiToken);
 
-    // Fallback: Try removing trailing slash or adding .html
-    if (!content) {
-        if (path.endsWith("/") && path.length > 1) {
-             content = ROUTES[path.slice(0, -1)];
-        } else if (!path.endsWith(".html")) {
-             content = ROUTES[path + ".html"];
-        }
+    console.log(`[Cloudflare] Uploading files...`);
+    await deployToPages(accountId, cfProjectName, files, apiToken);
+
+    // 7. Construct URL (Pages uses project-name.pages.dev)
+    const deploymentUrl = `https://${cfProjectName}.pages.dev`;
+    console.log(`[Cloudflare] Success! Pages URL: ${deploymentUrl}`);
+
+    // 8. Delete Old Worker (if applicable)
+    // We check if previous deploymentId started with "worker-" or just try to delete
+    if (project.cloudflareDeploymentId && project.cloudflareDeploymentId.startsWith("worker-")) {
+        console.log(`[Cloudflare] Deleting old worker script: ${cfProjectName}`);
+        await deleteWorkerScript(accountId, cfProjectName, apiToken);
     }
 
-    // SPA Fallback (Serve default content for unknown routes only if extension is empty or html)
-    if (!content) {
-        // Only fallback to index if it looks like a page request, not an asset
-        const isAsset = path.includes('.') && !path.endsWith('.html');
-        if (!isAsset) {
-            content = DEFAULT_HTML;
-        } else {
-            return new Response("Not Found", { status: 404 });
-        }
-    }
-
-    // Determine Content-Type
-    let contentType = "text/html; charset=utf-8";
-    if (path !== "/") {
-        const lastSegment = path.split('/').pop();
-        if (lastSegment && lastSegment.includes('.')) {
-            const ext = lastSegment.split('.').pop().toLowerCase();
-            const mimeTypes = {
-                "js": "application/javascript; charset=utf-8",
-                "mjs": "application/javascript; charset=utf-8",
-                "ts": "application/javascript; charset=utf-8",
-                "css": "text/css; charset=utf-8",
-                "json": "application/json; charset=utf-8",
-                "png": "image/png",
-                "jpg": "image/jpeg",
-                "jpeg": "image/jpeg",
-                "svg": "image/svg+xml",
-                "ico": "image/x-icon"
-            };
-            if (mimeTypes[ext]) contentType = mimeTypes[ext];
-        }
-    }
-
-    return new Response(content, {
-      headers: { "content-type": contentType }
-    });
-  }
-};
-`;
-
-    // 6. Deploy to Cloudflare Workers
-    console.log(`[Cloudflare] Deploying Worker Script: ${cfProjectName}`);
-    await deployWorkerScript(accountId, cfProjectName, workerScript, apiToken);
-
-    // 7. Get Subdomain & Construct URL
-    const subdomain = await getWorkersSubdomain(accountId, apiToken);
-    const deploymentUrl = `https://${cfProjectName}.${subdomain}.workers.dev`;
-
-    console.log(`[Cloudflare] Success! Worker URL: ${deploymentUrl}`);
-
-    // 8. Update DB
+    // 9. Update DB
     await db.collection("projects").updateOne(
       { _id: new ObjectId(projectId) },
       {
@@ -392,7 +365,7 @@ export default {
           cloudflareProjectName: cfProjectName,
           cloudflareUrl: deploymentUrl,
           cloudflareDeployedAt: new Date(),
-          cloudflareDeploymentId: "worker-latest",
+          cloudflareDeploymentId: "pages-latest",
         },
       }
     );
