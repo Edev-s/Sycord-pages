@@ -419,7 +419,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
             }}
             placeholder={step === "idle" || step === "done" ? "Describe your website vision..." : "AI Architect is working..."}
             disabled={step === "planning" || step === "coding"}
-            className="pr-12 h-12 rounded-2xl bg-muted/40 border-border/40 focus-visible:ring-1 focus-visible:ring-primary/50 text-base"
+            className="pr-12 h-12 rounded-2xl bg-muted/40 border-border/40 focus-visible:ring-1 focus-visible:ring-primary/50 text-[16px] md:text-base"
           />
           <Button
             size="icon"
