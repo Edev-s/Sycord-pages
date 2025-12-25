@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
+import { createHash } from "crypto";
 
 /**
  * Cloudflare API Configuration
@@ -103,30 +104,34 @@ async function createPagesProject(accountId: string, projectName: string, apiTok
     }
 }
 
-async function deployToPages(accountId: string, projectName: string, files: Record<string, string | Blob>, apiToken: string) {
+async function deployToPages(accountId: string, projectName: string, files: Record<string, string>, apiToken: string) {
     const form = new FormData();
+    const manifest: Record<string, string> = {};
 
     // Add files
     for (const [path, content] of Object.entries(files)) {
-        // Remove leading slash for filename if present, Pages prefers relative paths or root based?
-        // API expects "files" part or individual parts?
-        // Actually, Direct Upload expects a FormData where keys are filenames and values are blobs.
-        const filename = path.startsWith('/') ? path.substring(1) : path;
+        // Pages manifest expects paths starting with /
+        const filename = path.startsWith('/') ? path : `/${path}`;
 
-        let blob: Blob;
-        if (typeof content === 'string') {
-             let contentType = "text/plain";
-             if (filename.endsWith(".html")) contentType = "text/html";
-             else if (filename.endsWith(".js")) contentType = "application/javascript";
-             else if (filename.endsWith(".css")) contentType = "text/css";
+        // Calculate SHA-256 hash
+        const buffer = Buffer.from(content);
+        const hash = createHash('sha256').update(buffer).digest('hex');
 
-             blob = new Blob([content], { type: contentType });
-        } else {
-             blob = content;
-        }
+        manifest[filename] = hash;
 
-        form.append(filename, blob);
+        let contentType = "text/plain";
+        if (filename.endsWith(".html")) contentType = "text/html";
+        else if (filename.endsWith(".js")) contentType = "application/javascript";
+        else if (filename.endsWith(".css")) contentType = "text/css";
+        else if (filename.endsWith(".ts")) contentType = "application/javascript"; // Serve TS as JS mime for Babel
+
+        // Add file part using HASH as key
+        const blob = new Blob([buffer], { type: contentType });
+        form.append(hash, blob);
     }
+
+    // Add Manifest part
+    form.append("manifest", JSON.stringify(manifest));
 
     const deployRes = await cloudflareApiCall(
         `${CLOUDFLARE_API_BASE}/accounts/${accountId}/pages/projects/${projectName}/deployments`,
