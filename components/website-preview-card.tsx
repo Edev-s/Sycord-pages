@@ -164,9 +164,10 @@ export function WebsitePreviewCard({
                 variant="ghost"
                 size="sm"
                 disabled={isDeleting}
-                className="px-3 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-600 border-none"
+                className="px-3 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-600 border-none flex items-center gap-2"
               >
                 {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                <span className="hidden md:inline font-medium">Törlés</span>
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>

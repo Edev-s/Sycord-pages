@@ -154,14 +154,24 @@ export async function POST(request: Request) {
     const db = client.db();
 
     // 1. Get Credentials
-    const tokenDoc = await db.collection("cloudflare_tokens").findOne({
-      projectId: new ObjectId(projectId),
-      userId: session.user.email,
-    });
+    let apiToken = process.env.CLOUDFLARE_API_TOKEN || process.env.CLOUDFLARE_API_KEY;
+    let accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
 
-    if (!tokenDoc) {
+    if (!apiToken || !accountId) {
+        const tokenDoc = await db.collection("cloudflare_tokens").findOne({
+          projectId: new ObjectId(projectId),
+          userId: session.user.email,
+        });
+
+        if (tokenDoc) {
+            apiToken = tokenDoc.apiToken;
+            accountId = tokenDoc.accountId;
+        }
+    }
+
+    if (!apiToken || !accountId) {
       return NextResponse.json(
-        { error: "No Cloudflare credentials found. Please authenticate first." },
+        { error: "No Cloudflare credentials found. Please configure env vars or authenticate." },
         { status: 400 }
       );
     }
@@ -345,10 +355,10 @@ export default {
 
     // 6. Deploy to Cloudflare Workers
     console.log(`[Cloudflare] Deploying Worker Script: ${cfProjectName}`);
-    await deployWorkerScript(tokenDoc.accountId, cfProjectName, workerScript, tokenDoc.apiToken);
+    await deployWorkerScript(accountId, cfProjectName, workerScript, apiToken);
 
     // 7. Get Subdomain & Construct URL
-    const subdomain = await getWorkersSubdomain(tokenDoc.accountId, tokenDoc.apiToken);
+    const subdomain = await getWorkersSubdomain(accountId, apiToken);
     const deploymentUrl = `https://${cfProjectName}.${subdomain}.workers.dev`;
 
     console.log(`[Cloudflare] Success! Worker URL: ${deploymentUrl}`);
