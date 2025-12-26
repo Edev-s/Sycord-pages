@@ -3,143 +3,118 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
-import { exec } from "child_process";
-import path from "path";
+import { createHash } from "crypto";
+import FormData from "form-data";
 
 /**
- * Helper: run shell command (promisified)
+ * Cloudflare API
  */
-function runCommand(cmd: string, cwd?: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    exec(cmd, { cwd }, (error, stdout, stderr) => {
-      if (error) {
-        reject(stderr || error.message);
-      } else {
-        resolve(stdout);
-      }
-    });
-  });
+const CLOUDFLARE_API_BASE = "https://api.cloudflare.com/client/v4";
+
+async function cloudflareApiCall(url: string, options: any, apiToken: string, retries = 3) {
+  const headers = { Authorization: `Bearer ${apiToken}`, ...(options.headers || {}) };
+
+  let lastError: any;
+  for (let i = 0; i < retries; i++) {
+    try {
+      const res = await fetch(url, { ...options, headers });
+      if (res.ok) return res;
+      const text = await res.text();
+      lastError = text;
+    } catch (err) {
+      lastError = err;
+    }
+    await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i)));
+  }
+  throw new Error(`API call failed: ${lastError}`);
 }
 
-/**
- * POST /api/cloudflare/deploy
- */
+async function createPagesProject(accountId: string, projectName: string, apiToken: string) {
+  const getRes = await cloudflareApiCall(
+    `${CLOUDFLARE_API_BASE}/accounts/${accountId}/pages/projects/${projectName}`,
+    { method: "GET" },
+    apiToken
+  );
+
+  if (getRes.ok) return; // exists
+
+  const createRes = await cloudflareApiCall(
+    `${CLOUDFLARE_API_BASE}/accounts/${accountId}/pages/projects`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: projectName, production_branch: "main" })
+    },
+    apiToken
+  );
+
+  if (!createRes.ok) throw new Error(await createRes.text());
+}
+
+async function deployToPages(accountId: string, projectName: string, files: Record<string, string>, apiToken: string) {
+  const form = new FormData();
+  const manifest: Record<string, string> = {};
+
+  for (const [filename, content] of Object.entries(files)) {
+    const hash = createHash("sha256").update(content).digest("hex");
+    manifest[filename] = hash;
+    form.append(filename, content, { filename });
+  }
+
+  form.append("manifest", JSON.stringify(manifest));
+
+  const res = await cloudflareApiCall(
+    `${CLOUDFLARE_API_BASE}/accounts/${accountId}/pages/projects/${projectName}/deployments`,
+    { method: "POST", body: form },
+    apiToken
+  );
+
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { projectId, cloudflareProjectName } = await request.json();
-
-    if (!projectId) {
-      return NextResponse.json({ error: "Missing projectId" }, { status: 400 });
-    }
-
-    if (!ObjectId.isValid(projectId)) {
-      return NextResponse.json({ error: "Invalid projectId format" }, { status: 400 });
-    }
+    if (!ObjectId.isValid(projectId)) return NextResponse.json({ error: "Invalid projectId" }, { status: 400 });
 
     const client = await clientPromise;
     const db = client.db();
+    const project = await db.collection("projects").findOne({ _id: new ObjectId(projectId), userId: session.user.id });
+    if (!project) return NextResponse.json({ error: "Project not found" }, { status: 404 });
 
-    // 1. Get project from DB
-    const project = await db.collection("projects").findOne({
-      _id: new ObjectId(projectId),
-      userId: session.user.id,
-    });
+    const apiToken = process.env.CLOUDFLARE_API_TOKEN!;
+    const accountId = process.env.CLOUDFLARE_ACCOUNT_ID!;
+    if (!apiToken || !accountId) return NextResponse.json({ error: "No Cloudflare credentials" }, { status: 400 });
 
-    if (!project) {
-      return NextResponse.json({ error: "Project not found" }, { status: 404 });
-    }
+    const cfProjectName = cloudflareProjectName || project.cloudflareProjectName || project.name!.toLowerCase().replace(/[^a-z0-9-]/g, "-");
 
-    // 2. Determine Cloudflare Pages project name
-    const cfProjectName =
-      cloudflareProjectName ||
-      project.cloudflareProjectName ||
-      (project.name || `project-${projectId}`)
-        .toLowerCase()
-        .replace(/[^a-z0-9-]/g, "-")
-        .replace(/--+/g, "-")
-        .replace(/^-|-$/g, "")
-        .substring(0, 58);
-
-    // 3. Build local temp folder for deploy (index.html + other pages)
-    const pages = await db
-      .collection("pages")
-      .find({ projectId: new ObjectId(projectId) })
-      .toArray();
-
-    const tmpDir = path.join(process.cwd(), `tmp-deploy-${projectId}`);
-    const fs = await import("fs/promises");
-
-    // Clean/create folder
-    await fs.rm(tmpDir, { recursive: true, force: true });
-    await fs.mkdir(tmpDir, { recursive: true });
+    const pages = await db.collection("pages").find({ projectId: new ObjectId(projectId) }).toArray();
+    const files: Record<string, string> = {};
 
     if (pages.length === 0) {
-      // Fallback "Start Imagining" page
-      const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${project.name || "New Site"}</title>
-</head>
-<body>
-<h1>${project.name || "New Site"}</h1>
-<p>This site is successfully deployed to Cloudflare Pages.</p>
-</body>
-</html>`;
-      await fs.writeFile(path.join(tmpDir, "index.html"), html);
+      files["index.html"] = `<html><body><h1>${project.name || "New Site"}</h1></body></html>`;
     } else {
-      // Write all pages
-      for (const page of pages) {
-        let filename = page.name;
-        if (!filename.includes(".")) filename = `${filename}.html`;
-        const content = page.content || "";
-        await fs.writeFile(path.join(tmpDir, filename), content);
-      }
+      pages.forEach(p => {
+        let name = p.name;
+        if (!name.includes(".")) name = `${name}.html`;
+        files[name] = p.content || "";
+      });
     }
 
-    // 4. Deploy with Wrangler CLI
-    console.log(`[Cloudflare] Deploying project: ${cfProjectName}`);
-    const deployOutput = await runCommand(
-      `npx wrangler pages deploy ${tmpDir} --project-name=${cfProjectName}`,
-    );
+    await createPagesProject(accountId, cfProjectName, apiToken);
+    const deployResult = await deployToPages(accountId, cfProjectName, files, apiToken);
 
-    // 5. Construct URL
-    const deploymentUrl = `https://${cfProjectName}.pages.dev`;
+    const url = `https://${cfProjectName}.pages.dev`;
+    await db.collection("projects").updateOne({ _id: new ObjectId(projectId) }, { $set: { cloudflareProjectName: cfProjectName, cloudflareUrl: url, cloudflareDeployedAt: new Date() } });
 
-    // 6. Update DB
-    await db.collection("projects").updateOne(
-      { _id: new ObjectId(projectId) },
-      {
-        $set: {
-          cloudflareProjectName: cfProjectName,
-          cloudflareUrl: deploymentUrl,
-          cloudflareDeployedAt: new Date(),
-          cloudflareDeploymentId: "pages-latest",
-        },
-      }
-    );
-
-    console.log(`[Cloudflare] Deployment completed successfully: ${deploymentUrl}`);
-    console.log(deployOutput);
-
-    return NextResponse.json({
-      success: true,
-      url: deploymentUrl,
-      projectName: cfProjectName,
-    });
+    return NextResponse.json({ success: true, url, deployResult });
 
   } catch (error: any) {
-    console.error("[Cloudflare] Deployment Error:", error);
-    return NextResponse.json(
-      { error: error.message || "Deployment failed" },
-      { status: 500 }
-    );
+    console.error("Deployment Error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
