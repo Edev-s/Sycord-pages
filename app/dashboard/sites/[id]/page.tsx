@@ -490,6 +490,25 @@ export default function SiteSettingsPage() {
     }
   }
 
+  const handleDeletePage = async (pageName: string) => {
+    if (!confirm(`Are you sure you want to delete ${pageName}? This cannot be undone.`)) return
+
+    try {
+      const response = await fetch(`/api/projects/${id}/pages?name=${encodeURIComponent(pageName)}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || "Failed to delete page")
+      }
+
+      setGeneratedPages(prev => prev.filter(p => p.name !== pageName))
+    } catch (error: any) {
+      alert(error.message)
+    }
+  }
+
   const handleDeploy = async () => {
     setIsDeploying(true)
     try {
@@ -1387,6 +1406,9 @@ export default function SiteSettingsPage() {
                                     <FileText className="h-4 w-4 text-primary"/>
                                     {page.name}
                                   </span>
+                                  <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => handleDeletePage(page.name)}>
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
                                </CardTitle>
                                <CardDescription className="text-xs">
                                   {new Date(page.timestamp).toLocaleDateString()}
