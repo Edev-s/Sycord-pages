@@ -127,11 +127,15 @@ async function deployToPages(accountId: string, projectName: string, files: Reco
 
         // Add file part using HASH as key
         const blob = new Blob([buffer], { type: contentType });
-        form.append(hash, blob);
+        form.append(hash, blob, filename);
     }
 
     // Add Manifest part
-    form.append("manifest", new Blob([JSON.stringify(manifest)], { type: "application/json" }));
+    const manifestJson = JSON.stringify(manifest);
+    console.log(`[Cloudflare] Manifest: ${manifestJson}`);
+
+    // Explicitly set filename for manifest
+    form.append("manifest", new Blob([manifestJson], { type: "application/json" }), "manifest.json");
 
     console.log(`[Cloudflare] Deploying ${Object.keys(files).length} files to ${projectName}`);
 
@@ -140,8 +144,6 @@ async function deployToPages(accountId: string, projectName: string, files: Reco
         {
             method: "POST",
             body: form,
-            // @ts-ignore
-            duplex: 'half'
         },
         apiToken
     );
