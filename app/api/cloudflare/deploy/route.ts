@@ -112,7 +112,7 @@ async function deployToPages(accountId: string, projectName: string, files: Reco
     // 1. Prepare all files and calculate hashes first
     for (const [path, content] of Object.entries(files)) {
         // Pages manifest expects paths WITHOUT leading slash
-        const filename = path.startsWith('/') ? path.substring(1) : path;
+        const filename = path.replace(/^\/+/, "");
 
         // Calculate SHA-256 hash
         const buffer = Buffer.from(content);
@@ -139,11 +139,11 @@ async function deployToPages(accountId: string, projectName: string, files: Reco
 
     // 2. Append Manifest FIRST
     // Cloudflare requires the manifest to be the first part with name "manifest" and type "application/json"
-    // We do NOT add a filename, as that can cause "Missing manifest" errors in some environments
+    // CRITICAL: It MUST have a filename ("manifest.json") to be treated as a file upload by the API.
     const manifestJson = JSON.stringify(manifest);
     console.log(`[Cloudflare Debug] Generated Manifest:`, manifestJson);
 
-    formData.append("manifest", new Blob([manifestJson], { type: "application/json" }));
+    formData.append("manifest", new Blob([manifestJson], { type: "application/json" }), "manifest.json");
 
     // 3. Append all file blobs using their hash as the key
     for (const file of fileBlobs) {
