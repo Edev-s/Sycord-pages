@@ -141,18 +141,24 @@ async function deployToPages(accountId: string, projectName: string, files: Reco
     // Cloudflare requires the manifest to be the first part with name "manifest" and type "application/json"
     // We do NOT add a filename, as that can cause "Missing manifest" errors in some environments
     const manifestJson = JSON.stringify(manifest);
+    console.log(`[Cloudflare Debug] Generated Manifest:`, manifestJson);
+
     formData.append("manifest", new Blob([manifestJson], { type: "application/json" }));
 
     // 3. Append all file blobs using their hash as the key
     for (const file of fileBlobs) {
         formData.append(file.hash, file.blob);
+        console.log(`[Cloudflare Debug] Appending file blob: hash=${file.hash}, size=${file.blob.size}, type=${file.blob.type}`);
     }
 
     console.log(`[Cloudflare] Deploying ${Object.keys(files).length} files to ${projectName}`);
 
     // 4. Send Request
+    const deployUrl = `${CLOUDFLARE_API_BASE}/accounts/${accountId}/pages/projects/${projectName}/deployments`;
+    console.log(`[Cloudflare Debug] Sending POST request to: ${deployUrl}`);
+
     const deployRes = await cloudflareApiCall(
-        `${CLOUDFLARE_API_BASE}/accounts/${accountId}/pages/projects/${projectName}/deployments`,
+        deployUrl,
         {
             method: "POST",
             body: formData, 
@@ -162,11 +168,15 @@ async function deployToPages(accountId: string, projectName: string, files: Reco
 
     if (!deployRes.ok) {
         const err = await deployRes.text();
-        console.error(`[Cloudflare] Deployment Response: ${err}`);
+        console.error(`[Cloudflare Debug] Deployment Failed! Status: ${deployRes.status}`);
+        console.error(`[Cloudflare Debug] Error Body: ${err}`);
         throw new Error(`Pages deployment failed: ${err}`);
     }
 
-    return deployRes.json();
+    const responseData = await deployRes.json();
+    console.log(`[Cloudflare Debug] Deployment Success! Response:`, JSON.stringify(responseData, null, 2));
+
+    return responseData;
 }
 
 async function deleteWorkerScript(accountId: string, scriptName: string, apiToken: string) {
@@ -249,12 +259,15 @@ export async function POST(request: Request) {
         .replace(/^-|-$/g, "")
         .substring(0, 58);
     }
+    console.log(`[Cloudflare Debug] Target Project Name: ${cfProjectName}`);
 
     // 4. Collect Pages from DB
     const pages = await db
       .collection("pages")
       .find({ projectId: new ObjectId(projectId) })
       .toArray();
+
+    console.log(`[Cloudflare Debug] Found ${pages.length} pages in DB for project ${projectId}`);
 
     const files: Record<string, string> = {};
     let defaultContent = "";
