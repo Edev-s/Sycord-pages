@@ -138,9 +138,10 @@ async function deployToPages(accountId: string, projectName: string, files: Reco
     }
 
     // 2. Append Manifest FIRST
-    // We explicitly add the filename "manifest.json" to ensure Cloudflare recognizes it correctly
+    // Cloudflare requires the manifest to be the first part with name "manifest" and type "application/json"
+    // We do NOT add a filename, as that can cause "Missing manifest" errors in some environments
     const manifestJson = JSON.stringify(manifest);
-    formData.append("manifest", new Blob([manifestJson], { type: "application/json" }), "manifest.json");
+    formData.append("manifest", new Blob([manifestJson], { type: "application/json" }));
 
     // 3. Append all file blobs using their hash as the key
     for (const file of fileBlobs) {
