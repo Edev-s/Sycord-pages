@@ -107,8 +107,9 @@ async function createPagesProject(accountId: string, projectName: string, apiTok
 async function deployToPages(accountId: string, projectName: string, files: Record<string, string>, apiToken: string) {
     const formData = new FormData();
     const manifest: Record<string, string> = {};
+    const fileBlobs: { hash: string; blob: Blob }[] = [];
 
-    // 1. Prepare Files and Manifest
+    // 1. Prepare all files and calculate hashes first
     for (const [path, content] of Object.entries(files)) {
         // Pages manifest expects paths WITHOUT leading slash
         const filename = path.startsWith('/') ? path.substring(1) : path;
@@ -117,33 +118,38 @@ async function deployToPages(accountId: string, projectName: string, files: Reco
         const buffer = Buffer.from(content);
         const hash = createHash('sha256').update(buffer).digest('hex');
 
-        // Add to manifest: path -> hash
+        // Add to manifest map: path -> hash
         manifest[filename] = hash;
 
-        // Determine Content-Type (Optional, but helpful for debugging/metadata)
-        let contentType = "text/plain";
+        // Determine Content-Type
+        let contentType = "application/octet-stream";
         if (filename.endsWith(".html")) contentType = "text/html";
         else if (filename.endsWith(".js")) contentType = "application/javascript";
         else if (filename.endsWith(".css")) contentType = "text/css";
         else if (filename.endsWith(".json")) contentType = "application/json";
-        else if (filename.endsWith(".ts")) contentType = "application/javascript"; // Treat TS as JS for serving if needed
+        else if (filename.endsWith(".ts")) contentType = "application/javascript";
+        else if (filename.endsWith(".png")) contentType = "image/png";
 
-        // Append file to FormData
-        // IMPORTANT: The key MUST be the hash, not the filename
-        const blob = new Blob([buffer], { type: contentType });
-        formData.append(hash, blob);
+        // Store blob for later appending
+        fileBlobs.push({ 
+            hash, 
+            blob: new Blob([buffer], { type: contentType }) 
+        });
     }
 
-    // 2. Append Manifest
-    // Must be a JSON string, sent as a Blob with application/json content type
+    // 2. Append Manifest FIRST
+    // We explicitly add the filename "manifest.json" to ensure Cloudflare recognizes it correctly
     const manifestJson = JSON.stringify(manifest);
-    formData.append("manifest", new Blob([manifestJson], { type: "application/json" }));
+    formData.append("manifest", new Blob([manifestJson], { type: "application/json" }), "manifest.json");
+
+    // 3. Append all file blobs using their hash as the key
+    for (const file of fileBlobs) {
+        formData.append(file.hash, file.blob);
+    }
 
     console.log(`[Cloudflare] Deploying ${Object.keys(files).length} files to ${projectName}`);
 
-    // 3. Send Request
-    // Note: Do NOT set 'Content-Type': 'multipart/form-data' manually. 
-    // The fetch client generates the correct boundary automatically when body is FormData.
+    // 4. Send Request
     const deployRes = await cloudflareApiCall(
         `${CLOUDFLARE_API_BASE}/accounts/${accountId}/pages/projects/${projectName}/deployments`,
         {
@@ -254,7 +260,7 @@ export async function POST(request: Request) {
 
     // 5. Build File Map
     if (pages.length === 0) {
-        // Fallback "Start Imagining"
+        // Fallback content
         defaultContent = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -294,7 +300,7 @@ export async function POST(request: Request) {
 
             const name = page.name;
 
-            // If name has no extension, map to .html for direct serving
+            // Map filename
             let filename = name;
             if (!filename.includes(".")) {
                 filename = `${filename}.html`;
@@ -347,7 +353,7 @@ export async function POST(request: Request) {
         }
     }
 
-    // Add 404.html for SPA fallback (using index.html content)
+    // Add 404.html for SPA fallback
     if (files["index.html"] && !files["404.html"]) {
         files["404.html"] = files["index.html"];
     }
