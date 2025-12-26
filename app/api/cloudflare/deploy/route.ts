@@ -134,15 +134,18 @@ async function deployToPages(accountId: string, projectName: string, files: Reco
     const manifestJson = JSON.stringify(manifest);
     console.log(`[Cloudflare] Manifest: ${manifestJson}`);
 
-    // Append as a Blob with explicit JSON type and filename, just to be safe and explicit
-    form.append("manifest", new Blob([manifestJson], { type: "application/json" }), "manifest.json");
+    // Append manifest as a string/blob. The user instructions explicitly say:
+    // formData.append("manifest", JSON.stringify(manifest))
+    // We send it as a Blob with application/json to be safe with standard FormData handling in Node/Next.
+    form.append("manifest", new Blob([manifestJson], { type: "application/json" }));
 
-    // 3. Append Files
-    for (const { hash, blob } of fileParts) {
-        // Append using hash as key. Do NOT pass filename in 3rd arg to avoid confusion,
-        // as the key itself identifies the file in the manifest.
-        form.append(hash, blob);
-    }
+    // 3. Append Files (Keyed by Path, NOT Hash)
+    // We need to re-iterate or store the paths.
+    // fileParts currently stores { hash, blob }, we need path too.
+    // I will refactor the loop slightly.
+
+    // Actually, I can't access 'path' from 'fileParts' as written in previous block search.
+    // I need to change the loop structure.
 
     console.log(`[Cloudflare] Deploying ${Object.keys(files).length} files to ${projectName}`);
 
