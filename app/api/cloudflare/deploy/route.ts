@@ -105,17 +105,17 @@ async function createPagesProject(accountId: string, projectName: string, apiTok
 }
 
 async function deployToPages(accountId: string, projectName: string, files: Record<string, string>, apiToken: string) {
-    // Step 1: Build manifest with SHA-256 hashes and prepare file buffers
     const manifest: Record<string, string> = {};
-    const fileBuffers: { hash: string; buffer: Buffer; contentType: string }[] = [];
+    const fileBlobs: { hash: string; blob: Blob }[] = [];
 
+    // 1. Prepare all files and calculate hashes first
     for (const [path, content] of Object.entries(files)) {
         // Pages manifest expects paths WITHOUT leading slash or dot-slash
         const filename = path.replace(/^(\.\/|\/)+/, "");
 
         // Calculate SHA-256 hash
-        const buffer = Buffer.from(content, "utf-8");
-        const hash = createHash("sha256").update(buffer).digest("hex");
+        const buffer = Buffer.from(content);
+        const hash = createHash('sha256').update(buffer).digest('hex');
 
         // Add to manifest map: path -> hash
         manifest[filename] = hash;
@@ -126,102 +126,57 @@ async function deployToPages(accountId: string, projectName: string, files: Reco
         else if (filename.endsWith(".js")) contentType = "application/javascript";
         else if (filename.endsWith(".css")) contentType = "text/css";
         else if (filename.endsWith(".json")) contentType = "application/json";
-        else if (filename.endsWith(".ts") || filename.endsWith(".tsx")) contentType = "application/javascript";
+        else if (filename.endsWith(".ts")) contentType = "application/javascript";
         else if (filename.endsWith(".png")) contentType = "image/png";
-        else if (filename.endsWith(".jpg") || filename.endsWith(".jpeg")) contentType = "image/jpeg";
-        else if (filename.endsWith(".svg")) contentType = "image/svg+xml";
-        else if (filename.endsWith(".ico")) contentType = "image/x-icon";
-        else if (filename.endsWith(".woff")) contentType = "font/woff";
-        else if (filename.endsWith(".woff2")) contentType = "font/woff2";
 
-        // Store buffer for later upload
-        fileBuffers.push({ hash, buffer, contentType });
-
-        console.log(`[Cloudflare Debug] File prepared: ${filename} -> hash=${hash.substring(0, 12)}..., size=${buffer.length} bytes`);
+        // Store blob for later appending
+        fileBlobs.push({ 
+            hash, 
+            blob: new Blob([buffer], { type: contentType }) 
+        });
     }
 
-    // Convert manifest to JSON string
-    const manifestJson = JSON.stringify(manifest);
-    console.log(`[Cloudflare Debug] Manifest created with ${Object.keys(manifest).length} files`);
-    console.log(`[Cloudflare Debug] Manifest content:`, manifestJson);
-
-    // Step 2: Create deployment with manifest to get upload_url
-    // This is the FIRST API call - creates deployment and returns upload URL
-    const deployUrl = `${CLOUDFLARE_API_BASE}/accounts/${accountId}/pages/projects/${projectName}/deployments`;
-    console.log(`[Cloudflare Debug] Creating deployment at: ${deployUrl}`);
-
-    const formDataForDeployment = new FormData();
+    const formData = new FormData();
     
-    // CRITICAL: Manifest must be the FIRST part appended to FormData
-    // It must have name="manifest", filename="manifest.json", and content-type="application/json"
-    const manifestBuffer = Buffer.from(manifestJson, "utf-8");
-    const manifestBlob = new Blob([manifestBuffer], { type: "application/json" });
-    formDataForDeployment.append("manifest", manifestBlob, "manifest.json");
+    // 2. Convert manifest to JSON string, then to Buffer, then to Blob
+    const manifestJson = JSON.stringify(manifest);
+    const manifestBuffer = Buffer.from(manifestJson, 'utf-8');
+    const manifestBlob = new Blob([manifestBuffer], { type: 'application/json' });
+    
+    console.log(`[Cloudflare Debug] Generated Manifest:`, manifestJson);
+    
+    // 3. Append Manifest FIRST with field name "manifest", filename "manifest.json", content-type "application/json"
+    formData.append('manifest', manifestBlob, 'manifest.json');
 
-    // Append branch metadata (optional but recommended)
-    formDataForDeployment.append("branch", "main");
-
-    // Append all file blobs using their SHA-256 hash as the field name
-    for (const { hash, buffer, contentType } of fileBuffers) {
-        const fileBlob = new Blob([buffer], { type: contentType });
-        formDataForDeployment.append(hash, fileBlob);
-        console.log(`[Cloudflare Debug] Appended file blob: hash=${hash.substring(0, 12)}..., size=${buffer.length}, type=${contentType}`);
+    // 4. Append all file blobs using their hash as the key
+    for (const file of fileBlobs) {
+        formData.append(file.hash, file.blob);
+        console.log(`[Cloudflare Debug] Appending file blob: hash=${file.hash}, size=${file.blob.size}, type=${file.blob.type}`);
     }
 
     console.log(`[Cloudflare] Deploying ${Object.keys(files).length} files to ${projectName}`);
 
-    // Send the deployment request with manifest + files in a single request
-    const deployRes = await cloudflareApiCall(
-        deployUrl,
-        {
-            method: "POST",
-            body: formDataForDeployment,
-            // Note: Don't set Content-Type header - fetch will set it automatically with boundary
+    // 5. Send Request - DO NOT set Content-Type header, let fetch set it with boundary
+    const deployUrl = `${CLOUDFLARE_API_BASE}/accounts/${accountId}/pages/projects/${projectName}/deployments`;
+    console.log(`[Cloudflare Debug] Sending POST request to: ${deployUrl}`);
+
+    const deployRes = await fetch(deployUrl, {
+        method: "POST",
+        headers: {
+            'Authorization': `Bearer ${apiToken}`,
         },
-        apiToken
-    );
+        body: formData,
+    });
 
     if (!deployRes.ok) {
         const err = await deployRes.text();
         console.error(`[Cloudflare Debug] Deployment Failed! Status: ${deployRes.status}`);
         console.error(`[Cloudflare Debug] Error Body: ${err}`);
-        throw new Error(`Pages deployment failed (${deployRes.status}): ${err}`);
+        throw new Error(`Pages deployment failed: ${err}`);
     }
 
     const responseData = await deployRes.json();
     console.log(`[Cloudflare Debug] Deployment Success! Response:`, JSON.stringify(responseData, null, 2));
-
-    // Check if we got an upload_url (means we need to upload files separately)
-    const uploadUrl = responseData.result?.upload_url;
-    if (uploadUrl) {
-        console.log(`[Cloudflare Debug] Received upload_url, uploading files separately...`);
-        
-        // Step 3: Upload files to the signed upload URL
-        const uploadFormData = new FormData();
-        
-        for (const { hash, buffer, contentType } of fileBuffers) {
-            const fileBlob = new Blob([buffer], { type: contentType });
-            uploadFormData.append(hash, fileBlob);
-        }
-
-        // Upload to the signed URL (no Authorization header needed for signed URLs)
-        const uploadRes = await fetch(uploadUrl, {
-            method: "POST",
-            body: uploadFormData,
-        });
-
-        if (!uploadRes.ok) {
-            const uploadErr = await uploadRes.text();
-            console.error(`[Cloudflare Debug] File upload failed! Status: ${uploadRes.status}`);
-            console.error(`[Cloudflare Debug] Upload error: ${uploadErr}`);
-            throw new Error(`File upload failed (${uploadRes.status}): ${uploadErr}`);
-        }
-
-        const uploadResponseData = await uploadRes.json();
-        console.log(`[Cloudflare Debug] File upload success:`, JSON.stringify(uploadResponseData, null, 2));
-        
-        return uploadResponseData;
-    }
 
     return responseData;
 }
