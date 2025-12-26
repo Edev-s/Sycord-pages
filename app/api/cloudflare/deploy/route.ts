@@ -107,7 +107,7 @@ async function createPagesProject(accountId: string, projectName: string, apiTok
 async function deployToPages(accountId: string, projectName: string, files: Record<string, string>, apiToken: string) {
     const form = new FormData();
     const manifest: Record<string, string> = {};
-    const fileParts: { hash: string; blob: Blob }[] = [];
+    const fileParts: { path: string; blob: Blob }[] = [];
 
     // 1. Calculate Hashes and Prepare Blobs
     for (const [path, content] of Object.entries(files)) {
@@ -136,16 +136,13 @@ async function deployToPages(accountId: string, projectName: string, files: Reco
 
     // Append manifest as a string/blob. The user instructions explicitly say:
     // formData.append("manifest", JSON.stringify(manifest))
-    // We send it as a Blob with application/json to be safe with standard FormData handling in Node/Next.
-    form.append("manifest", new Blob([manifestJson], { type: "application/json" }));
+    // We use a string to match the user instructions exactly, which creates a text field.
+    form.append("manifest", manifestJson);
 
     // 3. Append Files (Keyed by Path, NOT Hash)
-    // We need to re-iterate or store the paths.
-    // fileParts currently stores { hash, blob }, we need path too.
-    // I will refactor the loop slightly.
-
-    // Actually, I can't access 'path' from 'fileParts' as written in previous block search.
-    // I need to change the loop structure.
+    for (const { path, blob } of fileParts) {
+        form.append(path, blob);
+    }
 
     console.log(`[Cloudflare] Deploying ${Object.keys(files).length} files to ${projectName}`);
 
