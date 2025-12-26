@@ -5,13 +5,10 @@ import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 import { createHash } from "crypto";
 
-/**
- * Cloudflare API Configuration
- */
 const CLOUDFLARE_API_BASE = "https://api.cloudflare.com/client/v4";
 
 /**
- * Helper to make Cloudflare API calls with retry logic
+ * Cloudflare API call with retry
  */
 async function cloudflareApiCall(
   url: string,
@@ -23,49 +20,49 @@ async function cloudflareApiCall(
     Authorization: `Bearer ${apiToken}`,
   };
 
-  if (options.headers) {
-    Object.assign(headers, options.headers);
-  }
+  if (options.headers) Object.assign(headers, options.headers);
 
   let lastError: any;
   for (let i = 0; i < retries; i++) {
     try {
-      const response = await fetch(url, { ...options, headers });
-
-      if (response.status === 401 || response.status === 403) return response;
-      if (response.ok) return response;
-      if (response.status < 500 && response.status !== 429) return response;
-
-      const errorText = await response.text();
-      lastError = errorText;
-      if (i < retries - 1) await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, i)));
+      const res = await fetch(url, { ...options, headers });
+      if (res.ok || (res.status < 500 && res.status !== 429)) return res;
+      const text = await res.text();
+      lastError = text;
+      console.warn(`[Cloudflare] API call failed attempt ${i + 1}: ${text}`);
+      await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, i)));
     } catch (err) {
       lastError = err;
-      if (i < retries - 1) await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, i)));
+      console.warn(`[Cloudflare] API request error attempt ${i + 1}:`, err);
+      await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, i)));
     }
   }
-
-  throw new Error(`API call failed after ${retries} retries: ${lastError}`);
+  throw new Error(`Cloudflare API failed after ${retries} retries: ${lastError}`);
 }
 
+/**
+ * Create Pages Project if not exists
+ */
 async function createPagesProject(accountId: string, projectName: string, apiToken: string) {
-  const getRes = await cloudflareApiCall(
+  console.log(`[Cloudflare] Checking if project exists: ${projectName}`);
+  const res = await cloudflareApiCall(
     `${CLOUDFLARE_API_BASE}/accounts/${accountId}/pages/projects/${projectName}`,
     { method: "GET" },
     apiToken
   );
 
-  if (getRes.ok) return;
+  if (res.ok) {
+    console.log(`[Cloudflare] Project already exists: ${projectName}`);
+    return;
+  }
 
+  console.log(`[Cloudflare] Creating new project: ${projectName}`);
   const createRes = await cloudflareApiCall(
     `${CLOUDFLARE_API_BASE}/accounts/${accountId}/pages/projects`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: projectName,
-        production_branch: "main",
-      }),
+      body: JSON.stringify({ name: projectName, production_branch: "main" }),
     },
     apiToken
   );
@@ -74,14 +71,15 @@ async function createPagesProject(accountId: string, projectName: string, apiTok
     const err = await createRes.text();
     throw new Error(`Failed to create Pages project: ${err}`);
   }
+
+  console.log(`[Cloudflare] Project created successfully: ${projectName}`);
 }
 
-async function deployToPages(
-  accountId: string,
-  projectName: string,
-  files: Record<string, string>,
-  apiToken: string
-) {
+/**
+ * Deploy files to Cloudflare Pages
+ */
+async function deployToPages(accountId: string, projectName: string, files: Record<string, string>, apiToken: string) {
+  console.log(`[Cloudflare] Preparing deployment for ${Object.keys(files).length} files...`);
   const form = new FormData();
   const manifest: Record<string, string> = {};
 
@@ -94,14 +92,15 @@ async function deployToPages(
     if (filename.endsWith(".html")) type = "text/html";
     else if (filename.endsWith(".js")) type = "application/javascript";
     else if (filename.endsWith(".css")) type = "text/css";
-    else if (filename.endsWith(".ts")) type = "application/javascript";
 
-    const blob = new Blob([content], { type });
-    form.append(filename, blob, filename);
+    form.append(filename, new Blob([content], { type }), filename);
   }
 
-  // Append manifest **first**
-  form.append("manifest", new Blob([JSON.stringify(manifest)], { type: "application/json" }));
+  // Debug log manifest
+  console.log(`[Cloudflare] Deployment manifest:`, manifest);
+
+  // Append manifest as **string**, not Blob
+  form.append("manifest", JSON.stringify(manifest));
 
   const deployRes = await cloudflareApiCall(
     `${CLOUDFLARE_API_BASE}/accounts/${accountId}/pages/projects/${projectName}/deployments`,
@@ -111,12 +110,18 @@ async function deployToPages(
 
   if (!deployRes.ok) {
     const err = await deployRes.text();
+    console.error(`[Cloudflare] Deployment failed: ${err}`);
     throw new Error(`Pages deployment failed: ${err}`);
   }
 
-  return deployRes.json();
+  const data = await deployRes.json();
+  console.log(`[Cloudflare] Deployment successful!`, data);
+  return data;
 }
 
+/**
+ * Delete old worker script
+ */
 async function deleteWorkerScript(accountId: string, scriptName: string, apiToken: string) {
   const res = await cloudflareApiCall(
     `${CLOUDFLARE_API_BASE}/accounts/${accountId}/workers/scripts/${scriptName}`,
@@ -124,7 +129,7 @@ async function deleteWorkerScript(accountId: string, scriptName: string, apiToke
     apiToken
   );
   if (!res.ok && res.status !== 404) {
-    console.warn(`[Cloudflare] Failed to delete old worker ${scriptName}`);
+    console.warn(`[Cloudflare] Failed to delete old worker: ${scriptName}`);
   }
 }
 
@@ -138,13 +143,12 @@ export async function POST(request: Request) {
 
     const { projectId, cloudflareProjectName } = await request.json();
     if (!projectId) return NextResponse.json({ error: "Missing projectId" }, { status: 400 });
-    if (!ObjectId.isValid(projectId))
-      return NextResponse.json({ error: "Invalid projectId format" }, { status: 400 });
+    if (!ObjectId.isValid(projectId)) return NextResponse.json({ error: "Invalid projectId" }, { status: 400 });
 
     const client = await clientPromise;
     const db = client.db();
 
-    // Get credentials
+    // Get Cloudflare credentials
     let apiToken = process.env.CLOUDFLARE_API_TOKEN || process.env.CLOUDFLARE_API_KEY;
     let accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
 
@@ -159,23 +163,15 @@ export async function POST(request: Request) {
       }
     }
 
-    if (!apiToken || !accountId)
-      return NextResponse.json(
-        { error: "No Cloudflare credentials found. Please configure env vars or authenticate." },
-        { status: 400 }
-      );
+    if (!apiToken || !accountId) return NextResponse.json({ error: "No Cloudflare credentials found." }, { status: 400 });
 
-    const project = await db.collection("projects").findOne({
-      _id: new ObjectId(projectId),
-      userId: session.user.id,
-    });
-
+    // Get project from DB
+    const project = await db.collection("projects").findOne({ _id: new ObjectId(projectId), userId: session.user.id });
     if (!project) return NextResponse.json({ error: "Project not found" }, { status: 404 });
 
     let cfProjectName = cloudflareProjectName || project.cloudflareProjectName;
     if (!cfProjectName) {
-      const baseName = project.name || project.businessName || `project-${projectId}`;
-      cfProjectName = baseName
+      cfProjectName = (project.name || `project-${projectId}`)
         .toLowerCase()
         .replace(/[^a-z0-9-]/g, "-")
         .replace(/--+/g, "-")
@@ -183,17 +179,17 @@ export async function POST(request: Request) {
         .substring(0, 58);
     }
 
+    // Collect pages
     const pages = await db.collection("pages").find({ projectId: new ObjectId(projectId) }).toArray();
     const files: Record<string, string> = {};
     let defaultContent = "";
 
     if (pages.length === 0) {
-      defaultContent = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${
-        project.name || "New Site"
-      }</title></head><body><h1>${project.name || "New Site"}</h1></body></html>`;
+      // fallback index.html
+      defaultContent = `<html><body><h1>${project.name || "New Site"}</h1></body></html>`;
       files["index.html"] = defaultContent;
     } else {
-      let hasIndexHtml = false;
+      let hasIndex = false;
       let indexTsPage = null;
 
       pages.forEach((page) => {
@@ -202,25 +198,23 @@ export async function POST(request: Request) {
           const match = content.match(/```(?:typescript|js|jsx|tsx|html|css)?\s*([\s\S]*?)```/);
           if (match) content = match[1].trim();
         }
-
         let filename = page.name;
-        if (!filename.includes(".")) filename = `${filename}.html`;
-
+        if (!filename.includes(".")) filename += ".html";
         files[filename] = content;
-        if (page.name === "index" || page.name === "index.html") hasIndexHtml = true;
-        else if (page.name === "index.ts") indexTsPage = page;
+
+        if (filename === "index.html") hasIndex = true;
+        else if (filename === "index.ts") indexTsPage = page;
       });
 
-      if (!hasIndexHtml && indexTsPage) {
-        defaultContent = `<html><head><title>${project.name || "App"}</title></head><body><div id="root"></div><script type="module" src="/index.ts"></script></body></html>`;
-        files["index.html"] = defaultContent;
-      } else if (!files["index.html"] && defaultContent) {
+      if (!hasIndex && indexTsPage) {
+        defaultContent = `<html><body><div id="root"></div><script src="/index.ts"></script></body></html>`;
         files["index.html"] = defaultContent;
       }
     }
 
-    if (files["index.html"] && !files["404.html"]) files["404.html"] = files["index.html"];
+    if (!files["404.html"] && files["index.html"]) files["404.html"] = files["index.html"];
 
+    // Deploy
     console.log(`[Cloudflare] Creating/Updating Pages Project: ${cfProjectName}`);
     await createPagesProject(accountId, cfProjectName, apiToken);
 
@@ -228,28 +222,20 @@ export async function POST(request: Request) {
     await deployToPages(accountId, cfProjectName, files, apiToken);
 
     const deploymentUrl = `https://${cfProjectName}.pages.dev`;
-    console.log(`[Cloudflare] Success! Pages URL: ${deploymentUrl}`);
 
     if (project.cloudflareDeploymentId?.startsWith("worker-")) {
-      console.log(`[Cloudflare] Deleting old worker script: ${cfProjectName}`);
       await deleteWorkerScript(accountId, cfProjectName, apiToken);
     }
 
     await db.collection("projects").updateOne(
       { _id: new ObjectId(projectId) },
-      {
-        $set: {
-          cloudflareProjectName: cfProjectName,
-          cloudflareUrl: deploymentUrl,
-          cloudflareDeployedAt: new Date(),
-          cloudflareDeploymentId: "pages-latest",
-        },
-      }
+      { $set: { cloudflareProjectName: cfProjectName, cloudflareUrl: deploymentUrl, cloudflareDeployedAt: new Date(), cloudflareDeploymentId: "pages-latest" } }
     );
 
+    console.log(`[Cloudflare] Deployment completed successfully: ${deploymentUrl}`);
     return NextResponse.json({ success: true, url: deploymentUrl, projectName: cfProjectName });
-  } catch (error: any) {
-    console.error("[Cloudflare] Deployment Error:", error);
-    return NextResponse.json({ error: error.message || "Deployment failed" }, { status: 500 });
+  } catch (err: any) {
+    console.error("[Cloudflare] Deployment Error:", err);
+    return NextResponse.json({ error: err.message || "Deployment failed" }, { status: 500 });
   }
 }
