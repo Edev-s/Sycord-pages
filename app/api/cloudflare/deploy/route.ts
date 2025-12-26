@@ -111,8 +111,8 @@ async function deployToPages(accountId: string, projectName: string, files: Reco
 
     // 1. Calculate Hashes and Prepare Blobs
     for (const [path, content] of Object.entries(files)) {
-        // Pages manifest expects paths starting with /
-        const filename = path.startsWith('/') ? path : `/${path}`;
+        // Pages manifest expects paths WITHOUT leading slash (relative to root)
+        const filename = path.startsWith('/') ? path.substring(1) : path;
 
         // Calculate SHA-256 hash
         const buffer = Buffer.from(content);
