@@ -105,6 +105,7 @@ async function createPagesProject(accountId: string, projectName: string, apiTok
 }
 
 async function deployToPages(accountId: string, projectName: string, files: Record<string, string>, apiToken: string) {
+    const formData = new FormData();
     const manifest: Record<string, string> = {};
     const fileBlobs: { hash: string; blob: Blob }[] = [];
 
@@ -136,19 +137,15 @@ async function deployToPages(accountId: string, projectName: string, files: Reco
         });
     }
 
-    const formData = new FormData();
-    
-    // 2. Convert manifest to JSON string, then to Buffer, then to Blob
+    // 2. Append Manifest FIRST
+    // Cloudflare requires the manifest to be the first part with name "manifest" and type "application/json"
+    // CRITICAL: It MUST have a filename ("manifest.json") to be treated as a file upload by the API.
     const manifestJson = JSON.stringify(manifest);
-    const manifestBuffer = Buffer.from(manifestJson, 'utf-8');
-    const manifestBlob = new Blob([manifestBuffer], { type: 'application/json' });
-    
     console.log(`[Cloudflare Debug] Generated Manifest:`, manifestJson);
-    
-    // 3. Append Manifest FIRST with field name "manifest", filename "manifest.json", content-type "application/json"
-    formData.append('manifest', manifestBlob, 'manifest.json');
 
-    // 4. Append all file blobs using their hash as the key
+    formData.append("manifest", new Blob([manifestJson], { type: "application/json" }), "manifest.json");
+
+    // 3. Append all file blobs using their hash as the key
     for (const file of fileBlobs) {
         formData.append(file.hash, file.blob);
         console.log(`[Cloudflare Debug] Appending file blob: hash=${file.hash}, size=${file.blob.size}, type=${file.blob.type}`);
@@ -156,17 +153,18 @@ async function deployToPages(accountId: string, projectName: string, files: Reco
 
     console.log(`[Cloudflare] Deploying ${Object.keys(files).length} files to ${projectName}`);
 
-    // 5. Send Request - DO NOT set Content-Type header, let fetch set it with boundary
+    // 4. Send Request
     const deployUrl = `${CLOUDFLARE_API_BASE}/accounts/${accountId}/pages/projects/${projectName}/deployments`;
     console.log(`[Cloudflare Debug] Sending POST request to: ${deployUrl}`);
 
-    const deployRes = await fetch(deployUrl, {
-        method: "POST",
-        headers: {
-            'Authorization': `Bearer ${apiToken}`,
+    const deployRes = await cloudflareApiCall(
+        deployUrl,
+        {
+            method: "POST",
+            body: formData, 
         },
-        body: formData,
-    });
+        apiToken
+    );
 
     if (!deployRes.ok) {
         const err = await deployRes.text();
@@ -307,8 +305,8 @@ export async function POST(request: Request) {
         pages.forEach(page => {
             let content = page.content || "";
             // Clean content (remove markdown code blocks if present)
-            if (content.trim().startsWith("\`\`\`")) {
-                 const match = content.match(/\`\`\`(?:typescript|js|jsx|tsx|html|css)?\s*([\s\S]*?)\`\`\`/);
+            if (content.trim().startsWith("```")) {
+                 const match = content.match(/```(?:typescript|js|jsx|tsx|html|css)?\s*([\s\S]*?)```/);
                  if (match) {
                      content = match[1].trim();
                  }
@@ -341,17 +339,17 @@ export async function POST(request: Request) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${project.name || "App"}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
+    <script src="[https://unpkg.com/@babel/standalone/babel.min.js](https://unpkg.com/@babel/standalone/babel.min.js)"></script>
     <script type="importmap">
     {
       "imports": {
-        "react": "https://esm.sh/react@18",
-        "react-dom/client": "https://esm.sh/react-dom@18/client",
-        "lucide-react": "https://esm.sh/lucide-react",
-        "framer-motion": "https://esm.sh/framer-motion",
-        "clsx": "https://esm.sh/clsx",
-        "tailwind-merge": "https://esm.sh/tailwind-merge"
+        "react": "[https://esm.sh/react@18](https://esm.sh/react@18)",
+        "react-dom/client": "[https://esm.sh/react-dom@18/client](https://esm.sh/react-dom@18/client)",
+        "lucide-react": "[https://esm.sh/lucide-react](https://esm.sh/lucide-react)",
+        "framer-motion": "[https://esm.sh/framer-motion](https://esm.sh/framer-motion)",
+        "clsx": "[https://esm.sh/clsx](https://esm.sh/clsx)",
+        "tailwind-merge": "[https://esm.sh/tailwind-merge](https://esm.sh/tailwind-merge)"
       }
     }
     </script>
