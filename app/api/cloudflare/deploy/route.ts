@@ -107,8 +107,9 @@ async function createPagesProject(accountId: string, projectName: string, apiTok
 async function deployToPages(accountId: string, projectName: string, files: Record<string, string>, apiToken: string) {
     const form = new FormData();
     const manifest: Record<string, string> = {};
+    const fileParts: { hash: string; blob: Blob }[] = [];
 
-    // Add files
+    // 1. Calculate Hashes and Prepare Blobs
     for (const [path, content] of Object.entries(files)) {
         // Pages manifest expects paths starting with /
         const filename = path.startsWith('/') ? path : `/${path}`;
@@ -125,17 +126,23 @@ async function deployToPages(accountId: string, projectName: string, files: Reco
         else if (filename.endsWith(".css")) contentType = "text/css";
         else if (filename.endsWith(".ts")) contentType = "application/javascript"; // Serve TS as JS mime for Babel
 
-        // Add file part using HASH as key
         const blob = new Blob([buffer], { type: contentType });
-        form.append(hash, blob, filename);
+        fileParts.push({ hash, blob });
     }
 
-    // Add Manifest part
+    // 2. Append Manifest FIRST
     const manifestJson = JSON.stringify(manifest);
     console.log(`[Cloudflare] Manifest: ${manifestJson}`);
 
-    // Explicitly set filename for manifest
+    // Append as a Blob with explicit JSON type and filename, just to be safe and explicit
     form.append("manifest", new Blob([manifestJson], { type: "application/json" }), "manifest.json");
+
+    // 3. Append Files
+    for (const { hash, blob } of fileParts) {
+        // Append using hash as key. Do NOT pass filename in 3rd arg to avoid confusion,
+        // as the key itself identifies the file in the manifest.
+        form.append(hash, blob);
+    }
 
     console.log(`[Cloudflare] Deploying ${Object.keys(files).length} files to ${projectName}`);
 
