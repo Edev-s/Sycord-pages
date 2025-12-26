@@ -168,10 +168,20 @@ async function deployToPages(accountId: string, projectName: string, files: Reco
     );
 
     if (!deployRes.ok) {
-        const err = await deployRes.text();
+        const errorText = await deployRes.text();
+        let errorDetails = errorText;
+        try {
+            const errorJson = JSON.parse(errorText);
+            if (errorJson.errors && Array.isArray(errorJson.errors)) {
+                 errorDetails = errorJson.errors.map((e: any) => `[Code: ${e.code}] ${e.message}`).join(", ");
+            }
+        } catch (e) {
+            // Ignore parse error, use raw text
+        }
+
         console.error(`[Cloudflare Debug] Deployment Failed! Status: ${deployRes.status}`);
-        console.error(`[Cloudflare Debug] Error Body: ${err}`);
-        throw new Error(`Pages deployment failed: ${err}`);
+        console.error(`[Cloudflare Debug] Error Details: ${errorDetails}`);
+        throw new Error(`Pages deployment failed: ${errorDetails}`);
     }
 
     const responseData = await deployRes.json();
