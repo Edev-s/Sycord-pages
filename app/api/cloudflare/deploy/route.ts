@@ -143,7 +143,8 @@ async function deployToPages(accountId: string, projectName: string, files: Reco
     const manifestJson = JSON.stringify(manifest);
     console.log(`[Cloudflare Debug] Generated Manifest:`, manifestJson);
 
-    formData.append("manifest", new Blob([manifestJson], { type: "application/json" }), "manifest.json");
+    const manifestBuffer = Buffer.from(manifestJson);
+    formData.append("manifest", new Blob([manifestBuffer], { type: "application/json" }), "manifest.json");
 
     // 3. Append all file blobs using their hash as the key
     for (const file of fileBlobs) {
