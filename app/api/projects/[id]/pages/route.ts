@@ -67,3 +67,51 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ message: error.message }, { status: 500 })
   }
 }
+
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 })
+  }
+
+  try {
+    const { id } = await params
+    const { searchParams } = new URL(request.url)
+    const pageName = searchParams.get("name")
+
+    if (!ObjectId.isValid(id)) {
+      return NextResponse.json({ message: "Invalid project ID" }, { status: 400 })
+    }
+
+    if (!pageName) {
+      return NextResponse.json({ message: "Page name required" }, { status: 400 })
+    }
+
+    const client = await clientPromise
+    const db = client.db()
+
+    // Validate project ownership
+    const project = await db.collection("projects").findOne({
+      _id: new ObjectId(id),
+      userId: session.user.id
+    })
+
+    if (!project) {
+      return NextResponse.json({ message: "Project not found" }, { status: 404 })
+    }
+
+    const result = await db.collection("pages").deleteOne({
+      projectId: new ObjectId(id),
+      name: pageName
+    })
+
+    if (result.deletedCount === 0) {
+        return NextResponse.json({ message: "Page not found" }, { status: 404 })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error: any) {
+    console.error("Error deleting page:", error)
+    return NextResponse.json({ message: error.message }, { status: 500 })
+  }
+}

@@ -131,7 +131,9 @@ async function deployToPages(accountId: string, projectName: string, files: Reco
     }
 
     // Add Manifest part
-    form.append("manifest", JSON.stringify(manifest));
+    form.append("manifest", new Blob([JSON.stringify(manifest)], { type: "application/json" }));
+
+    console.log(`[Cloudflare] Deploying ${Object.keys(files).length} files to ${projectName}`);
 
     const deployRes = await cloudflareApiCall(
         `${CLOUDFLARE_API_BASE}/accounts/${accountId}/pages/projects/${projectName}/deployments`,
