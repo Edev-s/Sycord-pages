@@ -3,139 +3,184 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
-import { spawn } from "child_process";
-import fs from "fs/promises";
-import path from "path";
-import os from "os";
-import { createRequire } from "module";
+import crypto from "crypto";
 
-// Only for debugging if needed, though stdout capture is primary.
-function getCloudflareCredentials(session: any, db: any, projectId: string) {
-    // Logic extracted to helper
-    return {
-        apiToken: process.env.CLOUDFLARE_API_TOKEN || process.env.CLOUDFLARE_API_KEY,
-        accountId: process.env.CLOUDFLARE_ACCOUNT_ID
-    }
+const CLOUDFLARE_API_BASE = "https://api.cloudflare.com/client/v4";
+
+interface DeployFile {
+  path: string;
+  content: string;
 }
 
-async function runWranglerDeploy(deployDir: string, projectName: string, branch: string, accountId: string, apiToken: string): Promise<string> {
-    return new Promise((resolve, reject) => {
+interface DeployResult {
+  url: string;
+  deploymentId: string;
+}
 
-        let wranglerScript = "";
-        const nodeRequire = createRequire(path.join(process.cwd(), "package.json"));
-        try {
-            // Robustly find the wrangler entry point using Node's resolution
-            // This handles pnpm's nested structure correctly
-            const resolved = nodeRequire.resolve("wrangler/bin/wrangler.js");
-            if (resolved && path.isAbsolute(resolved)) {
-                wranglerScript = resolved;
-            } else {
-                throw new Error("Resolved wrangler path was not a filesystem path");
-            }
-        } catch (e) {
-            console.warn("[Cloudflare Wrangler] Could not resolve 'wrangler/bin/wrangler.js', falling back to manual path discovery.");
-            // Fallback for edge cases where require.resolve might fail or structure is unexpected
-            wranglerScript = path.resolve(process.cwd(), "node_modules", "wrangler", "bin", "wrangler.js");
-        }
+// Helper to make Cloudflare API requests
+async function cloudflareRequest(
+  endpoint: string,
+  apiToken: string,
+  options: RequestInit = {}
+): Promise<any> {
+  const url = `${CLOUDFLARE_API_BASE}${endpoint}`;
+  console.log(`[Cloudflare] API request: ${options.method || "GET"} ${endpoint}`);
 
-        console.log(`[Cloudflare Wrangler] Resolved script path: ${wranglerScript}`);
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${apiToken}`,
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
 
-        // npx wrangler pages deploy <dir> --project-name <name> --branch <branch>
-        const wranglerArgs = [
-            wranglerScript,
-            "pages",
-            "deploy",
-            deployDir,
-            "--project-name",
-            projectName,
-            "--branch",
-            branch,
-            "--commit-dirty=true"
-        ];
+  const data = await response.json();
+  console.log(`[Cloudflare] Response status: ${response.status}`);
 
-        console.log(`[Cloudflare Wrangler] Executing: node ${wranglerArgs.join(" ")}`);
+  if (!response.ok) {
+    const errorMsg = data.errors?.[0]?.message || `HTTP ${response.status}`;
+    console.error(`[Cloudflare] API error:`, data.errors || data);
+    throw new Error(`Cloudflare API error: ${errorMsg}`);
+  }
 
-        // Set HOME to a temporary directory to avoid EACCES/ENOENT on restricted home dirs
-        // Also set NPM_CONFIG_CACHE to ensure any internal npm usage by wrangler has a writeable cache
-        const tempHome = path.join(os.tmpdir(), "wrangler-home");
-        
-        // We ensure the tempHome exists, though env vars usually just need to point to it
-        // fs.mkdir(tempHome, { recursive: true }).catch(() => {});
+  return data;
+}
 
-        // Spawn 'node' directly with the resolved script path
-        const child = spawn(process.execPath, wranglerArgs, {
-            env: {
-                ...process.env,
-                CLOUDFLARE_ACCOUNT_ID: accountId,
-                CLOUDFLARE_API_TOKEN: apiToken,
-                // Ensure no interactive prompts
-                CI: "true",
-                // Suppress update checks
-                WRANGLER_SEND_METRICS: "false",
-                // Redirect HOME and npm cache to tmp
-                HOME: tempHome,
-                NPM_CONFIG_CACHE: path.join(tempHome, ".npm"),
-                XDG_CONFIG_HOME: path.join(tempHome, ".config"),
-                XDG_CACHE_HOME: path.join(tempHome, ".cache")
-            }
-        });
+// Check if a Cloudflare Pages project exists
+async function checkProjectExists(
+  accountId: string,
+  projectName: string,
+  apiToken: string
+): Promise<boolean> {
+  try {
+    await cloudflareRequest(
+      `/accounts/${accountId}/pages/projects/${projectName}`,
+      apiToken
+    );
+    console.log(`[Cloudflare] Project "${projectName}" exists`);
+    return true;
+  } catch (error: any) {
+    if (error.message.includes("404") || error.message.includes("not found")) {
+      console.log(`[Cloudflare] Project "${projectName}" does not exist`);
+      return false;
+    }
+    throw error;
+  }
+}
 
-        let stdout = "";
-        let stderr = "";
+// Create a new Cloudflare Pages project
+async function createProject(
+  accountId: string,
+  projectName: string,
+  branch: string,
+  apiToken: string
+): Promise<void> {
+  console.log(`[Cloudflare] Creating project "${projectName}"...`);
+  await cloudflareRequest(
+    `/accounts/${accountId}/pages/projects`,
+    apiToken,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        name: projectName,
+        production_branch: branch,
+      }),
+    }
+  );
+  console.log(`[Cloudflare] Project "${projectName}" created successfully`);
+}
 
-        child.stdout.on("data", (data) => {
-            const output = data.toString();
-            stdout += output;
-            // console.log(`[Wrangler stdout] ${output}`);
-        });
+// Calculate SHA-256 hash of content
+function calculateHash(content: string): string {
+  return crypto.createHash("sha256").update(content).digest("hex");
+}
 
-        child.stderr.on("data", (data) => {
-            const output = data.toString();
-            stderr += output;
-            // console.error(`[Wrangler stderr] ${output}`);
-        });
+// Deploy files to Cloudflare Pages using Direct Upload API
+async function deployToCloudflarePages(
+  accountId: string,
+  projectName: string,
+  branch: string,
+  files: DeployFile[],
+  apiToken: string
+): Promise<DeployResult> {
+  console.log(`[Cloudflare] Starting deployment of ${files.length} files...`);
 
-        child.on("close", (code) => {
-            if (code === 0) {
-                // Parse stdout for the URL
-                // Example success output:
-                // ...
-                // 🌍  Site is ready at https://project-name.pages.dev
-                // ...
-                // or just extracting the domain.
+  // Calculate hashes for all files
+  const fileHashes: Record<string, string> = {};
+  const fileContents: Record<string, string> = {};
 
-                console.log(`[Cloudflare Wrangler] Success! Output length: ${stdout.length}`);
+  for (const file of files) {
+    const hash = calculateHash(file.content);
+    fileHashes[file.path] = hash;
+    fileContents[hash] = file.content;
+    console.log(`[Cloudflare] File: ${file.path} (${file.content.length} bytes, hash: ${hash.substring(0, 12)}...)`);
+  }
 
-                // Try to find the URL in the output
-                // Matches "https://<something>.pages.dev"
-                // Or specific "Visit your site at https://..."
-                const urlMatch = stdout.match(/(https:\/\/[a-zA-Z0-9-]+\.pages\.dev)/);
-                if (urlMatch) {
-                    resolve(urlMatch[1]);
-                } else {
-                    // Fallback: construct it manually if successful
-                    resolve(`https://${projectName}.pages.dev`);
-                }
-            } else {
-                console.error(`[Cloudflare Wrangler] Failed with code ${code}`);
-                console.error(`[Cloudflare Wrangler] Stderr: ${stderr}`);
-                console.error(`[Cloudflare Wrangler] Stdout: ${stdout}`);
-                reject(new Error(`Wrangler deployment failed (Exit Code: ${code}). Check logs for details.`));
-            }
-        });
+  // Create deployment with manifest
+  console.log(`[Cloudflare] Creating deployment with manifest...`);
+  const deployResponse = await cloudflareRequest(
+    `/accounts/${accountId}/pages/projects/${projectName}/deployments`,
+    apiToken,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        branch,
+        stage: "production",
+        manifest: fileHashes,
+      }),
+    }
+  );
 
-        child.on("error", (err) => {
-             reject(new Error(`Failed to spawn wrangler process: ${err.message}`));
-        });
-    });
+  const uploadUrl = deployResponse.result?.upload_url;
+  const deploymentId = deployResponse.result?.id;
+
+  if (!uploadUrl) {
+    throw new Error("No upload URL received from Cloudflare");
+  }
+
+  console.log(`[Cloudflare] Deployment created (ID: ${deploymentId}), uploading files...`);
+
+  // Upload files using multipart/form-data
+  const boundary = `----CloudflarePagesFormBoundary${Date.now()}`;
+  let formDataBody = "";
+
+  for (const [hash, content] of Object.entries(fileContents)) {
+    formDataBody += `--${boundary}\r\n`;
+    formDataBody += `Content-Disposition: form-data; name="${hash}"\r\n`;
+    formDataBody += `Content-Type: application/octet-stream\r\n\r\n`;
+    formDataBody += `${content}\r\n`;
+  }
+  formDataBody += `--${boundary}--\r\n`;
+
+  console.log(`[Cloudflare] Uploading ${Object.keys(fileContents).length} unique files (${formDataBody.length} bytes)...`);
+
+  const uploadResponse = await fetch(uploadUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": `multipart/form-data; boundary=${boundary}`,
+    },
+    body: formDataBody,
+  });
+
+  if (!uploadResponse.ok) {
+    const errorText = await uploadResponse.text();
+    throw new Error(`File upload failed: ${uploadResponse.status} - ${errorText}`);
+  }
+
+  console.log(`[Cloudflare] Files uploaded successfully`);
+
+  return {
+    url: `https://${projectName}.pages.dev`,
+    deploymentId,
+  };
 }
 
 /**
  * POST /api/cloudflare/deploy
- * Deploys the project to Cloudflare Pages using Wrangler CLI
+ * Deploys the project to Cloudflare Pages using Direct Upload API
  */
 export async function POST(request: Request) {
-  let tempDir = "";
   try {
     const session = await getServerSession(authOptions);
 
@@ -201,33 +246,19 @@ export async function POST(request: Request) {
         .substring(0, 58);
     }
 
-    // 4. Collect Pages from DB
-    const pages = await db
+    // 4. Collect Pages from DB and build files in memory
+    const dbPages = await db
       .collection("pages")
       .find({ projectId: new ObjectId(projectId) })
       .toArray();
 
-    // 5. Create Temp Directory
-    const tmpPrefix = path.join(os.tmpdir(), `deploy-${projectId}-`);
-    tempDir = await fs.mkdtemp(tmpPrefix);
-    console.log(`[Cloudflare Wrangler] Created temp dir: ${tempDir}`);
-
-    // 6. Write Files
+    const files: DeployFile[] = [];
     let hasIndexHtml = false;
-    let indexTsPage = null;
-    let defaultContent = "";
+    let indexTsContent: string | null = null;
 
-    // Helper to write file safely
-    const writeFile = async (filename: string, content: string) => {
-        const filePath = path.join(tempDir, filename);
-        // Ensure directory exists if filename has path separators
-        await fs.mkdir(path.dirname(filePath), { recursive: true });
-        await fs.writeFile(filePath, content);
-    };
-
-    if (pages.length === 0) {
-        // Fallback content
-         defaultContent = `<!DOCTYPE html>
+    if (dbPages.length === 0) {
+      // Fallback content
+      const defaultContent = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -249,39 +280,41 @@ export async function POST(request: Request) {
     </div>
 </body>
 </html>`;
-        await writeFile("index.html", defaultContent);
+      files.push({ path: "/index.html", content: defaultContent });
+      hasIndexHtml = true;
     } else {
-        for (const page of pages) {
-            let content = page.content || "";
-            // Clean content (remove markdown code blocks if present)
-            if (content.trim().startsWith("\`\`\`")) {
-                 const match = content.match(/\`\`\`(?:typescript|js|jsx|tsx|html|css)?\s*([\s\S]*?)\`\`\`/);
-                 if (match) {
-                     content = match[1].trim();
-                 }
-            }
-
-            const name = page.name;
-            // Map filename
-            let filename = name;
-            if (!filename.includes(".")) {
-                filename = `${filename}.html`;
-            }
-
-            await writeFile(filename, content);
-
-            // Handle index conventions
-            if (name === "index" || name === "index.html") {
-                hasIndexHtml = true;
-                defaultContent = content; // Keep reference
-            } else if (name === "index.ts") {
-                indexTsPage = page;
-            }
+      for (const page of dbPages) {
+        let content = page.content || "";
+        // Clean content (remove markdown code blocks if present)
+        if (content.trim().startsWith("\`\`\`")) {
+          const match = content.match(/\`\`\`(?:typescript|js|jsx|tsx|html|css)?\s*([\s\S]*?)\`\`\`/);
+          if (match) {
+            content = match[1].trim();
+          }
         }
 
-         // If no index.html but index.ts exists, create a wrapper
-        if (!hasIndexHtml && indexTsPage) {
-            defaultContent = `<!DOCTYPE html>
+        const name = page.name;
+        // Map filename
+        let filename = name;
+        if (!filename.includes(".")) {
+          filename = `${filename}.html`;
+        }
+
+        // Ensure path starts with /
+        const filePath = filename.startsWith("/") ? filename : `/${filename}`;
+        files.push({ path: filePath, content });
+
+        // Handle index conventions
+        if (name === "index" || name === "index.html") {
+          hasIndexHtml = true;
+        } else if (name === "index.ts") {
+          indexTsContent = content;
+        }
+      }
+
+      // If no index.html but index.ts exists, create a wrapper
+      if (!hasIndexHtml && indexTsContent) {
+        const wrapperContent = `<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
@@ -307,30 +340,43 @@ export async function POST(request: Request) {
     <script type="text/babel" data-type="module" data-presets="react,typescript" src="/index.ts"></script>
 </body>
 </html>`;
-            await writeFile("index.html", defaultContent);
-        } else {
-             // Fallback if still no index
-             if (!hasIndexHtml && defaultContent) {
-                  await writeFile("index.html", defaultContent);
-             }
-        }
+        files.push({ path: "/index.html", content: wrapperContent });
+        hasIndexHtml = true;
+      }
     }
 
-    // Add 404.html for SPA fallback (copy index.html)
-    // We check if 404.html exists first
-    const files = await fs.readdir(tempDir);
-    if (files.includes("index.html") && !files.includes("404.html")) {
-        await fs.copyFile(path.join(tempDir, "index.html"), path.join(tempDir, "404.html"));
+    // Add 404.html for SPA fallback (copy index.html content)
+    const indexFile = files.find(f => f.path === "/index.html");
+    const has404 = files.some(f => f.path === "/404.html");
+    if (indexFile && !has404) {
+      files.push({ path: "/404.html", content: indexFile.content });
     }
 
-    // 7. Deploy using Wrangler
-    const deploymentUrl = await runWranglerDeploy(tempDir, cfProjectName, "main", accountId, apiToken);
+    if (files.length === 0) {
+      return NextResponse.json(
+        { error: "No files to deploy" },
+        { status: 400 }
+      );
+    }
 
-    // 8. Cleanup
-    await fs.rm(tempDir, { recursive: true, force: true });
-    tempDir = ""; // Clear for finally block
+    console.log(`[Cloudflare] Preparing to deploy ${files.length} files to project "${cfProjectName}"`);
 
-    // 9. Update DB
+    // 5. Check/create Cloudflare Pages project
+    const projectExists = await checkProjectExists(accountId, cfProjectName, apiToken);
+    if (!projectExists) {
+      await createProject(accountId, cfProjectName, "main", apiToken);
+    }
+
+    // 6. Deploy using Direct Upload API
+    const { url: deploymentUrl, deploymentId } = await deployToCloudflarePages(
+      accountId,
+      cfProjectName,
+      "main",
+      files,
+      apiToken
+    );
+
+    // 7. Update DB
     await db.collection("projects").updateOne(
       { _id: new ObjectId(projectId) },
       {
@@ -338,26 +384,22 @@ export async function POST(request: Request) {
           cloudflareProjectName: cfProjectName,
           cloudflareUrl: deploymentUrl,
           cloudflareDeployedAt: new Date(),
-          cloudflareDeploymentId: "pages-wrangler-cli",
+          cloudflareDeploymentId: deploymentId,
         },
       }
     );
 
+    console.log(`[Cloudflare] Deployment successful: ${deploymentUrl}`);
+
     return NextResponse.json({
       success: true,
       url: deploymentUrl,
+      deploymentId,
       projectName: cfProjectName,
     });
 
   } catch (error: any) {
     console.error("[Cloudflare] Deployment Error:", error);
-    if (tempDir) {
-        try {
-            await fs.rm(tempDir, { recursive: true, force: true });
-        } catch (e) {
-            console.error("Failed to clean up temp dir:", e);
-        }
-    }
     return NextResponse.json(
       { error: error.message || "Deployment failed" },
       { status: 500 }
