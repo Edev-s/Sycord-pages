@@ -88,22 +88,25 @@ async function deployPages(
     blobs.push({ hash, buf, type });
   }
 
-  /* 🔴 CRITICAL FIX:
-     manifest MUST be appended as JSON STRING
-     NOT File / Blob
-  */
+  // Append manifest as a string
   form.append("manifest", JSON.stringify(manifest));
 
+  // Append files
   for (const f of blobs) {
     form.append(f.hash, f.buf, { contentType: f.type });
   }
 
+  /* 🔴 FIX APPLIED HERE:
+     When using the 'form-data' library with node-fetch/native fetch,
+     you MUST merge form.getHeaders() to include the 'Content-Type' with the boundary.
+  */
   const res = await fetch(
     `${CF_API}/accounts/${accountId}/pages/projects/${projectName}/deployments`,
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${token}`
+        Authorization: `Bearer ${token}`,
+        ...form.getHeaders(), 
       },
       body: form as any
     }
@@ -155,7 +158,7 @@ export async function POST(req: Request) {
 
     const project = await db.collection("projects").findOne({
       _id: new ObjectId(projectId),
-      userId: session.user.id
+      userId: session.user.id // Assuming user ID match logic is correct
     });
 
     if (!project) {
@@ -202,3 +205,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
+
