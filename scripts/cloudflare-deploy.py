@@ -125,18 +125,38 @@ class CloudflareDeployer:
         return files
 
     def deploy_files(self, files: List[Dict[str, str]]) -> Tuple[str, str]:
-        """Deploy files to Cloudflare Pages"""
+        """Deploy files to Cloudflare Pages using Direct Upload API"""
         print(f"🚀 Starting deployment to Cloudflare Pages...")
 
-        # Create deployment
-        print("📝 Creating deployment...")
+        # Calculate SHA-256 hashes for all files
+        import hashlib
+        file_hashes = {}
+        file_contents = {}
+        
+        for file in files:
+            content = file["content"]
+            hash_val = hashlib.sha256(content.encode("utf-8")).hexdigest()
+            file_hashes[file["path"]] = hash_val
+            file_contents[hash_val] = content
+            
+            size_kb = len(content) / 1024
+            print(f"   - {file['path']} ({size_kb:.2f} KB, SHA-256: {hash_val[:12]}...)")
+
+        # Create deployment with manifest using multipart/form-data
+        # Cloudflare Pages Direct Upload API requires the manifest to be sent as a form field
+        print("📝 Creating deployment with manifest...")
 
         url = f"https://api.cloudflare.com/client/v4/accounts/{self.account_id}/pages/projects/{self.project_name}/deployments"
-        payload = {
-            "branch": self.branch,
+        
+        manifest_json = json.dumps(file_hashes)
+        files_data = {
+            'manifest': ('manifest', manifest_json, 'application/json')
         }
-
-        response = self.session.post(url, json=payload)
+        
+        # Remove Content-Type header so requests can set it with the correct boundary
+        headers = {"Authorization": f"Bearer {self.api_token}"}
+        
+        response = requests.post(url, files=files_data, headers=headers)
 
         if not response.ok:
             raise Exception(f"Failed to create deployment: {response.text}")
@@ -150,19 +170,13 @@ class CloudflareDeployer:
 
         print("✅ Deployment created, uploading files...")
 
-        # Create file manifest
-        manifest = {}
-        for file in files:
-            # Encode content to base64
-            content_bytes = file["content"].encode("utf-8")
-            base64_content = base64.b64encode(content_bytes).decode("utf-8")
-            manifest[file["path"]] = base64_content
+        # Upload files using multipart/form-data
+        # Each file is uploaded with its SHA-256 hash as the field name
+        upload_files = {}
+        for hash_val, content in file_contents.items():
+            upload_files[hash_val] = (hash_val, content.encode('utf-8'), 'application/octet-stream')
 
-            size_kb = len(file["content"]) / 1024
-            print(f"   - {file['path']} ({size_kb:.2f} KB)")
-
-        # Upload manifest
-        upload_response = self.session.post(upload_url, json={"manifest": manifest})
+        upload_response = requests.post(upload_url, files=upload_files)
 
         if not upload_response.ok:
             raise Exception(f"Failed to upload files: {upload_response.text}")
