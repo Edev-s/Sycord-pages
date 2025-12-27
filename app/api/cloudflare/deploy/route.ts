@@ -22,7 +22,7 @@ async function cloudflareRequest(
   endpoint: string,
   apiToken: string,
   options: RequestInit = {}
-): Promise<any> {
+): Promise<{ data: any; status: number }> {
   const url = `${CLOUDFLARE_API_BASE}${endpoint}`;
   console.log(`[Cloudflare] API request: ${options.method || "GET"} ${endpoint}`);
 
@@ -41,10 +41,12 @@ async function cloudflareRequest(
   if (!response.ok) {
     const errorMsg = data.errors?.[0]?.message || `HTTP ${response.status}`;
     console.error(`[Cloudflare] API error:`, data.errors || data);
-    throw new Error(`Cloudflare API error: ${errorMsg}`);
+    const error = new Error(`Cloudflare API error: ${errorMsg}`) as Error & { status: number };
+    error.status = response.status;
+    throw error;
   }
 
-  return data;
+  return { data, status: response.status };
 }
 
 // Check if a Cloudflare Pages project exists
@@ -61,7 +63,8 @@ async function checkProjectExists(
     console.log(`[Cloudflare] Project "${projectName}" exists`);
     return true;
   } catch (error: any) {
-    if (error.message.includes("404") || error.message.includes("not found")) {
+    // Check for 404 status (project not found) or Cloudflare's "not_found" error
+    if (error.status === 404 || error.message.includes("not_found")) {
       console.log(`[Cloudflare] Project "${projectName}" does not exist`);
       return false;
     }
@@ -119,7 +122,7 @@ async function deployToCloudflarePages(
 
   // Create deployment with manifest
   console.log(`[Cloudflare] Creating deployment with manifest...`);
-  const deployResponse = await cloudflareRequest(
+  const { data: deployResponse } = await cloudflareRequest(
     `/accounts/${accountId}/pages/projects/${projectName}/deployments`,
     apiToken,
     {
