@@ -3,212 +3,106 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
-import { createHash } from "crypto";
-import FormData from "form-data";
+import { spawn } from "child_process";
+import fs from "fs/promises";
+import path from "path";
+import os from "os";
 
-/**
- * Cloudflare API Configuration
- */
-const CLOUDFLARE_API_BASE = "https://api.cloudflare.com/client/v4";
-
-/**
- * Helper to make Cloudflare API calls with retry logic
- */
-async function cloudflareApiCall(
-  url: string,
-  options: RequestInit,
-  apiToken: string,
-  retries = 3
-): Promise<Response> {
-  const headers: Record<string, string> = {
-    Authorization: `Bearer ${apiToken}`,
-  };
-
-  if (options.headers) {
-    Object.assign(headers, options.headers);
-  }
-
-  let lastError: any;
-  for (let i = 0; i < retries; i++) {
-    try {
-      const response = await fetch(url, { ...options, headers });
-
-      if (response.status === 401 || response.status === 403) {
-        console.error(`[Cloudflare] Auth error: ${response.status}`);
-        return response;
-      }
-
-      if (response.ok) {
-        return response;
-      }
-
-      if (response.status < 500 && response.status !== 429) {
-          return response;
-      }
-
-      const errorText = await response.text();
-      console.error(`[Cloudflare] API call failed (attempt ${i + 1}/${retries}):`, {
-        url,
-        status: response.status,
-        error: errorText,
-      });
-
-      lastError = errorText;
-
-      if (i < retries - 1) {
-        const waitTime = 1000 * Math.pow(2, i);
-        await new Promise((resolve) => setTimeout(resolve, waitTime));
-      }
-    } catch (error) {
-      console.error(`[Cloudflare] Request error (attempt ${i + 1}/${retries}):`, error);
-      lastError = error;
-
-      if (i < retries - 1) {
-        const waitTime = 1000 * Math.pow(2, i);
-        await new Promise((resolve) => setTimeout(resolve, waitTime));
-      }
-    }
-  }
-
-  throw new Error(`API call failed after ${retries} retries: ${lastError}`);
-}
-
-async function createPagesProject(accountId: string, projectName: string, apiToken: string) {
-    // Check if exists
-    const getRes = await cloudflareApiCall(
-        `${CLOUDFLARE_API_BASE}/accounts/${accountId}/pages/projects/${projectName}`,
-        { method: "GET" },
-        apiToken
-    );
-
-    if (getRes.ok) {
-        return; // Exists
-    }
-
-    // Create
-    const createRes = await cloudflareApiCall(
-        `${CLOUDFLARE_API_BASE}/accounts/${accountId}/pages/projects`,
-        {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                name: projectName,
-                production_branch: "main",
-            })
-        },
-        apiToken
-    );
-
-    if (!createRes.ok) {
-        const err = await createRes.text();
-        throw new Error(`Failed to create Pages project: ${err}`);
+// Only for debugging if needed, though stdout capture is primary.
+function getCloudflareCredentials(session: any, db: any, projectId: string) {
+    // Logic extracted to helper
+    return {
+        apiToken: process.env.CLOUDFLARE_API_TOKEN || process.env.CLOUDFLARE_API_KEY,
+        accountId: process.env.CLOUDFLARE_ACCOUNT_ID
     }
 }
 
-async function deployToPages(accountId: string, projectName: string, files: Record<string, string>, apiToken: string) {
-    const formData = new FormData();
-    const manifest: Record<string, string> = {};
-    const preparedFiles: { hash: string; buffer: Buffer; contentType: string }[] = [];
+async function runWranglerDeploy(deployDir: string, projectName: string, branch: string, accountId: string, apiToken: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+        // Wrangler CLI command
+        // npx wrangler pages deploy <dir> --project-name <name> --branch <branch>
+        const wranglerArgs = [
+            "wrangler",
+            "pages",
+            "deploy",
+            deployDir,
+            "--project-name",
+            projectName,
+            "--branch",
+            branch,
+            "--commit-dirty=true"
+        ];
 
-    // 1. Prepare all files and calculate hashes first
-    for (const [path, content] of Object.entries(files)) {
-        // Pages manifest expects paths WITHOUT leading slash or dot-slash
-        const filename = path.replace(/^(\.\/|\/)+/, "");
+        console.log(`[Cloudflare Wrangler] Executing: npx ${wranglerArgs.join(" ")}`);
 
-        // Calculate SHA-256 hash
-        const buffer = Buffer.from(content);
-        const hash = createHash('sha256').update(buffer).digest('hex');
-
-        // Add to manifest map: path -> hash
-        manifest[filename] = hash;
-
-        // Determine Content-Type
-        let contentType = "application/octet-stream";
-        if (filename.endsWith(".html")) contentType = "text/html";
-        else if (filename.endsWith(".js")) contentType = "application/javascript";
-        else if (filename.endsWith(".css")) contentType = "text/css";
-        else if (filename.endsWith(".json")) contentType = "application/json";
-        else if (filename.endsWith(".ts")) contentType = "application/javascript";
-        else if (filename.endsWith(".png")) contentType = "image/png";
-
-        preparedFiles.push({ hash, buffer, contentType });
-    }
-
-    // 2. Append Manifest FIRST
-    const manifestJson = JSON.stringify(manifest);
-    console.log(`[Cloudflare Debug] Generated Manifest:`, manifestJson);
-
-    // Use Buffer for manifest instead of Blob to ensure compatibility with form-data
-    formData.append("manifest", Buffer.from(manifestJson), {
-        contentType: "application/json",
-        filename: "manifest.json"
-    });
-
-    // 3. Append all file buffers
-    for (const file of preparedFiles) {
-        formData.append(file.hash, file.buffer, {
-            contentType: file.contentType
-        });
-        console.log(`[Cloudflare Debug] Appending file: hash=${file.hash}, size=${file.buffer.length}, type=${file.contentType}`);
-    }
-
-    console.log(`[Cloudflare] Deploying ${Object.keys(files).length} files to ${projectName}`);
-
-    // 4. Send Request
-    const deployUrl = `${CLOUDFLARE_API_BASE}/accounts/${accountId}/pages/projects/${projectName}/deployments`;
-    console.log(`[Cloudflare Debug] Sending POST request to: ${deployUrl}`);
-
-    // Merge headers from formData (includes Content-Type with boundary)
-    const headers = {
-        Authorization: `Bearer ${apiToken}`,
-        ...formData.getHeaders()
-    };
-
-    const deployRes = await fetch(deployUrl, {
-        method: "POST",
-        headers: headers,
-        body: formData as any // Cast to any to satisfy TS check for native fetch body
-    });
-
-    if (!deployRes.ok) {
-        const errorText = await deployRes.text();
-        let errorDetails = errorText;
-        try {
-            const errorJson = JSON.parse(errorText);
-            if (errorJson.errors && Array.isArray(errorJson.errors)) {
-                 errorDetails = errorJson.errors.map((e: any) => `[Code: ${e.code}] ${e.message}`).join(", ");
+        const child = spawn("npx", wranglerArgs, {
+            env: {
+                ...process.env,
+                CLOUDFLARE_ACCOUNT_ID: accountId,
+                CLOUDFLARE_API_TOKEN: apiToken,
+                // Ensure no interactive prompts
+                CI: "true",
+                // Suppress update checks
+                WRANGLER_SEND_METRICS: "false",
             }
-        } catch (e) {
-            // Ignore parse error
-        }
+        });
 
-        console.error(`[Cloudflare Debug] Deployment Failed! Status: ${deployRes.status}`);
-        console.error(`[Cloudflare Debug] Error Details: ${errorDetails}`);
-        throw new Error(`Pages deployment failed: ${errorDetails}`);
-    }
+        let stdout = "";
+        let stderr = "";
 
-    const responseData = await deployRes.json();
-    console.log(`[Cloudflare Debug] Deployment Success! Response:`, JSON.stringify(responseData, null, 2));
+        child.stdout.on("data", (data) => {
+            const output = data.toString();
+            stdout += output;
+            // console.log(`[Wrangler stdout] ${output}`);
+        });
 
-    return responseData;
-}
+        child.stderr.on("data", (data) => {
+            const output = data.toString();
+            stderr += output;
+            // console.error(`[Wrangler stderr] ${output}`);
+        });
 
-async function deleteWorkerScript(accountId: string, scriptName: string, apiToken: string) {
-    const res = await cloudflareApiCall(
-        `${CLOUDFLARE_API_BASE}/accounts/${accountId}/workers/scripts/${scriptName}`,
-        { method: "DELETE" },
-        apiToken
-    );
-    if (!res.ok && res.status !== 404) {
-        console.warn(`[Cloudflare] Failed to delete old worker ${scriptName}`);
-    }
+        child.on("close", (code) => {
+            if (code === 0) {
+                // Parse stdout for the URL
+                // Example success output:
+                // ...
+                // 🌍  Site is ready at https://project-name.pages.dev
+                // ...
+                // or just extracting the domain.
+
+                console.log(`[Cloudflare Wrangler] Success! Output length: ${stdout.length}`);
+
+                // Try to find the URL in the output
+                // Matches "https://<something>.pages.dev"
+                // Or specific "Visit your site at https://..."
+                const urlMatch = stdout.match(/(https:\/\/[a-zA-Z0-9-]+\.pages\.dev)/);
+                if (urlMatch) {
+                    resolve(urlMatch[1]);
+                } else {
+                    // Fallback: construct it manually if successful
+                    resolve(`https://${projectName}.pages.dev`);
+                }
+            } else {
+                console.error(`[Cloudflare Wrangler] Failed with code ${code}`);
+                console.error(`[Cloudflare Wrangler] Stderr: ${stderr}`);
+                console.error(`[Cloudflare Wrangler] Stdout: ${stdout}`);
+                reject(new Error(`Wrangler deployment failed (Exit Code: ${code}). Check logs for details.`));
+            }
+        });
+
+        child.on("error", (err) => {
+             reject(new Error(`Failed to spawn wrangler process: ${err.message}`));
+        });
+    });
 }
 
 /**
  * POST /api/cloudflare/deploy
- * Deploys the project to Cloudflare Pages (Direct Upload)
+ * Deploys the project to Cloudflare Pages using Wrangler CLI
  */
 export async function POST(request: Request) {
+  let tempDir = "";
   try {
     const session = await getServerSession(authOptions);
 
@@ -273,7 +167,6 @@ export async function POST(request: Request) {
         .replace(/^-|-$/g, "")
         .substring(0, 58);
     }
-    console.log(`[Cloudflare Debug] Target Project Name: ${cfProjectName}`);
 
     // 4. Collect Pages from DB
     const pages = await db
@@ -281,15 +174,27 @@ export async function POST(request: Request) {
       .find({ projectId: new ObjectId(projectId) })
       .toArray();
 
-    console.log(`[Cloudflare Debug] Found ${pages.length} pages in DB for project ${projectId}`);
+    // 5. Create Temp Directory
+    const tmpPrefix = path.join(os.tmpdir(), `deploy-${projectId}-`);
+    tempDir = await fs.mkdtemp(tmpPrefix);
+    console.log(`[Cloudflare Wrangler] Created temp dir: ${tempDir}`);
 
-    const files: Record<string, string> = {};
+    // 6. Write Files
+    let hasIndexHtml = false;
+    let indexTsPage = null;
     let defaultContent = "";
 
-    // 5. Build File Map
+    // Helper to write file safely
+    const writeFile = async (filename: string, content: string) => {
+        const filePath = path.join(tempDir, filename);
+        // Ensure directory exists if filename has path separators
+        await fs.mkdir(path.dirname(filePath), { recursive: true });
+        await fs.writeFile(filePath, content);
+    };
+
     if (pages.length === 0) {
         // Fallback content
-        defaultContent = `<!DOCTYPE html>
+         defaultContent = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -311,12 +216,9 @@ export async function POST(request: Request) {
     </div>
 </body>
 </html>`;
-        files["index.html"] = defaultContent;
+        await writeFile("index.html", defaultContent);
     } else {
-        let hasIndexHtml = false;
-        let indexTsPage = null;
-
-        pages.forEach(page => {
+        for (const page of pages) {
             let content = page.content || "";
             // Clean content (remove markdown code blocks if present)
             if (content.trim().startsWith("\`\`\`")) {
@@ -327,14 +229,13 @@ export async function POST(request: Request) {
             }
 
             const name = page.name;
-
             // Map filename
             let filename = name;
             if (!filename.includes(".")) {
                 filename = `${filename}.html`;
             }
 
-            files[filename] = content;
+            await writeFile(filename, content);
 
             // Handle index conventions
             if (name === "index" || name === "index.html") {
@@ -343,9 +244,9 @@ export async function POST(request: Request) {
             } else if (name === "index.ts") {
                 indexTsPage = page;
             }
-        });
+        }
 
-        // If no index.html but index.ts exists, create a wrapper
+         // If no index.html but index.ts exists, create a wrapper
         if (!hasIndexHtml && indexTsPage) {
             defaultContent = `<!DOCTYPE html>
 <html>
@@ -373,35 +274,28 @@ export async function POST(request: Request) {
     <script type="text/babel" data-type="module" data-presets="react,typescript" src="/index.ts"></script>
 </body>
 </html>`;
-            files["index.html"] = defaultContent;
+            await writeFile("index.html", defaultContent);
         } else {
-             if (!files["index.html"] && defaultContent) {
-                  files["index.html"] = defaultContent;
+             // Fallback if still no index
+             if (!hasIndexHtml && defaultContent) {
+                  await writeFile("index.html", defaultContent);
              }
         }
     }
 
-    // Add 404.html for SPA fallback
-    if (files["index.html"] && !files["404.html"]) {
-        files["404.html"] = files["index.html"];
+    // Add 404.html for SPA fallback (copy index.html)
+    // We check if 404.html exists first
+    const files = await fs.readdir(tempDir);
+    if (files.includes("index.html") && !files.includes("404.html")) {
+        await fs.copyFile(path.join(tempDir, "index.html"), path.join(tempDir, "404.html"));
     }
 
-    // 6. Deploy to Cloudflare Pages
-    console.log(`[Cloudflare] Creating/Updating Pages Project: ${cfProjectName}`);
-    await createPagesProject(accountId, cfProjectName, apiToken);
+    // 7. Deploy using Wrangler
+    const deploymentUrl = await runWranglerDeploy(tempDir, cfProjectName, "main", accountId, apiToken);
 
-    console.log(`[Cloudflare] Uploading files...`);
-    await deployToPages(accountId, cfProjectName, files, apiToken);
-
-    // 7. Construct URL (Pages uses project-name.pages.dev)
-    const deploymentUrl = `https://${cfProjectName}.pages.dev`;
-    console.log(`[Cloudflare] Success! Pages URL: ${deploymentUrl}`);
-
-    // 8. Delete Old Worker (if applicable)
-    if (project.cloudflareDeploymentId && project.cloudflareDeploymentId.startsWith("worker-")) {
-        console.log(`[Cloudflare] Deleting old worker script: ${cfProjectName}`);
-        await deleteWorkerScript(accountId, cfProjectName, apiToken);
-    }
+    // 8. Cleanup
+    await fs.rm(tempDir, { recursive: true, force: true });
+    tempDir = ""; // Clear for finally block
 
     // 9. Update DB
     await db.collection("projects").updateOne(
@@ -411,7 +305,7 @@ export async function POST(request: Request) {
           cloudflareProjectName: cfProjectName,
           cloudflareUrl: deploymentUrl,
           cloudflareDeployedAt: new Date(),
-          cloudflareDeploymentId: "pages-latest",
+          cloudflareDeploymentId: "pages-wrangler-cli",
         },
       }
     );
@@ -424,6 +318,13 @@ export async function POST(request: Request) {
 
   } catch (error: any) {
     console.error("[Cloudflare] Deployment Error:", error);
+    if (tempDir) {
+        try {
+            await fs.rm(tempDir, { recursive: true, force: true });
+        } catch (e) {
+            console.error("Failed to clean up temp dir:", e);
+        }
+    }
     return NextResponse.json(
       { error: error.message || "Deployment failed" },
       { status: 500 }
