@@ -7,6 +7,7 @@ import { spawn } from "child_process";
 import fs from "fs/promises";
 import path from "path";
 import os from "os";
+import { createRequire } from "module";
 
 // Only for debugging if needed, though stdout capture is primary.
 function getCloudflareCredentials(session: any, db: any, projectId: string) {
@@ -21,10 +22,16 @@ async function runWranglerDeploy(deployDir: string, projectName: string, branch:
     return new Promise((resolve, reject) => {
 
         let wranglerScript = "";
+        const nodeRequire = createRequire(path.join(process.cwd(), "package.json"));
         try {
             // Robustly find the wrangler entry point using Node's resolution
             // This handles pnpm's nested structure correctly
-            wranglerScript = require.resolve("wrangler/bin/wrangler.js");
+            const resolved = nodeRequire.resolve("wrangler/bin/wrangler.js");
+            if (resolved && path.isAbsolute(resolved)) {
+                wranglerScript = resolved;
+            } else {
+                throw new Error("Resolved wrangler path was not a filesystem path");
+            }
         } catch (e) {
             console.warn("[Cloudflare Wrangler] Could not resolve 'wrangler/bin/wrangler.js', falling back to manual path discovery.");
             // Fallback for edge cases where require.resolve might fail or structure is unexpected
