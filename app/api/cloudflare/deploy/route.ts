@@ -19,10 +19,11 @@ function getCloudflareCredentials(session: any, db: any, projectId: string) {
 
 async function runWranglerDeploy(deployDir: string, projectName: string, branch: string, accountId: string, apiToken: string): Promise<string> {
     return new Promise((resolve, reject) => {
-        // Wrangler CLI command
+        // Use local wrangler binary directly to avoid npx cache/home dir issues
+        const wranglerPath = path.resolve(process.cwd(), "node_modules", ".bin", "wrangler");
+
         // npx wrangler pages deploy <dir> --project-name <name> --branch <branch>
         const wranglerArgs = [
-            "wrangler",
             "pages",
             "deploy",
             deployDir,
@@ -33,9 +34,16 @@ async function runWranglerDeploy(deployDir: string, projectName: string, branch:
             "--commit-dirty=true"
         ];
 
-        console.log(`[Cloudflare Wrangler] Executing: npx ${wranglerArgs.join(" ")}`);
+        console.log(`[Cloudflare Wrangler] Executing: ${wranglerPath} ${wranglerArgs.join(" ")}`);
 
-        const child = spawn("npx", wranglerArgs, {
+        // Set HOME to a temporary directory to avoid EACCES/ENOENT on restricted home dirs
+        // Also set NPM_CONFIG_CACHE to ensure any internal npm usage by wrangler has a writeable cache
+        const tempHome = path.join(os.tmpdir(), "wrangler-home");
+
+        // We ensure the tempHome exists, though env vars usually just need to point to it
+        // fs.mkdir(tempHome, { recursive: true }).catch(() => {});
+
+        const child = spawn(wranglerPath, wranglerArgs, {
             env: {
                 ...process.env,
                 CLOUDFLARE_ACCOUNT_ID: accountId,
@@ -44,6 +52,11 @@ async function runWranglerDeploy(deployDir: string, projectName: string, branch:
                 CI: "true",
                 // Suppress update checks
                 WRANGLER_SEND_METRICS: "false",
+                // Redirect HOME and npm cache to tmp
+                HOME: tempHome,
+                NPM_CONFIG_CACHE: path.join(tempHome, ".npm"),
+                XDG_CONFIG_HOME: path.join(tempHome, ".config"),
+                XDG_CACHE_HOME: path.join(tempHome, ".cache")
             }
         });
 
