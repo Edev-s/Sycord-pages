@@ -4,7 +4,6 @@ import { authOptions } from "@/lib/auth";
 import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 import { createHash } from "crypto";
-import FormData from "form-data";
 
 /**
  * Cloudflare API Configuration
@@ -22,237 +21,135 @@ async function cloudflareApiCall(
 ): Promise<Response> {
   const headers: Record<string, string> = {
     Authorization: `Bearer ${apiToken}`,
+    ...(options.headers || {}),
   };
 
-  if (options.headers) {
-    Object.assign(headers, options.headers);
-  }
-
   let lastError: any;
+
   for (let i = 0; i < retries; i++) {
     try {
-      const response = await fetch(url, { ...options, headers });
+      const res = await fetch(url, { ...options, headers });
 
-      if (response.status === 401 || response.status === 403) {
-        console.error(`[Cloudflare] Auth error: ${response.status}`);
-        return response;
-      }
+      if (res.ok || res.status < 500) return res;
 
-      if (response.ok) {
-        return response;
-      }
-
-      if (response.status < 500 && response.status !== 429) {
-          return response;
-      }
-
-      const errorText = await response.text();
-      console.error(`[Cloudflare] API call failed (attempt ${i + 1}/${retries}):`, {
-        url,
-        status: response.status,
-        error: errorText,
-      });
-
-      lastError = errorText;
-
-      if (i < retries - 1) {
-        const waitTime = 1000 * Math.pow(2, i);
-        await new Promise((resolve) => setTimeout(resolve, waitTime));
-      }
-    } catch (error) {
-      console.error(`[Cloudflare] Request error (attempt ${i + 1}/${retries}):`, error);
-      lastError = error;
-
-      if (i < retries - 1) {
-        const waitTime = 1000 * Math.pow(2, i);
-        await new Promise((resolve) => setTimeout(resolve, waitTime));
-      }
+      lastError = await res.text();
+      await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+    } catch (e) {
+      lastError = e;
     }
   }
 
-  throw new Error(`API call failed after ${retries} retries: ${lastError}`);
+  throw new Error(`Cloudflare API failed: ${lastError}`);
 }
 
-async function createPagesProject(accountId: string, projectName: string, apiToken: string) {
-    // Check if exists
-    const getRes = await cloudflareApiCall(
-        `${CLOUDFLARE_API_BASE}/accounts/${accountId}/pages/projects/${projectName}`,
-        { method: "GET" },
-        apiToken
-    );
+async function createPagesProject(
+  accountId: string,
+  projectName: string,
+  apiToken: string
+) {
+  const check = await cloudflareApiCall(
+    `${CLOUDFLARE_API_BASE}/accounts/${accountId}/pages/projects/${projectName}`,
+    { method: "GET" },
+    apiToken
+  );
 
-    if (getRes.ok) {
-        return; // Exists
-    }
+  if (check.ok) return;
 
-    // Create
-    const createRes = await cloudflareApiCall(
-        `${CLOUDFLARE_API_BASE}/accounts/${accountId}/pages/projects`,
-        {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                name: projectName,
-                production_branch: "main",
-            })
-        },
-        apiToken
-    );
+  const create = await cloudflareApiCall(
+    `${CLOUDFLARE_API_BASE}/accounts/${accountId}/pages/projects`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: projectName,
+        production_branch: "main",
+      }),
+    },
+    apiToken
+  );
 
-    if (!createRes.ok) {
-        const err = await createRes.text();
-        throw new Error(`Failed to create Pages project: ${err}`);
-    }
+  if (!create.ok) {
+    throw new Error(await create.text());
+  }
 }
 
-async function deployToPages(accountId: string, projectName: string, files: Record<string, string>, apiToken: string) {
-    const formData = new FormData();
-    const manifest: Record<string, string> = {};
-    const preparedFiles: { hash: string; buffer: Buffer; contentType: string }[] = [];
+async function deployToPages(
+  accountId: string,
+  projectName: string,
+  files: Record<string, string>,
+  apiToken: string
+) {
+  const formData = new FormData();
+  const manifest: Record<string, string> = {};
+  const uploads: { hash: string; file: File }[] = [];
 
-    // 1. Prepare all files and calculate hashes first
-    for (const [path, content] of Object.entries(files)) {
-        // Pages manifest expects paths WITHOUT leading slash or dot-slash
-        const filename = path.replace(/^(\.\/|\/)+/, "");
+  for (const [path, content] of Object.entries(files)) {
+    const filename = path.replace(/^(\.\/|\/)+/, "");
+    const buffer = Buffer.from(content);
+    const hash = createHash("sha256").update(buffer).digest("hex");
 
-        // Calculate SHA-256 hash
-        const buffer = Buffer.from(content);
-        const hash = createHash('sha256').update(buffer).digest('hex');
+    manifest[filename] = hash;
 
-        // Add to manifest map: path -> hash
-        manifest[filename] = hash;
+    let type = "application/octet-stream";
+    if (filename.endsWith(".html")) type = "text/html";
+    if (filename.endsWith(".css")) type = "text/css";
+    if (filename.endsWith(".js")) type = "application/javascript";
 
-        // Determine Content-Type
-        let contentType = "application/octet-stream";
-        if (filename.endsWith(".html")) contentType = "text/html";
-        else if (filename.endsWith(".js")) contentType = "application/javascript";
-        else if (filename.endsWith(".css")) contentType = "text/css";
-        else if (filename.endsWith(".json")) contentType = "application/json";
-        else if (filename.endsWith(".ts")) contentType = "application/javascript";
-        else if (filename.endsWith(".png")) contentType = "image/png";
-
-        preparedFiles.push({ hash, buffer, contentType });
-    }
-
-    // 2. Append Manifest FIRST
-    const manifestJson = JSON.stringify(manifest);
-    console.log(`[Cloudflare Debug] Generated Manifest:`, manifestJson);
-
-    // Use Buffer for manifest instead of Blob to ensure compatibility with form-data
-    formData.append("manifest", Buffer.from(manifestJson), {
-        contentType: "application/json",
-        filename: "manifest.json"
+    uploads.push({
+      hash,
+      file: new File([buffer], filename, { type }),
     });
+  }
 
-    // 3. Append all file buffers
-    for (const file of preparedFiles) {
-        formData.append(file.hash, file.buffer, {
-            contentType: file.contentType
-        });
-        console.log(`[Cloudflare Debug] Appending file: hash=${file.hash}, size=${file.buffer.length}, type=${file.contentType}`);
-    }
+  const manifestFile = new File(
+    [JSON.stringify(manifest)],
+    "manifest.json",
+    { type: "application/json" }
+  );
 
-    console.log(`[Cloudflare] Deploying ${Object.keys(files).length} files to ${projectName}`);
+  formData.append("manifest", manifestFile);
 
-    // 4. Send Request
-    const deployUrl = `${CLOUDFLARE_API_BASE}/accounts/${accountId}/pages/projects/${projectName}/deployments`;
-    console.log(`[Cloudflare Debug] Sending POST request to: ${deployUrl}`);
+  for (const u of uploads) {
+    formData.append(u.hash, u.file);
+  }
 
-    // Merge headers from formData (includes Content-Type with boundary)
-    const headers = {
+  const res = await fetch(
+    `${CLOUDFLARE_API_BASE}/accounts/${accountId}/pages/projects/${projectName}/deployments`,
+    {
+      method: "POST",
+      headers: {
         Authorization: `Bearer ${apiToken}`,
-        ...formData.getHeaders()
-    };
-
-    const deployRes = await fetch(deployUrl, {
-        method: "POST",
-        headers: headers,
-        body: formData as any // Cast to any to satisfy TS check for native fetch body
-    });
-
-    if (!deployRes.ok) {
-        const errorText = await deployRes.text();
-        let errorDetails = errorText;
-        try {
-            const errorJson = JSON.parse(errorText);
-            if (errorJson.errors && Array.isArray(errorJson.errors)) {
-                 errorDetails = errorJson.errors.map((e: any) => `[Code: ${e.code}] ${e.message}`).join(", ");
-            }
-        } catch (e) {
-            // Ignore parse error
-        }
-
-        console.error(`[Cloudflare Debug] Deployment Failed! Status: ${deployRes.status}`);
-        console.error(`[Cloudflare Debug] Error Details: ${errorDetails}`);
-        throw new Error(`Pages deployment failed: ${errorDetails}`);
+      },
+      body: formData,
     }
+  );
 
-    const responseData = await deployRes.json();
-    console.log(`[Cloudflare Debug] Deployment Success! Response:`, JSON.stringify(responseData, null, 2));
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(txt);
+  }
 
-    return responseData;
-}
-
-async function deleteWorkerScript(accountId: string, scriptName: string, apiToken: string) {
-    const res = await cloudflareApiCall(
-        `${CLOUDFLARE_API_BASE}/accounts/${accountId}/workers/scripts/${scriptName}`,
-        { method: "DELETE" },
-        apiToken
-    );
-    if (!res.ok && res.status !== 404) {
-        console.warn(`[Cloudflare] Failed to delete old worker ${scriptName}`);
-    }
+  return res.json();
 }
 
 /**
  * POST /api/cloudflare/deploy
- * Deploys the project to Cloudflare Pages (Direct Upload)
  */
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { projectId, cloudflareProjectName } = await request.json();
-
-    if (!projectId) {
-      return NextResponse.json({ error: "Missing projectId" }, { status: 400 });
-    }
-
+    const { projectId } = await request.json();
     if (!ObjectId.isValid(projectId)) {
-      return NextResponse.json({ error: "Invalid projectId format" }, { status: 400 });
+      return NextResponse.json({ error: "Invalid projectId" }, { status: 400 });
     }
 
     const client = await clientPromise;
     const db = client.db();
 
-    // 1. Get Credentials
-    let apiToken = process.env.CLOUDFLARE_API_TOKEN || process.env.CLOUDFLARE_API_KEY;
-    let accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-
-    if (!apiToken || !accountId) {
-        const tokenDoc = await db.collection("cloudflare_tokens").findOne({
-          projectId: new ObjectId(projectId),
-          userId: session.user.email,
-        });
-
-        if (tokenDoc) {
-            apiToken = tokenDoc.apiToken;
-            accountId = tokenDoc.accountId;
-        }
-    }
-
-    if (!apiToken || !accountId) {
-      return NextResponse.json(
-        { error: "No Cloudflare credentials found. Please configure env vars or authenticate." },
-        { status: 400 }
-      );
-    }
-
-    // 2. Get Project
     const project = await db.collection("projects").findOne({
       _id: new ObjectId(projectId),
       userId: session.user.id,
@@ -262,171 +159,46 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    // 3. Determine Cloudflare Pages Project Name
-    let cfProjectName = cloudflareProjectName || project.cloudflareProjectName;
-    if (!cfProjectName) {
-      const baseName = project.name || project.businessName || `project-${projectId}`;
-      cfProjectName = baseName
-        .toLowerCase()
-        .replace(/[^a-z0-9-]/g, "-")
-        .replace(/--+/g, "-")
-        .replace(/^-|-$/g, "")
-        .substring(0, 58);
+    const apiToken = process.env.CLOUDFLARE_API_TOKEN!;
+    const accountId = process.env.CLOUDFLARE_ACCOUNT_ID!;
+    if (!apiToken || !accountId) {
+      return NextResponse.json({ error: "Missing Cloudflare credentials" }, { status: 500 });
     }
-    console.log(`[Cloudflare Debug] Target Project Name: ${cfProjectName}`);
 
-    // 4. Collect Pages from DB
+    const projectName = (project.name || "site")
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, "-")
+      .slice(0, 58);
+
     const pages = await db
       .collection("pages")
       .find({ projectId: new ObjectId(projectId) })
       .toArray();
 
-    console.log(`[Cloudflare Debug] Found ${pages.length} pages in DB for project ${projectId}`);
-
     const files: Record<string, string> = {};
-    let defaultContent = "";
 
-    // 5. Build File Map
     if (pages.length === 0) {
-        // Fallback content
-        defaultContent = `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${project.name || "New Site"}</title>
-    <style>
-        body { font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f0f9ff; color: #0f172a; }
-        .card { background: white; padding: 2rem; border-radius: 1rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); text-align: center; max-width: 400px; border: 1px solid #e2e8f0; }
-        h1 { margin: 0 0 1rem; color: #0284c7; }
-        p { color: #64748b; line-height: 1.5; }
-        .badge { background: #e0f2fe; color: #0369a1; padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.875rem; font-weight: 500; margin-top: 1rem; display: inline-block; }
-    </style>
-</head>
-<body>
-    <div class="card">
-        <h1>${project.name || "New Site"}</h1>
-        <p>This site is successfully deployed to Cloudflare Pages.</p>
-        <div class="badge">Pages Mode</div>
-    </div>
-</body>
-</html>`;
-        files["index.html"] = defaultContent;
+      files["index.html"] = "<h1>Hello from Cloudflare Pages</h1>";
     } else {
-        let hasIndexHtml = false;
-        let indexTsPage = null;
-
-        pages.forEach(page => {
-            let content = page.content || "";
-            // Clean content (remove markdown code blocks if present)
-            if (content.trim().startsWith("\`\`\`")) {
-                 const match = content.match(/\`\`\`(?:typescript|js|jsx|tsx|html|css)?\s*([\s\S]*?)\`\`\`/);
-                 if (match) {
-                     content = match[1].trim();
-                 }
-            }
-
-            const name = page.name;
-
-            // Map filename
-            let filename = name;
-            if (!filename.includes(".")) {
-                filename = `${filename}.html`;
-            }
-
-            files[filename] = content;
-
-            // Handle index conventions
-            if (name === "index" || name === "index.html") {
-                hasIndexHtml = true;
-                defaultContent = content; // Keep reference
-            } else if (name === "index.ts") {
-                indexTsPage = page;
-            }
-        });
-
-        // If no index.html but index.ts exists, create a wrapper
-        if (!hasIndexHtml && indexTsPage) {
-            defaultContent = `<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${project.name || "App"}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script type="importmap">
-    {
-      "imports": {
-        "react": "https://esm.sh/react@18",
-        "react-dom/client": "https://esm.sh/react-dom@18/client",
-        "lucide-react": "https://esm.sh/lucide-react",
-        "framer-motion": "https://esm.sh/framer-motion",
-        "clsx": "https://esm.sh/clsx",
-        "tailwind-merge": "https://esm.sh/tailwind-merge"
+      for (const p of pages) {
+        files[`${p.name}.html`] = p.content;
       }
     }
-    </script>
-</head>
-<body>
-    <div id="root"></div>
-    <script type="text/babel" data-type="module" data-presets="react,typescript" src="/index.ts"></script>
-</body>
-</html>`;
-            files["index.html"] = defaultContent;
-        } else {
-             if (!files["index.html"] && defaultContent) {
-                  files["index.html"] = defaultContent;
-             }
-        }
+
+    if (!files["404.html"]) {
+      files["404.html"] = files["index.html"];
     }
 
-    // Add 404.html for SPA fallback
-    if (files["index.html"] && !files["404.html"]) {
-        files["404.html"] = files["index.html"];
-    }
-
-    // 6. Deploy to Cloudflare Pages
-    console.log(`[Cloudflare] Creating/Updating Pages Project: ${cfProjectName}`);
-    await createPagesProject(accountId, cfProjectName, apiToken);
-
-    console.log(`[Cloudflare] Uploading files...`);
-    await deployToPages(accountId, cfProjectName, files, apiToken);
-
-    // 7. Construct URL (Pages uses project-name.pages.dev)
-    const deploymentUrl = `https://${cfProjectName}.pages.dev`;
-    console.log(`[Cloudflare] Success! Pages URL: ${deploymentUrl}`);
-
-    // 8. Delete Old Worker (if applicable)
-    if (project.cloudflareDeploymentId && project.cloudflareDeploymentId.startsWith("worker-")) {
-        console.log(`[Cloudflare] Deleting old worker script: ${cfProjectName}`);
-        await deleteWorkerScript(accountId, cfProjectName, apiToken);
-    }
-
-    // 9. Update DB
-    await db.collection("projects").updateOne(
-      { _id: new ObjectId(projectId) },
-      {
-        $set: {
-          cloudflareProjectName: cfProjectName,
-          cloudflareUrl: deploymentUrl,
-          cloudflareDeployedAt: new Date(),
-          cloudflareDeploymentId: "pages-latest",
-        },
-      }
-    );
+    await createPagesProject(accountId, projectName, apiToken);
+    await deployToPages(accountId, projectName, files, apiToken);
 
     return NextResponse.json({
       success: true,
-      url: deploymentUrl,
-      projectName: cfProjectName,
+      url: `https://${projectName}.pages.dev`,
     });
 
-  } catch (error: any) {
-    console.error("[Cloudflare] Deployment Error:", error);
-    return NextResponse.json(
-      { error: error.message || "Deployment failed" },
-      { status: 500 }
-    );
+  } catch (e: any) {
+    console.error(e);
+    return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
