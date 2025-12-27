@@ -1,52 +1,41 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
+import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
-import { createHash } from "crypto";
-
-/* =======================
-   Cloudflare constants
-======================= */
+import crypto from "crypto";
+import FormData from "form-data";
 
 const CF_API = "https://api.cloudflare.com/client/v4";
 
-/* =======================
-   Helper: Cloudflare fetch
-======================= */
+/* ----------------------------- helpers ----------------------------- */
 
 async function cfFetch(
   url: string,
   options: RequestInit,
   token: string
-): Promise<Response> {
-  const res = await fetch(url, {
+) {
+  return fetch(url, {
     ...options,
     headers: {
       Authorization: `Bearer ${token}`,
-      ...(options.headers || {}),
-    },
+      ...(options.headers || {})
+    }
   });
-
-  return res;
 }
-
-/* =======================
-   Create Pages project
-======================= */
 
 async function ensurePagesProject(
   accountId: string,
-  name: string,
+  projectName: string,
   token: string
 ) {
-  const check = await cfFetch(
-    `${CF_API}/accounts/${accountId}/pages/projects/${name}`,
+  const get = await cfFetch(
+    `${CF_API}/accounts/${accountId}/pages/projects/${projectName}`,
     { method: "GET" },
     token
   );
 
-  if (check.ok) return;
+  if (get.ok) return;
 
   const create = await cfFetch(
     `${CF_API}/accounts/${accountId}/pages/projects`,
@@ -54,9 +43,9 @@ async function ensurePagesProject(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        name,
-        production_branch: "main",
-      }),
+        name: projectName,
+        production_branch: "main"
+      })
     },
     token
   );
@@ -66,68 +55,72 @@ async function ensurePagesProject(
   }
 }
 
-/* =======================
-   Deploy to Pages (FIXED)
-======================= */
+function sha256(buf: Buffer) {
+  return crypto.createHash("sha256").update(buf).digest("hex");
+}
+
+/* ----------------------------- deploy ----------------------------- */
 
 async function deployPages(
   accountId: string,
-  project: string,
+  projectName: string,
   files: Record<string, string>,
   token: string
 ) {
   const form = new FormData();
   const manifest: Record<string, string> = {};
-  const uploads: { hash: string; file: File }[] = [];
+
+  const blobs: { hash: string; buf: Buffer; type: string }[] = [];
 
   for (const [path, content] of Object.entries(files)) {
     const cleanPath = path.replace(/^\/+/, "");
-    const buffer = Buffer.from(content);
-    const hash = createHash("sha256").update(buffer).digest("hex");
+    const buf = Buffer.from(content);
+    const hash = sha256(buf);
 
     manifest[cleanPath] = hash;
 
-    uploads.push({
-      hash,
-      file: new File([buffer], cleanPath, {
-        type: cleanPath.endsWith(".html")
-          ? "text/html"
-          : "application/octet-stream",
-      }),
-    });
+    let type = "application/octet-stream";
+    if (cleanPath.endsWith(".html")) type = "text/html";
+    if (cleanPath.endsWith(".css")) type = "text/css";
+    if (cleanPath.endsWith(".js") || cleanPath.endsWith(".ts")) type = "application/javascript";
+    if (cleanPath.endsWith(".json")) type = "application/json";
+
+    blobs.push({ hash, buf, type });
   }
 
-  form.append(
-    "manifest",
-    new File([JSON.stringify(manifest)], "manifest.json", {
-      type: "application/json",
-    })
-  );
+  /* 🔴 CRITICAL FIX:
+     manifest MUST be appended as JSON STRING
+     NOT File / Blob
+  */
+  form.append("manifest", JSON.stringify(manifest));
 
-  for (const u of uploads) {
-    form.append(u.hash, u.file);
+  for (const f of blobs) {
+    form.append(f.hash, f.buf, { contentType: f.type });
   }
 
-  const res = await cfFetch(
-    `${CF_API}/accounts/${accountId}/pages/projects/${project}/deployments`,
-    { method: "POST", body: form },
-    token
+  const res = await fetch(
+    `${CF_API}/accounts/${accountId}/pages/projects/${projectName}/deployments`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`
+      },
+      body: form as any
+    }
   );
 
   if (!res.ok) {
-    throw new Error(await res.text());
+    const text = await res.text();
+    throw new Error(text);
   }
 
   return res.json();
 }
 
-/* =======================
-   API ROUTE
-======================= */
+/* ----------------------------- route ----------------------------- */
 
 export async function POST(req: Request) {
   try {
-    /* ---------- AUTH ---------- */
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -138,106 +131,74 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid projectId" }, { status: 400 });
     }
 
-    /* ---------- DB ---------- */
     const client = await clientPromise;
     const db = client.db();
 
+    /* credentials */
+    let token = process.env.CLOUDFLARE_API_TOKEN;
+    let accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+
+    if (!token || !accountId) {
+      const cred = await db.collection("cloudflare_tokens").findOne({
+        projectId: new ObjectId(projectId),
+        userId: session.user.email
+      });
+      if (cred) {
+        token = cred.apiToken;
+        accountId = cred.accountId;
+      }
+    }
+
+    if (!token || !accountId) {
+      return NextResponse.json({ error: "Missing Cloudflare credentials" }, { status: 400 });
+    }
+
     const project = await db.collection("projects").findOne({
       _id: new ObjectId(projectId),
-      userId: session.user.id,
+      userId: session.user.id
     });
 
     if (!project) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    /* ---------- CREDENTIALS ---------- */
-    let apiToken =
-      process.env.CLOUDFLARE_API_TOKEN ||
-      process.env.CLOUDFLARE_API_KEY;
+    const projectName =
+      project.cloudflareProjectName ||
+      project.name.toLowerCase().replace(/[^a-z0-9-]/g, "-").slice(0, 58);
 
-    let accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-
-    if (!apiToken || !accountId) {
-      const cred = await db.collection("cloudflare_tokens").findOne({
-        projectId: new ObjectId(projectId),
-        userId: session.user.email,
-      });
-
-      if (cred) {
-        apiToken = cred.apiToken;
-        accountId = cred.accountId;
-      }
-    }
-
-    if (!apiToken || !accountId) {
-      return NextResponse.json(
-        { error: "Missing Cloudflare credentials" },
-        { status: 400 }
-      );
-    }
-
-    /* ---------- PROJECT NAME ---------- */
-    const cfName = (project.cloudflareProjectName ||
-      project.name ||
-      "site")
-      .toLowerCase()
-      .replace(/[^a-z0-9-]/g, "-")
-      .replace(/-+/g, "-")
-      .slice(0, 58);
-
-    /* ---------- PAGES ---------- */
-    const pages = await db
-      .collection("pages")
-      .find({ projectId: new ObjectId(projectId) })
-      .toArray();
+    const pages = await db.collection("pages").find({
+      projectId: new ObjectId(projectId)
+    }).toArray();
 
     const files: Record<string, string> = {};
 
     if (pages.length === 0) {
-      files["index.html"] = `
-<!DOCTYPE html>
-<html>
-<head><title>${project.name}</title></head>
-<body><h1>${project.name}</h1></body>
-</html>`;
+      files["index.html"] = `<h1>Deployed</h1>`;
     } else {
       for (const p of pages) {
-        const name = p.name.endsWith(".html")
-          ? p.name
-          : `${p.name}.html`;
+        let name = p.name.includes(".") ? p.name : `${p.name}.html`;
         files[name] = p.content;
       }
     }
 
-    files["404.html"] ||= files["index.html"];
+    if (!files["404.html"] && files["index.html"]) {
+      files["404.html"] = files["index.html"];
+    }
 
-    /* ---------- DEPLOY ---------- */
-    await ensurePagesProject(accountId, cfName, apiToken);
-    await deployPages(accountId, cfName, files, apiToken);
+    await ensurePagesProject(accountId, projectName, token);
+    await deployPages(accountId, projectName, files, token);
 
-    const url = `https://${cfName}.pages.dev`;
+    const url = `https://${projectName}.pages.dev`;
 
     await db.collection("projects").updateOne(
-      { _id: new ObjectId(projectId) },
-      {
-        $set: {
-          cloudflareProjectName: cfName,
-          cloudflareUrl: url,
-          cloudflareDeployedAt: new Date(),
-        },
-      }
+      { _id: project._id },
+      { $set: { cloudflareUrl: url, cloudflareDeployedAt: new Date() } }
     );
 
-    return NextResponse.json({
-      success: true,
-      url,
-    });
-  } catch (err: any) {
-    console.error("[CF DEPLOY ERROR]", err);
-    return NextResponse.json(
-      { error: err.message || "Deploy failed" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: true, url });
+
+  } catch (e: any) {
+    console.error(e);
+    return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
