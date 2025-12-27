@@ -5,67 +5,60 @@ import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 import { createHash } from "crypto";
 
-/**
- * Cloudflare API Configuration
- */
-const CLOUDFLARE_API_BASE = "https://api.cloudflare.com/client/v4";
+/* =======================
+   Cloudflare constants
+======================= */
 
-/**
- * Helper to make Cloudflare API calls with retry logic
- */
-async function cloudflareApiCall(
+const CF_API = "https://api.cloudflare.com/client/v4";
+
+/* =======================
+   Helper: Cloudflare fetch
+======================= */
+
+async function cfFetch(
   url: string,
   options: RequestInit,
-  apiToken: string,
-  retries = 3
+  token: string
 ): Promise<Response> {
-  const headers: Record<string, string> = {
-    Authorization: `Bearer ${apiToken}`,
-    ...(options.headers || {}),
-  };
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(options.headers || {}),
+    },
+  });
 
-  let lastError: any;
-
-  for (let i = 0; i < retries; i++) {
-    try {
-      const res = await fetch(url, { ...options, headers });
-
-      if (res.ok || res.status < 500) return res;
-
-      lastError = await res.text();
-      await new Promise(r => setTimeout(r, 1000 * (i + 1)));
-    } catch (e) {
-      lastError = e;
-    }
-  }
-
-  throw new Error(`Cloudflare API failed: ${lastError}`);
+  return res;
 }
 
-async function createPagesProject(
+/* =======================
+   Create Pages project
+======================= */
+
+async function ensurePagesProject(
   accountId: string,
-  projectName: string,
-  apiToken: string
+  name: string,
+  token: string
 ) {
-  const check = await cloudflareApiCall(
-    `${CLOUDFLARE_API_BASE}/accounts/${accountId}/pages/projects/${projectName}`,
+  const check = await cfFetch(
+    `${CF_API}/accounts/${accountId}/pages/projects/${name}`,
     { method: "GET" },
-    apiToken
+    token
   );
 
   if (check.ok) return;
 
-  const create = await cloudflareApiCall(
-    `${CLOUDFLARE_API_BASE}/accounts/${accountId}/pages/projects`,
+  const create = await cfFetch(
+    `${CF_API}/accounts/${accountId}/pages/projects`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        name: projectName,
+        name,
         production_branch: "main",
       }),
     },
-    apiToken
+    token
   );
 
   if (!create.ok) {
@@ -73,80 +66,79 @@ async function createPagesProject(
   }
 }
 
-async function deployToPages(
+/* =======================
+   Deploy to Pages (FIXED)
+======================= */
+
+async function deployPages(
   accountId: string,
-  projectName: string,
+  project: string,
   files: Record<string, string>,
-  apiToken: string
+  token: string
 ) {
-  const formData = new FormData();
+  const form = new FormData();
   const manifest: Record<string, string> = {};
   const uploads: { hash: string; file: File }[] = [];
 
   for (const [path, content] of Object.entries(files)) {
-    const filename = path.replace(/^(\.\/|\/)+/, "");
+    const cleanPath = path.replace(/^\/+/, "");
     const buffer = Buffer.from(content);
     const hash = createHash("sha256").update(buffer).digest("hex");
 
-    manifest[filename] = hash;
-
-    let type = "application/octet-stream";
-    if (filename.endsWith(".html")) type = "text/html";
-    if (filename.endsWith(".css")) type = "text/css";
-    if (filename.endsWith(".js")) type = "application/javascript";
+    manifest[cleanPath] = hash;
 
     uploads.push({
       hash,
-      file: new File([buffer], filename, { type }),
+      file: new File([buffer], cleanPath, {
+        type: cleanPath.endsWith(".html")
+          ? "text/html"
+          : "application/octet-stream",
+      }),
     });
   }
 
-  const manifestFile = new File(
-    [JSON.stringify(manifest)],
-    "manifest.json",
-    { type: "application/json" }
+  form.append(
+    "manifest",
+    new File([JSON.stringify(manifest)], "manifest.json", {
+      type: "application/json",
+    })
   );
 
-  formData.append("manifest", manifestFile);
-
   for (const u of uploads) {
-    formData.append(u.hash, u.file);
+    form.append(u.hash, u.file);
   }
 
-  const res = await fetch(
-    `${CLOUDFLARE_API_BASE}/accounts/${accountId}/pages/projects/${projectName}/deployments`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiToken}`,
-      },
-      body: formData,
-    }
+  const res = await cfFetch(
+    `${CF_API}/accounts/${accountId}/pages/projects/${project}/deployments`,
+    { method: "POST", body: form },
+    token
   );
 
   if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(txt);
+    throw new Error(await res.text());
   }
 
   return res.json();
 }
 
-/**
- * POST /api/cloudflare/deploy
- */
-export async function POST(request: Request) {
+/* =======================
+   API ROUTE
+======================= */
+
+export async function POST(req: Request) {
   try {
+    /* ---------- AUTH ---------- */
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { projectId } = await request.json();
+    const { projectId } = await req.json();
     if (!ObjectId.isValid(projectId)) {
       return NextResponse.json({ error: "Invalid projectId" }, { status: 400 });
     }
 
+    /* ---------- DB ---------- */
     const client = await clientPromise;
     const db = client.db();
 
@@ -159,17 +151,42 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    const apiToken = process.env.CLOUDFLARE_API_TOKEN!;
-    const accountId = process.env.CLOUDFLARE_ACCOUNT_ID!;
+    /* ---------- CREDENTIALS ---------- */
+    let apiToken =
+      process.env.CLOUDFLARE_API_TOKEN ||
+      process.env.CLOUDFLARE_API_KEY;
+
+    let accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+
     if (!apiToken || !accountId) {
-      return NextResponse.json({ error: "Missing Cloudflare credentials" }, { status: 500 });
+      const cred = await db.collection("cloudflare_tokens").findOne({
+        projectId: new ObjectId(projectId),
+        userId: session.user.email,
+      });
+
+      if (cred) {
+        apiToken = cred.apiToken;
+        accountId = cred.accountId;
+      }
     }
 
-    const projectName = (project.name || "site")
+    if (!apiToken || !accountId) {
+      return NextResponse.json(
+        { error: "Missing Cloudflare credentials" },
+        { status: 400 }
+      );
+    }
+
+    /* ---------- PROJECT NAME ---------- */
+    const cfName = (project.cloudflareProjectName ||
+      project.name ||
+      "site")
       .toLowerCase()
       .replace(/[^a-z0-9-]/g, "-")
+      .replace(/-+/g, "-")
       .slice(0, 58);
 
+    /* ---------- PAGES ---------- */
     const pages = await db
       .collection("pages")
       .find({ projectId: new ObjectId(projectId) })
@@ -178,27 +195,49 @@ export async function POST(request: Request) {
     const files: Record<string, string> = {};
 
     if (pages.length === 0) {
-      files["index.html"] = "<h1>Hello from Cloudflare Pages</h1>";
+      files["index.html"] = `
+<!DOCTYPE html>
+<html>
+<head><title>${project.name}</title></head>
+<body><h1>${project.name}</h1></body>
+</html>`;
     } else {
       for (const p of pages) {
-        files[`${p.name}.html`] = p.content;
+        const name = p.name.endsWith(".html")
+          ? p.name
+          : `${p.name}.html`;
+        files[name] = p.content;
       }
     }
 
-    if (!files["404.html"]) {
-      files["404.html"] = files["index.html"];
-    }
+    files["404.html"] ||= files["index.html"];
 
-    await createPagesProject(accountId, projectName, apiToken);
-    await deployToPages(accountId, projectName, files, apiToken);
+    /* ---------- DEPLOY ---------- */
+    await ensurePagesProject(accountId, cfName, apiToken);
+    await deployPages(accountId, cfName, files, apiToken);
+
+    const url = `https://${cfName}.pages.dev`;
+
+    await db.collection("projects").updateOne(
+      { _id: new ObjectId(projectId) },
+      {
+        $set: {
+          cloudflareProjectName: cfName,
+          cloudflareUrl: url,
+          cloudflareDeployedAt: new Date(),
+        },
+      }
+    );
 
     return NextResponse.json({
       success: true,
-      url: `https://${projectName}.pages.dev`,
+      url,
     });
-
-  } catch (e: any) {
-    console.error(e);
-    return NextResponse.json({ error: e.message }, { status: 500 });
+  } catch (err: any) {
+    console.error("[CF DEPLOY ERROR]", err);
+    return NextResponse.json(
+      { error: err.message || "Deploy failed" },
+      { status: 500 }
+    );
   }
 }
