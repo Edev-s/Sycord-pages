@@ -108,7 +108,7 @@ async function createPagesProject(accountId: string, projectName: string, apiTok
 async function deployToPages(accountId: string, projectName: string, files: Record<string, string>, apiToken: string) {
     const formData = new FormData();
     const manifest: Record<string, string> = {};
-    const fileBlobs: { hash: string; blob: Blob; }[] = [];
+    const preparedFiles: { hash: string; buffer: Buffer; contentType: string }[] = [];
 
     // 1. Prepare all files and calculate hashes first
     for (const [path, content] of Object.entries(files)) {
@@ -131,26 +131,25 @@ async function deployToPages(accountId: string, projectName: string, files: Reco
         else if (filename.endsWith(".ts")) contentType = "application/javascript";
         else if (filename.endsWith(".png")) contentType = "image/png";
 
-        const blob = new Blob([buffer], { type: contentType });
-        
-        // Store blob for later appending
-        fileBlobs.push({
-            hash, 
-            blob
-        });
+        preparedFiles.push({ hash, buffer, contentType });
     }
 
     // 2. Append Manifest FIRST
     const manifestJson = JSON.stringify(manifest);
     console.log(`[Cloudflare Debug] Generated Manifest:`, manifestJson);
 
-    const manifestBlob = new Blob([manifestJson], { type: "application/json" });
-    formData.append("manifest", manifestBlob, "manifest.json");
+    // Use Buffer for manifest instead of Blob to ensure compatibility with form-data
+    formData.append("manifest", Buffer.from(manifestJson), {
+        contentType: "application/json",
+        filename: "manifest.json"
+    });
 
-    // 3. Append all file blobs using their hash as the key
-    for (const file of fileBlobs) {
-        formData.append(file.hash, file.blob);
-        console.log(`[Cloudflare Debug] Appending file: hash=${file.hash}, size=${file.blob.size}, type=${file.blob.type}`);
+    // 3. Append all file buffers
+    for (const file of preparedFiles) {
+        formData.append(file.hash, file.buffer, {
+            contentType: file.contentType
+        });
+        console.log(`[Cloudflare Debug] Appending file: hash=${file.hash}, size=${file.buffer.length}, type=${file.contentType}`);
     }
 
     console.log(`[Cloudflare] Deploying ${Object.keys(files).length} files to ${projectName}`);
@@ -159,12 +158,16 @@ async function deployToPages(accountId: string, projectName: string, files: Reco
     const deployUrl = `${CLOUDFLARE_API_BASE}/accounts/${accountId}/pages/projects/${projectName}/deployments`;
     console.log(`[Cloudflare Debug] Sending POST request to: ${deployUrl}`);
 
+    // Merge headers from formData (includes Content-Type with boundary)
+    const headers = {
+        Authorization: `Bearer ${apiToken}`,
+        ...formData.getHeaders()
+    };
+
     const deployRes = await fetch(deployUrl, {
         method: "POST",
-        headers: {
-            Authorization: `Bearer ${apiToken}`
-        },
-        body: formData
+        headers: headers,
+        body: formData as any // Cast to any to satisfy TS check for native fetch body
     });
 
     if (!deployRes.ok) {
