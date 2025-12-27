@@ -193,24 +193,63 @@ async function deployToCloudflare(files) {
 
   console.log(`📊 DEBUG: Total files in manifest: ${Object.keys(fileHashes).length}`);
 
-  // Create deployment with manifest
+  // Create deployment with manifest using multipart/form-data
+  // Cloudflare Pages Direct Upload API requires the manifest to be sent as a form field
   console.log('📝 Creating deployment with manifest...');
   console.log(`📊 DEBUG: Branch: ${config.branch}, Stage: production`);
 
-  const deployResponse = await httpsRequest(
-    `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/pages/projects/${config.projectName}/deployments`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: {
-        branch: config.branch,
-        stage: 'production', // Required: "production" or "preview"
-        manifest: fileHashes, // Map of path -> sha256 hash
-      },
-    }
-  );
+  const deployBoundary = '----CloudflareDeployBoundary' + Date.now();
+  const manifestJson = JSON.stringify(fileHashes);
+  
+  let deployFormData = '';
+  deployFormData += `--${deployBoundary}\r\n`;
+  deployFormData += `Content-Disposition: form-data; name="manifest"\r\n`;
+  deployFormData += `Content-Type: application/json\r\n\r\n`;
+  deployFormData += `${manifestJson}\r\n`;
+  deployFormData += `--${deployBoundary}--\r\n`;
 
-  console.log(`📊 DEBUG: Deploy response status: ${deployResponse.status}`);
+  const deployUrl = new URL(`https://api.cloudflare.com/client/v4/accounts/${config.accountId}/pages/projects/${config.projectName}/deployments`);
+  const deployOptions = {
+    hostname: deployUrl.hostname,
+    path: deployUrl.pathname,
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${config.apiToken}`,
+      'Content-Type': `multipart/form-data; boundary=${deployBoundary}`,
+      'Content-Length': Buffer.byteLength(deployFormData),
+    },
+  };
+
+  console.log(`📊 DEBUG: Making POST request to Cloudflare API`);
+
+  const deployResponse = await new Promise((resolve, reject) => {
+    const req = https.request(deployOptions, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        console.log(`📊 DEBUG: Deploy response status: ${res.statusCode}`);
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          try {
+            const parsed = JSON.parse(data);
+            resolve({ status: res.statusCode, data: parsed });
+          } catch (e) {
+            resolve({ status: res.statusCode, data: data });
+          }
+        } else {
+          console.error(`❌ HTTP ${res.statusCode} Error - Response: ${data}`);
+          reject(new Error(`HTTP ${res.statusCode}: ${res.statusText || 'Request failed'}`));
+        }
+      });
+    });
+
+    req.on('error', (error) => {
+      console.error('❌ Request error:', error.message);
+      reject(error);
+    });
+
+    req.write(deployFormData);
+    req.end();
+  });
 
   const uploadUrl = deployResponse.data.result?.upload_url;
   const deploymentId = deployResponse.data.result?.id;
@@ -226,18 +265,18 @@ async function deployToCloudflare(files) {
 
   // Upload files using multipart/form-data
   // Each file is uploaded with its SHA-256 hash as the field name
-  const boundary = '----CloudflarePagesFormBoundary' + Date.now();
-  let formDataBody = '';
+  const uploadBoundary = '----CloudflareUploadBoundary' + Date.now();
+  let uploadFormData = '';
 
   for (const [hash, content] of Object.entries(fileContents)) {
-    formDataBody += `--${boundary}\r\n`;
-    formDataBody += `Content-Disposition: form-data; name="${hash}"\r\n`;
-    formDataBody += `Content-Type: application/octet-stream\r\n\r\n`;
-    formDataBody += `${content}\r\n`;
+    uploadFormData += `--${uploadBoundary}\r\n`;
+    uploadFormData += `Content-Disposition: form-data; name="${hash}"\r\n`;
+    uploadFormData += `Content-Type: application/octet-stream\r\n\r\n`;
+    uploadFormData += `${content}\r\n`;
   }
-  formDataBody += `--${boundary}--\r\n`;
+  uploadFormData += `--${uploadBoundary}--\r\n`;
 
-  console.log(`📊 DEBUG: Form data size: ${formDataBody.length} bytes`);
+  console.log(`📊 DEBUG: Form data size: ${uploadFormData.length} bytes`);
 
   // Upload to the signed URL (no Authorization header needed)
   const uploadUrlObj = new URL(uploadUrl);
@@ -246,8 +285,8 @@ async function deployToCloudflare(files) {
     path: uploadUrlObj.pathname + uploadUrlObj.search,
     method: 'POST',
     headers: {
-      'Content-Type': `multipart/form-data; boundary=${boundary}`,
-      'Content-Length': Buffer.byteLength(formDataBody),
+      'Content-Type': `multipart/form-data; boundary=${uploadBoundary}`,
+      'Content-Length': Buffer.byteLength(uploadFormData),
     },
   };
 
@@ -271,7 +310,7 @@ async function deployToCloudflare(files) {
     });
 
     req.on('error', reject);
-    req.write(formDataBody);
+    req.write(uploadFormData);
     req.end();
   });
 
