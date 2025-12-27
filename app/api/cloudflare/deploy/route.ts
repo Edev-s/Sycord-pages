@@ -22,12 +22,12 @@ async function runWranglerDeploy(deployDir: string, projectName: string, branch:
     return new Promise((resolve, reject) => {
 
         let wranglerScript = "";
-        const nodeRequire = createRequire(process.cwd() + "/");
+        const nodeRequire = createRequire(path.join(process.cwd(), "package.json"));
         try {
             // Robustly find the wrangler entry point using Node's resolution
             // This handles pnpm's nested structure correctly
             const resolved = nodeRequire.resolve("wrangler/bin/wrangler.js");
-            if (resolved && resolved.includes(path.sep)) {
+            if (resolved && path.isAbsolute(resolved)) {
                 wranglerScript = resolved;
             } else {
                 throw new Error("Resolved wrangler path was not a filesystem path");
