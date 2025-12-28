@@ -33,6 +33,10 @@ import base64
 from pathlib import Path
 from typing import List, Dict, Tuple
 
+DIRECTORY_INDEX_SUFFIX = "/index.html"
+DIRECTORY_INDEX_SUFFIX_LOWER = DIRECTORY_INDEX_SUFFIX.lower()
+DIRECTORY_INDEX_SUFFIX_LENGTH = len(DIRECTORY_INDEX_SUFFIX_LOWER)
+
 try:
     import requests
 except ImportError:
@@ -141,6 +145,12 @@ class CloudflareDeployer:
             hash_val = hashlib.sha256(content.encode("utf-8")).hexdigest()
             file_hashes[file["path"]] = hash_val
             file_contents[hash_val] = content
+            path_lower = file["path"].lower()
+            if path_lower.endswith(DIRECTORY_INDEX_SUFFIX_LOWER):
+                base_path = file["path"][:-DIRECTORY_INDEX_SUFFIX_LENGTH] or "/"
+                file_hashes[base_path] = hash_val
+                if base_path != "/" and not base_path.endswith("/"):
+                    file_hashes[f"{base_path}/"] = hash_val
             
             size_kb = len(content) / 1024
             print(f"   - {file['path']} ({size_kb:.2f} KB, SHA-256: {hash_val[:12]}...)")
