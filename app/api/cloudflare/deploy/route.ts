@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 import crypto from "crypto";
+import FormData from "form-data";
 
 const CLOUDFLARE_API_BASE = "https://api.cloudflare.com/client/v4";
 
@@ -94,9 +95,10 @@ async function createProject(
   console.log(`[Cloudflare] Project "${projectName}" created successfully`);
 }
 
-// Calculate SHA-256 hash of content
-function calculateHash(content: string): string {
-  return crypto.createHash("sha256").update(content).digest("hex");
+// Calculate SHA-256 hash of content (accepts string or Buffer for flexibility)
+function calculateHash(content: string | Buffer): string {
+  const buffer = typeof content === "string" ? Buffer.from(content, "utf-8") : content;
+  return crypto.createHash("sha256").update(buffer).digest("hex");
 }
 
 // Deploy files to Cloudflare Pages using Direct Upload API
@@ -112,13 +114,15 @@ async function deployToCloudflarePages(
 
   // Calculate hashes for all files
   const fileHashes: Record<string, string> = {};
-  const fileContents: Record<string, string> = {};
+  const fileContents: Record<string, Buffer> = {};
 
   for (const file of files) {
-    const hash = calculateHash(file.content);
+    // Use Buffer for consistent binary handling
+    const contentBuffer = Buffer.from(file.content, "utf-8");
+    const hash = calculateHash(contentBuffer);
     fileHashes[file.path] = hash;
-    fileContents[hash] = file.content;
-    console.log(`[Cloudflare] File: ${file.path} (${file.content.length} bytes, hash: ${hash.substring(0, 12)}...)`);
+    fileContents[hash] = contentBuffer;
+    console.log(`[Cloudflare] File: ${file.path} (${contentBuffer.length} bytes, hash: ${hash.substring(0, 12)}...)`);
   }
 
   // Create deployment with manifest AND files using multipart/form-data
@@ -127,32 +131,42 @@ async function deployToCloudflarePages(
   
   const manifestJson = JSON.stringify(fileHashes);
   
-  // Use native FormData API for proper multipart handling
+  // Use form-data package for proper multipart handling in Node.js
   const formData = new FormData();
   
-  // Add manifest as a Blob with proper content type
-  formData.append("manifest", new Blob([manifestJson], { type: "application/json" }));
+  // Add manifest with proper content type
+  formData.append("manifest", manifestJson, {
+    contentType: "application/json",
+  });
   
   // Add each file with its hash as the field name
-  // Using TextEncoder for proper UTF-8 encoding that works with Blob
-  const encoder = new TextEncoder();
-  for (const [hash, content] of Object.entries(fileContents)) {
-    // Encode the string content as UTF-8 bytes for proper binary handling
-    const contentBytes = encoder.encode(content);
-    formData.append(hash, new Blob([contentBytes], { type: "application/octet-stream" }));
+  for (const [hash, contentBuffer] of Object.entries(fileContents)) {
+    formData.append(hash, contentBuffer, {
+      contentType: "application/octet-stream",
+    });
   }
 
   const deployUrl = `${CLOUDFLARE_API_BASE}/accounts/${accountId}/pages/projects/${projectName}/deployments`;
   console.log(`[Cloudflare] API request: POST /accounts/${accountId}/pages/projects/${projectName}/deployments`);
   console.log(`[Cloudflare] Uploading ${Object.keys(fileContents).length} unique files...`);
   
+  // Get the form data as a buffer and headers
+  const formDataBuffer = formData.getBuffer();
+  const formDataHeaders = formData.getHeaders();
+  
   const deployResponse = await fetch(deployUrl, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiToken}`,
-      // Do NOT set Content-Type header - fetch will set it automatically with correct boundary
+      ...formDataHeaders,
+      "Content-Length": String(formDataBuffer.length),
     },
-    body: formData,
+    // Buffer is a valid body type in Node.js fetch but TypeScript's BodyInit type doesn't include it
+    body: formDataBuffer as unknown as BodyInit,
+    // The duplex option is required for Node.js fetch with streaming/buffer bodies
+    // but isn't in TypeScript's RequestInit type definition yet
+    // @ts-expect-error - See: https://github.com/nodejs/node/issues/46221
+    duplex: "half",
   });
 
   const deployData = await deployResponse.json();
