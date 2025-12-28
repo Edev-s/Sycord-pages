@@ -272,7 +272,7 @@ export async function POST(request: Request) {
 
     const files: DeployFile[] = [];
     let hasIndexHtml = false;
-    let indexTsContent: string | null = null;
+    let indexTsLikeContent: string | null = null;
 
     if (dbPages.length === 0) {
       // Fallback content
@@ -325,15 +325,15 @@ export async function POST(request: Request) {
         // Handle index conventions
         if (name === "index" || name === "index.html") {
           hasIndexHtml = true;
-        } else if (name === "index.ts") {
-          indexTsContent = content;
+        } else if (name === "index.ts" || name === "index.tsx") {
+          indexTsLikeContent = content;
         }
       }
 
-      // If no index.html but index.ts exists, create a wrapper with inlined content
-      if (!hasIndexHtml && indexTsContent) {
+      // If no index.html but index.ts/tsx exists, create a wrapper with inlined content
+      if (!hasIndexHtml && indexTsLikeContent) {
         // Escape closing script tags in the content to prevent breaking HTML structure
-        const safeContent = indexTsContent.replace(/<\/script>/gi, '<\\/script>');
+        const safeContent = indexTsLikeContent.replace(/<\/script>/gi, '<\\/script>');
         
         const wrapperContent = `<!DOCTYPE html>
 <html>
