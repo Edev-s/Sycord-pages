@@ -125,37 +125,32 @@ async function deployToCloudflarePages(
   // Cloudflare Pages Direct Upload API accepts both in a single request
   console.log(`[Cloudflare] Creating deployment with manifest and uploading files...`);
   
-  const boundary = `----CloudflareDeployBoundary${Date.now()}`;
   const manifestJson = JSON.stringify(fileHashes);
   
-  // Build multipart form data with manifest and all files
-  let formData = "";
+  // Use native FormData API for proper multipart handling
+  const formData = new FormData();
   
-  // Add manifest field
-  formData += `--${boundary}\r\n`;
-  formData += `Content-Disposition: form-data; name="manifest"\r\n`;
-  formData += `Content-Type: application/json\r\n\r\n`;
-  formData += `${manifestJson}\r\n`;
+  // Add manifest as a Blob with proper content type
+  formData.append("manifest", new Blob([manifestJson], { type: "application/json" }));
   
   // Add each file with its hash as the field name
+  // Using TextEncoder for proper UTF-8 encoding that works with Blob
+  const encoder = new TextEncoder();
   for (const [hash, content] of Object.entries(fileContents)) {
-    formData += `--${boundary}\r\n`;
-    formData += `Content-Disposition: form-data; name="${hash}"\r\n`;
-    formData += `Content-Type: application/octet-stream\r\n\r\n`;
-    formData += `${content}\r\n`;
+    // Encode the string content as UTF-8 bytes for proper binary handling
+    const contentBytes = encoder.encode(content);
+    formData.append(hash, new Blob([contentBytes], { type: "application/octet-stream" }));
   }
-  
-  formData += `--${boundary}--\r\n`;
 
   const deployUrl = `${CLOUDFLARE_API_BASE}/accounts/${accountId}/pages/projects/${projectName}/deployments`;
   console.log(`[Cloudflare] API request: POST /accounts/${accountId}/pages/projects/${projectName}/deployments`);
-  console.log(`[Cloudflare] Uploading ${Object.keys(fileContents).length} unique files (${formData.length} bytes total)...`);
+  console.log(`[Cloudflare] Uploading ${Object.keys(fileContents).length} unique files...`);
   
   const deployResponse = await fetch(deployUrl, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiToken}`,
-      "Content-Type": `multipart/form-data; boundary=${boundary}`,
+      // Do NOT set Content-Type header - fetch will set it automatically with correct boundary
     },
     body: formData,
   });

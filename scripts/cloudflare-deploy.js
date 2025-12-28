@@ -175,21 +175,23 @@ async function deployToCloudflare(files) {
   console.log(`📊 DEBUG: Deploying ${files.length} files`);
   console.log(`📊 DEBUG: Total size: ${files.reduce((sum, f) => sum + f.content.length, 0)} bytes`);
 
-  // Calculate file hashes (SHA-256) and prepare file contents
+  // Calculate file hashes (SHA-256) and prepare file contents as Buffers
   const fileHashes = {};
   const fileContents = {};
 
   for (const file of files) {
-    const hash = crypto.createHash('sha256').update(file.content).digest('hex');
+    // Use Buffer for consistent hashing and binary safety
+    const contentBuffer = Buffer.from(file.content, 'utf-8');
+    const hash = crypto.createHash('sha256').update(contentBuffer).digest('hex');
 
     // Check for hash collision (extremely unlikely but worth validating)
-    if (fileContents[hash] && fileContents[hash] !== file.content) {
+    if (fileContents[hash] && !fileContents[hash].equals(contentBuffer)) {
       throw new Error(`Hash collision detected for ${file.path}. This is extremely rare - please report this issue.`);
     }
 
     fileHashes[file.path] = hash;
-    fileContents[hash] = file.content;
-    console.log(`   📄 ${file.path} (${(file.content.length / 1024).toFixed(2)} KB, SHA-256: ${hash.substring(0, 12)}...)`);
+    fileContents[hash] = contentBuffer;
+    console.log(`   📄 ${file.path} (${(contentBuffer.length / 1024).toFixed(2)} KB, SHA-256: ${hash.substring(0, 12)}...)`);
   }
 
   console.log(`📊 DEBUG: Total files in manifest: ${Object.keys(fileHashes).length}`);
@@ -202,26 +204,27 @@ async function deployToCloudflare(files) {
   const boundary = '----CloudflareDeployBoundary' + Date.now();
   const manifestJson = JSON.stringify(fileHashes);
   
-  // Build multipart form data with manifest and all files
-  let formData = '';
+  // Build multipart form data using Buffer for binary safety
+  const parts = [];
   
   // Add manifest field
-  formData += `--${boundary}\r\n`;
-  formData += `Content-Disposition: form-data; name="manifest"\r\n`;
-  formData += `Content-Type: application/json\r\n\r\n`;
-  formData += `${manifestJson}\r\n`;
+  parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="manifest"\r\nContent-Type: application/json\r\n\r\n`, 'utf-8'));
+  parts.push(Buffer.from(manifestJson, 'utf-8'));
+  parts.push(Buffer.from('\r\n', 'utf-8'));
   
   // Add each file with its hash as the field name
-  for (const [hash, content] of Object.entries(fileContents)) {
-    formData += `--${boundary}\r\n`;
-    formData += `Content-Disposition: form-data; name="${hash}"\r\n`;
-    formData += `Content-Type: application/octet-stream\r\n\r\n`;
-    formData += `${content}\r\n`;
+  for (const [hash, contentBuffer] of Object.entries(fileContents)) {
+    parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="${hash}"\r\nContent-Type: application/octet-stream\r\n\r\n`, 'utf-8'));
+    parts.push(contentBuffer);
+    parts.push(Buffer.from('\r\n', 'utf-8'));
   }
   
-  formData += `--${boundary}--\r\n`;
+  parts.push(Buffer.from(`--${boundary}--\r\n`, 'utf-8'));
+  
+  // Concatenate all parts into a single Buffer
+  const formDataBuffer = Buffer.concat(parts);
 
-  console.log(`📊 DEBUG: Total form data size: ${formData.length} bytes`);
+  console.log(`📊 DEBUG: Total form data size: ${formDataBuffer.length} bytes`);
 
   const deployUrl = new URL(`https://api.cloudflare.com/client/v4/accounts/${config.accountId}/pages/projects/${config.projectName}/deployments`);
   const deployOptions = {
@@ -231,7 +234,7 @@ async function deployToCloudflare(files) {
     headers: {
       'Authorization': `Bearer ${config.apiToken}`,
       'Content-Type': `multipart/form-data; boundary=${boundary}`,
-      'Content-Length': Buffer.byteLength(formData),
+      'Content-Length': formDataBuffer.length,
     },
   };
 
@@ -262,7 +265,8 @@ async function deployToCloudflare(files) {
       reject(error);
     });
 
-    req.write(formData);
+    // Write the Buffer directly for binary safety
+    req.write(formDataBuffer);
     req.end();
   });
 
