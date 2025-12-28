@@ -148,11 +148,11 @@ async function readDirectory(dir, baseDir = dir) {
       files.push(...await readDirectory(fullPath, baseDir));
     } else if (item.isFile()) {
       try {
-        const content = await fs.readFile(fullPath, 'utf-8');
+        const content = await fs.readFile(fullPath);
         const relativePath = '/' + path.relative(baseDir, fullPath).replace(/\\/g, '/');
 
         // Validate file size (25MB limit per file for Cloudflare)
-        const sizeInMB = Buffer.byteLength(content, 'utf-8') / 1024 / 1024;
+        const sizeInMB = content.length / 1024 / 1024;
         if (sizeInMB > 25) {
           console.warn(`⚠️  Warning: ${relativePath} is ${sizeInMB.toFixed(2)}MB (limit: 25MB), skipping...`);
           continue;
@@ -181,7 +181,9 @@ async function deployToCloudflare(files) {
 
   for (const file of files) {
     // Use Buffer for consistent hashing and binary safety
-    const contentBuffer = Buffer.from(file.content, 'utf-8');
+    const contentBuffer = Buffer.isBuffer(file.content)
+      ? file.content
+      : Buffer.from(file.content, 'utf-8');
     const hash = crypto.createHash('sha256').update(contentBuffer).digest('hex');
 
     // Check for hash collision (extremely unlikely but worth validating)
@@ -199,7 +201,9 @@ async function deployToCloudflare(files) {
   // Create deployment with manifest AND files using multipart/form-data
   // Cloudflare Pages Direct Upload API accepts both in a single request
   console.log('📝 Creating deployment with manifest and uploading files...');
+  const stage = config.branch === 'main' ? 'production' : 'preview';
   console.log(`📊 DEBUG: Branch: ${config.branch}`);
+  console.log(`📊 DEBUG: Stage: ${stage}`);
 
   const boundary = '----CloudflareDeployBoundary' + Date.now();
   const manifestJson = JSON.stringify(fileHashes);
@@ -227,9 +231,11 @@ async function deployToCloudflare(files) {
   console.log(`📊 DEBUG: Total form data size: ${formDataBuffer.length} bytes`);
 
   const deployUrl = new URL(`https://api.cloudflare.com/client/v4/accounts/${config.accountId}/pages/projects/${config.projectName}/deployments`);
+  deployUrl.searchParams.set('branch', config.branch);
+  deployUrl.searchParams.set('stage', stage);
   const deployOptions = {
     hostname: deployUrl.hostname,
-    path: deployUrl.pathname,
+    path: deployUrl.pathname + deployUrl.search,
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${config.apiToken}`,

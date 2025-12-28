@@ -11,6 +11,10 @@ This document explains how the Cloudflare Pages deployment integration works in 
 - **Added**: Comprehensive debug logging throughout the deployment process
 - **Reference**: [Cloudflare API Documentation](https://developers.cloudflare.com/api/operations/pages-deployment-create-deployment)
 
+### Beta Waiting Preview (December 2025)
+- **Added**: Optional `waitingPage: true` flag on `/api/cloudflare/deploy` to publish a lightweight waiting-room page to a preview build (`branch: beta-waiting`, `stage: preview`)
+- **Update**: Deployment requests now send explicit `branch` and `stage` parameters to the Pages direct-upload endpoint for both production and preview builds
+
 ## Overview
 
 The Cloudflare Pages deployment feature allows users to deploy their AI-generated websites directly to Cloudflare Pages with just a few clicks. The deployment process includes:

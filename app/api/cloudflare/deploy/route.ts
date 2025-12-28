@@ -107,10 +107,12 @@ async function deployToCloudflarePages(
   accountId: string,
   projectName: string,
   branch: string,
+  stage: "production" | "preview",
   files: DeployFile[],
   apiToken: string
 ): Promise<DeployResult> {
   console.log(`[Cloudflare] Starting deployment of ${files.length} files...`);
+  console.log(`[Cloudflare] Branch: ${branch}, Stage: ${stage}`);
 
   // Calculate hashes for all files
   const fileHashes: Record<string, string> = {};
@@ -146,8 +148,10 @@ async function deployToCloudflarePages(
     });
   }
 
-  const deployUrl = `${CLOUDFLARE_API_BASE}/accounts/${accountId}/pages/projects/${projectName}/deployments`;
-  console.log(`[Cloudflare] API request: POST /accounts/${accountId}/pages/projects/${projectName}/deployments`);
+  const deployUrl = new URL(`${CLOUDFLARE_API_BASE}/accounts/${accountId}/pages/projects/${projectName}/deployments`);
+  deployUrl.searchParams.set("branch", branch);
+  deployUrl.searchParams.set("stage", stage);
+  console.log(`[Cloudflare] API request: POST /accounts/${accountId}/pages/projects/${projectName}/deployments?branch=${branch}&stage=${stage}`);
   console.log(`[Cloudflare] Uploading ${Object.keys(fileContents).length} unique files...`);
   
   // Get the form data as a buffer and headers
@@ -206,7 +210,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { projectId, cloudflareProjectName } = await request.json();
+    const { projectId, cloudflareProjectName, waitingPage } = await request.json();
+    const isWaitingBuild = Boolean(waitingPage);
 
     if (!projectId) {
       return NextResponse.json({ error: "Missing projectId" }, { status: 400 });
@@ -264,19 +269,52 @@ export async function POST(request: Request) {
         .substring(0, 58);
     }
 
-    // 4. Collect Pages from DB and build files in memory
-    const dbPages = await db
-      .collection("pages")
-      .find({ projectId: new ObjectId(projectId) })
-      .toArray();
+    const branch = isWaitingBuild ? "beta-waiting" : "main";
+    const stage: "production" | "preview" = branch === "main" ? "production" : "preview";
 
     const files: DeployFile[] = [];
     let hasIndexHtml = false;
     let indexTsLikeContent: string | null = null;
 
-    if (dbPages.length === 0) {
-      // Fallback content
-      const defaultContent = `<!DOCTYPE html>
+    // 4. Collect Pages from DB and build files in memory (or use waiting page for beta preview)
+    if (isWaitingBuild) {
+      const waitingContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${project.name || "Sycord"} — Beta build</title>
+  <style>
+    :root { color-scheme: light; }
+    body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: radial-gradient(circle at 20% 20%, #e0f2fe, #f8fafc 40%), radial-gradient(circle at 80% 0%, #ffe4e6, #fff5f5 40%), #f1f5f9; color:#0f172a; }
+    .card { background:rgba(255,255,255,0.9); border:1px solid #e2e8f0; border-radius:18px; padding:32px 28px; box-shadow:0 20px 60px rgba(15,23,42,0.12); max-width:420px; text-align:center; backdrop-filter: blur(10px); }
+    .pill { display:inline-flex; align-items:center; gap:8px; background:#0f172a; color:white; padding:6px 12px; border-radius:999px; font-size:12px; letter-spacing:0.02em; text-transform:uppercase; }
+    h1 { margin:18px 0 10px; font-size:28px; }
+    p { margin:0; color:#475569; line-height:1.6; font-size:15px; }
+    .spinner { margin:22px auto 0; width:26px; height:26px; border-radius:50%; border:3px solid #cbd5e1; border-top-color:#0ea5e9; animation:spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="pill">Beta Preview · Waiting room</div>
+    <h1>Deployment in progress</h1>
+    <p>We're preparing your site on Cloudflare Pages. This temporary waiting page will disappear once the build completes.</p>
+    <div class="spinner" aria-label="Loading"></div>
+  </main>
+</body>
+</html>`;
+      files.push({ path: "/index.html", content: waitingContent });
+      hasIndexHtml = true;
+    } else {
+      const dbPages = await db
+        .collection("pages")
+        .find({ projectId: new ObjectId(projectId) })
+        .toArray();
+
+      if (dbPages.length === 0) {
+        // Fallback content
+        const defaultContent = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -298,44 +336,44 @@ export async function POST(request: Request) {
     </div>
 </body>
 </html>`;
-      files.push({ path: "/index.html", content: defaultContent });
-      hasIndexHtml = true;
-    } else {
-      for (const page of dbPages) {
-        let content = page.content || "";
-        // Clean content (remove markdown code blocks if present)
-        if (content.trim().startsWith("\`\`\`")) {
-          const match = content.match(/\`\`\`(?:typescript|js|jsx|tsx|html|css)?\s*([\s\S]*?)\`\`\`/);
-          if (match) {
-            content = match[1].trim();
+        files.push({ path: "/index.html", content: defaultContent });
+        hasIndexHtml = true;
+      } else {
+        for (const page of dbPages) {
+          let content = page.content || "";
+          // Clean content (remove markdown code blocks if present)
+          if (content.trim().startsWith("```")) {
+            const match = content.match(/```(?:typescript|js|jsx|tsx|html|css)?\s*([\s\S]*?)```/);
+            if (match) {
+              content = match[1].trim();
+            }
+          }
+
+          const name = page.name;
+          // Map filename
+          let filename = name;
+          if (!filename.includes(".")) {
+            filename = `${filename}.html`;
+          }
+
+          // Ensure path starts with /
+          const filePath = filename.startsWith("/") ? filename : `/${filename}`;
+          files.push({ path: filePath, content });
+
+          // Handle index conventions
+          if (name === "index" || name === "index.html") {
+            hasIndexHtml = true;
+          } else if (name === "index.ts" || name === "index.tsx") {
+            indexTsLikeContent = content;
           }
         }
 
-        const name = page.name;
-        // Map filename
-        let filename = name;
-        if (!filename.includes(".")) {
-          filename = `${filename}.html`;
-        }
-
-        // Ensure path starts with /
-        const filePath = filename.startsWith("/") ? filename : `/${filename}`;
-        files.push({ path: filePath, content });
-
-        // Handle index conventions
-        if (name === "index" || name === "index.html") {
-          hasIndexHtml = true;
-        } else if (name === "index.ts" || name === "index.tsx") {
-          indexTsLikeContent = content;
-        }
-      }
-
-      // If no index.html but index.ts/tsx exists, create a wrapper with inlined content
-      if (!hasIndexHtml && indexTsLikeContent) {
-        // Escape closing script tags in the content to prevent breaking HTML structure
-        const safeContent = indexTsLikeContent.replace(/<\/script>/gi, '<\\/script>');
-        
-        const wrapperContent = `<!DOCTYPE html>
+        // If no index.html but index.ts/tsx exists, create a wrapper with inlined content
+        if (!hasIndexHtml && indexTsLikeContent) {
+          // Escape closing script tags in the content to prevent breaking HTML structure
+          const safeContent = indexTsLikeContent.replace(/<\/script>/gi, '<\\/script>');
+          
+          const wrapperContent = `<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
@@ -392,8 +430,9 @@ ${safeContent}
     </script>
 </body>
 </html>`;
-        files.push({ path: "/index.html", content: wrapperContent });
-        hasIndexHtml = true;
+          files.push({ path: "/index.html", content: wrapperContent });
+          hasIndexHtml = true;
+        }
       }
     }
 
@@ -423,7 +462,8 @@ ${safeContent}
     const { url: deploymentUrl, deploymentId } = await deployToCloudflarePages(
       accountId,
       cfProjectName,
-      "main",
+      branch,
+      stage,
       files,
       apiToken
     );
