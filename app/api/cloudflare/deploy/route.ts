@@ -36,7 +36,6 @@ async function parseZipEntries(zipBuffer: Buffer): Promise<DeployFile[]> {
     
     const compressionMethod = zipBuffer.readUInt16LE(offset + 8);
     const compressedSize = zipBuffer.readUInt32LE(offset + 18);
-    const uncompressedSize = zipBuffer.readUInt32LE(offset + 22);
     const fileNameLength = zipBuffer.readUInt16LE(offset + 26);
     const extraFieldLength = zipBuffer.readUInt16LE(offset + 28);
     
@@ -65,8 +64,9 @@ async function parseZipEntries(zipBuffer: Buffer): Promise<DeployFile[]> {
             inflater.end(compressedData);
           });
           content = inflated.toString("utf-8");
-        } catch {
+        } catch (error: any) {
           // If decompression fails, skip this file
+          console.warn(`[Cloudflare] Decompression failed for file ${fileName}:`, error?.message);
           offset = dataEnd;
           continue;
         }

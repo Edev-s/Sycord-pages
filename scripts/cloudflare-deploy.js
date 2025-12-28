@@ -254,8 +254,9 @@ async function parseZipEntries(zipBuffer) {
             inflater.end(compressedData);
           });
           content = inflated.toString('utf-8');
-        } catch {
+        } catch (error) {
           // If decompression fails, skip this file
+          console.warn(`⚠️  Decompression failed for file ${fileName}:`, error?.message || error);
           offset = dataEnd;
           continue;
         }
