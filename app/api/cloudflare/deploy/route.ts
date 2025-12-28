@@ -95,9 +95,10 @@ async function createProject(
   console.log(`[Cloudflare] Project "${projectName}" created successfully`);
 }
 
-// Calculate SHA-256 hash of content
-function calculateHash(content: string): string {
-  return crypto.createHash("sha256").update(content).digest("hex");
+// Calculate SHA-256 hash of content (accepts string or Buffer for flexibility)
+function calculateHash(content: string | Buffer): string {
+  const buffer = typeof content === "string" ? Buffer.from(content, "utf-8") : content;
+  return crypto.createHash("sha256").update(buffer).digest("hex");
 }
 
 // Deploy files to Cloudflare Pages using Direct Upload API
@@ -116,9 +117,9 @@ async function deployToCloudflarePages(
   const fileContents: Record<string, Buffer> = {};
 
   for (const file of files) {
-    // Use Buffer for consistent hashing and binary safety
+    // Use Buffer for consistent binary handling
     const contentBuffer = Buffer.from(file.content, "utf-8");
-    const hash = crypto.createHash("sha256").update(contentBuffer).digest("hex");
+    const hash = calculateHash(contentBuffer);
     fileHashes[file.path] = hash;
     fileContents[hash] = contentBuffer;
     console.log(`[Cloudflare] File: ${file.path} (${contentBuffer.length} bytes, hash: ${hash.substring(0, 12)}...)`);
@@ -160,8 +161,11 @@ async function deployToCloudflarePages(
       ...formDataHeaders,
       "Content-Length": String(formDataBuffer.length),
     },
+    // Buffer is a valid body type in Node.js fetch but TypeScript's BodyInit type doesn't include it
     body: formDataBuffer as unknown as BodyInit,
-    // @ts-expect-error - duplex option is required for Node.js fetch with streaming body
+    // The duplex option is required for Node.js fetch with streaming/buffer bodies
+    // but isn't in TypeScript's RequestInit type definition yet
+    // @ts-expect-error - See: https://github.com/nodejs/node/issues/46221
     duplex: "half",
   });
 
