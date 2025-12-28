@@ -13,12 +13,14 @@
  *
  * Usage:
  *   node cloudflare-deploy.js --account=abc123 --token=xxx --project=my-site --dir=./out
+ *   node cloudflare-deploy.js --account=abc123 --token=xxx --project=my-site --use-demo
  *
  * Environment Variables (alternative to CLI args):
  *   CLOUDFLARE_ACCOUNT_ID - Your Cloudflare Account ID
  *   CLOUDFLARE_API_TOKEN - Your Cloudflare API token
  *   CLOUDFLARE_PROJECT_NAME - Your Pages project name
  *   DEPLOY_DIR - Directory containing files to deploy (default: ./out)
+ *   USE_DEMO_FILES - Set to 'true' to use Cloudflare demo files instead of local directory
  *
  * How it works:
  * 1. Calculates SHA-256 hashes for all files
@@ -30,6 +32,9 @@ const fs = require('fs').promises;
 const path = require('path');
 const https = require('https');
 const crypto = require('crypto');
+const zlib = require('zlib');
+
+const DEMO_ZIP_URL = 'https://pages.cloudflare.com/direct-upload-demo.zip';
 
 // Configuration
 const config = {
@@ -38,6 +43,7 @@ const config = {
   projectName: process.env.CLOUDFLARE_PROJECT_NAME || getArg('--project'),
   deployDir: process.env.DEPLOY_DIR || getArg('--dir') || './out',
   branch: process.env.DEPLOY_BRANCH || getArg('--branch') || 'main',
+  useDemoFiles: process.env.USE_DEMO_FILES === 'true' || process.argv.includes('--use-demo'),
 };
 
 const TEXT_EXTENSIONS = new Set([
@@ -205,6 +211,116 @@ async function readDirectory(dir, baseDir = dir) {
   return files;
 }
 
+// Helper to parse ZIP file entries (minimal implementation for static files)
+// Supports uncompressed (STORED) and DEFLATE compressed files
+async function parseZipEntries(zipBuffer) {
+  const files = [];
+  let offset = 0;
+  
+  while (offset < zipBuffer.length - 4) {
+    // Look for local file header signature (0x04034b50)
+    const signature = zipBuffer.readUInt32LE(offset);
+    if (signature !== 0x04034b50) {
+      break; // End of local file headers
+    }
+    
+    const compressionMethod = zipBuffer.readUInt16LE(offset + 8);
+    const compressedSize = zipBuffer.readUInt32LE(offset + 18);
+    const fileNameLength = zipBuffer.readUInt16LE(offset + 26);
+    const extraFieldLength = zipBuffer.readUInt16LE(offset + 28);
+    
+    const fileNameStart = offset + 30;
+    const fileName = zipBuffer.toString('utf-8', fileNameStart, fileNameStart + fileNameLength);
+    const dataStart = fileNameStart + fileNameLength + extraFieldLength;
+    const dataEnd = dataStart + compressedSize;
+    
+    // Skip directories (they end with /)
+    if (!fileName.endsWith('/') && compressedSize > 0) {
+      const compressedData = zipBuffer.subarray(dataStart, dataEnd);
+      let content;
+      
+      if (compressionMethod === 0) {
+        // STORED (no compression)
+        content = compressedData.toString('utf-8');
+      } else if (compressionMethod === 8) {
+        // DEFLATE compression
+        try {
+          const inflated = await new Promise((resolve, reject) => {
+            const inflater = zlib.createInflateRaw();
+            const chunks = [];
+            inflater.on('data', (chunk) => chunks.push(chunk));
+            inflater.on('end', () => resolve(Buffer.concat(chunks)));
+            inflater.on('error', reject);
+            inflater.end(compressedData);
+          });
+          content = inflated.toString('utf-8');
+        } catch {
+          // If decompression fails, skip this file
+          offset = dataEnd;
+          continue;
+        }
+      } else {
+        // Unsupported compression method, skip
+        offset = dataEnd;
+        continue;
+      }
+      
+      // Normalize path to start with /
+      const normalizedPath = fileName.startsWith('/') ? fileName : `/${fileName}`;
+      files.push({ path: normalizedPath, content });
+    }
+    
+    offset = dataEnd;
+  }
+  
+  return files;
+}
+
+// Download and extract demo files from Cloudflare's official demo zip
+async function fetchDemoFiles() {
+  console.log(`📥 Fetching demo files from ${DEMO_ZIP_URL}...`);
+  
+  return new Promise((resolve, reject) => {
+    https.get(DEMO_ZIP_URL, (response) => {
+      // Handle redirects
+      if (response.statusCode === 301 || response.statusCode === 302) {
+        https.get(response.headers.location, handleResponse).on('error', reject);
+        return;
+      }
+      
+      handleResponse(response);
+      
+      async function handleResponse(res) {
+        if (res.statusCode !== 200) {
+          reject(new Error(`Failed to download demo zip: HTTP ${res.statusCode}`));
+          return;
+        }
+        
+        const chunks = [];
+        res.on('data', (chunk) => chunks.push(chunk));
+        res.on('end', async () => {
+          try {
+            const zipBuffer = Buffer.concat(chunks);
+            console.log(`📥 Downloaded demo zip (${zipBuffer.length} bytes)`);
+            
+            const files = await parseZipEntries(zipBuffer);
+            console.log(`✅ Extracted ${files.length} files from demo zip`);
+            
+            for (const file of files) {
+              console.log(`   📄 ${file.path} (${file.content.length} bytes)`);
+            }
+            
+            resolve(files);
+          } catch (error) {
+            reject(error);
+          }
+        });
+        res.on('error', reject);
+      }
+    }).on('error', reject);
+  });
+}
+
 // Deploy to Cloudflare Pages
 // This uses the single-request approach where manifest and files are sent together
 async function deployToCloudflare(files) {
@@ -352,8 +468,9 @@ async function deploy() {
   console.log(`   Account ID: ${config.accountId ? 'configured' : 'NOT SET'}`);
   console.log(`   API Token: ${config.apiToken ? 'configured' : 'NOT SET'}`);
   console.log(`   Project Name: ${config.projectName || 'NOT SET'}`);
-  console.log(`   Deploy Dir: ${config.deployDir}`);
+  console.log(`   Deploy Dir: ${config.useDemoFiles ? '(using demo files)' : config.deployDir}`);
   console.log(`   Branch: ${config.branch}`);
+  console.log(`   Use Demo Files: ${config.useDemoFiles ? 'YES' : 'NO'}`);
   console.log('');
 
   if (!config.accountId) {
@@ -387,9 +504,15 @@ async function deploy() {
       }
     }
 
-    // Step 2: Read files
-    console.log(`\n📂 Reading files from: ${config.deployDir}`);
-    const files = await readDirectory(config.deployDir);
+    // Step 2: Read files (either from demo zip or local directory)
+    let files;
+    if (config.useDemoFiles) {
+      console.log('\n📥 Using Cloudflare demo files...');
+      files = await fetchDemoFiles();
+    } else {
+      console.log(`\n📂 Reading files from: ${config.deployDir}`);
+      files = await readDirectory(config.deployDir);
+    }
     console.log(`✅ Found ${files.length} file(s)`);
 
     if (files.length === 0) {

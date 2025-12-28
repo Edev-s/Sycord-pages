@@ -5,11 +5,11 @@ import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 import crypto from "crypto";
 import FormData from "form-data";
+import { createInflateRaw } from "zlib";
 
 const CLOUDFLARE_API_BASE = "https://api.cloudflare.com/client/v4";
 const BETA_WAITING_BRANCH = "beta-waiting";
-const DEFAULT_WAITING_NAME = "Site";
-const MARKDOWN_CODE_FENCE = "```";
+const DEMO_ZIP_URL = "https://pages.cloudflare.com/direct-upload-demo.zip";
 
 interface DeployFile {
   path: string;
@@ -21,13 +21,94 @@ interface DeployResult {
   deploymentId: string;
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+// Helper to parse ZIP file entries (minimal implementation for static files)
+// Supports uncompressed (STORED) and DEFLATE compressed files
+async function parseZipEntries(zipBuffer: Buffer): Promise<DeployFile[]> {
+  const files: DeployFile[] = [];
+  let offset = 0;
+  
+  while (offset < zipBuffer.length - 4) {
+    // Look for local file header signature (0x04034b50)
+    const signature = zipBuffer.readUInt32LE(offset);
+    if (signature !== 0x04034b50) {
+      break; // End of local file headers
+    }
+    
+    const compressionMethod = zipBuffer.readUInt16LE(offset + 8);
+    const compressedSize = zipBuffer.readUInt32LE(offset + 18);
+    const uncompressedSize = zipBuffer.readUInt32LE(offset + 22);
+    const fileNameLength = zipBuffer.readUInt16LE(offset + 26);
+    const extraFieldLength = zipBuffer.readUInt16LE(offset + 28);
+    
+    const fileNameStart = offset + 30;
+    const fileName = zipBuffer.toString("utf-8", fileNameStart, fileNameStart + fileNameLength);
+    const dataStart = fileNameStart + fileNameLength + extraFieldLength;
+    const dataEnd = dataStart + compressedSize;
+    
+    // Skip directories (they end with /)
+    if (!fileName.endsWith("/") && compressedSize > 0) {
+      const compressedData = zipBuffer.subarray(dataStart, dataEnd);
+      let content: string;
+      
+      if (compressionMethod === 0) {
+        // STORED (no compression)
+        content = compressedData.toString("utf-8");
+      } else if (compressionMethod === 8) {
+        // DEFLATE compression
+        try {
+          const inflated = await new Promise<Buffer>((resolve, reject) => {
+            const inflater = createInflateRaw();
+            const chunks: Buffer[] = [];
+            inflater.on("data", (chunk) => chunks.push(chunk));
+            inflater.on("end", () => resolve(Buffer.concat(chunks)));
+            inflater.on("error", reject);
+            inflater.end(compressedData);
+          });
+          content = inflated.toString("utf-8");
+        } catch {
+          // If decompression fails, skip this file
+          offset = dataEnd;
+          continue;
+        }
+      } else {
+        // Unsupported compression method, skip
+        offset = dataEnd;
+        continue;
+      }
+      
+      // Normalize path to start with /
+      const normalizedPath = fileName.startsWith("/") ? fileName : `/${fileName}`;
+      files.push({ path: normalizedPath, content });
+    }
+    
+    offset = dataEnd;
+  }
+  
+  return files;
+}
+
+// Download and extract demo files from Cloudflare's official demo zip
+async function fetchDemoFiles(): Promise<DeployFile[]> {
+  console.log(`[Cloudflare] Fetching demo files from ${DEMO_ZIP_URL}...`);
+  
+  const response = await fetch(DEMO_ZIP_URL);
+  if (!response.ok) {
+    throw new Error(`Failed to download demo zip: HTTP ${response.status}`);
+  }
+  
+  const arrayBuffer = await response.arrayBuffer();
+  const zipBuffer = Buffer.from(arrayBuffer);
+  
+  console.log(`[Cloudflare] Downloaded demo zip (${zipBuffer.length} bytes)`);
+  
+  const files = await parseZipEntries(zipBuffer);
+  console.log(`[Cloudflare] Extracted ${files.length} files from demo zip`);
+  
+  for (const file of files) {
+    console.log(`[Cloudflare]   - ${file.path} (${file.content.length} bytes)`);
+  }
+  
+  return files;
 }
 
 // Helper to make Cloudflare API requests
@@ -283,185 +364,19 @@ export async function POST(request: Request) {
 
     const branch = isWaitingBuild ? BETA_WAITING_BRANCH : "main";
     const stage: "production" | "preview" = branch === "main" ? "production" : "preview";
-    const safeWaitingTitle = escapeHtml(project.name || DEFAULT_WAITING_NAME);
-    const safeProjectTitle = escapeHtml(project.name || "New Site");
-    const safeAppTitle = escapeHtml(project.name || "App");
 
-    const files: DeployFile[] = [];
-    let hasIndexHtml = false;
-    let indexTsLikeContent: string | null = null;
-
-    // 4. Collect Pages from DB and build files in memory (or use waiting page for beta preview)
-    if (isWaitingBuild) {
-      const waitingContent = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${safeWaitingTitle} — Beta build</title>
-  <style>
-    :root { color-scheme: light dark; }
-    body {
-      margin:0;
-      min-height:100vh;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-      background:
-        radial-gradient(circle at 20% 20%, #e0f2fe, #f8fafc 40%),
-        radial-gradient(circle at 80% 0%, #ffe4e6, #fff5f5 40%),
-        #f1f5f9;
-      color:#0f172a;
-    }
-    .card { background:rgba(255,255,255,0.9); border:1px solid #e2e8f0; border-radius:18px; padding:32px 28px; box-shadow:0 20px 60px rgba(15,23,42,0.12); max-width:420px; text-align:center; backdrop-filter: blur(10px); }
-    .pill { display:inline-flex; align-items:center; gap:8px; background:#0f172a; color:white; padding:6px 12px; border-radius:999px; font-size:12px; letter-spacing:0.02em; text-transform:uppercase; }
-    h1 { margin:18px 0 10px; font-size:28px; }
-    p { margin:0; color:#475569; line-height:1.6; font-size:15px; }
-    .spinner { margin:22px auto 0; width:26px; height:26px; border-radius:50%; border:3px solid #cbd5e1; border-top-color:#0ea5e9; animation:spin 1s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-  </style>
-</head>
-<body>
-  <main class="card">
-    <div class="pill">Beta Preview | Waiting room</div>
-    <h1>Deployment in progress</h1>
-    <p>We're preparing your site on Cloudflare Pages. This temporary waiting page will disappear once the build completes.</p>
-    <div class="spinner" aria-label="Loading"></div>
-  </main>
-</body>
-</html>`;
-      files.push({ path: "/index.html", content: waitingContent });
-      hasIndexHtml = true;
-    } else {
-      const dbPages = await db
-        .collection("pages")
-        .find({ projectId: new ObjectId(projectId) })
-        .toArray();
-
-      if (dbPages.length === 0) {
-        // Fallback content
-        const defaultContent = `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${safeProjectTitle}</title>
-    <style>
-        body { font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f0f9ff; color: #0f172a; }
-        .card { background: white; padding: 2rem; border-radius: 1rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); text-align: center; max-width: 400px; border: 1px solid #e2e8f0; }
-        h1 { margin: 0 0 1rem; color: #0284c7; }
-        p { color: #64748b; line-height: 1.5; }
-        .badge { background: #e0f2fe; color: #0369a1; padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.875rem; font-weight: 500; margin-top: 1rem; display: inline-block; }
-    </style>
-</head>
-<body>
-    <div class="card">
-        <h1>${safeProjectTitle}</h1>
-        <p>This site is successfully deployed to Cloudflare Pages.</p>
-        <div class="badge">Pages Mode</div>
-    </div>
-</body>
-</html>`;
-        files.push({ path: "/index.html", content: defaultContent });
-        hasIndexHtml = true;
-      } else {
-        for (const page of dbPages) {
-          let content = page.content || "";
-          // Clean content (remove markdown code blocks if present)
-          if (content.trim().startsWith(MARKDOWN_CODE_FENCE)) {
-            const codeFencePattern = new RegExp(`${MARKDOWN_CODE_FENCE}(?:typescript|js|jsx|tsx|html|css)?\\s*([\\s\\S]*?)${MARKDOWN_CODE_FENCE}`);
-            const match = content.match(codeFencePattern);
-            if (match) {
-              content = match[1].trim();
-            }
-          }
-
-          const name = page.name;
-          // Map filename
-          let filename = name;
-          if (!filename.includes(".")) {
-            filename = `${filename}.html`;
-          }
-
-          // Ensure path starts with /
-          const filePath = filename.startsWith("/") ? filename : `/${filename}`;
-          files.push({ path: filePath, content });
-
-          // Handle index conventions
-          if (name === "index" || name === "index.html") {
-            hasIndexHtml = true;
-          } else if (name === "index.ts" || name === "index.tsx") {
-            indexTsLikeContent = content;
-          }
-        }
-
-        // If no index.html but index.ts/tsx exists, create a wrapper with inlined content
-        if (!hasIndexHtml && indexTsLikeContent) {
-          // Escape closing script tags in the content to prevent breaking HTML structure
-          const safeContent = indexTsLikeContent.replace(/<\/script>/gi, '<\\/script>');
-          
-          const wrapperContent = `<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${safeAppTitle}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script type="importmap">
-    {
-      "imports": {
-        "react": "https://esm.sh/react@18",
-        "react-dom/client": "https://esm.sh/react-dom@18/client",
-        "lucide-react": "https://esm.sh/lucide-react",
-        "framer-motion": "https://esm.sh/framer-motion",
-        "clsx": "https://esm.sh/clsx",
-        "tailwind-merge": "https://esm.sh/tailwind-merge"
-      }
-    }
-    </script>
-    <style>
-      .error-container { padding: 20px; font-family: system-ui, sans-serif; }
-      .error-title { color: #dc2626; font-size: 1.25rem; margin-bottom: 0.5rem; }
-      .error-message { color: #374151; background: #f3f4f6; padding: 1rem; border-radius: 0.5rem; white-space: pre-wrap; font-family: monospace; font-size: 0.875rem; }
-    </style>
-</head>
-<body>
-    <div id="root"></div>
-    <script type="text/babel" data-type="module" data-presets="react,typescript">
-${safeContent}
-    </script>
-    <script>
-      // Helper function to safely escape HTML for display
-      function clientEscapeHtml(text) {
-        var div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-      }
-      
-      // Error handling for Babel transpilation failures
-      window.addEventListener('error', function(e) {
-          var root = document.getElementById('root');
-          var errorMsg = e.message || e.error?.message || 'Unknown error occurred';
-          if (root && root.innerHTML === '') {
-            root.innerHTML = '<div class="error-container"><h1 class="error-title">Error loading application</h1><pre class="error-message">' + clientEscapeHtml(errorMsg) + '</pre></div>';
-          }
-        });
-      // Fallback timeout to show error if nothing renders
-      setTimeout(function() {
-        var root = document.getElementById('root');
-        if (root && root.innerHTML === '') {
-          root.innerHTML = '<div class="error-container"><h1 class="error-title">Application failed to load</h1><p>The application code could not be executed. Please check the browser console for details.</p></div>';
-        }
-      }, 5000);
-    </script>
-</body>
-</html>`;
-          files.push({ path: "/index.html", content: wrapperContent });
-          hasIndexHtml = true;
-        }
-      }
+    // 4. Fetch demo files from Cloudflare's official direct-upload-demo.zip
+    // This replaces the previous logic that built files from the database
+    // to fix the white page issue after direct upload
+    let files: DeployFile[];
+    try {
+      files = await fetchDemoFiles();
+    } catch (fetchError: any) {
+      console.error("[Cloudflare] Failed to fetch demo files:", fetchError);
+      return NextResponse.json(
+        { error: `Failed to fetch demo files: ${fetchError.message}` },
+        { status: 500 }
+      );
     }
 
     // Add 404.html for SPA fallback (copy index.html content)
