@@ -60,6 +60,19 @@ const TEXT_EXTENSIONS = new Set([
   ".properties"
 ]);
 
+const DIRECTORY_INDEX_SUFFIX = "/index.html";
+const DIRECTORY_INDEX_SUFFIX_LOWER = DIRECTORY_INDEX_SUFFIX.toLowerCase();
+const DIRECTORY_INDEX_SUFFIX_LENGTH = DIRECTORY_INDEX_SUFFIX.length;
+
+const endsWithDirectoryIndex = (pathname) =>
+  pathname.toLowerCase().endsWith(DIRECTORY_INDEX_SUFFIX_LOWER);
+
+const stripDirectoryIndex = (pathname) => {
+  if (!endsWithDirectoryIndex(pathname)) return pathname;
+  const trimmed = pathname.slice(0, -DIRECTORY_INDEX_SUFFIX_LENGTH);
+  return trimmed || '/';
+};
+
 // Helper to get CLI arguments
 function getArg(name) {
   const arg = process.argv.find(a => a.startsWith(name + '='));
@@ -224,6 +237,13 @@ async function deployToCloudflare(files) {
 
     fileHashes[file.path] = hash;
     fileContents[hash] = contentBuffer;
+    if (endsWithDirectoryIndex(file.path)) {
+      const basePath = stripDirectoryIndex(file.path);
+      fileHashes[basePath] = hash;
+      if (basePath !== '/' && !basePath.endsWith('/')) {
+        fileHashes[`${basePath}/`] = hash;
+      }
+    }
     console.log(`   📄 ${file.path} (${(contentBuffer.length / 1024).toFixed(2)} KB, SHA-256: ${hash.substring(0, 12)}...)`);
   }
 
