@@ -40,6 +40,26 @@ const config = {
   branch: process.env.DEPLOY_BRANCH || getArg('--branch') || 'main',
 };
 
+const TEXT_EXTENSIONS = new Set([
+  ".html",
+  ".htm",
+  ".css",
+  ".js",
+  ".jsx",
+  ".ts",
+  ".tsx",
+  ".json",
+  ".txt",
+  ".xml",
+  ".md",
+  ".svg",
+  ".yaml",
+  ".yml",
+  ".toml",
+  ".ini",
+  ".properties"
+]);
+
 // Helper to get CLI arguments
 function getArg(name) {
   const arg = process.argv.find(a => a.startsWith(name + '='));
@@ -148,11 +168,15 @@ async function readDirectory(dir, baseDir = dir) {
       files.push(...await readDirectory(fullPath, baseDir));
     } else if (item.isFile()) {
       try {
-        const content = await fs.readFile(fullPath);
+        const ext = path.extname(fullPath).toLowerCase();
+        const isTextFile = TEXT_EXTENSIONS.has(ext);
+        const content = isTextFile
+          ? await fs.readFile(fullPath, 'utf-8')
+          : await fs.readFile(fullPath);
         const relativePath = '/' + path.relative(baseDir, fullPath).replace(/\\/g, '/');
 
         // Validate file size (25MB limit per file for Cloudflare)
-        const sizeInMB = content.length / 1024 / 1024;
+        const sizeInMB = (isTextFile ? Buffer.byteLength(content, 'utf-8') : content.length) / 1024 / 1024;
         if (sizeInMB > 25) {
           console.warn(`⚠️  Warning: ${relativePath} is ${sizeInMB.toFixed(2)}MB (limit: 25MB), skipping...`);
           continue;
@@ -173,7 +197,14 @@ async function readDirectory(dir, baseDir = dir) {
 async function deployToCloudflare(files) {
   console.log(`🚀 Starting deployment to Cloudflare Pages...`);
   console.log(`📊 DEBUG: Deploying ${files.length} files`);
-  console.log(`📊 DEBUG: Total size: ${files.reduce((sum, f) => sum + Buffer.byteLength(f.content, 'utf-8'), 0)} bytes`);
+  console.log(
+    `📊 DEBUG: Total size: ${
+      files.reduce(
+        (sum, f) => sum + (Buffer.isBuffer(f.content) ? f.content.length : Buffer.byteLength(f.content, 'utf-8')),
+        0
+      )
+    } bytes`
+  );
 
   // Calculate file hashes (SHA-256) and prepare file contents as Buffers
   const fileHashes = {};
@@ -231,8 +262,8 @@ async function deployToCloudflare(files) {
   console.log(`📊 DEBUG: Total form data size: ${formDataBuffer.length} bytes`);
 
   const deployUrl = new URL(`https://api.cloudflare.com/client/v4/accounts/${config.accountId}/pages/projects/${config.projectName}/deployments`);
-  deployUrl.searchParams.set('branch', config.branch);
-  deployUrl.searchParams.set('stage', stage);
+  deployUrl.searchParams.set('branch', encodeURIComponent(config.branch));
+  deployUrl.searchParams.set('stage', encodeURIComponent(stage));
   const deployOptions = {
     hostname: deployUrl.hostname,
     path: deployUrl.pathname + deployUrl.search,
