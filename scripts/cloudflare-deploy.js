@@ -173,7 +173,7 @@ async function readDirectory(dir, baseDir = dir) {
 async function deployToCloudflare(files) {
   console.log(`🚀 Starting deployment to Cloudflare Pages...`);
   console.log(`📊 DEBUG: Deploying ${files.length} files`);
-  console.log(`📊 DEBUG: Total size: ${files.reduce((sum, f) => sum + f.content.length, 0)} bytes`);
+  console.log(`📊 DEBUG: Total size: ${files.reduce((sum, f) => sum + Buffer.byteLength(f.content, 'utf-8'), 0)} bytes`);
 
   // Calculate file hashes (SHA-256) and prepare file contents as Buffers
   const fileHashes = {};
