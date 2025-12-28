@@ -125,7 +125,10 @@ class CloudflareDeployer:
         return files
 
     def deploy_files(self, files: List[Dict[str, str]]) -> Tuple[str, str]:
-        """Deploy files to Cloudflare Pages using Direct Upload API"""
+        """Deploy files to Cloudflare Pages using Direct Upload API
+        
+        This uses the single-request approach where manifest and files are sent together.
+        """
         print(f"🚀 Starting deployment to Cloudflare Pages...")
 
         # Calculate SHA-256 hashes for all files
@@ -142,19 +145,27 @@ class CloudflareDeployer:
             size_kb = len(content) / 1024
             print(f"   - {file['path']} ({size_kb:.2f} KB, SHA-256: {hash_val[:12]}...)")
 
-        # Create deployment with manifest using multipart/form-data
-        # Cloudflare Pages Direct Upload API requires the manifest to be sent as a form field
-        print("📝 Creating deployment with manifest...")
+        # Create deployment with manifest AND files using multipart/form-data
+        # Cloudflare Pages Direct Upload API accepts both in a single request
+        print("📝 Creating deployment with manifest and uploading files...")
 
         url = f"https://api.cloudflare.com/client/v4/accounts/{self.account_id}/pages/projects/{self.project_name}/deployments"
         
         manifest_json = json.dumps(file_hashes)
+        
+        # Build multipart form data with manifest and all files
         files_data = {
             'manifest': ('manifest', manifest_json, 'application/json')
         }
         
+        # Add each file with its hash as the field name
+        for hash_val, content in file_contents.items():
+            files_data[hash_val] = (hash_val, content.encode('utf-8'), 'application/octet-stream')
+        
         # Remove Content-Type header so requests can set it with the correct boundary
         headers = {"Authorization": f"Bearer {self.api_token}"}
+        
+        print(f"📊 DEBUG: Uploading {len(file_contents)} unique files")
         
         response = requests.post(url, files=files_data, headers=headers)
 
@@ -162,29 +173,17 @@ class CloudflareDeployer:
             raise Exception(f"Failed to create deployment: {response.text}")
 
         deploy_data = response.json()
-        upload_url = deploy_data.get("result", {}).get("upload_url")
-        deployment_id = deploy_data.get("result", {}).get("id", "unknown")
+        deployment_id = deploy_data.get("result", {}).get("id")
+        deployment_url_from_api = deploy_data.get("result", {}).get("url")
 
-        if not upload_url:
-            raise Exception("No upload URL received from Cloudflare")
+        if not deployment_id:
+            print(f"❌ ERROR: Unexpected response: {json.dumps(deploy_data, indent=2)}")
+            raise Exception("No deployment ID received from Cloudflare. Deployment may have failed.")
 
-        print("✅ Deployment created, uploading files...")
-
-        # Upload files using multipart/form-data
-        # Each file is uploaded with its SHA-256 hash as the field name
-        upload_files = {}
-        for hash_val, content in file_contents.items():
-            upload_files[hash_val] = (hash_val, content.encode('utf-8'), 'application/octet-stream')
-
-        upload_response = requests.post(upload_url, files=upload_files)
-
-        if not upload_response.ok:
-            raise Exception(f"Failed to upload files: {upload_response.text}")
-
-        print("✅ Files uploaded successfully")
+        print("✅ Deployment successful")
 
         # Construct deployment URL
-        deployment_url = f"https://{self.project_name}.pages.dev"
+        deployment_url = deployment_url_from_api or f"https://{self.project_name}.pages.dev"
 
         return deployment_url, deployment_id
 

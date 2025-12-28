@@ -100,6 +100,7 @@ function calculateHash(content: string): string {
 }
 
 // Deploy files to Cloudflare Pages using Direct Upload API
+// This uses the single-request approach where manifest and files are sent together
 async function deployToCloudflarePages(
   accountId: string,
   projectName: string,
@@ -120,23 +121,35 @@ async function deployToCloudflarePages(
     console.log(`[Cloudflare] File: ${file.path} (${file.content.length} bytes, hash: ${hash.substring(0, 12)}...)`);
   }
 
-  // Create deployment with manifest using multipart/form-data
-  // Cloudflare Pages Direct Upload API requires the manifest to be sent as a form field
-  console.log(`[Cloudflare] Creating deployment with manifest...`);
+  // Create deployment with manifest AND files using multipart/form-data
+  // Cloudflare Pages Direct Upload API accepts both in a single request
+  console.log(`[Cloudflare] Creating deployment with manifest and uploading files...`);
   
   const boundary = `----CloudflareDeployBoundary${Date.now()}`;
   const manifestJson = JSON.stringify(fileHashes);
   
-  // Build multipart form data for deployment creation
-  let deployFormData = "";
-  deployFormData += `--${boundary}\r\n`;
-  deployFormData += `Content-Disposition: form-data; name="manifest"\r\n`;
-  deployFormData += `Content-Type: application/json\r\n\r\n`;
-  deployFormData += `${manifestJson}\r\n`;
-  deployFormData += `--${boundary}--\r\n`;
+  // Build multipart form data with manifest and all files
+  let formData = "";
+  
+  // Add manifest field
+  formData += `--${boundary}\r\n`;
+  formData += `Content-Disposition: form-data; name="manifest"\r\n`;
+  formData += `Content-Type: application/json\r\n\r\n`;
+  formData += `${manifestJson}\r\n`;
+  
+  // Add each file with its hash as the field name
+  for (const [hash, content] of Object.entries(fileContents)) {
+    formData += `--${boundary}\r\n`;
+    formData += `Content-Disposition: form-data; name="${hash}"\r\n`;
+    formData += `Content-Type: application/octet-stream\r\n\r\n`;
+    formData += `${content}\r\n`;
+  }
+  
+  formData += `--${boundary}--\r\n`;
 
   const deployUrl = `${CLOUDFLARE_API_BASE}/accounts/${accountId}/pages/projects/${projectName}/deployments`;
   console.log(`[Cloudflare] API request: POST /accounts/${accountId}/pages/projects/${projectName}/deployments`);
+  console.log(`[Cloudflare] Uploading ${Object.keys(fileContents).length} unique files (${formData.length} bytes total)...`);
   
   const deployResponse = await fetch(deployUrl, {
     method: "POST",
@@ -144,7 +157,7 @@ async function deployToCloudflarePages(
       Authorization: `Bearer ${apiToken}`,
       "Content-Type": `multipart/form-data; boundary=${boundary}`,
     },
-    body: deployFormData,
+    body: formData,
   });
 
   const deployData = await deployResponse.json();
@@ -156,47 +169,18 @@ async function deployToCloudflarePages(
     throw new Error(`Cloudflare API error: ${errorMsg}`);
   }
 
-  const uploadUrl = deployData.result?.upload_url;
   const deploymentId = deployData.result?.id;
+  const deploymentUrl = deployData.result?.url;
 
-  if (!uploadUrl) {
-    throw new Error("No upload URL received from Cloudflare");
+  if (!deploymentId) {
+    console.error(`[Cloudflare] Unexpected response structure:`, JSON.stringify(deployData, null, 2));
+    throw new Error("No deployment ID received from Cloudflare. Deployment may have failed.");
   }
 
-  console.log(`[Cloudflare] Deployment created (ID: ${deploymentId}), uploading files...`);
-
-  // Upload files using multipart/form-data
-  // Each file is uploaded with its SHA-256 hash as the field name
-  const uploadBoundary = `----CloudflareUploadBoundary${Date.now()}`;
-  let uploadFormData = "";
-
-  for (const [hash, content] of Object.entries(fileContents)) {
-    uploadFormData += `--${uploadBoundary}\r\n`;
-    uploadFormData += `Content-Disposition: form-data; name="${hash}"\r\n`;
-    uploadFormData += `Content-Type: application/octet-stream\r\n\r\n`;
-    uploadFormData += `${content}\r\n`;
-  }
-  uploadFormData += `--${uploadBoundary}--\r\n`;
-
-  console.log(`[Cloudflare] Uploading ${Object.keys(fileContents).length} unique files (${uploadFormData.length} bytes)...`);
-
-  const uploadResponse = await fetch(uploadUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": `multipart/form-data; boundary=${uploadBoundary}`,
-    },
-    body: uploadFormData,
-  });
-
-  if (!uploadResponse.ok) {
-    const errorText = await uploadResponse.text();
-    throw new Error(`File upload failed: ${uploadResponse.status} - ${errorText}`);
-  }
-
-  console.log(`[Cloudflare] Files uploaded successfully`);
+  console.log(`[Cloudflare] Deployment successful (ID: ${deploymentId})`);
 
   return {
-    url: `https://${projectName}.pages.dev`,
+    url: deploymentUrl || `https://${projectName}.pages.dev`,
     deploymentId,
   };
 }
