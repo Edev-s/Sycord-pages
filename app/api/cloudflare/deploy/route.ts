@@ -321,8 +321,11 @@ export async function POST(request: Request) {
         }
       }
 
-      // If no index.html but index.ts exists, create a wrapper
+      // If no index.html but index.ts exists, create a wrapper with inlined content
       if (!hasIndexHtml && indexTsContent) {
+        // Escape closing script tags in the content to prevent breaking HTML structure
+        const safeContent = indexTsContent.replace(/<\/script>/gi, '<\\/script>');
+        
         const wrapperContent = `<!DOCTYPE html>
 <html>
 <head>
@@ -343,10 +346,41 @@ export async function POST(request: Request) {
       }
     }
     </script>
+    <style>
+      .error-container { padding: 20px; font-family: system-ui, sans-serif; }
+      .error-title { color: #dc2626; font-size: 1.25rem; margin-bottom: 0.5rem; }
+      .error-message { color: #374151; background: #f3f4f6; padding: 1rem; border-radius: 0.5rem; white-space: pre-wrap; font-family: monospace; font-size: 0.875rem; }
+    </style>
 </head>
 <body>
     <div id="root"></div>
-    <script type="text/babel" data-type="module" data-presets="react,typescript" src="/index.ts"></script>
+    <script type="text/babel" data-type="module" data-presets="react,typescript">
+${safeContent}
+    </script>
+    <script>
+      // Helper function to safely escape HTML for display
+      function escapeHtml(text) {
+        var div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+      }
+      
+      // Error handling for Babel transpilation failures
+      window.addEventListener('error', function(e) {
+        var root = document.getElementById('root');
+        var errorMsg = e.message || e.error?.message || 'Unknown error occurred';
+        if (root && root.innerHTML === '') {
+          root.innerHTML = '<div class="error-container"><h1 class="error-title">Error loading application</h1><pre class="error-message">' + escapeHtml(errorMsg) + '</pre></div>';
+        }
+      });
+      // Fallback timeout to show error if nothing renders
+      setTimeout(function() {
+        var root = document.getElementById('root');
+        if (root && root.innerHTML === '') {
+          root.innerHTML = '<div class="error-container"><h1 class="error-title">Application failed to load</h1><p>The application code could not be executed. Please check the browser console for details.</p></div>';
+        }
+      }, 5000);
+    </script>
 </body>
 </html>`;
         files.push({ path: "/index.html", content: wrapperContent });
