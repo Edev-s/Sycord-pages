@@ -48,7 +48,7 @@ export default function ServersPage() {
       <div className="px-6 py-4">
         <div className="relative w-full flex items-center justify-center">
           <img 
-            src="/images/b2adf1e2-fe2d-479c-ad8a.jpeg"
+            src="/b2adf1e2-fe2d-479c-ad8a.jpeg"
             alt="World Map"
             className="w-full max-w-md opacity-50 invert brightness-50"
             style={{ filter: 'invert(1) brightness(0.4)' }}
