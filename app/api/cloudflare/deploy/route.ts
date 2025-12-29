@@ -132,7 +132,15 @@ async function parseZipEntries(zipBuffer: Buffer): Promise<DeployFile[]> {
 async function fetchDemoFiles(): Promise<DeployFile[]> {
   console.log(`[Cloudflare] Reading demo files from local zip: ${LOCAL_DEMO_ZIP_PATH}...`);
   
-  const zipBuffer = await readFile(LOCAL_DEMO_ZIP_PATH);
+  let zipBuffer: Buffer;
+  try {
+    zipBuffer = await readFile(LOCAL_DEMO_ZIP_PATH);
+  } catch (error: any) {
+    const errorMsg = error?.code === "ENOENT"
+      ? `Local demo zip file not found: ${LOCAL_DEMO_ZIP_PATH}`
+      : `Failed to read local demo zip file: ${error?.message}`;
+    throw new Error(errorMsg);
+  }
   
   console.log(`[Cloudflare] Read local demo zip (${zipBuffer.length} bytes)`);
   

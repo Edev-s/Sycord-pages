@@ -320,7 +320,16 @@ async function parseZipEntries(zipBuffer) {
 async function fetchDemoFiles() {
   console.log(`📥 Reading demo files from local zip: ${LOCAL_DEMO_ZIP_PATH}...`);
   
-  const zipBuffer = await fs.readFile(LOCAL_DEMO_ZIP_PATH);
+  let zipBuffer;
+  try {
+    zipBuffer = await fs.readFile(LOCAL_DEMO_ZIP_PATH);
+  } catch (error) {
+    const errorMsg = error?.code === 'ENOENT'
+      ? `Local demo zip file not found: ${LOCAL_DEMO_ZIP_PATH}`
+      : `Failed to read local demo zip file: ${error?.message}`;
+    throw new Error(errorMsg);
+  }
+  
   console.log(`📥 Read local demo zip (${zipBuffer.length} bytes)`);
   
   const files = await parseZipEntries(zipBuffer);
