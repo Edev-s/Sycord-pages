@@ -6,10 +6,13 @@ import { ObjectId } from "mongodb";
 import crypto from "crypto";
 import FormData from "form-data";
 import { createInflateRaw } from "zlib";
+import { readFile } from "fs/promises";
+import path from "path";
 
 const CLOUDFLARE_API_BASE = "https://api.cloudflare.com/client/v4";
 const BETA_WAITING_BRANCH = "beta-waiting";
-const DEMO_ZIP_URL = "https://pages.cloudflare.com/direct-upload-demo.zip";
+// Local demo zip file path (replaces remote URL to fix white page issue)
+const LOCAL_DEMO_ZIP_PATH = path.join(process.cwd(), "direct-upload-demo 2.zip");
 
 interface DeployFile {
   path: string;
@@ -21,8 +24,24 @@ interface DeployResult {
   deploymentId: string;
 }
 
+// Helper function to find the end of compressed data by scanning for next header
+// Used when the zip uses data descriptors (bit 3 of general purpose flag)
+function findCompressedDataEnd(buffer: Buffer, dataStart: number): number {
+  let scanOffset = dataStart;
+  while (scanOffset < buffer.length - 4) {
+    const sig = buffer.readUInt32LE(scanOffset);
+    // Data descriptor signature (optional) or next local file header or central directory
+    if (sig === 0x08074b50 || sig === 0x04034b50 || sig === 0x02014b50) {
+      return scanOffset;
+    }
+    scanOffset++;
+  }
+  return buffer.length;
+}
+
 // Helper to parse ZIP file entries (minimal implementation for static files)
 // Supports uncompressed (STORED) and DEFLATE compressed files
+// Also supports data descriptors (bit 3 of general purpose flag)
 async function parseZipEntries(zipBuffer: Buffer): Promise<DeployFile[]> {
   const files: DeployFile[] = [];
   let offset = 0;
@@ -34,15 +53,25 @@ async function parseZipEntries(zipBuffer: Buffer): Promise<DeployFile[]> {
       break; // End of local file headers
     }
     
+    const generalFlag = zipBuffer.readUInt16LE(offset + 6);
+    const hasDataDescriptor = (generalFlag & 0x08) !== 0; // Bit 3 set
     const compressionMethod = zipBuffer.readUInt16LE(offset + 8);
-    const compressedSize = zipBuffer.readUInt32LE(offset + 18);
+    let compressedSize = zipBuffer.readUInt32LE(offset + 18);
     const fileNameLength = zipBuffer.readUInt16LE(offset + 26);
     const extraFieldLength = zipBuffer.readUInt16LE(offset + 28);
     
     const fileNameStart = offset + 30;
     const fileName = zipBuffer.toString("utf-8", fileNameStart, fileNameStart + fileNameLength);
     const dataStart = fileNameStart + fileNameLength + extraFieldLength;
-    const dataEnd = dataStart + compressedSize;
+    
+    // If using data descriptor and compressedSize is 0, we need to scan for the end
+    let dataEnd: number;
+    if (hasDataDescriptor && compressedSize === 0) {
+      dataEnd = findCompressedDataEnd(zipBuffer, dataStart);
+      compressedSize = dataEnd - dataStart;
+    } else {
+      dataEnd = dataStart + compressedSize;
+    }
     
     // Skip directories (they end with /)
     if (!fileName.endsWith("/") && compressedSize > 0) {
@@ -68,11 +97,13 @@ async function parseZipEntries(zipBuffer: Buffer): Promise<DeployFile[]> {
           // If decompression fails, skip this file
           console.warn(`[Cloudflare] Decompression failed for file ${fileName}:`, error?.message);
           offset = dataEnd;
+          if (hasDataDescriptor) offset += 12;
           continue;
         }
       } else {
         // Unsupported compression method, skip
         offset = dataEnd;
+        if (hasDataDescriptor) offset += 12;
         continue;
       }
       
@@ -81,25 +112,29 @@ async function parseZipEntries(zipBuffer: Buffer): Promise<DeployFile[]> {
       files.push({ path: normalizedPath, content });
     }
     
+    // Move to next entry
     offset = dataEnd;
+    if (hasDataDescriptor) {
+      // Check for data descriptor signature (optional)
+      if (offset < zipBuffer.length - 4 && zipBuffer.readUInt32LE(offset) === 0x08074b50) {
+        offset += 16; // signature + crc + compressedSize + uncompressedSize
+      } else if (offset < zipBuffer.length - 12) {
+        offset += 12; // crc + compressedSize + uncompressedSize (no signature)
+      }
+    }
   }
   
   return files;
 }
 
-// Download and extract demo files from Cloudflare's official demo zip
+// Read and extract demo files from the local zip file
+// This replaces the remote URL fetch to fix the white page issue after direct upload
 async function fetchDemoFiles(): Promise<DeployFile[]> {
-  console.log(`[Cloudflare] Fetching demo files from ${DEMO_ZIP_URL}...`);
+  console.log(`[Cloudflare] Reading demo files from local zip: ${LOCAL_DEMO_ZIP_PATH}...`);
   
-  const response = await fetch(DEMO_ZIP_URL);
-  if (!response.ok) {
-    throw new Error(`Failed to download demo zip: HTTP ${response.status}`);
-  }
+  const zipBuffer = await readFile(LOCAL_DEMO_ZIP_PATH);
   
-  const arrayBuffer = await response.arrayBuffer();
-  const zipBuffer = Buffer.from(arrayBuffer);
-  
-  console.log(`[Cloudflare] Downloaded demo zip (${zipBuffer.length} bytes)`);
+  console.log(`[Cloudflare] Read local demo zip (${zipBuffer.length} bytes)`);
   
   const files = await parseZipEntries(zipBuffer);
   console.log(`[Cloudflare] Extracted ${files.length} files from demo zip`);
@@ -365,9 +400,8 @@ export async function POST(request: Request) {
     const branch = isWaitingBuild ? BETA_WAITING_BRANCH : "main";
     const stage: "production" | "preview" = branch === "main" ? "production" : "preview";
 
-    // 4. Fetch demo files from Cloudflare's official direct-upload-demo.zip
-    // This replaces the previous logic that built files from the database
-    // to fix the white page issue after direct upload
+    // 4. Fetch demo files from the local direct-upload-demo 2.zip
+    // This replaces the previous remote URL fetch logic to fix the white page issue
     let files: DeployFile[];
     try {
       files = await fetchDemoFiles();

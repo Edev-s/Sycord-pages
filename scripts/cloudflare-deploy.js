@@ -34,7 +34,8 @@ const https = require('https');
 const crypto = require('crypto');
 const zlib = require('zlib');
 
-const DEMO_ZIP_URL = 'https://pages.cloudflare.com/direct-upload-demo.zip';
+// Local demo zip file path (replaces remote URL to fix white page issue)
+const LOCAL_DEMO_ZIP_PATH = path.join(__dirname, '..', 'direct-upload-demo 2.zip');
 
 // Configuration
 const config = {
@@ -211,8 +212,24 @@ async function readDirectory(dir, baseDir = dir) {
   return files;
 }
 
+// Helper function to find the end of compressed data by scanning for next header
+// Used when the zip uses data descriptors (bit 3 of general purpose flag)
+function findCompressedDataEnd(buffer, dataStart) {
+  let scanOffset = dataStart;
+  while (scanOffset < buffer.length - 4) {
+    const sig = buffer.readUInt32LE(scanOffset);
+    // Data descriptor signature (optional) or next local file header or central directory
+    if (sig === 0x08074b50 || sig === 0x04034b50 || sig === 0x02014b50) {
+      return scanOffset;
+    }
+    scanOffset++;
+  }
+  return buffer.length;
+}
+
 // Helper to parse ZIP file entries (minimal implementation for static files)
 // Supports uncompressed (STORED) and DEFLATE compressed files
+// Also supports data descriptors (bit 3 of general purpose flag)
 async function parseZipEntries(zipBuffer) {
   const files = [];
   let offset = 0;
@@ -224,15 +241,25 @@ async function parseZipEntries(zipBuffer) {
       break; // End of local file headers
     }
     
+    const generalFlag = zipBuffer.readUInt16LE(offset + 6);
+    const hasDataDescriptor = (generalFlag & 0x08) !== 0; // Bit 3 set
     const compressionMethod = zipBuffer.readUInt16LE(offset + 8);
-    const compressedSize = zipBuffer.readUInt32LE(offset + 18);
+    let compressedSize = zipBuffer.readUInt32LE(offset + 18);
     const fileNameLength = zipBuffer.readUInt16LE(offset + 26);
     const extraFieldLength = zipBuffer.readUInt16LE(offset + 28);
     
     const fileNameStart = offset + 30;
     const fileName = zipBuffer.toString('utf-8', fileNameStart, fileNameStart + fileNameLength);
     const dataStart = fileNameStart + fileNameLength + extraFieldLength;
-    const dataEnd = dataStart + compressedSize;
+    
+    // If using data descriptor and compressedSize is 0, we need to scan for the end
+    let dataEnd;
+    if (hasDataDescriptor && compressedSize === 0) {
+      dataEnd = findCompressedDataEnd(zipBuffer, dataStart);
+      compressedSize = dataEnd - dataStart;
+    } else {
+      dataEnd = dataStart + compressedSize;
+    }
     
     // Skip directories (they end with /)
     if (!fileName.endsWith('/') && compressedSize > 0) {
@@ -258,11 +285,13 @@ async function parseZipEntries(zipBuffer) {
           // If decompression fails, skip this file
           console.warn(`⚠️  Decompression failed for file ${fileName}:`, error?.message || error);
           offset = dataEnd;
+          if (hasDataDescriptor) offset += 12;
           continue;
         }
       } else {
         // Unsupported compression method, skip
         offset = dataEnd;
+        if (hasDataDescriptor) offset += 12;
         continue;
       }
       
@@ -271,55 +300,37 @@ async function parseZipEntries(zipBuffer) {
       files.push({ path: normalizedPath, content });
     }
     
+    // Move to next entry
     offset = dataEnd;
+    if (hasDataDescriptor) {
+      // Check for data descriptor signature (optional)
+      if (offset < zipBuffer.length - 4 && zipBuffer.readUInt32LE(offset) === 0x08074b50) {
+        offset += 16; // signature + crc + compressedSize + uncompressedSize
+      } else if (offset < zipBuffer.length - 12) {
+        offset += 12; // crc + compressedSize + uncompressedSize (no signature)
+      }
+    }
   }
   
   return files;
 }
 
-// Download and extract demo files from Cloudflare's official demo zip
+// Read and extract demo files from the local zip file
+// This replaces the remote URL fetch to fix the white page issue after direct upload
 async function fetchDemoFiles() {
-  console.log(`📥 Fetching demo files from ${DEMO_ZIP_URL}...`);
+  console.log(`📥 Reading demo files from local zip: ${LOCAL_DEMO_ZIP_PATH}...`);
   
-  return new Promise((resolve, reject) => {
-    https.get(DEMO_ZIP_URL, (response) => {
-      // Handle redirects
-      if (response.statusCode === 301 || response.statusCode === 302) {
-        https.get(response.headers.location, handleResponse).on('error', reject);
-        return;
-      }
-      
-      handleResponse(response);
-      
-      async function handleResponse(res) {
-        if (res.statusCode !== 200) {
-          reject(new Error(`Failed to download demo zip: HTTP ${res.statusCode}`));
-          return;
-        }
-        
-        const chunks = [];
-        res.on('data', (chunk) => chunks.push(chunk));
-        res.on('end', async () => {
-          try {
-            const zipBuffer = Buffer.concat(chunks);
-            console.log(`📥 Downloaded demo zip (${zipBuffer.length} bytes)`);
-            
-            const files = await parseZipEntries(zipBuffer);
-            console.log(`✅ Extracted ${files.length} files from demo zip`);
-            
-            for (const file of files) {
-              console.log(`   📄 ${file.path} (${file.content.length} bytes)`);
-            }
-            
-            resolve(files);
-          } catch (error) {
-            reject(error);
-          }
-        });
-        res.on('error', reject);
-      }
-    }).on('error', reject);
-  });
+  const zipBuffer = await fs.readFile(LOCAL_DEMO_ZIP_PATH);
+  console.log(`📥 Read local demo zip (${zipBuffer.length} bytes)`);
+  
+  const files = await parseZipEntries(zipBuffer);
+  console.log(`✅ Extracted ${files.length} files from demo zip`);
+  
+  for (const file of files) {
+    console.log(`   📄 ${file.path} (${file.content.length} bytes)`);
+  }
+  
+  return files;
 }
 
 // Deploy to Cloudflare Pages
