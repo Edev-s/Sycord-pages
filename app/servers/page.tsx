@@ -38,20 +38,28 @@ export default function ServersPage() {
       {/* Header */}
       <header className="px-6 py-6">
         <div className="flex items-center gap-3">
-          <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M8 12C8 10.8954 8.89543 10 10 10H16L20 14H30C31.1046 14 32 14.8954 32 16V28C32 29.1046 31.1046 30 30 30H10C8.89543 30 8 29.1046 8 28V12Z" fill="#666666"/>
-          </svg>
+          <Image
+            src="/logo.png"
+            alt="Sycord logo"
+            width={40}
+            height={40}
+            className="h-10 w-10"
+            priority
+          />
           <h1 className="text-2xl font-semibold text-white">Servers</h1>
         </div>
       </header>
 
       <div className="px-6 py-4">
         <div className="relative w-full flex items-center justify-center">
-          <img 
-            src="/b2adf1e2-fe2d-479c-ad8a.jpeg"
-            alt="World Map"
-            className="w-full max-w-md opacity-50 invert brightness-50"
-            style={{ filter: 'invert(1) brightness(0.4)' }}
+          <Image 
+            src="/hero-image.jpg"
+            alt="Sycord hero graphic"
+            width={640}
+            height={313}
+            className="opacity-50"
+            style={{ filter: "invert(1) brightness(0.4)" }}
+            priority
           />
         </div>
       </div>
@@ -90,9 +98,14 @@ export default function ServersPage() {
 
           {/* Logo and Copyright */}
           <div className="flex items-center gap-2">
-            <svg width="20" height="20" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M8 12C8 10.8954 8.89543 10 10 10H16L20 14H30C31.1046 14 32 14.8954 32 16V28C32 29.1046 31.1046 30 30 30H10C8.89543 30 8 29.1046 8 28V12Z" fill="#666666"/>
-            </svg>
+            <Image
+              src="/logo.png"
+              alt="Sycord logo"
+              width={20}
+              height={20}
+              className="h-5 w-5"
+              priority
+            />
             <span className="text-sm text-[#888888]">© 2025 Sycord. Minden jog fenntartva.</span>
           </div>
 
