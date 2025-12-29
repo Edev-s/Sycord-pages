@@ -206,9 +206,9 @@ export default function ServersPage() {
                   style={{ left: `${continent.x}%`, top: `${continent.y}%` }}
                 >
                   <div className="relative">
-                    {/* Pulse animation */}
+                    {/* Pulse animation - respects prefers-reduced-motion */}
                     <div className={cn(
-                      "absolute inset-0 rounded-full animate-ping opacity-75",
+                      "absolute inset-0 rounded-full animate-ping opacity-75 motion-reduce:animate-none",
                       getStatusColor(continent.status)
                     )} style={{ animationDuration: '2s' }} />
                     

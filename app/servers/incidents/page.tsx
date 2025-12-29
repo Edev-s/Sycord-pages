@@ -58,9 +58,18 @@ const mockIncidents = [
   },
 ]
 
+type FilterType = "all" | "active" | "resolved" | "scheduled"
+
 export default function IncidentsPage() {
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null)
-  const [filter, setFilter] = useState<"all" | "active" | "resolved" | "scheduled">("all")
+  const [filter, setFilter] = useState<FilterType>("all")
+  
+  // Calculate global status from continents
+  const globalStatus = continents.every(c => c.status === "operational") 
+    ? "operational" 
+    : continents.some(c => c.status === "outage") 
+      ? "outage" 
+      : "degraded"
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -244,9 +253,9 @@ export default function IncidentsPage() {
                   onClick={() => setSelectedRegion(selectedRegion === continent.id ? null : continent.id)}
                 >
                   <div className="relative">
-                    {/* Pulse animation */}
+                    {/* Pulse animation - respects prefers-reduced-motion */}
                     <div className={cn(
-                      "absolute inset-0 rounded-full animate-ping opacity-75",
+                      "absolute inset-0 rounded-full animate-ping opacity-75 motion-reduce:animate-none",
                       getStatusColor(continent.status)
                     )} style={{ animationDuration: '2s' }} />
                     
@@ -322,7 +331,7 @@ export default function IncidentsPage() {
               ].map((tab) => (
                 <button
                   key={tab.value}
-                  onClick={() => setFilter(tab.value as any)}
+                  onClick={() => setFilter(tab.value as FilterType)}
                   className={cn(
                     "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
                     filter === tab.value 
@@ -424,8 +433,10 @@ export default function IncidentsPage() {
         <div className="container mx-auto px-4 py-12">
           <div className="flex justify-center mb-6">
             <div className="flex items-center gap-3">
-              <div className="w-2 h-2 rounded-full bg-[#00E599]" />
-              <span className="text-sm font-medium text-muted-foreground">All services operational</span>
+              <div className={cn("w-2 h-2 rounded-full", getStatusColor(globalStatus))} />
+              <span className="text-sm font-medium text-muted-foreground">
+                {globalStatus === "operational" ? "All services operational" : "Some services experiencing issues"}
+              </span>
             </div>
           </div>
           <div className="pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4">
