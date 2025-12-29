@@ -51,8 +51,13 @@ export default function AdminPage() {
   const [updatingUser, setUpdatingUser] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<"overview" | "users" | "env">("overview")
+  const [activeTab, setActiveTab] = useState<"overview" | "users" | "env" | "monitors">("overview")
   const [copiedToken, setCopiedToken] = useState<string | null>(null)
+
+  // Monitors state
+  const [monitors, setMonitors] = useState<any[]>([])
+  const [newMonitor, setNewMonitor] = useState({ name: "", cronitorId: "", provider: "", icon: "Server" })
+  const [loadingMonitors, setLoadingMonitors] = useState(false)
 
   useEffect(() => {
     if (session?.user?.email !== "dmarton336@gmail.com") {
@@ -138,6 +143,51 @@ export default function AdminPage() {
     setTimeout(() => setCopiedToken(null), 2000)
   }
 
+  const fetchMonitors = async () => {
+    try {
+      setLoadingMonitors(true)
+      const response = await fetch("/api/admin/monitors")
+      if (!response.ok) throw new Error("Failed to fetch monitors")
+      const data = await response.json()
+      setMonitors(data)
+    } catch (error) {
+      console.error("Error fetching monitors:", error)
+    } finally {
+      setLoadingMonitors(false)
+    }
+  }
+
+  const handleAddMonitor = async () => {
+    try {
+      const response = await fetch("/api/admin/monitors", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newMonitor),
+      })
+      if (response.ok) {
+        setNewMonitor({ name: "", cronitorId: "", provider: "", icon: "Server" })
+        fetchMonitors()
+      }
+    } catch (error) {
+      console.error("Error adding monitor:", error)
+    }
+  }
+
+  const handleDeleteMonitor = async (id: string) => {
+    try {
+      await fetch(`/api/admin/monitors/${id}`, { method: "DELETE" })
+      fetchMonitors()
+    } catch (error) {
+      console.error("Error deleting monitor:", error)
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === "monitors") {
+      fetchMonitors()
+    }
+  }, [activeTab])
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
@@ -212,6 +262,17 @@ export default function AdminPage() {
             >
               <Users className="h-5 w-5" />
               <span className="font-medium text-sm">User Management</span>
+            </button>
+            <button
+              onClick={() => { setActiveTab("monitors"); setIsSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group ${
+                activeTab === "monitors"
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
+                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              }`}
+            >
+              <Server className="h-5 w-5" />
+              <span className="font-medium text-sm">Monitors</span>
             </button>
             <button
               onClick={() => { setActiveTab("env"); setIsSidebarOpen(false); }}
@@ -436,6 +497,75 @@ export default function AdminPage() {
              </div>
           )}
 
+          {/* Monitors Tab */}
+          {activeTab === "monitors" && (
+             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Manage Server Monitors</CardTitle>
+                  <CardDescription>Configure Cronitor monitors for the server status page.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+                    <Input
+                      placeholder="Server Name"
+                      value={newMonitor.name}
+                      onChange={(e) => setNewMonitor({...newMonitor, name: e.target.value})}
+                    />
+                    <Input
+                      placeholder="Cronitor ID (Monitor Key)"
+                      value={newMonitor.cronitorId}
+                      onChange={(e) => setNewMonitor({...newMonitor, cronitorId: e.target.value})}
+                    />
+                    <Input
+                      placeholder="Provider Name"
+                      value={newMonitor.provider}
+                      onChange={(e) => setNewMonitor({...newMonitor, provider: e.target.value})}
+                    />
+                    <Input
+                      placeholder="Icon Name (e.g. Server, Cloud)"
+                      value={newMonitor.icon}
+                      onChange={(e) => setNewMonitor({...newMonitor, icon: e.target.value})}
+                    />
+                    <Button onClick={handleAddMonitor}>
+                      <Check className="w-4 h-4 mr-2" /> Add Monitor
+                    </Button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {loadingMonitors ? (
+                      <div className="text-center py-4">Loading monitors...</div>
+                    ) : monitors.length === 0 ? (
+                       <div className="text-center py-8 text-muted-foreground border border-dashed rounded-lg">
+                         No monitors configured.
+                       </div>
+                    ) : (
+                      monitors.map((monitor) => (
+                        <div key={monitor._id} className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border border-border">
+                          <div className="flex items-center gap-4">
+                            <div className="bg-background p-2 rounded-md border border-border">
+                               <Server className="w-5 h-5 text-muted-foreground" />
+                            </div>
+                            <div>
+                              <h3 className="font-medium">{monitor.name}</h3>
+                              <p className="text-sm text-muted-foreground flex gap-3">
+                                <span>ID: <code className="bg-muted px-1 rounded">{monitor.cronitorId}</code></span>
+                                <span>Provider: {monitor.provider}</span>
+                              </p>
+                            </div>
+                          </div>
+                          <Button variant="ghost" size="sm" onClick={() => handleDeleteMonitor(monitor._id)} className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
           {/* Environment Variables Guide Tab */}
           {activeTab === "env" && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -483,7 +613,13 @@ export default function AdminPage() {
                         <div className="flex flex-col gap-1">
                           <span className="text-muted-foreground select-all">NEXTAUTH_URL</span>
                           <div className="bg-background border rounded px-3 py-2 text-xs text-muted-foreground">
-                            Application URL (e.g., https://yourdomain.com)
+                            Application URL (e.g., https://ltpd.xyz)
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-muted-foreground select-all">CRONITOR_API_KEY</span>
+                          <div className="bg-background border rounded px-3 py-2 text-xs text-muted-foreground">
+                            Cronitor API Key for server status
                           </div>
                         </div>
                       </div>
