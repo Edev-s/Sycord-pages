@@ -241,9 +241,9 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="flex justify-center mb-6">
-            <Link href="/servers" className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors group">
-              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-xs font-medium text-emerald-500 group-hover:text-emerald-400">All service is operational</span>
+            <Link href="/servers" className="flex items-center gap-3 transition-colors group">
+              <div className="w-2 h-2 rounded-full bg-[#00E599]" />
+              <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground">All service is operational</span>
             </Link>
           </div>
           <div className="pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4">

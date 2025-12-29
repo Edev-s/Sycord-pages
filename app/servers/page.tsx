@@ -56,19 +56,19 @@ export default function ServersPage() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-[#111] text-foreground flex flex-col items-center py-12 px-4 font-sans">
-      <div className="w-full max-w-xl mb-12">
-        <div className="flex items-center gap-3 mb-12">
-           <div className="bg-white/10 p-2 rounded-lg backdrop-blur-sm">
-                <Image src="/logo.png" alt="Logo" width={24} height={24} className="opacity-80" />
+    <div className="min-h-screen bg-[#111] text-foreground flex flex-col items-center py-20 px-4 font-sans selection:bg-emerald-500/30">
+      <div className="w-full max-w-[520px]">
+        <div className="flex items-center gap-4 mb-20">
+           <div className="w-10 h-10 bg-zinc-800/50 rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/5">
+                <Image src="/logo.png" alt="Logo" width={20} height={20} className="opacity-80 invert" />
            </div>
-           <h1 className="text-2xl font-semibold text-white tracking-tight">Servers</h1>
+           <h1 className="text-3xl font-bold text-white tracking-tight">Servers</h1>
         </div>
 
         {/* World Map Placeholder */}
-        <div className="w-full aspect-[2/1] bg-transparent flex items-center justify-center mb-12 relative opacity-30 select-none pointer-events-none">
-             {/* A simple world map SVG path */}
-            <svg viewBox="0 0 2000 1001" className="w-full h-full fill-white">
+        <div className="w-full aspect-[2/1] flex items-center justify-center mb-16 relative select-none pointer-events-none">
+             {/* Map SVG */}
+            <svg viewBox="0 0 2000 1001" className="w-full h-full fill-[#222]">
                 <path d="M1890,780c-25,10-53,19-72,30c-15,8-16,35-9,48c8,15,31,16,45,21c17,7,35,12,50,23c18,12,32,32,54,38c11,3,25-3,34-11
                 c8-8,6-22,7-33c1-15,10-27,7-42c-2-12-16-17-27-21c-15-5-29-10-44-15c-15-5-30-10-45-15C1890,803,1890,780,1890,780z M605,338
                 c-27-14-63-12-87,9c-9,8-16,21-14,33c2,11,15,14,24,19c11,6,22,12,33,18c14,8,26,20,43,21c17,1,33-9,46-18c10-7,19-17,25-28
@@ -81,71 +81,76 @@ export default function ServersPage() {
         </div>
 
         {/* Global Status */}
-        <div className="flex items-center gap-3 mb-16">
-            <div className={cn("w-2.5 h-2.5 rounded-full shadow-[0_0_10px_rgba(0,255,0,0.5)]",
-                globalStatus === "operational" ? "bg-emerald-500 shadow-emerald-500/50" : "bg-red-500 shadow-red-500/50")} />
-            <span className="text-lg font-medium text-gray-200">
-                {globalStatus === "operational" ? "All system is operational!" : "Some systems are experiencing issues"}
+        <div className="flex items-center gap-4 mb-24">
+            <div className={cn("w-8 h-2.5 rounded-full",
+                globalStatus === "operational" ? "bg-[#00E599]" : "bg-red-500")} />
+            <span className="text-xl font-bold text-white tracking-tight">
+                {globalStatus === "operational" ? "All system is operational!" : "System issues detected"}
             </span>
         </div>
 
         {/* Server List */}
-        <div className="space-y-16 w-full">
+        <div className="space-y-20 w-full">
             {loading ? (
-                <div className="text-center text-muted-foreground animate-pulse">Checking status...</div>
+                <div className="space-y-20">
+                     {[1,2,3].map(i => (
+                         <div key={i} className="animate-pulse">
+                            <div className="flex justify-between mb-4">
+                                <div className="h-5 w-32 bg-zinc-800 rounded"></div>
+                                <div className="h-5 w-16 bg-zinc-800 rounded"></div>
+                            </div>
+                            <div className="h-16 w-full bg-zinc-800/50 rounded mb-4"></div>
+                            <div className="h-5 w-24 bg-zinc-800 rounded"></div>
+                         </div>
+                     ))}
+                </div>
             ) : servers.length === 0 ? (
                 <div className="text-center text-muted-foreground">No servers monitored.</div>
             ) : (
                 servers.map((server) => (
                     <div key={server.id} className="flex flex-col gap-3">
-                        <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm font-medium text-gray-200 tracking-wide">{server.name}</span>
-                            <div className="flex items-center gap-3">
-                                <span className="font-mono text-sm text-gray-200">
+                        <div className="flex items-end justify-between mb-2">
+                            <span className="text-base font-bold text-white tracking-wide">{server.name}</span>
+                            <div className="flex items-center gap-2">
+                                <span className="font-mono text-sm font-bold text-white">
                                     {server.statusCode > 0 ? server.statusCode : ""}
                                 </span>
-                                <div className={cn("w-2.5 h-2.5 rounded-full", server.status === "up" ? "bg-emerald-500" : "bg-red-500")} />
+                                <div className={cn("w-3 h-3 rounded-full mt-0.5", server.status === "up" ? "bg-[#00E599]" : "bg-red-500")} />
                             </div>
                         </div>
 
                         {/* History Bars */}
-                        <div className="flex items-center justify-between gap-1 h-14 mb-1">
+                        <div className="flex items-center justify-between gap-1.5 h-[72px] mb-2">
                             {server.history.map((status, index) => (
                                 <div
                                     key={index}
                                     className={cn(
-                                        "flex-1 h-full rounded-md opacity-90 transition-all hover:opacity-100",
-                                        status === "up" && "bg-emerald-500",
+                                        "flex-1 h-full rounded-[4px] transition-all duration-300",
+                                        status === "up" && "bg-[#00E599]",
                                         status === "down" && "bg-red-500",
-                                        status === "unknown" && "bg-zinc-800"
+                                        status === "unknown" && "bg-[#333]" // Dark grey for unknown/new
                                     )}
                                 />
                             ))}
                         </div>
 
                         {/* Provider */}
-                        <div className="flex items-center gap-3 text-zinc-500">
-                             <div className="w-5 h-5 bg-zinc-800 rounded flex items-center justify-center">
-                                {server.providerIcon && <DynamicIcon name={server.providerIcon} className="w-3 h-3 text-zinc-400" />}
+                        <div className="flex items-center gap-3">
+                             <div className="w-6 h-6 bg-[#333] rounded-[4px] flex items-center justify-center shrink-0">
+                                {server.providerIcon ? (
+                                     <DynamicIcon name={server.providerIcon} className="w-3.5 h-3.5 text-zinc-400" />
+                                ) : (
+                                     <div className="w-full h-full bg-[#444] rounded-[4px]" />
+                                )}
                              </div>
-                             {server.provider && <span className="text-sm">{server.provider}</span>}
+                             {server.provider && <span className="text-[15px] font-medium text-gray-300">{server.provider}</span>}
                         </div>
                     </div>
                 ))
             )}
         </div>
 
-        <div className="mt-20 text-center border-t border-white/10 pt-8 w-full flex flex-col items-center">
-             <div className="flex items-center gap-2 mb-4 opacity-50">
-                  <Image src="/logo.png" alt="Logo" width={16} height={16} />
-                  <span className="text-xs">© 2024 Sycord. Minden jog fenntartva.</span>
-             </div>
-             <div className="flex gap-4 text-xs text-zinc-600">
-                 <span>Twitter</span>
-                 <span>GitHub</span>
-                 <span>Discord</span>
-             </div>
-        </div>
+
       </div>
     </div>
   )
