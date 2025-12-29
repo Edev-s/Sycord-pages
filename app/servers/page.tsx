@@ -1,157 +1,115 @@
-"use client"
-
-import { useEffect, useState } from "react"
-import Link from "next/link"
 import Image from "next/image"
-import { Button } from "@/components/ui/button"
-import { Server as ServerIcon, Globe } from "lucide-react"
-import { cn } from "@/lib/utils"
-import * as LucideIcons from "lucide-react"
+import Link from "next/link"
+import { ServerStatusCard } from "@/components/server-status-card"
 
-const DynamicIcon = ({ name, className }: { name: string; className?: string }) => {
-  const Icon = (LucideIcons as any)[name] || Globe
-  return <Icon className={className} />
-}
-
-interface ServerStatus {
-  id: string
-  name: string
-  provider: string
-  providerIcon: string
-  status: "up" | "down" | "unknown"
-  statusCode: number
-  history: ("up" | "down" | "unknown")[]
-}
-
-interface StatusResponse {
-  servers: ServerStatus[]
-  globalStatus: "operational" | "degraded" | "outage"
-}
+const servers = [
+  {
+    name: "server name",
+    status: 200,
+    provider: "Sycord ltd.",
+    uptime: [
+      true, true, true, true, true, true, true, true, true, true,
+      true, true, true, true, true, true, true, null, null, null
+    ]
+  },
+  {
+    name: "server name",
+    status: 200,
+    provider: "Cloudflare",
+    uptime: [
+      true, true, true, true, true, true, true, true, true, true,
+      true, true, true, true, true, true, true, null, null, null
+    ]
+  },
+  {
+    name: "server name",
+    status: 200,
+    provider: "Sycord ltd.",
+    uptime: [
+      true, true, true, true, true, true, true, true, true, true,
+      true, true, true, true, true, true, true, null, null, null
+    ]
+  },
+]
 
 export default function ServersPage() {
-  const [servers, setServers] = useState<ServerStatus[]>([])
-  const [globalStatus, setGlobalStatus] = useState<"operational" | "degraded" | "outage">("operational")
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const fetchStatus = async () => {
-      try {
-        const res = await fetch("/api/servers/status")
-        if (res.ok) {
-          const data: StatusResponse = await res.json()
-          setServers(data.servers)
-          setGlobalStatus(data.globalStatus)
-        }
-      } catch (error) {
-        console.error("Failed to fetch status:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchStatus()
-    // Poll every minute
-    const interval = setInterval(fetchStatus, 60000)
-    return () => clearInterval(interval)
-  }, [])
-
   return (
-    <div className="min-h-screen bg-[#111] text-foreground flex flex-col items-center py-20 px-4 font-sans selection:bg-emerald-500/30">
-      <div className="w-full max-w-[520px]">
-        <div className="flex items-center gap-4 mb-20">
-           <div className="w-10 h-10 bg-zinc-800/50 rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/5">
-                <Image src="/logo.png" alt="Logo" width={20} height={20} className="opacity-80 invert" />
-           </div>
-           <h1 className="text-3xl font-bold text-white tracking-tight">Servers</h1>
+    <div className="min-h-screen bg-[#1a1a1a]">
+      {/* Header */}
+      <header className="px-6 py-6">
+        <div className="flex items-center gap-3">
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8 12C8 10.8954 8.89543 10 10 10H16L20 14H30C31.1046 14 32 14.8954 32 16V28C32 29.1046 31.1046 30 30 30H10C8.89543 30 8 29.1046 8 28V12Z" fill="#666666"/>
+          </svg>
+          <h1 className="text-2xl font-semibold text-white">Servers</h1>
         </div>
+      </header>
 
-        {/* World Map Placeholder */}
-        <div className="w-full aspect-[2/1] flex items-center justify-center mb-16 relative select-none pointer-events-none">
-             {/* Map SVG */}
-            <svg viewBox="0 0 2000 1001" className="w-full h-full fill-[#222]">
-                <path d="M1890,780c-25,10-53,19-72,30c-15,8-16,35-9,48c8,15,31,16,45,21c17,7,35,12,50,23c18,12,32,32,54,38c11,3,25-3,34-11
-                c8-8,6-22,7-33c1-15,10-27,7-42c-2-12-16-17-27-21c-15-5-29-10-44-15c-15-5-30-10-45-15C1890,803,1890,780,1890,780z M605,338
-                c-27-14-63-12-87,9c-9,8-16,21-14,33c2,11,15,14,24,19c11,6,22,12,33,18c14,8,26,20,43,21c17,1,33-9,46-18c10-7,19-17,25-28
-                c5-10,5-23-1-32C660,344,632,352,605,338z M1458,350c-26,2-47,24-51,49c-3,17,8,34,20,45c11,10,26,16,41,19c15,3,32-2,44-11
-                c11-9,19-23,19-38C1531,384,1501,346,1458,350z M446,477c-21,8-35,31-31,53c2,13,12,23,23,29c15,8,33,9,50,9c19,0,38-6,54-16
-                c12-8,23-20,27-35c3-11-2-22-10-30C533,463,485,462,446,477z M925,502c-38-4-69,28-68,66c0,21,14,40,32,50c18,10,40,11,60,7
-                c22-4,43-16,56-35c9-14,10-32,3-46C991,519,958,506,925,502z M1252,568c-23,7-38,31-32,54c4,17,21,29,38,33c16,4,33-1,46-10
-                c12-9,20-23,20-38c0-17-10-32-25-40C1284,559,1268,563,1252,568z"/>
-            </svg>
+      <div className="px-6 py-4">
+        <div className="relative w-full flex items-center justify-center">
+          <img 
+            src="/images/b2adf1e2-fe2d-479c-ad8a.jpeg"
+            alt="World Map"
+            className="w-full max-w-md opacity-50 invert brightness-50"
+            style={{ filter: 'invert(1) brightness(0.4)' }}
+          />
         </div>
-
-        {/* Global Status */}
-        <div className="flex items-center gap-4 mb-24">
-            <div className={cn("w-8 h-2.5 rounded-full",
-                globalStatus === "operational" ? "bg-[#00E599]" : "bg-red-500")} />
-            <span className="text-xl font-bold text-white tracking-tight">
-                {globalStatus === "operational" ? "All system is operational!" : "System issues detected"}
-            </span>
-        </div>
-
-        {/* Server List */}
-        <div className="space-y-20 w-full">
-            {loading ? (
-                <div className="space-y-20">
-                     {[1,2,3].map(i => (
-                         <div key={i} className="animate-pulse">
-                            <div className="flex justify-between mb-4">
-                                <div className="h-5 w-32 bg-zinc-800 rounded"></div>
-                                <div className="h-5 w-16 bg-zinc-800 rounded"></div>
-                            </div>
-                            <div className="h-16 w-full bg-zinc-800/50 rounded mb-4"></div>
-                            <div className="h-5 w-24 bg-zinc-800 rounded"></div>
-                         </div>
-                     ))}
-                </div>
-            ) : servers.length === 0 ? (
-                <div className="text-center text-muted-foreground">No servers monitored.</div>
-            ) : (
-                servers.map((server) => (
-                    <div key={server.id} className="flex flex-col gap-3">
-                        <div className="flex items-end justify-between mb-2">
-                            <span className="text-base font-bold text-white tracking-wide">{server.name}</span>
-                            <div className="flex items-center gap-2">
-                                <span className="font-mono text-sm font-bold text-white">
-                                    {server.statusCode > 0 ? server.statusCode : ""}
-                                </span>
-                                <div className={cn("w-3 h-3 rounded-full mt-0.5", server.status === "up" ? "bg-[#00E599]" : "bg-red-500")} />
-                            </div>
-                        </div>
-
-                        {/* History Bars */}
-                        <div className="flex items-center justify-between gap-1.5 h-[72px] mb-2">
-                            {server.history.map((status, index) => (
-                                <div
-                                    key={index}
-                                    className={cn(
-                                        "flex-1 h-full rounded-[4px] transition-all duration-300",
-                                        status === "up" && "bg-[#00E599]",
-                                        status === "down" && "bg-red-500",
-                                        status === "unknown" && "bg-[#333]" // Dark grey for unknown/new
-                                    )}
-                                />
-                            ))}
-                        </div>
-
-                        {/* Provider */}
-                        <div className="flex items-center gap-3">
-                             <div className="w-6 h-6 bg-[#333] rounded-[4px] flex items-center justify-center shrink-0">
-                                {server.providerIcon ? (
-                                     <DynamicIcon name={server.providerIcon} className="w-3.5 h-3.5 text-zinc-400" />
-                                ) : (
-                                     <div className="w-full h-full bg-[#444] rounded-[4px]" />
-                                )}
-                             </div>
-                             {server.provider && <span className="text-[15px] font-medium text-gray-300">{server.provider}</span>}
-                        </div>
-                    </div>
-                ))
-            )}
-        </div>
-
-
       </div>
+
+      {/* Status Indicator */}
+      <div className="px-6 py-6">
+        <div className="flex items-center gap-3">
+          <div className="w-6 h-4 rounded-full bg-emerald-500" />
+          <p className="text-lg font-medium text-white">
+            All system is <span className="text-emerald-500">operational</span>!
+          </p>
+        </div>
+      </div>
+
+      {/* Server Cards */}
+      <div className="px-6 pb-8 space-y-8">
+        {servers.map((server, index) => (
+          <ServerStatusCard
+            key={index}
+            name={server.name}
+            status={server.status}
+            provider={server.provider}
+            uptime={server.uptime}
+          />
+        ))}
+      </div>
+
+      {/* Footer */}
+      <footer className="border-t border-[#333333] px-6 py-8">
+        <div className="flex flex-col items-center gap-4">
+          {/* Status */}
+          <div className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+            <span className="text-sm text-[#888888]">All service is operational</span>
+          </div>
+
+          {/* Logo and Copyright */}
+          <div className="flex items-center gap-2">
+            <svg width="20" height="20" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M8 12C8 10.8954 8.89543 10 10 10H16L20 14H30C31.1046 14 32 14.8954 32 16V28C32 29.1046 31.1046 30 30 30H10C8.89543 30 8 29.1046 8 28V12Z" fill="#666666"/>
+            </svg>
+            <span className="text-sm text-[#888888]">© 2025 Sycord. Minden jog fenntartva.</span>
+          </div>
+
+          {/* Social Links */}
+          <div className="flex items-center gap-6">
+            <Link href="#" className="text-sm text-[#888888] hover:text-white transition-colors">
+              Twitter
+            </Link>
+            <Link href="#" className="text-sm text-[#888888] hover:text-white transition-colors">
+              GitHub
+            </Link>
+            <Link href="#" className="text-sm text-[#888888] hover:text-white transition-colors">
+              Discord
+            </Link>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }
