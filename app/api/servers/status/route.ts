@@ -9,6 +9,27 @@ type HistoryPoint = {
   status: boolean | null
 }
 
+type CronitorMonitor = {
+  key: string
+  name?: string
+  type?: string
+  passing?: boolean
+}
+
+type CronitorMonitorsResponse = {
+  monitors?: CronitorMonitor[]
+}
+
+type CronitorPingsResponse = {
+  pings?: PingEntry[]
+}
+
+type PingEntry = {
+  stamp?: number
+  description?: string
+  [key: string]: unknown
+}
+
 const eventToStatus = (event?: string | null) => {
   if (!event) return null
   const normalized = event.toLowerCase()
@@ -22,12 +43,6 @@ const eventToStatus = (event?: string | null) => {
   }
 
   return null
-}
-
-type PingEntry = {
-  stamp?: number
-  description?: string
-  [key: string]: unknown
 }
 
 const normalizePings = (pings: PingEntry[]): HistoryPoint[] => {
@@ -78,7 +93,7 @@ const lastKnownStatus = (history: (boolean | null)[]) => {
 export async function GET() {
   try {
     const apiKey = process.env.CRONITOR_API
-    
+
     if (!apiKey) {
       console.warn("Missing CRONITOR_API environment variable")
       return NextResponse.json({
@@ -92,14 +107,14 @@ export async function GET() {
     }
 
     // Fetch all monitors directly from Cronitor API
-    let monitors: any[] = []
+    let monitors: CronitorMonitor[] = []
     try {
       const res = await fetch("https://cronitor.io/api/monitors", {
         cache: "no-store",
         headers: authHeader,
       })
       if (res.ok) {
-        const data = await res.json()
+        const data: CronitorMonitorsResponse = await res.json()
         monitors = data.monitors || []
       } else {
         console.error("Cronitor API error:", await res.text())
@@ -140,13 +155,13 @@ export async function GET() {
           )
 
           if (pingsRes.ok) {
-            const pingsData = await pingsRes.json()
+            const pingsData: CronitorPingsResponse = await pingsRes.json()
             const pings = pingsData.pings || []
-            
+
             // Filter pings to last 30 hours
             const cutoffTime = (Date.now() / 1000) - (HISTORY_HOURS * 3600)
             const recentPings = pings.filter((p: PingEntry) => p.stamp && p.stamp >= cutoffTime)
-            
+
             const events = normalizePings(recentPings)
             uptime = buildHistory(events, HISTORY_HOURS)
           } else {
@@ -171,7 +186,7 @@ export async function GET() {
         // Use monitor properties from Cronitor API
         const monitorName = monitor.name || monitorKey
         const monitorType = monitor.type || "heartbeat"
-        
+
         return {
           id: monitorKey,
           name: monitorName,
