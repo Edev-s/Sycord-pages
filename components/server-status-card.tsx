@@ -29,8 +29,10 @@ export function ServerStatusCard({ name, status, provider, providerIcon, iconTyp
   const IconComponent = iconMap[iconKey] ?? Server
   const isCustomIcon = iconType === 'custom'
   
-  // Validate custom icon is a safe data URL
-  const isValidCustomIcon = isCustomIcon && providerIcon?.startsWith('data:image/')
+  // Validate custom icon is a safe data URL with proper format
+  const isValidCustomIcon = isCustomIcon && 
+    providerIcon?.startsWith('data:image/') && 
+    providerIcon.includes(';base64,')
 
   return (
     <div className="space-y-3">
@@ -67,7 +69,7 @@ export function ServerStatusCard({ name, status, provider, providerIcon, iconTyp
           {isValidCustomIcon ? (
             <img 
               src={providerIcon} 
-              alt="Custom icon" 
+              alt={`Custom icon for ${name}`}
               className="w-4 h-4 object-contain"
             />
           ) : (
