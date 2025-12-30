@@ -315,6 +315,42 @@ async function parseZipEntries(zipBuffer) {
   return files;
 }
 
+// Find and strip common folder prefix from file paths
+// This fixes the 500 Internal Server Error caused by ZIP files that have 
+// all files inside a subfolder (e.g., "site/index.html" instead of "index.html")
+// Per Cloudflare Pages Direct Upload API requirements, files must be at ZIP root
+function stripCommonFolderPrefix(files) {
+  if (files.length === 0) return files;
+  
+  // Find the common folder prefix across all file paths
+  const paths = files.map(f => f.path.replace(/^\//, '')); // Remove leading slash
+  
+  // Check if all files share a common folder prefix
+  const firstPath = paths[0];
+  const firstSlashIndex = firstPath.indexOf('/');
+  
+  if (firstSlashIndex === -1) {
+    // No folder prefix in first file
+    return files;
+  }
+  
+  const potentialPrefix = firstPath.substring(0, firstSlashIndex + 1);
+  const allHavePrefix = paths.every(p => p.startsWith(potentialPrefix));
+  
+  if (!allHavePrefix) {
+    // Not all files share the same prefix
+    return files;
+  }
+  
+  console.log(`🔧 Stripping common folder prefix: "${potentialPrefix}"`);
+  
+  // Strip the prefix from all paths
+  return files.map(f => ({
+    ...f,
+    path: '/' + f.path.replace(/^\//, '').substring(potentialPrefix.length)
+  }));
+}
+
 // Read and extract demo files from the local zip file
 // This replaces the remote URL fetch to fix the white page issue after direct upload
 async function fetchDemoFiles() {
@@ -332,7 +368,12 @@ async function fetchDemoFiles() {
   
   console.log(`📥 Read local demo zip (${zipBuffer.length} bytes)`);
   
-  const files = await parseZipEntries(zipBuffer);
+  let files = await parseZipEntries(zipBuffer);
+  
+  // Strip common folder prefix to ensure files are at root level
+  // This is required by Cloudflare Pages Direct Upload API to avoid 500 errors
+  files = stripCommonFolderPrefix(files);
+  
   console.log(`✅ Extracted ${files.length} files from demo zip`);
   
   for (const file of files) {
