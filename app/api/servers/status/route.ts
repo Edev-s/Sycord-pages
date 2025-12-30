@@ -1,23 +1,108 @@
 import { NextResponse } from "next/server"
 import clientPromise from "@/lib/mongodb"
 
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic"
 
-interface CronitorMonitor {
-  key: string
-  name: string
-  passing: boolean
-  paused: boolean
-  running: boolean
-  status: string // 'running', 'passing', 'failed', etc.
-  latest_event: {
-    stamp: number
-    event: string
-    msg: string
+const HISTORY_HOURS = 20
+
+type HistoryPoint = {
+  ts: number
+  status: boolean | null
+}
+
+const eventToStatus = (event?: string | null) => {
+  if (!event) return null
+  const normalized = event.toLowerCase()
+
+  if (["fail", "failed", "error", "timeout", "halt", "pause", "stopped", "alert", "down"].some((k) => normalized.includes(k))) {
+    return false
   }
-  // Cronitor API returns recent activity/history too?
-  // We might need to fetch activity logs or assume status is enough.
-  // The user wants "dots" for every hour. Cronitor API returns `activity` or similar if we query details.
+
+  if (["ok", "complete", "run", "ping", "start", "success", "up", "tick", "pass"].some((k) => normalized.includes(k))) {
+    return true
+  }
+
+  return null
+}
+
+type ActivityEntry = Record<string, unknown> | string
+
+const toActivityArray = (raw: unknown): ActivityEntry[] => {
+  if (raw && typeof raw === "object") {
+    const obj = raw as Record<string, unknown>
+    if (Array.isArray(obj.activity)) return obj.activity as ActivityEntry[]
+    if (Array.isArray(obj.events)) return obj.events as ActivityEntry[]
+  }
+  return Array.isArray(raw) ? (raw as ActivityEntry[]) : []
+}
+
+const normalizeEvents = (raw: unknown): HistoryPoint[] => {
+  const activity = toActivityArray(raw)
+
+  return activity
+    .map((entry: ActivityEntry) => {
+      const record = typeof entry === "string" ? undefined : entry
+
+      const stamp =
+        record && typeof record.stamp === "number"
+          ? record.stamp
+          : record && typeof record.timestamp === "number"
+            ? record.timestamp
+            : record && typeof record.ts === "number"
+              ? record.ts
+              : record && typeof record.time === "number"
+                ? record.time
+                : record && typeof record.stamp === "string"
+                  ? Number(record.stamp)
+                  : record && typeof record.ts === "string"
+                    ? Number(record.ts)
+                    : null
+
+      const status = eventToStatus(
+        (record?.event as string | undefined) ||
+          (record?.state as string | undefined) ||
+          (record?.status as string | undefined) ||
+          (typeof entry === "string" ? entry : undefined),
+      )
+
+      if (stamp && !Number.isNaN(stamp)) {
+        return { ts: stamp, status }
+      }
+      return null
+    })
+    .filter(Boolean) as HistoryPoint[]
+}
+
+const buildHistory = (events: HistoryPoint[], hours: number): (boolean | null)[] => {
+  if (!events.length) {
+    return Array(hours).fill(null)
+  }
+
+  const sorted = events.sort((a, b) => a.ts - b.ts)
+  const nowSec = Date.now() / 1000
+  const start = nowSec - hours * 3600
+  const history: (boolean | null)[] = []
+
+  let cursor = 0
+  let lastStatus: boolean | null = null
+
+  for (let i = 0; i < hours; i++) {
+    const bucketEnd = start + (i + 1) * 3600
+    while (cursor < sorted.length && sorted[cursor].ts <= bucketEnd) {
+      lastStatus = sorted[cursor].status
+      cursor++
+    }
+    history.push(lastStatus)
+  }
+
+  return history
+}
+
+const lastKnownStatus = (history: (boolean | null)[]) => {
+  for (let i = history.length - 1; i >= 0; i--) {
+    if (history[i] !== null) return history[i]
+  }
+  return null
 }
 
 export async function GET() {
@@ -26,91 +111,105 @@ export async function GET() {
     const db = client.db()
     const monitors = await db.collection("monitors").find({}).sort({ createdAt: 1 }).toArray()
 
-    const apiKey = process.env.CRONITOR_API_KEY
+    const apiKey = process.env.CRONITOR_API
+    const authHeader = apiKey
+      ? {
+          Authorization: `Basic ${Buffer.from(`${apiKey}:`).toString("base64")}`,
+        }
+      : undefined
+
     if (!apiKey) {
-      // Return mock data if no API key is set, or partial data
-      // For now, let's just return what we have in DB with "unknown" status if no API key
-      console.warn("Missing CRONITOR_API_KEY")
+      console.warn("Missing CRONITOR_API")
     }
 
-    // Fetch status from Cronitor
-    // We can fetch all monitors from Cronitor and map them to our configured monitors
     let cronitorData: Record<string, any> = {}
-    if (apiKey) {
+    if (authHeader) {
       try {
         const res = await fetch("https://cronitor.io/api/monitors", {
-          headers: {
-            "Authorization": `Basic ${btoa(apiKey + ":")}`
-          }
+          cache: "no-store",
+          headers: authHeader,
         })
         if (res.ok) {
           const data = await res.json()
-          // data.monitors is the array usually
           const monitorsList = data.monitors || []
           monitorsList.forEach((m: any) => {
-             cronitorData[m.key] = m
+            cronitorData[m.key] = m
           })
         } else {
-            console.error("Cronitor API error:", await res.text())
+          console.error("Cronitor API error:", await res.text())
         }
       } catch (e) {
         console.error("Failed to fetch from Cronitor:", e)
       }
     }
 
-    const result = monitors.map((monitor) => {
-      const cronitor = cronitorData[monitor.cronitorId]
+    const servers = await Promise.all(
+      monitors.map(async (monitor) => {
+        const monitorKey = monitor.uniqueUri || monitor.cronitorId
+        let status: "up" | "down" | "unknown" = "unknown"
+        let statusCode = 0
+        let uptime: (boolean | null)[] = Array(HISTORY_HOURS).fill(null)
 
-      // Default to unknown/mock if not found
-      let status: "up" | "down" | "unknown" = "unknown"
-      let statusCode = 0
-      let history: ("up" | "down" | "unknown")[] = []
+        const cronitor = monitorKey ? cronitorData[monitorKey] : undefined
+        if (cronitor) {
+          status = cronitor.passing ? "up" : "down"
+          statusCode = cronitor.passing ? 200 : 503
+        }
 
-      if (cronitor) {
-        status = cronitor.passing ? "up" : "down"
-        // Cronitor doesn't strictly provide "status code" for all types, but let's assume valid response if passing
-        statusCode = cronitor.passing ? 200 : 503
+        if (authHeader && monitorKey) {
+          try {
+            const activityRes = await fetch(
+              `https://cronitor.io/api/monitors/${encodeURIComponent(monitorKey)}/activity?hours=${HISTORY_HOURS}`,
+              {
+                cache: "no-store",
+                headers: authHeader,
+              },
+            )
 
-        // Construct history from recent invocations or simple logic
-        // Cronitor API might not give hourly history in the list view.
-        // We might need to infer or use the `latest_events` if available.
-        // For simplicity, we will fill history with current status or random for now if data is missing,
-        // as real hourly history requires more complex API queries (activity endpoint).
-        // Let's check if there is some activity data.
-        // Actually, let's just use the current status for the "dot" history to avoid complexity for now,
-        // or fill it with gray if new.
+            if (activityRes.ok) {
+              const activityData = await activityRes.json()
+              const events = normalizeEvents(activityData)
+              uptime = buildHistory(events, HISTORY_HOURS)
+            } else {
+              console.error("Cronitor activity error:", await activityRes.text())
+            }
+          } catch (error) {
+            console.error(`Error fetching activity for monitor ${monitorKey}:`, error)
+          }
+        }
 
-        // Mocking history based on current status for visual consistency with the request
-        // ideally we would query `https://cronitor.io/api/monitors/:key/activity`
-        history = Array(14).fill(status)
-      } else {
-         // If we don't have data, we just return unknown
-         history = Array(14).fill("unknown")
-      }
+        if (uptime.every((entry) => entry === null)) {
+          if (status === "up") uptime = Array(HISTORY_HOURS).fill(true)
+          if (status === "down") uptime = Array(HISTORY_HOURS).fill(false)
+        }
 
-      return {
-        id: monitor._id.toString(),
-        name: monitor.name,
-        provider: monitor.provider,
-        providerIcon: monitor.icon,
-        status,
-        statusCode,
-        history
-      }
-    })
+        const lastPoint = lastKnownStatus(uptime)
+        if (!statusCode && lastPoint !== null) {
+          statusCode = lastPoint ? 200 : 503
+          status = lastPoint ? "up" : "down"
+        }
 
-    // Determine global status
-    const allUp = result.every(m => m.status === "up" || m.status === "unknown") // Treat unknown as okay-ish or handle separately?
-    // If any is down -> degraded/outage
-    const anyDown = result.some(m => m.status === "down")
+        return {
+          id: monitor._id.toString(),
+          name: monitor.name,
+          provider: monitor.provider,
+          providerIcon: monitor.icon,
+          status,
+          statusCode,
+          uptime,
+        }
+      }),
+    )
 
+    const anyDown = servers.some(
+      (monitor) => monitor.status === "down" || monitor.uptime.some((point) => point === false),
+    )
     const globalStatus = anyDown ? "outage" : "operational"
 
     return NextResponse.json({
-        servers: result,
-        globalStatus
+      servers,
+      globalStatus,
     })
-
   } catch (error) {
     console.error("Error in status API:", error)
     return new NextResponse("Internal Server Error", { status: 500 })

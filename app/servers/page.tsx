@@ -1,38 +1,38 @@
 import Image from "next/image"
 import Link from "next/link"
+import { headers } from "next/headers"
 import { ServerStatusCard } from "@/components/server-status-card"
 
-const servers = [
-  {
-    name: "server name",
-    status: 200,
-    provider: "Sycord ltd.",
-    uptime: [
-      true, true, true, true, true, true, true, true, true, true,
-      true, true, true, true, true, true, true, null, null, null
-    ]
-  },
-  {
-    name: "server name",
-    status: 200,
-    provider: "Cloudflare",
-    uptime: [
-      true, true, true, true, true, true, true, true, true, true,
-      true, true, true, true, true, true, true, null, null, null
-    ]
-  },
-  {
-    name: "server name",
-    status: 200,
-    provider: "Sycord ltd.",
-    uptime: [
-      true, true, true, true, true, true, true, true, true, true,
-      true, true, true, true, true, true, true, null, null, null
-    ]
-  },
-]
+type ServerStatus = {
+  id: string
+  name: string
+  provider: string
+  providerIcon?: string
+  statusCode: number
+  uptime: (boolean | null)[]
+}
 
-export default function ServersPage() {
+async function getServerStatus(): Promise<{ servers: ServerStatus[]; globalStatus: string }> {
+  const headerList = await headers()
+  const host = headerList.get("host")
+  const protocol = process.env.NODE_ENV === "production" ? "https" : "http"
+  const baseUrl = host ? `${protocol}://${host}` : process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "http://localhost:3000"
+  const endpoint = `${baseUrl}/api/servers/status`
+
+  try {
+    const response = await fetch(endpoint, { cache: "no-store" })
+    if (!response.ok) throw new Error("Failed to fetch status")
+    return await response.json()
+  } catch (error) {
+    console.error("Unable to load server status:", error)
+    return { servers: [], globalStatus: "operational" }
+  }
+}
+
+export default async function ServersPage() {
+  const { servers, globalStatus } = await getServerStatus()
+  const isOperational = globalStatus !== "outage"
+
   return (
     <div className="min-h-screen bg-[#1a1a1a]">
       {/* Header */}
@@ -53,7 +53,7 @@ export default function ServersPage() {
       <div className="px-6 py-4">
         <div className="relative w-full flex items-center justify-center">
           <Image 
-            src="/hero-image.jpg"
+            src="/b2adf1e2-fe2d-479c-ad8a.jpeg"
             alt="Sycord hero graphic"
             width={640}
             height={313}
@@ -67,24 +67,37 @@ export default function ServersPage() {
       {/* Status Indicator */}
       <div className="px-6 py-6">
         <div className="flex items-center gap-3">
-          <div className="w-6 h-4 rounded-full bg-emerald-500" />
+          <div className={`w-6 h-4 rounded-full ${isOperational ? "bg-emerald-500" : "bg-red-500"}`} />
           <p className="text-lg font-medium text-white">
-            All system is <span className="text-emerald-500">operational</span>!
+            {isOperational ? (
+              <>
+                All system is <span className="text-emerald-500">operational</span>!
+              </>
+            ) : (
+              <>
+                Systems <span className="text-red-500">degraded</span>
+              </>
+            )}
           </p>
         </div>
       </div>
 
       {/* Server Cards */}
       <div className="px-6 pb-8 space-y-8">
-        {servers.map((server, index) => (
-          <ServerStatusCard
-            key={index}
-            name={server.name}
-            status={server.status}
-            provider={server.provider}
-            uptime={server.uptime}
-          />
-        ))}
+        {servers.length === 0 ? (
+          <div className="text-[#888888] text-sm">No monitors configured yet.</div>
+        ) : (
+          servers.map((server) => (
+            <ServerStatusCard
+              key={server.id}
+              name={server.name}
+              status={server.statusCode}
+              provider={server.provider}
+              providerIcon={server.providerIcon}
+              uptime={server.uptime}
+            />
+          ))
+        )}
       </div>
 
       {/* Footer */}
@@ -92,8 +105,10 @@ export default function ServersPage() {
         <div className="flex flex-col items-center gap-4">
           {/* Status */}
           <div className="flex items-center gap-2">
-            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-            <span className="text-sm text-[#888888]">All service is operational</span>
+            <div className={`w-2.5 h-2.5 rounded-full ${isOperational ? "bg-emerald-500" : "bg-red-500"}`} />
+            <span className="text-sm text-[#888888]">
+              {isOperational ? "All service is operational" : "Service disruption detected"}
+            </span>
           </div>
 
           {/* Logo and Copyright */}
