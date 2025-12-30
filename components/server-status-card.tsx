@@ -1,18 +1,31 @@
+import { Cloud, Database, Globe2, HardDrive, Network, Server, type LucideIcon } from "lucide-react"
+
 interface ServerStatusCardProps {
   name: string
   status: number
   provider: string
+  providerIcon?: string
   uptime: (boolean | null)[]
 }
 
-export function ServerStatusCard({ name, status, provider, uptime }: ServerStatusCardProps) {
-  const isOperational = status === 200
+const iconMap: Record<string, LucideIcon> = {
+  server: Server,
+  cloud: Cloud,
+  globe: Globe2,
+  database: Database,
+  network: Network,
+  storage: HardDrive,
+}
+
+export function ServerStatusCard({ name, status, provider, providerIcon, uptime }: ServerStatusCardProps) {
+  const isOperational = status >= 200 && status < 400
+  const IconComponent = iconMap[providerIcon?.toLowerCase?.() ?? ""] ?? Server
 
   return (
     <div className="space-y-3">
       {/* Header Row */}
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-[#e5e5e5]">server name</span>
+        <span className="text-sm font-medium text-[#e5e5e5]">{name}</span>
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-[#e5e5e5]">{status}</span>
           <div 
@@ -39,7 +52,9 @@ export function ServerStatusCard({ name, status, provider, uptime }: ServerStatu
       </div>
 
       <div className="flex items-center gap-2">
-        <div className="w-6 h-6 rounded bg-[#4a4a4a]" />
+        <div className="w-6 h-6 rounded bg-[#2d2d2d] border border-[#3a3a3a] flex items-center justify-center text-[#b3b3b3]">
+          <IconComponent className="w-4 h-4" />
+        </div>
         <span className="text-sm text-[#888888]">{provider}</span>
       </div>
     </div>

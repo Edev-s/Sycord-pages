@@ -28,7 +28,7 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json()
-    const { name, cronitorId, provider, icon } = body
+    const { name, cronitorId, provider, icon, uniqueUri } = body
 
     if (!name || !cronitorId) {
       return new NextResponse("Missing required fields", { status: 400 })
@@ -41,6 +41,7 @@ export async function POST(req: Request) {
       cronitorId,
       provider: provider || "",
       icon: icon || "Server",
+      uniqueUri: uniqueUri || cronitorId,
       createdAt: new Date(),
     }
 

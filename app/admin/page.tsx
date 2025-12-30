@@ -56,7 +56,7 @@ export default function AdminPage() {
 
   // Monitors state
   const [monitors, setMonitors] = useState<any[]>([])
-  const [newMonitor, setNewMonitor] = useState({ name: "", cronitorId: "", provider: "", icon: "Server" })
+  const [newMonitor, setNewMonitor] = useState({ name: "", cronitorId: "", uniqueUri: "", provider: "", icon: "Server" })
   const [loadingMonitors, setLoadingMonitors] = useState(false)
 
   useEffect(() => {
@@ -165,7 +165,7 @@ export default function AdminPage() {
         body: JSON.stringify(newMonitor),
       })
       if (response.ok) {
-        setNewMonitor({ name: "", cronitorId: "", provider: "", icon: "Server" })
+        setNewMonitor({ name: "", cronitorId: "", uniqueUri: "", provider: "", icon: "Server" })
         fetchMonitors()
       }
     } catch (error) {
@@ -506,16 +506,21 @@ export default function AdminPage() {
                   <CardDescription>Configure Cronitor monitors for the server status page.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+                  <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
                     <Input
                       placeholder="Server Name"
                       value={newMonitor.name}
                       onChange={(e) => setNewMonitor({...newMonitor, name: e.target.value})}
                     />
                     <Input
-                      placeholder="Cronitor ID (Monitor Key)"
+                      placeholder="Cronitor Monitor Key"
                       value={newMonitor.cronitorId}
                       onChange={(e) => setNewMonitor({...newMonitor, cronitorId: e.target.value})}
+                    />
+                    <Input
+                      placeholder="Unique Monitor URI"
+                      value={newMonitor.uniqueUri}
+                      onChange={(e) => setNewMonitor({...newMonitor, uniqueUri: e.target.value})}
                     />
                     <Input
                       placeholder="Provider Name"
@@ -550,6 +555,9 @@ export default function AdminPage() {
                               <h3 className="font-medium">{monitor.name}</h3>
                               <p className="text-sm text-muted-foreground flex gap-3">
                                 <span>ID: <code className="bg-muted px-1 rounded">{monitor.cronitorId}</code></span>
+                                {monitor.uniqueUri && (
+                                  <span>URI: <code className="bg-muted px-1 rounded break-all">{monitor.uniqueUri}</code></span>
+                                )}
                                 <span>Provider: {monitor.provider}</span>
                               </p>
                             </div>
@@ -617,9 +625,9 @@ export default function AdminPage() {
                           </div>
                         </div>
                         <div className="flex flex-col gap-1">
-                          <span className="text-muted-foreground select-all">CRONITOR_API_KEY</span>
+                          <span className="text-muted-foreground select-all">CRONITOR_API</span>
                           <div className="bg-background border rounded px-3 py-2 text-xs text-muted-foreground">
-                            Cronitor API Key for server status
+                            Cronitor API key for server status and history
                           </div>
                         </div>
                       </div>
