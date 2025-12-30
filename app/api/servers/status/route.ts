@@ -25,36 +25,43 @@ const eventToStatus = (event?: string | null) => {
   return null
 }
 
-const normalizeEvents = (raw: any): HistoryPoint[] => {
-  const activity = Array.isArray(raw?.activity)
-    ? raw.activity
-    : Array.isArray(raw?.events)
-      ? raw.events
-      : Array.isArray(raw)
-        ? raw
-        : []
+type ActivityEntry = Record<string, unknown> | string
+
+const toActivityArray = (raw: unknown): ActivityEntry[] => {
+  if (raw && typeof raw === "object") {
+    const obj = raw as Record<string, unknown>
+    if (Array.isArray(obj.activity)) return obj.activity as ActivityEntry[]
+    if (Array.isArray(obj.events)) return obj.events as ActivityEntry[]
+  }
+  return Array.isArray(raw) ? (raw as ActivityEntry[]) : []
+}
+
+const normalizeEvents = (raw: unknown): HistoryPoint[] => {
+  const activity = toActivityArray(raw)
 
   return activity
-    .map((entry: any) => {
+    .map((entry: ActivityEntry) => {
+      const record = typeof entry === "string" ? undefined : entry
+
       const stamp =
-        typeof entry?.stamp === "number"
-          ? entry.stamp
-          : typeof entry?.timestamp === "number"
-            ? entry.timestamp
-            : typeof entry?.ts === "number"
-              ? entry.ts
-              : typeof entry?.time === "number"
-                ? entry.time
-                : typeof entry?.stamp === "string"
-                  ? Number(entry.stamp)
-                  : typeof entry?.ts === "string"
-                    ? Number(entry.ts)
+        record && typeof record.stamp === "number"
+          ? record.stamp
+          : record && typeof record.timestamp === "number"
+            ? record.timestamp
+            : record && typeof record.ts === "number"
+              ? record.ts
+              : record && typeof record.time === "number"
+                ? record.time
+                : record && typeof record.stamp === "string"
+                  ? Number(record.stamp)
+                  : record && typeof record.ts === "string"
+                    ? Number(record.ts)
                     : null
 
       const status = eventToStatus(
-        entry?.event ||
-          entry?.state ||
-          entry?.status ||
+        (record?.event as string | undefined) ||
+          (record?.state as string | undefined) ||
+          (record?.status as string | undefined) ||
           (typeof entry === "string" ? entry : undefined),
       )
 
@@ -119,8 +126,8 @@ export async function GET() {
     if (authHeader) {
       try {
         const res = await fetch("https://cronitor.io/api/monitors", {
-          headers: authHeader,
           cache: "no-store",
+          headers: authHeader,
         })
         if (res.ok) {
           const data = await res.json()
@@ -154,8 +161,8 @@ export async function GET() {
             const activityRes = await fetch(
               `https://cronitor.io/api/monitors/${encodeURIComponent(monitorKey)}/activity?hours=${HISTORY_HOURS}`,
               {
-                headers: authHeader,
                 cache: "no-store",
+                headers: authHeader,
               },
             )
 

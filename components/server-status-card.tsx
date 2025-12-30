@@ -18,8 +18,9 @@ const iconMap: Record<string, LucideIcon> = {
 }
 
 export function ServerStatusCard({ name, status, provider, providerIcon, uptime }: ServerStatusCardProps) {
-  const isOperational = status >= 200 && status < 400
-  const IconComponent = iconMap[providerIcon?.toLowerCase?.() ?? ""] ?? Server
+  const isOperational = status === 200
+  const iconKey = providerIcon?.toLowerCase() ?? ""
+  const IconComponent = iconMap[iconKey] ?? Server
 
   return (
     <div className="space-y-3">
