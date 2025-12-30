@@ -323,7 +323,8 @@ function stripCommonFolderPrefix(files) {
   if (files.length === 0) return files;
   
   // Find the common folder prefix across all file paths
-  const paths = files.map(f => f.path.replace(/^\//, '')); // Remove leading slash
+  // Remove all leading slashes for consistent comparison
+  const paths = files.map(f => f.path.replace(/^\/+/, ''));
   
   // Check if all files share a common folder prefix
   const firstPath = paths[0];
@@ -344,10 +345,10 @@ function stripCommonFolderPrefix(files) {
   
   console.log(`🔧 Stripping common folder prefix: "${potentialPrefix}"`);
   
-  // Strip the prefix from all paths
-  return files.map(f => ({
+  // Strip the prefix from all paths, reusing the cleaned paths array
+  return files.map((f, i) => ({
     ...f,
-    path: '/' + f.path.replace(/^\//, '').substring(potentialPrefix.length)
+    path: '/' + paths[i].substring(potentialPrefix.length)
   }));
 }
 
