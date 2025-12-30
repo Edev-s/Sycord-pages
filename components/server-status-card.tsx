@@ -79,7 +79,7 @@ export function ServerStatusCard({ name, status, provider, providerIcon, iconTyp
       </div>
 
       <div className="flex items-center gap-2">
-        <div className="w-6 h-6 rounded bg-[#2d2d2d] border border-[#3a3a3a] flex items-center justify-center text-[#b3b3b3]">
+        <div className="w-6 h-6 flex items-center justify-center text-[#b3b3b3]">
           {isValidCustomIcon ? (
             <img 
               src={providerIcon} 
