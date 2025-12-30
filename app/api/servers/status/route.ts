@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import clientPromise from "@/lib/mongodb"
 
 export const dynamic = "force-dynamic"
 
@@ -131,6 +132,21 @@ export async function GET() {
       })
     }
 
+    // Fetch monitor customizations from MongoDB
+    let monitorIcons: Record<string, string> = {}
+    try {
+      const client = await clientPromise
+      const db = client.db()
+      const storedMonitors = await db.collection("monitors").find({}).toArray()
+      storedMonitors.forEach((m) => {
+        if (m.id && m.icon) {
+          monitorIcons[m.id] = m.icon
+        }
+      })
+    } catch (e) {
+      console.error("Failed to fetch monitor icons from DB:", e)
+    }
+
     const servers = await Promise.all(
       monitors.map(async (monitor) => {
         const monitorKey = monitor.key
@@ -173,8 +189,12 @@ export async function GET() {
 
         // If no history, fill based on current status
         if (uptime.every((entry) => entry === null)) {
-          if (status === "up") uptime = Array(HISTORY_HOURS).fill(true)
-          if (status === "down") uptime = Array(HISTORY_HOURS).fill(false)
+          // Instead of filling the whole history with the current status (which hides outages),
+          // we only set the last hour to the current status if we have no other data.
+          // This allows "hourly colors" to work properly when real data starts coming in,
+          // rather than showing a monolithic block of green/red.
+          if (status === "up") uptime[HISTORY_HOURS - 1] = true
+          if (status === "down") uptime[HISTORY_HOURS - 1] = false
         }
 
         const lastPoint = lastKnownStatus(uptime)
@@ -186,12 +206,13 @@ export async function GET() {
         // Use monitor properties from Cronitor API
         const monitorName = monitor.name || monitorKey
         const monitorType = monitor.type || "heartbeat"
+        const customIcon = monitorIcons[monitorKey] || "Server"
 
         return {
           id: monitorKey,
           name: monitorName,
           provider: monitorType,
-          providerIcon: "Server",
+          providerIcon: customIcon,
           status,
           statusCode,
           uptime,

@@ -22,8 +22,33 @@ import {
   LogOut,
   BarChart3,
   Server,
-  Key
+  Key,
+  Activity,
+  Check,
+  Cloud,
+  Database,
+  Globe2,
+  HardDrive,
+  Network,
+  Cpu,
+  Wifi,
+  Shield,
+  Lock
 } from "lucide-react"
+
+const availableIcons = [
+  { name: "Server", icon: Server },
+  { name: "Cloud", icon: Cloud },
+  { name: "Database", icon: Database },
+  { name: "Globe", icon: Globe2 },
+  { name: "Network", icon: Network },
+  { name: "Storage", icon: HardDrive },
+  { name: "CPU", icon: Cpu },
+  { name: "Wifi", icon: Wifi },
+  { name: "Shield", icon: Shield },
+  { name: "Lock", icon: Lock },
+  { name: "Activity", icon: Activity },
+]
 
 interface User {
   userId: string
@@ -45,7 +70,10 @@ export default function AdminPage() {
   const [updatingUser, setUpdatingUser] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<"overview" | "users" | "env">("overview")
+  const [activeTab, setActiveTab] = useState<"overview" | "users" | "env" | "monitors">("overview")
+  const [monitors, setMonitors] = useState<any[]>([])
+  const [monitorsLoading, setMonitorsLoading] = useState(false)
+  const [editingIcon, setEditingIcon] = useState<string | null>(null)
 
   useEffect(() => {
     if (session?.user?.email !== "dmarton336@gmail.com") {
@@ -54,6 +82,7 @@ export default function AdminPage() {
     }
 
     fetchUsers()
+    fetchMonitors()
   }, [session, router])
 
   useEffect(() => {
@@ -78,6 +107,37 @@ export default function AdminPage() {
       console.error("[v0] Error fetching users:", error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchMonitors = async () => {
+    try {
+      setMonitorsLoading(true)
+      const response = await fetch("/api/servers/status")
+      if (response.ok) {
+        const data = await response.json()
+        setMonitors(data.servers || [])
+      }
+    } catch (error) {
+      console.error("Error fetching monitors:", error)
+    } finally {
+      setMonitorsLoading(false)
+    }
+  }
+
+  const updateMonitorIcon = async (id: string, icon: string) => {
+    try {
+      const response = await fetch("/api/admin/monitors", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, icon }),
+      })
+      if (response.ok) {
+        setMonitors(monitors.map(m => m.id === id ? { ...m, providerIcon: icon } : m))
+        setEditingIcon(null)
+      }
+    } catch (error) {
+      console.error("Error updating monitor icon:", error)
     }
   }
 
@@ -210,6 +270,17 @@ export default function AdminPage() {
             >
               <Key className="h-5 w-5" />
               <span className="font-medium text-sm">Env Setup</span>
+            </button>
+            <button
+              onClick={() => { setActiveTab("monitors"); setIsSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group ${
+                activeTab === "monitors"
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
+                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              }`}
+            >
+              <Activity className="h-5 w-5" />
+              <span className="font-medium text-sm">Monitors</span>
             </button>
           </nav>
 
@@ -421,6 +492,86 @@ export default function AdminPage() {
                   </div>
                 )}
              </div>
+          )}
+
+          {/* Monitors Tab */}
+          {activeTab === "monitors" && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Activity className="h-5 w-5 text-primary" />
+                    Server Monitors
+                  </CardTitle>
+                  <CardDescription>
+                    Manage icons for your status page monitors
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {monitorsLoading ? (
+                    <div className="flex justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    </div>
+                  ) : monitors.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No monitors found. Check your Cronitor configuration.
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {monitors.map((monitor) => (
+                        <div key={monitor.id} className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-border">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-2 h-2 rounded-full ${monitor.statusCode === 200 ? 'bg-green-500' : 'bg-red-500'}`} />
+                            <div>
+                              <p className="font-medium">{monitor.name}</p>
+                              <p className="text-xs text-muted-foreground font-mono">{monitor.id}</p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3">
+                            {editingIcon === monitor.id ? (
+                              <div className="flex flex-wrap gap-2 max-w-[300px] justify-end bg-background p-2 rounded-lg border border-border shadow-lg z-10">
+                                {availableIcons.map((item) => {
+                                  const Icon = item.icon
+                                  return (
+                                    <button
+                                      key={item.name}
+                                      onClick={() => updateMonitorIcon(monitor.id, item.name)}
+                                      className={`p-2 rounded-md hover:bg-accent transition-colors ${monitor.providerIcon === item.name ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'}`}
+                                      title={item.name}
+                                    >
+                                      <Icon className="h-4 w-4" />
+                                    </button>
+                                  )
+                                })}
+                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => setEditingIcon(null)}>
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 px-3 py-1.5 bg-background border border-border rounded-md text-sm text-muted-foreground">
+                                  {(() => {
+                                    const iconName = monitor.providerIcon || "Server"
+                                    const iconEntry = availableIcons.find(i => i.name.toLowerCase() === iconName.toLowerCase())
+                                    const Icon = iconEntry ? iconEntry.icon : Server
+                                    return <Icon className="h-4 w-4" />
+                                  })()}
+                                  <span>{monitor.providerIcon || "Server"}</span>
+                                </div>
+                                <Button variant="outline" size="sm" onClick={() => setEditingIcon(monitor.id)}>
+                                  Change Icon
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           )}
 
           {/* Environment Variables Guide Tab */}
