@@ -189,12 +189,9 @@ export async function GET() {
 
         // If no history, fill based on current status
         if (uptime.every((entry) => entry === null)) {
-          // Instead of filling the whole history with the current status (which hides outages),
-          // we only set the last hour to the current status if we have no other data.
-          // This allows "hourly colors" to work properly when real data starts coming in,
-          // rather than showing a monolithic block of green/red.
-          if (status === "up") uptime[HISTORY_HOURS - 1] = true
-          if (status === "down") uptime[HISTORY_HOURS - 1] = false
+          // Fill all hours with current status when no historical data is available
+          const statusValue = status === "up" ? true : status === "down" ? false : null
+          uptime = Array(HISTORY_HOURS).fill(statusValue)
         }
 
         const lastPoint = lastKnownStatus(uptime)

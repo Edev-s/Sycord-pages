@@ -356,7 +356,7 @@ export default function AdminPage() {
                 <Card className="border-border shadow-sm">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Websites</CardTitle>
-                    <Globe className="h-4 w-4 text-blue-500" />
+                    <Globe2 className="h-4 w-4 text-blue-500" />
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">
@@ -452,7 +452,7 @@ export default function AdminPage() {
                                         rel="noopener noreferrer"
                                         className="flex items-center gap-2 bg-secondary/50 hover:bg-secondary border border-border rounded-md px-3 py-1.5 text-xs transition-colors"
                                       >
-                                        <Globe className="h-3 w-3 text-muted-foreground" />
+                                        <Globe2 className="h-3 w-3 text-muted-foreground" />
                                         <span className="font-medium">{website.businessName}</span>
                                         <span className="text-muted-foreground opacity-50">({website.subdomain})</span>
                                       </a>
