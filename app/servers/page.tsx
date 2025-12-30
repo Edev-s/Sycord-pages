@@ -1,10 +1,10 @@
 import Image from "next/image"
 import Link from "next/link"
 import { headers } from "next/headers"
-import { JetBrains_Mono } from "next/font/google"
+import { Inter } from "next/font/google"
 import { ServerStatusCard } from "@/components/server-status-card"
 
-const mono = JetBrains_Mono({ subsets: ["latin"] })
+const inter = Inter({ subsets: ["latin"] })
 
 type ServerStatus = {
   id: string
@@ -37,7 +37,7 @@ export default async function ServersPage() {
   const isOperational = globalStatus !== "outage"
 
   return (
-    <div className={`min-h-screen bg-[#1a1a1a] ${mono.className}`}>
+    <div className={`min-h-screen bg-[#1a1a1a] ${inter.className}`}>
       {/* Header */}
       <header className="px-6 py-6">
         <div className="flex items-center gap-3">
