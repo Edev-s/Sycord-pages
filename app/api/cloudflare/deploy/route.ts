@@ -284,6 +284,21 @@ async function deployToCloudflarePages(
     });
   }
 
+  // Add _routes.json to exclude all routes from Functions processing
+  // This prevents Cloudflare from treating the deployment as Functions unintentionally
+  // which can cause 500 errors on the deployed site
+  // For a static-only deployment, we exclude all routes from function invocation
+  const routesJson = JSON.stringify({
+    version: 1,
+    include: [],
+    exclude: ["/*"]
+  });
+  formData.append("_routes.json", Buffer.from(routesJson, "utf-8"), {
+    filename: "_routes.json",
+    contentType: "application/json",
+  });
+  console.log(`[Cloudflare] Added _routes.json to exclude functions processing`);
+
   const deployUrl = new URL(`${CLOUDFLARE_API_BASE}/accounts/${accountId}/pages/projects/${projectName}/deployments`);
   deployUrl.searchParams.set("branch", encodeURIComponent(branch));
   deployUrl.searchParams.set("stage", encodeURIComponent(stage));

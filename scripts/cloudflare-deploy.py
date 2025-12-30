@@ -172,6 +172,17 @@ class CloudflareDeployer:
         for hash_val, content in file_contents.items():
             files_data[hash_val] = (hash_val, content.encode('utf-8'), 'application/octet-stream')
         
+        # Add _routes.json to exclude all routes from Functions processing
+        # This prevents Cloudflare from treating the deployment as Functions unintentionally
+        # which can cause 500 errors on the deployed site
+        routes_json = json.dumps({
+            "version": 1,
+            "include": [],
+            "exclude": ["/*"]
+        })
+        files_data['_routes.json'] = ('_routes.json', routes_json, 'application/json')
+        print("📊 DEBUG: Added _routes.json to exclude functions processing")
+        
         # Remove Content-Type header so requests can set it with the correct boundary
         headers = {"Authorization": f"Bearer {self.api_token}"}
         

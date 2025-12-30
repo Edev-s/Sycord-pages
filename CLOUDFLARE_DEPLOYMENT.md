@@ -304,6 +304,20 @@ To use a custom domain:
 - Total deployment size has limits based on your Cloudflare plan
 - Check Cloudflare status page for any service issues
 
+#### "HTTP 500 error on deployed site"
+- **Issue**: After deployment, the site returns HTTP 500 errors
+- **Cause**: Cloudflare Pages may treat the deployment as Functions unintentionally
+- **Solution**: The deployment now automatically includes a `_routes.json` file that excludes all routes from function processing
+- **Manual Fix**: If using an older version, ensure a `_routes.json` file with the following content is included:
+  ```json
+  {
+    "version": 1,
+    "include": [],
+    "exclude": ["/*"]
+  }
+  ```
+- This configuration tells Cloudflare to serve all paths as static assets and not attempt to run any Pages Functions
+
 ### Debug Logging
 
 The deployment system now includes detailed debug logging to help diagnose issues:

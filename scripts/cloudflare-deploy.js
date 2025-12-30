@@ -411,6 +411,19 @@ async function deployToCloudflare(files) {
     parts.push(Buffer.from('\r\n', 'utf-8'));
   }
   
+  // Add _routes.json to exclude all routes from Functions processing
+  // This prevents Cloudflare from treating the deployment as Functions unintentionally
+  // which can cause 500 errors on the deployed site
+  const routesJson = JSON.stringify({
+    version: 1,
+    include: [],
+    exclude: ["/*"]
+  });
+  parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="_routes.json"; filename="_routes.json"\r\nContent-Type: application/json\r\n\r\n`, 'utf-8'));
+  parts.push(Buffer.from(routesJson, 'utf-8'));
+  parts.push(Buffer.from('\r\n', 'utf-8'));
+  console.log('📊 DEBUG: Added _routes.json to exclude functions processing');
+  
   parts.push(Buffer.from(`--${boundary}--\r\n`, 'utf-8'));
   
   // Concatenate all parts into a single Buffer
