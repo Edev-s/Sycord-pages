@@ -31,7 +31,10 @@ import {
   Network,
   Cpu,
   Wifi,
-  Lock
+  Lock,
+  Upload,
+  Image as ImageIcon,
+  Loader2
 } from "lucide-react"
 
 const availableIcons = [
@@ -72,6 +75,7 @@ export default function AdminPage() {
   const [monitors, setMonitors] = useState<any[]>([])
   const [monitorsLoading, setMonitorsLoading] = useState(false)
   const [editingIcon, setEditingIcon] = useState<string | null>(null)
+  const [uploadingIcon, setUploadingIcon] = useState<string | null>(null)
 
   useEffect(() => {
     if (session?.user?.email !== "dmarton336@gmail.com") {
@@ -123,19 +127,56 @@ export default function AdminPage() {
     }
   }
 
-  const updateMonitorIcon = async (id: string, icon: string) => {
+  const updateMonitorIcon = async (id: string, icon: string, iconType: string = 'preset') => {
     try {
       const response = await fetch("/api/admin/monitors", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, icon }),
+        body: JSON.stringify({ id, icon, iconType }),
       })
       if (response.ok) {
-        setMonitors(monitors.map(m => m.id === id ? { ...m, providerIcon: icon } : m))
+        setMonitors(monitors.map(m => m.id === id ? { ...m, providerIcon: icon, iconType } : m))
         setEditingIcon(null)
       }
     } catch (error) {
       console.error("Error updating monitor icon:", error)
+    }
+  }
+
+  const handleIconUpload = async (id: string, event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload an image file (PNG, JPG, etc.)')
+      return
+    }
+
+    // Validate file size (max 1MB)
+    if (file.size > 1024 * 1024) {
+      alert('Image must be smaller than 1MB')
+      return
+    }
+
+    setUploadingIcon(id)
+
+    try {
+      const reader = new FileReader()
+      reader.onload = async (e) => {
+        const dataUrl = e.target?.result as string
+        await updateMonitorIcon(id, dataUrl, 'custom')
+        setUploadingIcon(null)
+      }
+      reader.onerror = () => {
+        alert('Error reading file')
+        setUploadingIcon(null)
+      }
+      reader.readAsDataURL(file)
+    } catch (error) {
+      console.error("Error uploading icon:", error)
+      alert('Error uploading icon')
+      setUploadingIcon(null)
     }
   }
 
@@ -330,39 +371,39 @@ export default function AdminPage() {
           {/* Overview Tab */}
           {activeTab === "overview" && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Card className="border-border shadow-sm">
+               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <Card className="border-border shadow-sm hover:shadow-md transition-shadow">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Total Users</CardTitle>
-                    <Users className="h-4 w-4 text-primary" />
+                    <Users className="h-5 w-5 text-primary" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{users.length}</div>
-                    <p className="text-xs text-muted-foreground">Registered accounts</p>
+                    <div className="text-3xl font-bold text-foreground">{users.length}</div>
+                    <p className="text-xs text-muted-foreground mt-1">Registered accounts</p>
                   </CardContent>
                 </Card>
 
-                <Card className="border-border shadow-sm">
+                <Card className="border-border shadow-sm hover:shadow-md transition-shadow">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Premium</CardTitle>
-                    <Zap className="h-4 w-4 text-yellow-500" />
+                    <Zap className="h-5 w-5 text-yellow-500" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{users.filter((u) => u.isPremium).length}</div>
-                    <p className="text-xs text-muted-foreground">Active subscriptions</p>
+                    <div className="text-3xl font-bold text-foreground">{users.filter((u) => u.isPremium).length}</div>
+                    <p className="text-xs text-muted-foreground mt-1">Active subscriptions</p>
                   </CardContent>
                 </Card>
 
-                <Card className="border-border shadow-sm">
+                <Card className="border-border shadow-sm hover:shadow-md transition-shadow">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Websites</CardTitle>
-                    <Globe2 className="h-4 w-4 text-blue-500" />
+                    <Globe2 className="h-5 w-5 text-blue-500" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">
+                    <div className="text-3xl font-bold text-foreground">
                       {users.reduce((acc, u) => acc + u.projectCount, 0)}
                     </div>
-                    <p className="text-xs text-muted-foreground">Total created</p>
+                    <p className="text-xs text-muted-foreground mt-1">Total created</p>
                   </CardContent>
                 </Card>
               </div>
@@ -373,32 +414,32 @@ export default function AdminPage() {
           {activeTab === "users" && (
              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder="Search by email, name, or user ID..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 h-12 bg-card border-border rounded-xl"
+                    className="pl-11 h-12 bg-card border-border rounded-xl shadow-sm"
                   />
                 </div>
 
                 {loading ? (
-                  <div className="flex flex-col items-center justify-center py-12">
-                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mb-4"></div>
+                  <div className="flex flex-col items-center justify-center py-16">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
                     <p className="text-muted-foreground">Fetching user data...</p>
                   </div>
                 ) : filteredUsers.length === 0 ? (
-                  <div className="text-center py-12 bg-card border border-dashed border-border rounded-xl">
+                  <div className="text-center py-16 bg-card border border-dashed border-border rounded-xl">
                     <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-lg font-medium">No users found</p>
-                    <p className="text-muted-foreground">Try adjusting your search criteria</p>
+                    <p className="text-lg font-semibold">No users found</p>
+                    <p className="text-muted-foreground text-sm">Try adjusting your search criteria</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
                     {filteredUsers.map((user) => (
                       <Card
                         key={user.userId}
-                        className="border-border hover:border-primary/30 transition-colors shadow-sm"
+                        className="border-border hover:border-primary/30 transition-all shadow-sm hover:shadow-md"
                       >
                         <CardContent className="p-6">
                           <div className="flex flex-col md:flex-row gap-6">
@@ -425,18 +466,18 @@ export default function AdminPage() {
                                 </div>
                               </div>
 
-                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm mt-4">
-                                <div className="bg-muted/30 p-2 rounded-lg">
-                                  <p className="text-xs text-muted-foreground">Projects</p>
-                                  <p className="font-medium">{user.projectCount}</p>
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm mt-4">
+                                <div className="bg-muted/30 p-3 rounded-lg">
+                                  <p className="text-xs text-muted-foreground mb-1">Projects</p>
+                                  <p className="font-semibold text-foreground">{user.projectCount}</p>
                                 </div>
-                                <div className="bg-muted/30 p-2 rounded-lg">
-                                  <p className="text-xs text-muted-foreground">Joined</p>
-                                  <p className="font-medium">{formatDate(user.createdAt)}</p>
+                                <div className="bg-muted/30 p-3 rounded-lg">
+                                  <p className="text-xs text-muted-foreground mb-1">Joined</p>
+                                  <p className="font-semibold text-foreground">{formatDate(user.createdAt)}</p>
                                 </div>
-                                <div className="bg-muted/30 p-2 rounded-lg col-span-2">
-                                   <p className="text-xs text-muted-foreground">IP Address</p>
-                                   <p className="font-mono text-xs">{user.ip}</p>
+                                <div className="bg-muted/30 p-3 rounded-lg col-span-2">
+                                   <p className="text-xs text-muted-foreground mb-1">IP Address</p>
+                                   <p className="font-mono text-xs text-foreground">{user.ip}</p>
                                 </div>
                               </div>
 
@@ -495,69 +536,134 @@ export default function AdminPage() {
           {/* Monitors Tab */}
           {activeTab === "monitors" && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <Card>
+              <Card className="border-border shadow-sm">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2 text-xl">
                     <Activity className="h-5 w-5 text-primary" />
                     Server Monitors
                   </CardTitle>
-                  <CardDescription>
-                    Manage icons for your status page monitors
+                  <CardDescription className="text-muted-foreground">
+                    Manage icons for your status page monitors. Choose from preset icons or upload custom PNG images.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {monitorsLoading ? (
-                    <div className="flex justify-center py-8">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    <div className="flex flex-col items-center justify-center py-12">
+                      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mb-4"></div>
+                      <p className="text-muted-foreground text-sm">Loading monitors...</p>
                     </div>
                   ) : monitors.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      No monitors found. Check your Cronitor configuration.
+                    <div className="text-center py-12 bg-muted/30 rounded-xl border border-dashed border-border">
+                      <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-lg font-medium">No monitors found</p>
+                      <p className="text-muted-foreground text-sm">Check your Cronitor configuration.</p>
                     </div>
                   ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       {monitors.map((monitor) => (
-                        <div key={monitor.id} className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-border">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-2 h-2 rounded-full ${monitor.statusCode === 200 ? 'bg-green-500' : 'bg-red-500'}`} />
-                            <div>
-                              <p className="font-medium">{monitor.name}</p>
-                              <p className="text-xs text-muted-foreground font-mono">{monitor.id}</p>
+                        <div 
+                          key={monitor.id} 
+                          className="flex flex-col md:flex-row md:items-center justify-between p-5 bg-muted/30 rounded-xl border border-border hover:border-primary/30 transition-all duration-200 gap-4"
+                        >
+                          <div className="flex items-center gap-4 min-w-0 flex-1">
+                            <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${monitor.statusCode === 200 ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]'}`} />
+                            <div className="min-w-0 flex-1">
+                              <p className="font-semibold text-foreground truncate">{monitor.name}</p>
+                              <p className="text-xs text-muted-foreground font-mono truncate">{monitor.id}</p>
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3 flex-wrap md:flex-nowrap">
                             {editingIcon === monitor.id ? (
-                              <div className="flex flex-wrap gap-2 max-w-[300px] justify-end bg-background p-2 rounded-lg border border-border shadow-lg z-10">
-                                {availableIcons.map((item) => {
-                                  const Icon = item.icon
-                                  return (
-                                    <button
-                                      key={item.name}
-                                      onClick={() => updateMonitorIcon(monitor.id, item.name)}
-                                      className={`p-2 rounded-md hover:bg-accent transition-colors ${monitor.providerIcon === item.name ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'}`}
-                                      title={item.name}
-                                    >
-                                      <Icon className="h-4 w-4" />
-                                    </button>
-                                  )
-                                })}
-                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => setEditingIcon(null)}>
-                                  <X className="h-4 w-4" />
-                                </Button>
+                              <div className="flex flex-col gap-3 w-full md:w-auto bg-card p-4 rounded-lg border border-border shadow-lg">
+                                <div className="flex items-center justify-between">
+                                  <p className="text-sm font-medium text-foreground">Choose Icon</p>
+                                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setEditingIcon(null)}>
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                                
+                                {/* Preset Icons */}
+                                <div>
+                                  <p className="text-xs text-muted-foreground mb-2">Preset Icons</p>
+                                  <div className="flex flex-wrap gap-2 max-w-[400px]">
+                                    {availableIcons.map((item) => {
+                                      const Icon = item.icon
+                                      return (
+                                        <button
+                                          key={item.name}
+                                          onClick={() => updateMonitorIcon(monitor.id, item.name, 'preset')}
+                                          className={`p-2.5 rounded-lg hover:bg-accent transition-colors ${
+                                            monitor.providerIcon === item.name && monitor.iconType !== 'custom'
+                                              ? 'bg-accent text-accent-foreground ring-2 ring-primary' 
+                                              : 'text-muted-foreground hover:text-foreground'
+                                          }`}
+                                          title={item.name}
+                                        >
+                                          <Icon className="h-5 w-5" />
+                                        </button>
+                                      )
+                                    })}
+                                  </div>
+                                </div>
+
+                                {/* Custom Icon Upload */}
+                                <div className="border-t border-border pt-3">
+                                  <p className="text-xs text-muted-foreground mb-2">Custom Icon (PNG/JPG, max 1MB)</p>
+                                  <label 
+                                    htmlFor={`icon-upload-${monitor.id}`}
+                                    className="flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-lg cursor-pointer hover:bg-primary/90 transition-colors text-sm font-medium"
+                                  >
+                                    {uploadingIcon === monitor.id ? (
+                                      <>
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        Uploading...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Upload className="h-4 w-4" />
+                                        Upload Image
+                                      </>
+                                    )}
+                                    <input 
+                                      type="file" 
+                                      id={`icon-upload-${monitor.id}`}
+                                      className="hidden" 
+                                      accept="image/*" 
+                                      onChange={(e) => handleIconUpload(monitor.id, e)}
+                                      disabled={uploadingIcon === monitor.id}
+                                    />
+                                  </label>
+                                </div>
                               </div>
                             ) : (
-                              <div className="flex items-center gap-2">
-                                <div className="flex items-center gap-2 px-3 py-1.5 bg-background border border-border rounded-md text-sm text-muted-foreground">
-                                  {(() => {
-                                    const iconName = monitor.providerIcon || "Server"
-                                    const iconEntry = availableIcons.find(i => i.name.toLowerCase() === iconName.toLowerCase())
-                                    const Icon = iconEntry ? iconEntry.icon : Server
-                                    return <Icon className="h-4 w-4" />
-                                  })()}
-                                  <span>{monitor.providerIcon || "Server"}</span>
+                              <div className="flex items-center gap-3 w-full md:w-auto">
+                                <div className="flex items-center gap-2.5 px-4 py-2 bg-background border border-border rounded-lg">
+                                  {monitor.iconType === 'custom' ? (
+                                    <img 
+                                      src={monitor.providerIcon} 
+                                      alt="Custom icon" 
+                                      className="h-5 w-5 object-contain"
+                                    />
+                                  ) : (
+                                    (() => {
+                                      const iconName = monitor.providerIcon || "Server"
+                                      const iconEntry = availableIcons.find(i => i.name.toLowerCase() === iconName.toLowerCase())
+                                      const Icon = iconEntry ? iconEntry.icon : Server
+                                      return <Icon className="h-5 w-5 text-muted-foreground" />
+                                    })()
+                                  )}
+                                  <span className="text-sm font-medium text-foreground">
+                                    {monitor.iconType === 'custom' ? 'Custom' : (monitor.providerIcon || "Server")}
+                                  </span>
                                 </div>
-                                <Button variant="outline" size="sm" onClick={() => setEditingIcon(monitor.id)}>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={() => setEditingIcon(monitor.id)}
+                                  className="whitespace-nowrap"
+                                >
+                                  <ImageIcon className="h-4 w-4 mr-2" />
                                   Change Icon
                                 </Button>
                               </div>
@@ -575,56 +681,56 @@ export default function AdminPage() {
           {/* Environment Variables Guide Tab */}
           {activeTab === "env" && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <Card>
+              <Card className="border-border shadow-sm">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2 text-xl">
                     <Server className="h-5 w-5 text-primary" />
                     Environment Configuration
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-muted-foreground">
                     Required environment variables for the application
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="space-y-4">
-                    <div className="p-4 bg-muted rounded-lg border border-border">
-                      <h3 className="font-medium mb-2 flex items-center gap-2">
-                        <Key className="h-4 w-4" /> Required Environment Variables
+                    <div className="p-5 bg-muted/30 rounded-xl border border-border">
+                      <h3 className="font-semibold mb-4 flex items-center gap-2 text-foreground">
+                        <Key className="h-4 w-4 text-primary" /> Required Environment Variables
                       </h3>
-                      <div className="space-y-3 font-mono text-sm">
-                        <div className="flex flex-col gap-1">
-                          <span className="text-muted-foreground select-all">MONGO_URI</span>
-                          <div className="bg-background border rounded px-3 py-2 text-xs text-muted-foreground">
+                      <div className="space-y-4 font-mono text-sm">
+                        <div className="flex flex-col gap-2">
+                          <span className="text-foreground font-semibold select-all">MONGO_URI</span>
+                          <div className="bg-background border border-border rounded-lg px-4 py-3 text-xs text-muted-foreground">
                             MongoDB connection string
                           </div>
                         </div>
-                        <div className="flex flex-col gap-1">
-                          <span className="text-muted-foreground select-all">AUTH_SECRET</span>
-                          <div className="bg-background border rounded px-3 py-2 text-xs text-muted-foreground">
+                        <div className="flex flex-col gap-2">
+                          <span className="text-foreground font-semibold select-all">AUTH_SECRET</span>
+                          <div className="bg-background border border-border rounded-lg px-4 py-3 text-xs text-muted-foreground">
                             NextAuth secret for session encryption
                           </div>
                         </div>
-                        <div className="flex flex-col gap-1">
-                          <span className="text-muted-foreground select-all">GOOGLE_CLIENT_ID</span>
-                          <div className="bg-background border rounded px-3 py-2 text-xs text-muted-foreground">
+                        <div className="flex flex-col gap-2">
+                          <span className="text-foreground font-semibold select-all">GOOGLE_CLIENT_ID</span>
+                          <div className="bg-background border border-border rounded-lg px-4 py-3 text-xs text-muted-foreground">
                             Google OAuth client ID
                           </div>
                         </div>
-                        <div className="flex flex-col gap-1">
-                          <span className="text-muted-foreground select-all">GOOGLE_CLIENT_SECRET</span>
-                          <div className="bg-background border rounded px-3 py-2 text-xs text-muted-foreground">
+                        <div className="flex flex-col gap-2">
+                          <span className="text-foreground font-semibold select-all">GOOGLE_CLIENT_SECRET</span>
+                          <div className="bg-background border border-border rounded-lg px-4 py-3 text-xs text-muted-foreground">
                             Google OAuth client secret
                           </div>
                         </div>
-                        <div className="flex flex-col gap-1">
-                          <span className="text-muted-foreground select-all">NEXTAUTH_URL</span>
-                          <div className="bg-background border rounded px-3 py-2 text-xs text-muted-foreground">
+                        <div className="flex flex-col gap-2">
+                          <span className="text-foreground font-semibold select-all">NEXTAUTH_URL</span>
+                          <div className="bg-background border border-border rounded-lg px-4 py-3 text-xs text-muted-foreground">
                             Application URL (e.g., https://ltpd.xyz)
                           </div>
                         </div>
-                        <div className="flex flex-col gap-1">
-                          <span className="text-muted-foreground select-all">CRONITOR_API</span>
-                          <div className="bg-background border rounded px-3 py-2 text-xs text-muted-foreground">
+                        <div className="flex flex-col gap-2">
+                          <span className="text-foreground font-semibold select-all">CRONITOR_API</span>
+                          <div className="bg-background border border-border rounded-lg px-4 py-3 text-xs text-muted-foreground">
                             Cronitor API key for server status and history
                           </div>
                         </div>
