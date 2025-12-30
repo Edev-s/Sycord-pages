@@ -1,4 +1,4 @@
-import { Cloud, Database, Globe2, HardDrive, Network, Server, type LucideIcon } from "lucide-react"
+import { Activity, Cloud, Cpu, Database, Globe2, HardDrive, Lock, Network, Server, Shield, Wifi, type LucideIcon } from "lucide-react"
 
 interface ServerStatusCardProps {
   name: string
@@ -15,6 +15,11 @@ const iconMap: Record<string, LucideIcon> = {
   database: Database,
   network: Network,
   storage: HardDrive,
+  cpu: Cpu,
+  wifi: Wifi,
+  shield: Shield,
+  lock: Lock,
+  activity: Activity,
 }
 
 export function ServerStatusCard({ name, status, provider, providerIcon, uptime }: ServerStatusCardProps) {

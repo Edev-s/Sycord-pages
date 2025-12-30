@@ -5,6 +5,7 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { ArrowRight, Zap, Globe, Shield, Megaphone } from "lucide-react"
 import { Countdown } from "@/components/countdown"
+import { StatusBadge } from "@/components/status-badge"
 
 export default function LandingPage() {
   return (
@@ -241,10 +242,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="flex justify-center mb-6">
-            <Link href="/servers" className="flex items-center gap-3 transition-colors group">
-              <div className="w-2 h-2 rounded-full bg-[#00E599]" />
-              <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground">All service is operational</span>
-            </Link>
+            <StatusBadge />
           </div>
           <div className="pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-2">
