@@ -11,6 +11,7 @@ type ServerStatus = {
   name: string
   provider: string
   providerIcon?: string
+  iconType?: string
   statusCode: number
   uptime: (boolean | null)[]
 }
@@ -97,6 +98,7 @@ export default async function ServersPage() {
               status={server.statusCode}
               provider={server.provider}
               providerIcon={server.providerIcon}
+              iconType={server.iconType}
               uptime={server.uptime}
             />
           ))
