@@ -5,14 +5,9 @@ import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 import crypto from "crypto";
 import FormData from "form-data";
-import { createInflateRaw } from "zlib";
-import { readFile } from "fs/promises";
-import path from "path";
 
 const CLOUDFLARE_API_BASE = "https://api.cloudflare.com/client/v4";
 const BETA_WAITING_BRANCH = "beta-waiting";
-// Local demo zip file path (replaces remote URL to fix white page issue)
-const LOCAL_DEMO_ZIP_PATH = path.join(process.cwd(), "direct-upload-demo 2.zip");
 
 // Directory index constants for folder/index.html semantic
 const DIRECTORY_INDEX_SUFFIX = "/index.html";
@@ -39,136 +34,6 @@ interface DeployFile {
 interface DeployResult {
   url: string;
   deploymentId: string;
-}
-
-// Helper function to find the end of compressed data by scanning for next header
-// Used when the zip uses data descriptors (bit 3 of general purpose flag)
-function findCompressedDataEnd(buffer: Buffer, dataStart: number): number {
-  let scanOffset = dataStart;
-  while (scanOffset < buffer.length - 4) {
-    const sig = buffer.readUInt32LE(scanOffset);
-    // Data descriptor signature (optional) or next local file header or central directory
-    if (sig === 0x08074b50 || sig === 0x04034b50 || sig === 0x02014b50) {
-      return scanOffset;
-    }
-    scanOffset++;
-  }
-  return buffer.length;
-}
-
-// Helper to parse ZIP file entries (minimal implementation for static files)
-// Supports uncompressed (STORED) and DEFLATE compressed files
-// Also supports data descriptors (bit 3 of general purpose flag)
-async function parseZipEntries(zipBuffer: Buffer): Promise<DeployFile[]> {
-  const files: DeployFile[] = [];
-  let offset = 0;
-  
-  while (offset < zipBuffer.length - 4) {
-    // Look for local file header signature (0x04034b50)
-    const signature = zipBuffer.readUInt32LE(offset);
-    if (signature !== 0x04034b50) {
-      break; // End of local file headers
-    }
-    
-    const generalFlag = zipBuffer.readUInt16LE(offset + 6);
-    const hasDataDescriptor = (generalFlag & 0x08) !== 0; // Bit 3 set
-    const compressionMethod = zipBuffer.readUInt16LE(offset + 8);
-    let compressedSize = zipBuffer.readUInt32LE(offset + 18);
-    const fileNameLength = zipBuffer.readUInt16LE(offset + 26);
-    const extraFieldLength = zipBuffer.readUInt16LE(offset + 28);
-    
-    const fileNameStart = offset + 30;
-    const fileName = zipBuffer.toString("utf-8", fileNameStart, fileNameStart + fileNameLength);
-    const dataStart = fileNameStart + fileNameLength + extraFieldLength;
-    
-    // If using data descriptor and compressedSize is 0, we need to scan for the end
-    let dataEnd: number;
-    if (hasDataDescriptor && compressedSize === 0) {
-      dataEnd = findCompressedDataEnd(zipBuffer, dataStart);
-      compressedSize = dataEnd - dataStart;
-    } else {
-      dataEnd = dataStart + compressedSize;
-    }
-    
-    // Skip directories (they end with /)
-    if (!fileName.endsWith("/") && compressedSize > 0) {
-      const compressedData = zipBuffer.subarray(dataStart, dataEnd);
-      let content: string;
-      
-      if (compressionMethod === 0) {
-        // STORED (no compression)
-        content = compressedData.toString("utf-8");
-      } else if (compressionMethod === 8) {
-        // DEFLATE compression
-        try {
-          const inflated = await new Promise<Buffer>((resolve, reject) => {
-            const inflater = createInflateRaw();
-            const chunks: Buffer[] = [];
-            inflater.on("data", (chunk) => chunks.push(chunk));
-            inflater.on("end", () => resolve(Buffer.concat(chunks)));
-            inflater.on("error", reject);
-            inflater.end(compressedData);
-          });
-          content = inflated.toString("utf-8");
-        } catch (error: any) {
-          // If decompression fails, skip this file
-          console.warn(`[Cloudflare] Decompression failed for file ${fileName}:`, error?.message);
-          offset = dataEnd;
-          if (hasDataDescriptor) offset += 12;
-          continue;
-        }
-      } else {
-        // Unsupported compression method, skip
-        offset = dataEnd;
-        if (hasDataDescriptor) offset += 12;
-        continue;
-      }
-      
-      // Normalize path to start with /
-      const normalizedPath = fileName.startsWith("/") ? fileName : `/${fileName}`;
-      files.push({ path: normalizedPath, content });
-    }
-    
-    // Move to next entry
-    offset = dataEnd;
-    if (hasDataDescriptor) {
-      // Check for data descriptor signature (optional)
-      if (offset < zipBuffer.length - 4 && zipBuffer.readUInt32LE(offset) === 0x08074b50) {
-        offset += 16; // signature + crc + compressedSize + uncompressedSize
-      } else if (offset < zipBuffer.length - 12) {
-        offset += 12; // crc + compressedSize + uncompressedSize (no signature)
-      }
-    }
-  }
-  
-  return files;
-}
-
-// Read and extract demo files from the local zip file
-// This replaces the remote URL fetch to fix the white page issue after direct upload
-async function fetchDemoFiles(): Promise<DeployFile[]> {
-  console.log(`[Cloudflare] Reading demo files from local zip: ${LOCAL_DEMO_ZIP_PATH}...`);
-  
-  let zipBuffer: Buffer;
-  try {
-    zipBuffer = await readFile(LOCAL_DEMO_ZIP_PATH);
-  } catch (error: any) {
-    const errorMsg = error?.code === "ENOENT"
-      ? `Local demo zip file not found: ${LOCAL_DEMO_ZIP_PATH}`
-      : `Failed to read local demo zip file: ${error?.message}`;
-    throw new Error(errorMsg);
-  }
-  
-  console.log(`[Cloudflare] Read local demo zip (${zipBuffer.length} bytes)`);
-  
-  const files = await parseZipEntries(zipBuffer);
-  console.log(`[Cloudflare] Extracted ${files.length} files from demo zip`);
-  
-  for (const file of files) {
-    console.log(`[Cloudflare]   - ${file.path} (${file.content.length} bytes)`);
-  }
-  
-  return files;
 }
 
 // Helper to make Cloudflare API requests
@@ -458,16 +323,48 @@ export async function POST(request: Request) {
     const branch = isWaitingBuild ? BETA_WAITING_BRANCH : "main";
     const stage: "production" | "preview" = branch === "main" ? "production" : "preview";
 
-    // 4. Fetch demo files from the local direct-upload-demo 2.zip
-    // This replaces the previous remote URL fetch logic to fix the white page issue
-    let files: DeployFile[];
-    try {
-      files = await fetchDemoFiles();
-    } catch (fetchError: any) {
-      console.error("[Cloudflare] Failed to fetch demo files:", fetchError);
-      return NextResponse.json(
-        { error: `Failed to fetch demo files: ${fetchError.message}` },
-        { status: 500 }
+    // 4. Fetch files from MongoDB 'pages' collection
+    // This replaces the previous demo zip fetch to deploy actual user content
+    let files: DeployFile[] = [];
+
+    const pages = await db.collection("pages").find({
+      projectId: new ObjectId(projectId)
+    }).toArray();
+
+    if (pages.length > 0) {
+      console.log(`[Cloudflare] Found ${pages.length} pages in database`);
+      files = pages.map(page => {
+        let path = page.name;
+        // Ensure path starts with /
+        if (!path.startsWith('/')) {
+          path = '/' + path;
+        }
+
+        // Ensure .html extension for pages (unless it's a known file type or already has it)
+        // Cloudflare Pages serves /about.html as /about
+        // The pages collection typically stores 'index', 'about' (no extension)
+        const hasExtension = path.includes('.') && path.lastIndexOf('.') > path.lastIndexOf('/');
+        if (!hasExtension && !path.endsWith('/')) {
+             path = path + '.html';
+        }
+        return {
+          path: path,
+          content: page.content
+        };
+      });
+    } else if (project.aiGeneratedCode) {
+      // Fallback to project.aiGeneratedCode if no pages found
+      console.log(`[Cloudflare] No pages found in collection, using legacy aiGeneratedCode as index.html`);
+      files.push({
+        path: "/index.html",
+        content: project.aiGeneratedCode
+      });
+    }
+
+    if (files.length === 0) {
+       return NextResponse.json(
+        { error: "No files to deploy. Please generate or create pages first." },
+        { status: 400 }
       );
     }
 
@@ -475,14 +372,8 @@ export async function POST(request: Request) {
     const indexFile = files.find(f => f.path === "/index.html");
     const has404 = files.some(f => f.path === "/404.html");
     if (indexFile && !has404) {
+      console.log(`[Cloudflare] Creating 404.html from index.html for SPA fallback`);
       files.push({ path: "/404.html", content: indexFile.content });
-    }
-
-    if (files.length === 0) {
-      return NextResponse.json(
-        { error: "No files to deploy" },
-        { status: 400 }
-      );
     }
 
     console.log(`[Cloudflare] Preparing to deploy ${files.length} files to project "${cfProjectName}"`);
