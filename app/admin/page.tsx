@@ -11,14 +11,13 @@ import {
   AlertCircle,
   Users,
   Zap,
-  Globe,
+  Shield,
   Trash2,
   Mail,
   Search,
   Menu,
   X,
   ArrowLeft,
-  Shield,
   LogOut,
   BarChart3,
   Server,
@@ -32,7 +31,6 @@ import {
   Network,
   Cpu,
   Wifi,
-  Shield,
   Lock
 } from "lucide-react"
 
