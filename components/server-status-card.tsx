@@ -5,6 +5,7 @@ interface ServerStatusCardProps {
   status: number
   provider: string
   providerIcon?: string
+  iconType?: string
   uptime: (boolean | null)[]
 }
 
@@ -22,10 +23,11 @@ const iconMap: Record<string, LucideIcon> = {
   activity: Activity,
 }
 
-export function ServerStatusCard({ name, status, provider, providerIcon, uptime }: ServerStatusCardProps) {
+export function ServerStatusCard({ name, status, provider, providerIcon, iconType, uptime }: ServerStatusCardProps) {
   const isOperational = status === 200
   const iconKey = providerIcon?.toLowerCase() ?? ""
   const IconComponent = iconMap[iconKey] ?? Server
+  const isCustomIcon = iconType === 'custom'
 
   return (
     <div className="space-y-3">
@@ -59,7 +61,15 @@ export function ServerStatusCard({ name, status, provider, providerIcon, uptime 
 
       <div className="flex items-center gap-2">
         <div className="w-6 h-6 rounded bg-[#2d2d2d] border border-[#3a3a3a] flex items-center justify-center text-[#b3b3b3]">
-          <IconComponent className="w-4 h-4" />
+          {isCustomIcon && providerIcon ? (
+            <img 
+              src={providerIcon} 
+              alt="Custom icon" 
+              className="w-4 h-4 object-contain"
+            />
+          ) : (
+            <IconComponent className="w-4 h-4" />
+          )}
         </div>
         <span className="text-sm text-[#888888]">{provider}</span>
       </div>
