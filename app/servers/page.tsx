@@ -53,7 +53,7 @@ export default async function ServersPage() {
       <div className="px-6 py-4">
         <div className="relative w-full flex items-center justify-center">
           <Image 
-            src="/b2adf1e2-fe2d-479c-ad8a.jpeg"
+            src="/b2adf1e2-fe2d-479c-ad8a.png"
             alt="Sycord hero graphic"
             width={640}
             height={313}
