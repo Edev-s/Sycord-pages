@@ -340,6 +340,18 @@ export async function POST(request: Request) {
           path = '/' + path;
         }
 
+        // Force .html extension for TypeScript files so they are served as pages
+        // The content is expected to be HTML-compatible (or wrapped)
+        if (path.endsWith('.ts')) {
+            path = path.slice(0, -3) + '.html';
+        } else if (path.endsWith('.tsx')) {
+            path = path.slice(0, -4) + '.html';
+        } else if (path.endsWith('.js')) {
+            path = path.slice(0, -3) + '.html';
+        } else if (path.endsWith('.jsx')) {
+            path = path.slice(0, -4) + '.html';
+        }
+
         // Ensure .html extension for pages (unless it's a known file type or already has it)
         // Cloudflare Pages serves /about.html as /about
         // The pages collection typically stores 'index', 'about' (no extension)
