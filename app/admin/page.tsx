@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { toast } from "sonner"
 import {
   AlertCircle,
   Users,
@@ -149,13 +150,13 @@ export default function AdminPage() {
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      alert('Please upload an image file (PNG, JPG, etc.)')
+      toast.error('Please upload an image file (PNG, JPG, etc.)')
       return
     }
 
     // Validate file size (max 1MB)
     if (file.size > 1024 * 1024) {
-      alert('Image must be smaller than 1MB')
+      toast.error('Image must be smaller than 1MB')
       return
     }
 
@@ -166,16 +167,17 @@ export default function AdminPage() {
       reader.onload = async (e) => {
         const dataUrl = e.target?.result as string
         await updateMonitorIcon(id, dataUrl, 'custom')
+        toast.success('Icon uploaded successfully')
         setUploadingIcon(null)
       }
       reader.onerror = () => {
-        alert('Error reading file')
+        toast.error('Error reading file')
         setUploadingIcon(null)
       }
       reader.readAsDataURL(file)
     } catch (error) {
       console.error("Error uploading icon:", error)
-      alert('Error uploading icon')
+      toast.error('Error uploading icon')
       setUploadingIcon(null)
     }
   }

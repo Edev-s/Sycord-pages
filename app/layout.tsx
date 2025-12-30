@@ -1,6 +1,7 @@
 import type React from "react"
 import AuthProvider from "@/components/auth-provider"
 import { ThemeProvider } from "@/components/theme-provider"
+import { Toaster } from "sonner"
 import "./globals.css"
 import { Inter } from 'next/font/google'
 
@@ -18,6 +19,7 @@ export default function RootLayout({
           <AuthProvider>
             {children}
           </AuthProvider>
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>
