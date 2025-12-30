@@ -14,6 +14,23 @@ const BETA_WAITING_BRANCH = "beta-waiting";
 // Local demo zip file path (replaces remote URL to fix white page issue)
 const LOCAL_DEMO_ZIP_PATH = path.join(process.cwd(), "direct-upload-demo 2.zip");
 
+// Directory index constants for folder/index.html semantic
+const DIRECTORY_INDEX_SUFFIX = "/index.html";
+const DIRECTORY_INDEX_SUFFIX_LOWER = DIRECTORY_INDEX_SUFFIX.toLowerCase();
+const DIRECTORY_INDEX_SUFFIX_LENGTH = DIRECTORY_INDEX_SUFFIX.length;
+
+// Check if a path ends with /index.html (case-insensitive)
+function endsWithDirectoryIndex(pathname: string): boolean {
+  return pathname.toLowerCase().endsWith(DIRECTORY_INDEX_SUFFIX_LOWER);
+}
+
+// Strip /index.html from the path to get the directory path
+function stripDirectoryIndex(pathname: string): string {
+  if (!endsWithDirectoryIndex(pathname)) return pathname;
+  const trimmed = pathname.slice(0, -DIRECTORY_INDEX_SUFFIX_LENGTH);
+  return trimmed || "/";
+}
+
 interface DeployFile {
   path: string;
   content: string;
@@ -260,8 +277,26 @@ async function deployToCloudflarePages(
     const hash = calculateHash(contentBuffer);
     fileHashes[file.path] = hash;
     fileContents[hash] = contentBuffer;
-    console.log(`[Cloudflare] File: ${file.path} (${contentBuffer.length} bytes, hash: ${hash.substring(0, 12)}...)`);
+    
+    // Add directory index mappings for folder/index.html semantic
+    // This allows /folder/index.html to be accessed as /folder and /folder/
+    if (endsWithDirectoryIndex(file.path)) {
+      const basePath = stripDirectoryIndex(file.path);
+      fileHashes[basePath] = hash;
+      // Add trailing slash variant (e.g., /folder/) for all directories except root
+      // Root path (/) already handles both / and /index.html
+      const addedTrailingSlash = basePath !== "/" && !basePath.endsWith("/");
+      if (addedTrailingSlash) {
+        fileHashes[`${basePath}/`] = hash;
+      }
+      const mappedPaths = addedTrailingSlash ? `${basePath} and ${basePath}/` : basePath;
+      console.log(`[Cloudflare] File: ${file.path} (${contentBuffer.length} bytes, hash: ${hash.substring(0, 12)}...) -> also mapped to ${mappedPaths}`);
+    } else {
+      console.log(`[Cloudflare] File: ${file.path} (${contentBuffer.length} bytes, hash: ${hash.substring(0, 12)}...)`);
+    }
   }
+
+  console.log(`[Cloudflare] Total manifest entries: ${Object.keys(fileHashes).length} (including directory index mappings)`);
 
   // Create deployment with manifest AND files using multipart/form-data
   // Cloudflare Pages Direct Upload API accepts both in a single request
