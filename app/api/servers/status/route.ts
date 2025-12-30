@@ -133,14 +133,17 @@ export async function GET() {
     }
 
     // Fetch monitor customizations from MongoDB
-    let monitorIcons: Record<string, string> = {}
+    let monitorIcons: Record<string, { icon: string; iconType?: string }> = {}
     try {
       const client = await clientPromise
       const db = client.db()
       const storedMonitors = await db.collection("monitors").find({}).toArray()
       storedMonitors.forEach((m) => {
         if (m.id && m.icon) {
-          monitorIcons[m.id] = m.icon
+          monitorIcons[m.id] = { 
+            icon: m.icon,
+            iconType: m.iconType || 'preset'
+          }
         }
       })
     } catch (e) {
@@ -203,13 +206,16 @@ export async function GET() {
         // Use monitor properties from Cronitor API
         const monitorName = monitor.name || monitorKey
         const monitorType = monitor.type || "heartbeat"
-        const customIcon = monitorIcons[monitorKey] || "Server"
+        const customIconData = monitorIcons[monitorKey]
+        const customIcon = customIconData?.icon || "Server"
+        const customIconType = customIconData?.iconType || "preset"
 
         return {
           id: monitorKey,
           name: monitorName,
           provider: monitorType,
           providerIcon: customIcon,
+          iconType: customIconType,
           status,
           statusCode,
           uptime,

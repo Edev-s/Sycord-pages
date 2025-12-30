@@ -4,7 +4,7 @@ import { headers } from "next/headers"
 import { Inter } from "next/font/google"
 import { ServerStatusCard } from "@/components/server-status-card"
 
-const inter = Inter({ subsets: ["latin"] })
+const inter = Inter({ subsets: ["latin"], weight: ['400', '500', '600', '700'] })
 
 type ServerStatus = {
   id: string

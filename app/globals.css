@@ -76,8 +76,8 @@
 }
 
 @theme inline {
-  /* Using Rubik font */
-  --font-sans: "Rubik", "Rubik Fallback", system-ui, sans-serif;
+  /* Using Inter font */
+  --font-sans: "Inter", system-ui, sans-serif;
   --font-mono: "Geist Mono", "Geist Mono Fallback";
   --color-background: var(--background);
   --color-foreground: var(--foreground);
