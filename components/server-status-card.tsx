@@ -1,7 +1,7 @@
 "use client"
 
 import { Activity, Cloud, Cpu, Database, Globe2, HardDrive, Lock, Network, Server, Shield, Wifi, type LucideIcon } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
 interface ServerStatusCardProps {
   name: string
@@ -26,6 +26,11 @@ const iconMap: Record<string, LucideIcon> = {
   activity: Activity,
 }
 
+function validateCustomIcon(icon: string | undefined): boolean {
+  if (!icon) return false
+  return icon.startsWith('data:image/') && icon.includes(';base64,')
+}
+
 export function ServerStatusCard({ name, status, provider, providerIcon, iconType, uptime }: ServerStatusCardProps) {
   const isOperational = status === 200
   const iconKey = providerIcon?.toLowerCase() ?? ""
@@ -33,10 +38,14 @@ export function ServerStatusCard({ name, status, provider, providerIcon, iconTyp
   const isCustomIcon = iconType === 'custom'
   const [imageLoadError, setImageLoadError] = useState(false)
   
+  // Reset error state when providerIcon changes
+  useEffect(() => {
+    setImageLoadError(false)
+  }, [providerIcon])
+  
   // Validate custom icon is a safe data URL with proper format
   const isValidCustomIcon = isCustomIcon && 
-    providerIcon?.startsWith('data:image/') && 
-    providerIcon.includes(';base64,') &&
+    validateCustomIcon(providerIcon) &&
     !imageLoadError
 
   return (
