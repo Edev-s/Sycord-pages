@@ -50,6 +50,7 @@ import {
   MessageSquare,
   Bot,
   Eye,
+  Check,
 } from "lucide-react"
 import { CloudflareDomainManager } from "@/components/cloudflare-domain-manager"
 import { GitHubDeployment } from "@/components/github-deployment"
@@ -97,6 +98,80 @@ const paymentOptions = [
   { id: "paypal", name: "PayPal", description: "PayPal payments" },
   { id: "bank", name: "Bank Transfer", description: "Direct bank transfers" },
 ]
+
+// Deployment status reset timeout (in milliseconds)
+const DEPLOY_STATUS_RESET_TIMEOUT_MS = 5000
+
+// Deployment status types
+type DeployStep = "idle" | "saving" | "github" | "deploying" | "complete" | "error"
+
+// DeploymentStatusBar component for reuse across mobile and desktop
+const DeploymentStatusBar = ({
+  deployStep,
+  deployStatus,
+  deployProgress,
+  newDeploymentUrl,
+  variant = "default"
+}: {
+  deployStep: DeployStep
+  deployStatus: string
+  deployProgress: number
+  newDeploymentUrl: string | null
+  variant?: "default" | "compact"
+}) => {
+  if (deployStep === "idle") return null
+
+  return (
+    <div className={cn(
+      "p-4 border animate-in fade-in slide-in-from-top-2",
+      variant === "compact" ? "rounded-lg" : "rounded-xl",
+      deployStep === "error" ? "bg-destructive/10 border-destructive/30" :
+      deployStep === "complete" ? "bg-green-500/10 border-green-500/30" :
+      "bg-primary/10 border-primary/30"
+    )}>
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          {deployStep === "error" ? (
+            <AlertCircle className="h-4 w-4 text-destructive" />
+          ) : deployStep === "complete" ? (
+            <Check className="h-4 w-4 text-green-500" />
+          ) : (
+            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          )}
+          <span className={cn(
+            variant === "compact" ? "text-xs" : "text-sm",
+            "font-medium",
+            deployStep === "error" ? "text-destructive" :
+            deployStep === "complete" ? "text-green-500" :
+            "text-primary"
+          )}>
+            {deployStatus}
+          </span>
+        </div>
+        <span className="text-xs text-muted-foreground">{deployProgress}%</span>
+      </div>
+      <Progress value={deployProgress} className={cn(
+        "h-1.5",
+        deployStep === "error" ? "[&>div]:bg-destructive" :
+        deployStep === "complete" ? "[&>div]:bg-green-500" : ""
+      )} />
+      {deployStep === "complete" && newDeploymentUrl && (
+        <a
+          href={newDeploymentUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={cn(
+            "flex items-center gap-1 text-green-500 hover:underline",
+            variant === "compact" ? "mt-2 text-xs" : "mt-3 text-sm"
+          )}
+        >
+          <ExternalLink className="h-3 w-3" />
+          {newDeploymentUrl.replace(/^https?:\/\//, '')}
+        </a>
+      )}
+    </div>
+  )
+}
 
 // Extract SidebarContent to a separate component to avoid re-renders
 const SidebarContent = ({
@@ -210,6 +285,12 @@ export default function SiteSettingsPage() {
   const [showDomainManager, setShowDomainManager] = useState(false)
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop")
   const { data: session } = useSession()
+
+  // Deployment progress state
+  const [deployProgress, setDeployProgress] = useState(0)
+  const [deployStatus, setDeployStatus] = useState("")
+  const [deployStep, setDeployStep] = useState<DeployStep>("idle")
+  const [newDeploymentUrl, setNewDeploymentUrl] = useState<string | null>(null)
 
   // Renamed to match the button name and be consistent
   const saving = isSaving
@@ -510,18 +591,81 @@ export default function SiteSettingsPage() {
     }
   }
 
+  // Helper function to reset deployment state
+  const resetDeploymentState = () => {
+    setDeployStep("idle")
+    setDeployProgress(0)
+    setDeployStatus("")
+  }
+
   const handleDeploy = async () => {
     setIsDeploying(true)
+    setDeployStep("saving")
+    setDeployProgress(5)
+    setDeployStatus("Saving to database...")
+    setDeploymentError(null)
+    setNewDeploymentUrl(null)
+
     try {
-      const response = await fetch("/api/cloudflare/deploy", {
+      // Step 1: Save pages to database (if any generated pages exist)
+      if (generatedPages.length > 0) {
+        setDeployProgress(10)
+        const saveResponse = await fetch(`/api/projects/${id}/deploy-code`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            files: generatedPages.map(p => ({ name: p.name, content: p.code }))
+          }),
+        })
+
+        if (!saveResponse.ok) {
+          throw new Error("Failed to save files to database")
+        }
+      }
+      
+      setDeployProgress(25)
+      setDeployStep("github")
+      setDeployStatus("Syncing to GitHub...")
+
+      // Step 2: Sync to GitHub
+      const githubResponse = await fetch("/api/github/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ projectId: id }),
       })
 
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || "Deployment failed")
+      if (!githubResponse.ok) {
+        const errData = await githubResponse.json()
+        throw new Error(errData.error || "GitHub sync failed")
+      }
+
+      const githubData = await githubResponse.json()
+      const repoId = githubData.repoId
+
+      setDeployProgress(50)
+      setDeployStep("deploying")
+      setDeployStatus("Deploying to edge network...")
+
+      // Step 3: Trigger External Deployment API
+      const externalResponse = await fetch("/api/external-deploy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ repoId }),
+      })
+
+      if (!externalResponse.ok) {
+        const errData = await externalResponse.json()
+        throw new Error(errData.error || "External deployment failed")
+      }
+
+      const externalData = await externalResponse.json()
+
+      setDeployProgress(90)
+      setDeployStatus("Finalizing deployment...")
+
+      // Step 4: Get the deployed URL from response
+      if (externalData.url) {
+        setNewDeploymentUrl(externalData.url)
       }
 
       // Refresh project data to get new deployment status
@@ -529,9 +673,21 @@ export default function SiteSettingsPage() {
       const projectData = await projectRes.json()
       setProject(projectData)
 
-      alert("Deployment started successfully!")
+      setDeployProgress(100)
+      setDeployStep("complete")
+      setDeployStatus("Deployed successfully!")
+
+      // Reset after showing success
+      setTimeout(resetDeploymentState, DEPLOY_STATUS_RESET_TIMEOUT_MS)
+
     } catch (error: any) {
-      alert(error.message)
+      console.error("[Deploy] Error:", error)
+      setDeploymentError(error.message || "Deployment failed")
+      setDeployStep("error")
+      setDeployStatus(error.message || "Deployment failed")
+      
+      // Reset error state after showing
+      setTimeout(resetDeploymentState, DEPLOY_STATUS_RESET_TIMEOUT_MS)
     } finally {
       setIsDeploying(false)
     }
@@ -879,6 +1035,14 @@ export default function SiteSettingsPage() {
                             )}
                             {isDeploying ? "Deploying..." : "Publish Changes"}
                         </Button>
+
+                        {/* Deployment Status Bar - Mobile */}
+                        <DeploymentStatusBar
+                            deployStep={deployStep}
+                            deployStatus={deployStatus}
+                            deployProgress={deployProgress}
+                            newDeploymentUrl={newDeploymentUrl}
+                        />
                     </div>
 
                     {/* Visitor Divider */}
@@ -1009,6 +1173,15 @@ export default function SiteSettingsPage() {
                                 )}
                                 {isDeploying ? "Deploying..." : "Publish Changes"}
                             </Button>
+
+                            {/* Deployment Status Bar - Desktop */}
+                            <DeploymentStatusBar
+                                deployStep={deployStep}
+                                deployStatus={deployStatus}
+                                deployProgress={deployProgress}
+                                newDeploymentUrl={newDeploymentUrl}
+                                variant="compact"
+                            />
 
                             <div className="grid grid-cols-2 gap-3 pt-2">
                                 <Button variant="outline" className="w-full bg-transparent border-white/10 hover:bg-white/5" onClick={handleSave} disabled={saving}>
