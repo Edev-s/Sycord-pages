@@ -3,49 +3,10 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
-import FormData from "form-data";
+import { ensureRepo, pushFiles } from "@/lib/github";
 
 const CLOUDFLARE_API_BASE = "https://api.cloudflare.com/client/v4";
 const BETA_WAITING_BRANCH = "beta-waiting";
-const webCrypto = globalThis.crypto;
-
-if (!webCrypto) {
-  throw new Error("Web Crypto API is not available in this environment (missing crypto)");
-}
-
-if (!webCrypto.subtle) {
-  throw new Error("Web Crypto API is not available in this environment (missing subtle crypto)");
-}
-
-const cryptoSubtle = webCrypto.subtle;
-const textEncoder = new TextEncoder();
-
-// Directory index constants for folder/index.html semantic
-const DIRECTORY_INDEX_SUFFIX = "/index.html";
-const DIRECTORY_INDEX_SUFFIX_LOWER = DIRECTORY_INDEX_SUFFIX.toLowerCase();
-const DIRECTORY_INDEX_SUFFIX_LENGTH = DIRECTORY_INDEX_SUFFIX.length;
-
-// Check if a path ends with /index.html (case-insensitive)
-function endsWithDirectoryIndex(pathname: string): boolean {
-  return pathname.toLowerCase().endsWith(DIRECTORY_INDEX_SUFFIX_LOWER);
-}
-
-// Strip /index.html from the path to get the directory path
-function stripDirectoryIndex(pathname: string): string {
-  if (!endsWithDirectoryIndex(pathname)) return pathname;
-  const trimmed = pathname.slice(0, -DIRECTORY_INDEX_SUFFIX_LENGTH);
-  return trimmed || "/";
-}
-
-interface DeployFile {
-  path: string;
-  content: string;
-}
-
-interface DeployResult {
-  url: string;
-  deploymentId: string;
-}
 
 // Helper to make Cloudflare API requests
 async function cloudflareRequest(
@@ -79,37 +40,36 @@ async function cloudflareRequest(
   return { data, status: response.status };
 }
 
-// Check if a Cloudflare Pages project exists
-async function checkProjectExists(
+// Get Cloudflare Pages project details
+async function getProjectDetails(
   accountId: string,
   projectName: string,
   apiToken: string
-): Promise<boolean> {
+): Promise<any | null> {
   try {
-    await cloudflareRequest(
+    const { data } = await cloudflareRequest(
       `/accounts/${accountId}/pages/projects/${projectName}`,
       apiToken
     );
-    console.log(`[Cloudflare] Project "${projectName}" exists`);
-    return true;
+    return data.result;
   } catch (error: any) {
-    // Check for 404 status (project not found) or Cloudflare's "not_found" error
     if (error.status === 404 || error.message.includes("not_found")) {
-      console.log(`[Cloudflare] Project "${projectName}" does not exist`);
-      return false;
+      return null;
     }
     throw error;
   }
 }
 
-// Create a new Cloudflare Pages project
-async function createProject(
+// Create a new Cloudflare Pages project with GitHub source
+async function createGithubProject(
   accountId: string,
   projectName: string,
+  repoOwner: string,
+  repoName: string,
   branch: string,
   apiToken: string
 ): Promise<void> {
-  console.log(`[Cloudflare] Creating project "${projectName}"...`);
+  console.log(`[Cloudflare] Creating project "${projectName}" linked to GitHub ${repoOwner}/${repoName}...`);
   await cloudflareRequest(
     `/accounts/${accountId}/pages/projects`,
     apiToken,
@@ -118,168 +78,52 @@ async function createProject(
       body: JSON.stringify({
         name: projectName,
         production_branch: branch,
+        source: {
+          type: "github",
+          config: {
+            owner: repoOwner,
+            repo_name: repoName,
+            production_branch: branch,
+            pr_comments_enabled: true,
+            deployments_enabled: true
+          }
+        },
+        build_config: {
+          build_command: null,
+          destination_dir: "",
+          root_dir: "/"
+        }
       }),
     }
   );
   console.log(`[Cloudflare] Project "${projectName}" created successfully`);
 }
 
-// Calculate SHA-256 hash of content (supports string or binary data)
-type HashInput = string | ArrayBuffer | ArrayBufferView;
-
-async function calculateHash(content: HashInput): Promise<string> {
-  let data: Uint8Array;
-
-  if (typeof content === "string") {
-    data = textEncoder.encode(content);
-  } else if (ArrayBuffer.isView(content)) {
-    data = new Uint8Array(content.buffer, content.byteOffset, content.byteLength);
-  } else if (content instanceof ArrayBuffer) {
-    data = new Uint8Array(content);
-  } else {
-    throw new Error("Unsupported content type for hashing");
-  }
-
-  const hashBuffer = await cryptoSubtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(hashBuffer))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-// Deploy files to Cloudflare Pages using Direct Upload API
-// This uses the single-request approach where manifest and files are sent together
-async function deployToCloudflarePages(
+// Trigger a deployment
+async function triggerDeployment(
   accountId: string,
   projectName: string,
   branch: string,
-  stage: "production" | "preview",
-  files: DeployFile[],
   apiToken: string
-): Promise<DeployResult> {
-  console.log(`[Cloudflare] Starting deployment of ${files.length} files...`);
-  console.log(`[Cloudflare] Branch: ${branch}, Stage: ${stage}`);
-
-  // Calculate hashes for all files
-  const fileHashes: Record<string, string> = {};
-  const fileContents: Record<string, Buffer> = {};
-
-  for (const file of files) {
-    const contentBytes = textEncoder.encode(file.content);
-    const hash = await calculateHash(contentBytes);
-    const contentBuffer = Buffer.from(contentBytes);
-    fileHashes[file.path] = hash;
-    fileContents[hash] = contentBuffer;
-    
-    // Add directory index mappings for folder/index.html semantic
-    // This allows /folder/index.html to be accessed as /folder and /folder/
-    if (endsWithDirectoryIndex(file.path)) {
-      const basePath = stripDirectoryIndex(file.path);
-      fileHashes[basePath] = hash;
-      // Add trailing slash variant (e.g., /folder/) for all directories except root
-      // Root path (/) already handles both / and /index.html
-      const addedTrailingSlash = basePath !== "/" && !basePath.endsWith("/");
-      if (addedTrailingSlash) {
-        fileHashes[`${basePath}/`] = hash;
-      }
-      const mappedPaths = addedTrailingSlash ? `${basePath} and ${basePath}/` : basePath;
-      console.log(`[Cloudflare] File: ${file.path} (${contentBuffer.length} bytes, hash: ${hash.substring(0, 12)}...) -> also mapped to ${mappedPaths}`);
-    } else {
-      console.log(`[Cloudflare] File: ${file.path} (${contentBuffer.length} bytes, hash: ${hash.substring(0, 12)}...)`);
+): Promise<{ url: string; deploymentId: string }> {
+  console.log(`[Cloudflare] Triggering deployment for "${projectName}" on branch "${branch}"...`);
+  const { data } = await cloudflareRequest(
+    `/accounts/${accountId}/pages/projects/${projectName}/deployments`,
+    apiToken,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        branch: branch
+      })
     }
-  }
-
-  console.log(`[Cloudflare] Total manifest entries: ${Object.keys(fileHashes).length} (including directory index mappings)`);
-
-  // Create deployment with manifest AND files using multipart/form-data
-  // Cloudflare Pages Direct Upload API accepts both in a single request
-  console.log(`[Cloudflare] Creating deployment with manifest and uploading files...`);
+  );
   
-  const manifestJson = JSON.stringify(fileHashes);
-  
-  // Use form-data package for proper multipart handling in Node.js
-  const formData = new FormData();
-  
-  // Add manifest with proper content type
-  formData.append("manifest", manifestJson, {
-    contentType: "application/json",
-  });
-  
-  // Add each file with its hash as the field name
-  for (const [hash, contentBuffer] of Object.entries(fileContents)) {
-    formData.append(hash, contentBuffer, {
-      contentType: "application/octet-stream",
-    });
-  }
-
-  // Add _routes.json to serve all routes as static assets
-  // This prevents Cloudflare from treating the deployment as Functions unintentionally
-  // which can cause 500 errors on the deployed site
-  // For a static-only deployment, we include all routes as static assets
-  const routesJson = JSON.stringify({
-    version: 1,
-    include: ["/*"],
-    exclude: []
-  });
-  formData.append("_routes.json", Buffer.from(routesJson, "utf-8"), {
-    filename: "_routes.json",
-    contentType: "application/json",
-  });
-  console.log(`[Cloudflare] Added _routes.json to serve all routes as static assets`);
-
-  const deployUrl = new URL(`${CLOUDFLARE_API_BASE}/accounts/${accountId}/pages/projects/${projectName}/deployments`);
-  deployUrl.searchParams.set("branch", encodeURIComponent(branch));
-  deployUrl.searchParams.set("stage", encodeURIComponent(stage));
-  console.log(`[Cloudflare] API request: POST /accounts/${accountId}/pages/projects/${projectName}/deployments?branch=${branch}&stage=${stage}`);
-  console.log(`[Cloudflare] Uploading ${Object.keys(fileContents).length} unique files...`);
-  
-  // Get the form data as a buffer and headers
-  const formDataBuffer = formData.getBuffer();
-  const formDataHeaders = formData.getHeaders();
-  
-  const deployResponse = await fetch(deployUrl, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiToken}`,
-      ...formDataHeaders,
-      "Content-Length": String(formDataBuffer.length),
-    },
-    // Buffer is a valid body type in Node.js fetch but TypeScript's BodyInit type doesn't include it
-    body: formDataBuffer as unknown as BodyInit,
-    // The duplex option is required for Node.js fetch with streaming/buffer bodies
-    // but isn't in TypeScript's RequestInit type definition yet
-    // @ts-expect-error - See: https://github.com/nodejs/node/issues/46221
-    duplex: "half",
-  });
-
-  const deployData = await deployResponse.json();
-  console.log(`[Cloudflare] Response status: ${deployResponse.status}`);
-
-  if (!deployResponse.ok) {
-    const errorMsg = deployData.errors?.[0]?.message || `HTTP ${deployResponse.status}`;
-    console.error(`[Cloudflare] API error:`, deployData.errors || deployData);
-    throw new Error(`Cloudflare API error: ${errorMsg}`);
-  }
-
-  const deploymentId = deployData.result?.id;
-  const deploymentUrl = deployData.result?.url;
-
-  if (!deploymentId) {
-    console.error(`[Cloudflare] Unexpected response structure:`, JSON.stringify(deployData, null, 2));
-    throw new Error("No deployment ID received from Cloudflare. Deployment may have failed.");
-  }
-
-  console.log(`[Cloudflare] Deployment successful (ID: ${deploymentId})`);
-
   return {
-    url: deploymentUrl || `https://${projectName}.pages.dev`,
-    deploymentId,
+    url: data.result.url,
+    deploymentId: data.result.id
   };
 }
 
-/**
- * POST /api/cloudflare/deploy
- * Deploys the project to Cloudflare Pages using Direct Upload API
- */
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -306,6 +150,10 @@ export async function POST(request: Request) {
     let apiToken = process.env.CLOUDFLARE_API_TOKEN || process.env.CLOUDFLARE_API_KEY;
     let accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
 
+    // GitHub Credentials
+    const githubToken = process.env.GITHUB_API_KEY;
+    const githubOwner = process.env.GITHUB_OWNER;
+
     if (!apiToken || !accountId) {
         const tokenDoc = await db.collection("cloudflare_tokens").findOne({
           projectId: new ObjectId(projectId),
@@ -320,7 +168,14 @@ export async function POST(request: Request) {
 
     if (!apiToken || !accountId) {
       return NextResponse.json(
-        { error: "No Cloudflare credentials found. Please configure env vars or authenticate." },
+        { error: "No Cloudflare credentials found." },
+        { status: 400 }
+      );
+    }
+
+    if (!githubToken || !githubOwner) {
+       return NextResponse.json(
+        { error: "No GitHub credentials found (GITHUB_API_KEY, GITHUB_OWNER)." },
         { status: 400 }
       );
     }
@@ -335,7 +190,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    // 3. Determine Cloudflare Pages Project Name
+    // 3. Determine Cloudflare Pages Project Name and Repo Name
     let cfProjectName = cloudflareProjectName || project.cloudflareProjectName;
     if (!cfProjectName) {
       const baseName = project.name || project.businessName || `project-${projectId}`;
@@ -347,41 +202,29 @@ export async function POST(request: Request) {
         .substring(0, 58);
     }
 
+    // Repo name: ensure uniqueness and validity
+    const repoName = `ltpd-${projectId}`;
+
     const branch = isWaitingBuild ? BETA_WAITING_BRANCH : "main";
-    const stage: "production" | "preview" = branch === "main" ? "production" : "preview";
 
     // 4. Fetch files from MongoDB 'pages' collection
-    // This replaces the previous demo zip fetch to deploy actual user content
-    let files: DeployFile[] = [];
+    let files: { path: string; content: string }[] = [];
 
     const pages = await db.collection("pages").find({
       projectId: new ObjectId(projectId)
     }).toArray();
 
     if (pages.length > 0) {
-      console.log(`[Cloudflare] Found ${pages.length} pages in database`);
+      console.log(`[Deployment] Found ${pages.length} pages in database`);
       files = pages.map(page => {
         let path = page.name;
-        // Ensure path starts with /
-        if (!path.startsWith('/')) {
-          path = '/' + path;
-        }
+        if (!path.startsWith('/')) path = '/' + path;
 
-        // Force .html extension for TypeScript files so they are served as pages
-        // The content is expected to be HTML-compatible (or wrapped)
-        if (path.endsWith('.ts')) {
-            path = path.slice(0, -3) + '.html';
-        } else if (path.endsWith('.tsx')) {
-            path = path.slice(0, -4) + '.html';
-        } else if (path.endsWith('.js')) {
-            path = path.slice(0, -3) + '.html';
-        } else if (path.endsWith('.jsx')) {
-            path = path.slice(0, -4) + '.html';
-        }
+        if (path.endsWith('.ts')) path = path.slice(0, -3) + '.html';
+        else if (path.endsWith('.tsx')) path = path.slice(0, -4) + '.html';
+        else if (path.endsWith('.js')) path = path.slice(0, -3) + '.html';
+        else if (path.endsWith('.jsx')) path = path.slice(0, -4) + '.html';
 
-        // Ensure .html extension for pages (unless it's a known file type or already has it)
-        // Cloudflare Pages serves /about.html as /about
-        // The pages collection typically stores 'index', 'about' (no extension)
         const hasExtension = path.includes('.') && path.lastIndexOf('.') > path.lastIndexOf('/');
         if (!hasExtension && !path.endsWith('/')) {
              path = path + '.html';
@@ -392,8 +235,7 @@ export async function POST(request: Request) {
         };
       });
     } else if (project.aiGeneratedCode) {
-      // Fallback to project.aiGeneratedCode if no pages found
-      console.log(`[Cloudflare] No pages found in collection, using legacy aiGeneratedCode as index.html`);
+      console.log(`[Deployment] No pages found in collection, using legacy aiGeneratedCode as index.html`);
       files.push({
         path: "/index.html",
         content: project.aiGeneratedCode
@@ -402,38 +244,61 @@ export async function POST(request: Request) {
 
     if (files.length === 0) {
        return NextResponse.json(
-        { error: "No files to deploy. Please generate or create pages first." },
+        { error: "No files to deploy." },
         { status: 400 }
       );
     }
 
-    // Add 404.html for SPA fallback (copy index.html content)
+    // Add 404.html for SPA fallback
     const indexFile = files.find(f => f.path === "/index.html");
     const has404 = files.some(f => f.path === "/404.html");
     if (indexFile && !has404) {
-      console.log(`[Cloudflare] Creating 404.html from index.html for SPA fallback`);
       files.push({ path: "/404.html", content: indexFile.content });
     }
 
-    console.log(`[Cloudflare] Preparing to deploy ${files.length} files to project "${cfProjectName}"`);
+    // Prepare files for GitHub (remove leading slashes if any)
+    const githubFiles = files.map(f => ({
+        path: f.path.startsWith('/') ? f.path.slice(1) : f.path,
+        content: f.content
+    }));
 
-    // 5. Check/create Cloudflare Pages project
-    const projectExists = await checkProjectExists(accountId, cfProjectName, apiToken);
-    if (!projectExists) {
-      await createProject(accountId, cfProjectName, "main", apiToken);
+    // 5. GitHub Operations
+    console.log(`[Deployment] Starting GitHub operations for ${githubOwner}/${repoName}`);
+
+    // Ensure Repo Exists
+    await ensureRepo(githubToken, githubOwner, repoName, `Website for ${project.name}`);
+
+    // Push Files
+    await pushFiles(githubToken, githubOwner, repoName, branch, githubFiles, `Deploy ${new Date().toISOString()}`);
+
+    // 6. Cloudflare Operations
+    console.log(`[Deployment] Starting Cloudflare operations for ${cfProjectName}`);
+
+    const existingProject = await getProjectDetails(accountId, cfProjectName, apiToken);
+
+    if (!existingProject) {
+        // Create new project connected to GitHub
+        await createGithubProject(accountId, cfProjectName, githubOwner, repoName, branch, apiToken);
+    } else {
+        // Project exists.
+        // Ideally we should check if it's connected to GitHub.
+        // For now, we assume if it exists we just trigger deployment.
+        // If the user wants to migrate a Direct Upload project to Git, they might need to delete it first manually
+        // or we could try to update it, but updating source type is tricky via API.
+        // Let's assume it's fine or log a warning if source.type is not github.
+        if (existingProject.source?.type !== "github") {
+             console.warn(`[Deployment] Warning: Project ${cfProjectName} source type is ${existingProject.source?.type}, expected 'github'. Deployment might fail or not be git-integrated.`);
+             // We could attempt to update the project here, but let's just try to trigger deployment.
+        }
     }
 
-    // 6. Deploy using Direct Upload API
-    const { url: deploymentUrl, deploymentId } = await deployToCloudflarePages(
-      accountId,
-      cfProjectName,
-      branch,
-      stage,
-      files,
-      apiToken
-    );
+    // 7. Trigger Deployment
+    // Even with Git integration, we can trigger a deployment manually to get the immediate status
+    // although pushing to GitHub usually triggers one automatically.
+    // Triggering it manually ensures we get a deployment ID and URL in the response.
+    const { url: deploymentUrl, deploymentId } = await triggerDeployment(accountId, cfProjectName, branch, apiToken);
 
-    // 7. Update DB
+    // 8. Update DB
     await db.collection("projects").updateOne(
       { _id: new ObjectId(projectId) },
       {
@@ -442,21 +307,23 @@ export async function POST(request: Request) {
           cloudflareUrl: deploymentUrl,
           cloudflareDeployedAt: new Date(),
           cloudflareDeploymentId: deploymentId,
+          githubRepo: `${githubOwner}/${repoName}`
         },
       }
     );
 
-    console.log(`[Cloudflare] Deployment successful: ${deploymentUrl}`);
+    console.log(`[Deployment] Success: ${deploymentUrl}`);
 
     return NextResponse.json({
       success: true,
       url: deploymentUrl,
       deploymentId,
       projectName: cfProjectName,
+      githubRepo: `${githubOwner}/${repoName}`
     });
 
   } catch (error: any) {
-    console.error("[Cloudflare] Deployment Error:", error);
+    console.error("[Deployment] Error:", error);
     return NextResponse.json(
       { error: error.message || "Deployment failed" },
       { status: 500 }
