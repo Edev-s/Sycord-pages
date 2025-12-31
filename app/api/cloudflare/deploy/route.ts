@@ -3,11 +3,22 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
-import crypto from "crypto";
 import FormData from "form-data";
 
 const CLOUDFLARE_API_BASE = "https://api.cloudflare.com/client/v4";
 const BETA_WAITING_BRANCH = "beta-waiting";
+const webCrypto = globalThis.crypto;
+
+if (!webCrypto) {
+  throw new Error("Web Crypto API is not available in this environment (missing crypto)");
+}
+
+if (!webCrypto.subtle) {
+  throw new Error("Web Crypto API is not available in this environment (missing subtle crypto)");
+}
+
+const cryptoSubtle = webCrypto.subtle;
+const textEncoder = new TextEncoder();
 
 // Directory index constants for folder/index.html semantic
 const DIRECTORY_INDEX_SUFFIX = "/index.html";
@@ -113,10 +124,26 @@ async function createProject(
   console.log(`[Cloudflare] Project "${projectName}" created successfully`);
 }
 
-// Calculate SHA-256 hash of content (accepts string or Buffer for flexibility)
-function calculateHash(content: string | Buffer): string {
-  const buffer = typeof content === "string" ? Buffer.from(content, "utf-8") : content;
-  return crypto.createHash("sha256").update(buffer).digest("hex");
+// Calculate SHA-256 hash of content (supports string or binary data)
+type HashInput = string | ArrayBuffer | ArrayBufferView;
+
+async function calculateHash(content: HashInput): Promise<string> {
+  let data: Uint8Array;
+
+  if (typeof content === "string") {
+    data = textEncoder.encode(content);
+  } else if (ArrayBuffer.isView(content)) {
+    data = new Uint8Array(content.buffer, content.byteOffset, content.byteLength);
+  } else if (content instanceof ArrayBuffer) {
+    data = new Uint8Array(content);
+  } else {
+    throw new Error("Unsupported content type for hashing");
+  }
+
+  const hashBuffer = await cryptoSubtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 // Deploy files to Cloudflare Pages using Direct Upload API
@@ -137,9 +164,9 @@ async function deployToCloudflarePages(
   const fileContents: Record<string, Buffer> = {};
 
   for (const file of files) {
-    // Use Buffer for consistent binary handling
-    const contentBuffer = Buffer.from(file.content, "utf-8");
-    const hash = calculateHash(contentBuffer);
+    const contentBytes = textEncoder.encode(file.content);
+    const hash = await calculateHash(contentBytes);
+    const contentBuffer = Buffer.from(contentBytes);
     fileHashes[file.path] = hash;
     fileContents[hash] = contentBuffer;
     
