@@ -8,6 +8,7 @@ import FormData from "form-data";
 const CLOUDFLARE_API_BASE = "https://api.cloudflare.com/client/v4";
 const BETA_WAITING_BRANCH = "beta-waiting";
 const cryptoSubtle = globalThis.crypto?.subtle;
+const textEncoder = new TextEncoder();
 
 if (!cryptoSubtle) {
   throw new Error("Web Crypto API is not available in this environment");
@@ -117,15 +118,14 @@ async function createProject(
   console.log(`[Cloudflare] Project "${projectName}" created successfully`);
 }
 
-// Calculate SHA-256 hash of content (accepts string or Buffer for flexibility)
+// Calculate SHA-256 hash of content (supports string or binary data)
 type HashInput = string | ArrayBuffer | ArrayBufferView;
 
 async function calculateHash(content: HashInput): Promise<string> {
-  const encoder = new TextEncoder();
   let data: Uint8Array | undefined;
 
   if (typeof content === "string") {
-    data = encoder.encode(content);
+    data = textEncoder.encode(content);
   } else if (content instanceof ArrayBuffer) {
     data = new Uint8Array(content);
   } else if (ArrayBuffer.isView(content)) {
@@ -162,7 +162,7 @@ async function deployToCloudflarePages(
   for (const file of files) {
     // Use Buffer for consistent binary handling
     const contentBuffer = Buffer.from(file.content, "utf-8");
-    const hash = await calculateHash(file.content);
+    const hash = await calculateHash(contentBuffer);
     fileHashes[file.path] = hash;
     fileContents[hash] = contentBuffer;
     
