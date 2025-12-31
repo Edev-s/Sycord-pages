@@ -122,15 +122,14 @@ async function createProject(
 type HashInput = string | ArrayBuffer | ArrayBufferView;
 
 async function calculateHash(content: HashInput): Promise<string> {
-  let data: Uint8Array | undefined;
-
-  if (typeof content === "string") {
-    data = textEncoder.encode(content);
-  } else if (content instanceof ArrayBuffer) {
-    data = new Uint8Array(content);
-  } else if (ArrayBuffer.isView(content)) {
-    data = new Uint8Array(content.buffer, content.byteOffset, content.byteLength);
-  }
+  const data =
+    typeof content === "string"
+      ? textEncoder.encode(content)
+      : content instanceof ArrayBuffer
+        ? new Uint8Array(content)
+        : ArrayBuffer.isView(content)
+          ? new Uint8Array(content.buffer, content.byteOffset, content.byteLength)
+          : undefined;
 
   if (!data) {
     throw new Error("Unsupported content type for hashing");
@@ -160,9 +159,9 @@ async function deployToCloudflarePages(
   const fileContents: Record<string, Buffer> = {};
 
   for (const file of files) {
-    // Use Buffer for consistent binary handling
-    const contentBuffer = Buffer.from(file.content, "utf-8");
-    const hash = await calculateHash(contentBuffer);
+    const contentBytes = textEncoder.encode(file.content);
+    const hash = await calculateHash(contentBytes);
+    const contentBuffer = Buffer.from(contentBytes);
     fileHashes[file.path] = hash;
     fileContents[hash] = contentBuffer;
     
