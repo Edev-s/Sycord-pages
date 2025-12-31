@@ -7,6 +7,7 @@ import FormData from "form-data";
 
 const CLOUDFLARE_API_BASE = "https://api.cloudflare.com/client/v4";
 const BETA_WAITING_BRANCH = "beta-waiting";
+const cryptoSubtle = globalThis.crypto?.subtle;
 
 // Directory index constants for folder/index.html semantic
 const DIRECTORY_INDEX_SUFFIX = "/index.html";
@@ -129,12 +130,11 @@ async function calculateHash(content: HashInput): Promise<string> {
     throw new Error("Unsupported content type for hashing");
   }
 
-  const cryptoApi = globalThis.crypto;
-  if (!cryptoApi?.subtle) {
+  if (!cryptoSubtle) {
     throw new Error("Web Crypto API is not available in this environment");
   }
 
-  const hashBuffer = await cryptoApi.subtle.digest("SHA-256", data);
+  const hashBuffer = await cryptoSubtle.digest("SHA-256", data);
   return Array.from(new Uint8Array(hashBuffer))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
@@ -160,7 +160,7 @@ async function deployToCloudflarePages(
   for (const file of files) {
     // Use Buffer for consistent binary handling
     const contentBuffer = Buffer.from(file.content, "utf-8");
-    const hash = await calculateHash(contentBuffer);
+    const hash = await calculateHash(file.content);
     fileHashes[file.path] = hash;
     fileContents[hash] = contentBuffer;
     
