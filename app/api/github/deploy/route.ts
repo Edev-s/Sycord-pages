@@ -273,7 +273,6 @@ async function deployToCloudflarePages(
     fileHashes["/"] = rootIndexHash
     console.log(`[Cloudflare] Added root mapping "/" -> index.html`)
   }
-  }
 
   // Build multipart form data
   const formData = new FormData()
