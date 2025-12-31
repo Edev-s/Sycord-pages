@@ -9,12 +9,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing repoId" }, { status: 400 })
     }
 
-    // Ensure repoId is a string if the API expects a string (based on the user provided example)
-    // Example: { "repo_id": "..." }
+    // Ensure repoId is a string for the external API
     const repoIdString = String(repoId)
 
     console.log(`[External Deploy] Triggering deployment for repoId: ${repoIdString}`)
 
+    // Send only the repo_id to the external deploy service
     const response = await fetch("https://micro1.sycord.com/api/deploy", {
       method: "POST",
       headers: {

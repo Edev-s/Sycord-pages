@@ -314,6 +314,28 @@ export async function POST(request: Request) {
       }
     )
 
+    // Update github_tokens with the repoId for external deploy lookup
+    await db.collection("github_tokens").updateOne(
+      {
+        projectId: new ObjectId(projectId),
+        userId: session.user.email,
+      },
+      {
+        $set: {
+          githubRepoId: repoId,
+          repo,
+          owner,
+          updatedAt: new Date(),
+        },
+        $setOnInsert: {
+          token,
+          username: owner,
+          createdAt: new Date(),
+        },
+      },
+      { upsert: true }
+    )
+
     console.log(`[GitHub] Successfully saved ${files.length} files to ${owner}/${repo} (ID: ${repoId})`)
 
     return NextResponse.json({
