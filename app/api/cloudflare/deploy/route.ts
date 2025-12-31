@@ -123,11 +123,18 @@ async function calculateHash(content: HashInput): Promise<string> {
     data = encoder.encode(content);
   } else if (content instanceof ArrayBuffer) {
     data = new Uint8Array(content);
-  } else {
+  } else if (ArrayBuffer.isView(content)) {
     data = new Uint8Array(content.buffer, content.byteOffset, content.byteLength);
+  } else {
+    throw new Error("Unsupported content type for hashing");
   }
 
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const cryptoApi = globalThis.crypto;
+  if (!cryptoApi?.subtle) {
+    throw new Error("Web Crypto API is not available in this environment");
+  }
+
+  const hashBuffer = await cryptoApi.subtle.digest("SHA-256", data);
   return Array.from(new Uint8Array(hashBuffer))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
