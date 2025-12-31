@@ -315,6 +315,7 @@ export async function POST(request: Request) {
     )
 
     // Update github_tokens with the repoId for external deploy lookup
+    // Always include token in $set to ensure it's stored (especially when using env credentials)
     await db.collection("github_tokens").updateOne(
       {
         projectId: new ObjectId(projectId),
@@ -325,11 +326,11 @@ export async function POST(request: Request) {
           githubRepoId: repoId,
           repo,
           owner,
+          token,
+          username: owner,
           updatedAt: new Date(),
         },
         $setOnInsert: {
-          token,
-          username: owner,
           createdAt: new Date(),
         },
       },
