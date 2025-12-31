@@ -222,6 +222,10 @@ export async function POST(request: Request) {
       await new Promise(resolve => setTimeout(resolve, REPO_CREATION_DELAY_MS))
     }
 
+    // Fetch repo details to get ID
+    const { data: repoData } = await githubRequest(`/repos/${owner}/${repo}`, token)
+    const repoId = repoData.id
+
     // Fetch pages from MongoDB
     const pages = await db.collection("pages").find({
       projectId: new ObjectId(projectId)
@@ -303,18 +307,20 @@ export async function POST(request: Request) {
         $set: {
           githubOwner: owner,
           githubRepo: repo,
+          githubRepoId: repoId,
           githubUrl: `https://github.com/${owner}/${repo}`,
           githubSavedAt: new Date(),
         },
       }
     )
 
-    console.log(`[GitHub] Successfully saved ${files.length} files to ${owner}/${repo}`)
+    console.log(`[GitHub] Successfully saved ${files.length} files to ${owner}/${repo} (ID: ${repoId})`)
 
     return NextResponse.json({
       success: true,
       owner,
       repo,
+      repoId,
       url: `https://github.com/${owner}/${repo}`,
       filesCount: files.length,
     })

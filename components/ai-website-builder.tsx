@@ -61,6 +61,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
   const [currentPlan, setCurrentPlan] = useState("") // UI Status Text
   const [deployedCode, setDeployedCode] = useState<string | null>(null)
   const [deploySuccess, setDeploySuccess] = useState(false)
+  const [isDeploying, setIsDeploying] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   // Instruction State (The "Plan" text)
@@ -212,8 +213,11 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
 
   const handleDeployCode = async () => {
     if (generatedPages.length === 0) return
+    setIsDeploying(true)
+    setError(null)
 
     try {
+      // 1. Save to MongoDB
       const deployUrl = `/api/projects/${encodeURIComponent(projectId)}/deploy-code`
       const response = await fetch(deployUrl, {
         method: "POST",
@@ -223,7 +227,34 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
         }),
       })
 
-      if (!response.ok) throw new Error("Deploy failed")
+      if (!response.ok) throw new Error("Database save failed")
+
+      // 2. Sync to GitHub
+      const githubResponse = await fetch("/api/github/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId }),
+      })
+
+      if (!githubResponse.ok) {
+        const errData = await githubResponse.json()
+        throw new Error(errData.error || "GitHub sync failed")
+      }
+
+      const githubData = await githubResponse.json()
+      const repoId = githubData.repoId
+
+      // 3. Trigger External Deployment
+      const externalResponse = await fetch("/api/external-deploy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ repoId }),
+      })
+
+      if (!externalResponse.ok) {
+        const errData = await externalResponse.json()
+        throw new Error(errData.error || "External deployment failed")
+      }
 
       const latestCode = generatedPages[generatedPages.length - 1]?.code
       setDeployedCode(latestCode)
@@ -232,6 +263,8 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
       setTimeout(() => setDeploySuccess(false), 3000)
     } catch (err: any) {
       setError(err.message || "Failed to deploy code")
+    } finally {
+      setIsDeploying(false)
     }
   }
 
@@ -353,9 +386,14 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
                           size="sm"
                           className="w-full gap-2 hover:bg-primary/10 hover:text-primary h-8 text-xs font-medium"
                           onClick={handleDeployCode}
-                          disabled={deployedCode === message.code}
+                          disabled={deployedCode === message.code || isDeploying}
                         >
-                          {deployedCode === message.code ? (
+                          {isDeploying ? (
+                            <>
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              Deploying...
+                            </>
+                          ) : deployedCode === message.code ? (
                             <>
                               <Check className="h-3.5 w-3.5" />
                               Deployed
@@ -363,7 +401,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
                           ) : (
                             <>
                               <Rocket className="h-3.5 w-3.5" />
-                              Push to Staging
+                              Push to Production
                             </>
                           )}
                         </Button>
