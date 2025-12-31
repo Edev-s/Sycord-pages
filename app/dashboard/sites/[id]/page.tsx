@@ -650,7 +650,7 @@ export default function SiteSettingsPage() {
       const externalResponse = await fetch("/api/external-deploy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ repoId }),
+        body: JSON.stringify({ projectId: id }),
       })
 
       if (!externalResponse.ok) {

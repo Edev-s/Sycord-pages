@@ -3,23 +3,26 @@ import { NextResponse } from "next/server"
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { repoId } = body
+    // The user requested to use the database _id (Project ID) for the API, not the repository ID.
+    // We expect projectId in the body.
+    const { projectId, repoId } = body
 
-    if (!repoId) {
-      return NextResponse.json({ error: "Missing repoId" }, { status: 400 })
+    if (!projectId && !repoId) {
+      return NextResponse.json({ error: "Missing projectId" }, { status: 400 })
     }
 
-    // Ensure repoId is a string if the API expects a string (based on the user provided example)
-    // Example: { "repo_id": "..." }
-    const repoIdString = String(repoId)
+    // Prioritize projectId if available, otherwise fallback to repoId (though the instruction says use _id)
+    const idToUse = projectId || repoId
+    const repoIdString = String(idToUse)
 
-    console.log(`[External Deploy] Triggering deployment for repoId: ${repoIdString}`)
+    console.log(`[External Deploy] Triggering deployment for id: ${repoIdString}`)
 
     const response = await fetch("https://micro1.sycord.com/api/deploy", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
+      // The external API expects "repo_id" but we are sending the Project ID as per user instruction
       body: JSON.stringify({ repo_id: repoIdString }),
     })
 
