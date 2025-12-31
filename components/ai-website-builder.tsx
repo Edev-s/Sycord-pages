@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Progress } from "@/components/ui/progress"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Loader2,
@@ -16,6 +17,7 @@ import {
   Rocket,
   ListTodo,
   BrainCircuit,
+  ExternalLink,
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -62,6 +64,9 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
   const [deployedCode, setDeployedCode] = useState<string | null>(null)
   const [deploySuccess, setDeploySuccess] = useState(false)
   const [isDeploying, setIsDeploying] = useState(false)
+  const [deployProgress, setDeployProgress] = useState(0)
+  const [deployStatus, setDeployStatus] = useState("")
+  const [deploymentUrl, setDeploymentUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   // Instruction State (The "Plan" text)
@@ -214,11 +219,17 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
   const handleDeployCode = async () => {
     if (generatedPages.length === 0) return
     setIsDeploying(true)
+    setDeployProgress(10)
+    setDeployStatus("Initializing...")
     setError(null)
 
     try {
       // 1. Save to MongoDB
+      setDeployStatus("Saving to database...")
       const deployUrl = `/api/projects/${encodeURIComponent(projectId)}/deploy-code`
+      // We don't await the JSON response here as we don't strictly need it to proceed,
+      // but we do need the server to have processed the save for the next step (GitHub save)
+      // which reads from the DB. So we must await the fetch.
       const response = await fetch(deployUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -228,8 +239,10 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
       })
 
       if (!response.ok) throw new Error("Database save failed")
+      setDeployProgress(30)
 
       // 2. Sync to GitHub
+      setDeployStatus("Syncing to GitHub...")
       const githubResponse = await fetch("/api/github/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -243,8 +256,10 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
 
       const githubData = await githubResponse.json()
       const repoId = githubData.repoId
+      setDeployProgress(60)
 
       // 3. Trigger External Deployment
+      setDeployStatus("Deploying to Edge Network...")
       const externalResponse = await fetch("/api/external-deploy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -256,14 +271,28 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
         throw new Error(errData.error || "External deployment failed")
       }
 
+      const externalData = await externalResponse.json()
+
+      // Assuming external API returns { url: "..." } or similar
+      if (externalData.url) {
+        setDeploymentUrl(externalData.url)
+      }
+
+      setDeployProgress(100)
+      setDeployStatus("Deployed successfully!")
+
       const latestCode = generatedPages[generatedPages.length - 1]?.code
       setDeployedCode(latestCode)
 
       setDeploySuccess(true)
-      setTimeout(() => setDeploySuccess(false), 3000)
+      // Keep success state longer or until interaction
+      setTimeout(() => {
+        setDeploySuccess(false)
+        setIsDeploying(false) // Only close progress bar after success animation
+        setDeployProgress(0)
+      }, 3000)
     } catch (err: any) {
       setError(err.message || "Failed to deploy code")
-    } finally {
       setIsDeploying(false)
     }
   }
@@ -380,31 +409,50 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
                       </div>
                     </CardContent>
                     {!message.isIntermediate && (
-                      <CardFooter className="p-2 bg-muted/10 border-t border-border/10">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="w-full gap-2 hover:bg-primary/10 hover:text-primary h-8 text-xs font-medium"
-                          onClick={handleDeployCode}
-                          disabled={deployedCode === message.code || isDeploying}
-                        >
-                          {isDeploying ? (
-                            <>
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              Deploying...
-                            </>
-                          ) : deployedCode === message.code ? (
-                            <>
-                              <Check className="h-3.5 w-3.5" />
-                              Deployed
-                            </>
-                          ) : (
-                            <>
-                              <Rocket className="h-3.5 w-3.5" />
-                              Push to Production
-                            </>
-                          )}
-                        </Button>
+                      <CardFooter className="p-0 bg-muted/10 border-t border-border/10 flex flex-col">
+                        {isDeploying && deployedCode !== message.code ? (
+                          <div className="w-full p-3 space-y-2">
+                            <div className="flex justify-between text-[10px] text-muted-foreground uppercase font-medium">
+                               <span>{deployStatus}</span>
+                               <span>{deployProgress}%</span>
+                            </div>
+                            <Progress value={deployProgress} className="h-1.5" />
+                          </div>
+                        ) : (
+                           <div className="w-full flex">
+                             <Button
+                               variant="ghost"
+                               size="sm"
+                               className="flex-1 gap-2 hover:bg-primary/10 hover:text-primary h-9 text-xs font-medium rounded-none rounded-bl-lg"
+                               onClick={handleDeployCode}
+                               disabled={deployedCode === message.code || isDeploying}
+                             >
+                               {deployedCode === message.code ? (
+                                 <>
+                                   <Check className="h-3.5 w-3.5" />
+                                   Deployed
+                                 </>
+                               ) : (
+                                 <>
+                                   <Rocket className="h-3.5 w-3.5" />
+                                   Push to Production
+                                 </>
+                               )}
+                             </Button>
+                             {deploymentUrl && deployedCode === message.code && (
+                                <div className="border-l border-border/10">
+                                   <a
+                                      href={deploymentUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex items-center justify-center h-9 px-4 hover:bg-primary/10 text-primary transition-colors"
+                                   >
+                                      <ExternalLink className="h-3.5 w-3.5" />
+                                   </a>
+                                </div>
+                             )}
+                           </div>
+                        )}
                       </CardFooter>
                     )}
                   </Card>
