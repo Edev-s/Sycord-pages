@@ -8,6 +8,13 @@ import FormData from "form-data"
 const GITHUB_API_BASE = "https://api.github.com"
 const CLOUDFLARE_API_BASE = "https://api.cloudflare.com/client/v4"
 
+// File extensions that can be deployed to Cloudflare Pages
+const DEPLOYABLE_EXTENSIONS = [
+  ".html", ".htm", ".css", ".js", ".json", ".txt", ".xml", 
+  ".svg", ".ico", ".png", ".jpg", ".jpeg", ".gif", ".webp", 
+  ".woff", ".woff2", ".ttf", ".eot"
+]
+
 interface DeployFile {
   path: string
   content: string
@@ -97,14 +104,11 @@ async function getRepoFiles(owner: string, repo: string, token: string): Promise
   const files: DeployFile[] = []
   const blobs = treeData.tree.filter((item: any) => item.type === "blob")
   
-  // Filter to only include deployable files
-  const deployableExtensions = [".html", ".htm", ".css", ".js", ".json", ".txt", ".xml", ".svg", ".ico", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".woff", ".woff2", ".ttf", ".eot"]
-  
   for (const blob of blobs) {
     const ext = blob.path.includes(".") ? "." + blob.path.split(".").pop()?.toLowerCase() : ""
     
     // Skip non-deployable files and hidden files
-    if (!deployableExtensions.includes(ext) || blob.path.startsWith(".")) {
+    if (!DEPLOYABLE_EXTENSIONS.includes(ext) || blob.path.startsWith(".")) {
       continue
     }
     
@@ -284,7 +288,10 @@ async function deployToCloudflarePages(
       "Content-Length": String(formDataBuffer.length),
     },
     body: formDataBuffer as unknown as BodyInit,
-    // @ts-expect-error - See: https://github.com/nodejs/node/issues/46221
+    // The 'duplex' option is required for Node.js fetch with streaming/buffer bodies,
+    // but TypeScript's RequestInit type definition doesn't include it yet.
+    // See: https://github.com/nodejs/node/issues/46221
+    // @ts-expect-error - duplex is a valid option for Node.js fetch but not in TypeScript types
     duplex: "half",
   })
 

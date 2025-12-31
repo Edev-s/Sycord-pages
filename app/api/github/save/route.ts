@@ -6,6 +6,9 @@ import { ObjectId } from "mongodb"
 
 const GITHUB_API_BASE = "https://api.github.com"
 
+// Time to wait after creating a repository before uploading files (GitHub needs time to initialize)
+const REPO_CREATION_DELAY_MS = 2000
+
 interface GitHubFile {
   path: string
   content: string
@@ -193,8 +196,8 @@ export async function POST(request: Request) {
     const repoExists = await checkRepoExists(owner, repo, token)
     if (!repoExists) {
       await createRepo(owner, repo, token)
-      // Wait a moment for repo to be ready
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      // Wait for GitHub to initialize the repository before uploading files
+      await new Promise(resolve => setTimeout(resolve, REPO_CREATION_DELAY_MS))
     }
 
     // Fetch pages from MongoDB
