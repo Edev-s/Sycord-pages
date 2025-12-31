@@ -7,12 +7,18 @@ import FormData from "form-data";
 
 const CLOUDFLARE_API_BASE = "https://api.cloudflare.com/client/v4";
 const BETA_WAITING_BRANCH = "beta-waiting";
-const cryptoSubtle = globalThis.crypto?.subtle;
-const textEncoder = new TextEncoder();
+const webCrypto = globalThis.crypto;
 
-if (!cryptoSubtle) {
-  throw new Error("Web Crypto API is not available in this environment");
+if (!webCrypto) {
+  throw new Error("Web Crypto API is not available in this environment (missing crypto)");
 }
+
+if (!webCrypto.subtle) {
+  throw new Error("Web Crypto API is not available in this environment (missing subtle crypto)");
+}
+
+const cryptoSubtle = webCrypto.subtle;
+const textEncoder = new TextEncoder();
 
 // Directory index constants for folder/index.html semantic
 const DIRECTORY_INDEX_SUFFIX = "/index.html";
@@ -166,7 +172,7 @@ async function deployToCloudflarePages(
   );
 
   for (const { file, contentBytes, hash } of preparedFiles) {
-    const contentBuffer = Buffer.from(contentBytes.buffer, contentBytes.byteOffset, contentBytes.byteLength);
+    const contentBuffer = Buffer.from(contentBytes);
     fileHashes[file.path] = hash;
     fileContents[hash] = contentBuffer;
     
