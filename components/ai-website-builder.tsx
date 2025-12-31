@@ -263,7 +263,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
       const externalResponse = await fetch("/api/external-deploy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId }),
+        body: JSON.stringify({ projectId, repoId }),
       })
 
       if (!externalResponse.ok) {
