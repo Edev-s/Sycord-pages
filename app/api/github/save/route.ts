@@ -200,8 +200,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 })
     }
 
-    // Determine repository name
-    let repo = repoName || project.githubRepo
+    // Determine repository name - use provided name, existing repo, or generate from project
+    let repo = repoName || (project.githubRepo as string | undefined)
     if (!repo) {
       const baseName = project.name || project.businessName || `sycord-project-${projectId}`
       repo = baseName
@@ -228,6 +228,7 @@ export async function POST(request: Request) {
     }).toArray()
 
     const files: GitHubFile[] = []
+    let hasIndexHtml = false
 
     if (pages.length > 0) {
       console.log(`[GitHub] Found ${pages.length} pages in database`)
@@ -252,12 +253,25 @@ export async function POST(request: Request) {
           path = path + '.html'
         }
 
+        // Track if we have an index.html
+        if (path === 'index.html' || path.toLowerCase() === 'index.html') {
+          hasIndexHtml = true
+        }
+
         files.push({ path, content: page.content })
+        console.log(`[GitHub] Prepared file: ${page.name} -> ${path}`)
       }
     } else if (project.aiGeneratedCode) {
       // Fallback to project.aiGeneratedCode
       console.log(`[GitHub] Using legacy aiGeneratedCode as index.html`)
       files.push({ path: "index.html", content: project.aiGeneratedCode })
+      hasIndexHtml = true
+    }
+
+    // If we have files but no index.html, create one from the first page
+    if (files.length > 0 && !hasIndexHtml) {
+      console.log(`[GitHub] No index.html found, creating from first page`)
+      files.push({ path: "index.html", content: files[0].content })
     }
 
     if (files.length === 0) {

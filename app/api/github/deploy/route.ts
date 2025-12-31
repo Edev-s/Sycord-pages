@@ -242,6 +242,7 @@ async function deployToCloudflarePages(
   // Calculate hashes for all files
   const fileHashes: Record<string, string> = {}
   const fileContents: Record<string, Buffer> = {}
+  let rootIndexHash: string | null = null
 
   for (const file of files) {
     const contentBuffer = Buffer.from(file.content, "utf-8")
@@ -249,6 +250,11 @@ async function deployToCloudflarePages(
     
     fileHashes[file.path] = hash
     fileContents[hash] = contentBuffer
+    
+    // Track root index.html
+    if (file.path === "/index.html" || file.path === "index.html") {
+      rootIndexHash = hash
+    }
     
     // Add directory index mappings
     if (endsWithDirectoryIndex(file.path)) {
@@ -260,6 +266,13 @@ async function deployToCloudflarePages(
     }
     
     console.log(`[Cloudflare] File: ${file.path} (${contentBuffer.length} bytes, hash: ${hash.substring(0, 12)}...)`)
+  }
+
+  // Ensure root path "/" is mapped to index.html
+  if (rootIndexHash && !fileHashes["/"]) {
+    fileHashes["/"] = rootIndexHash
+    console.log(`[Cloudflare] Added root mapping "/" -> index.html`)
+  }
   }
 
   // Build multipart form data
