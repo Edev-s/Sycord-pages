@@ -3,22 +3,22 @@ import { NextResponse } from "next/server"
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { repo_id } = body
+    const { _id } = body
 
-    if (!repo_id) {
-      return NextResponse.json({ error: "Missing repo_id" }, { status: 400 })
+    if (!_id) {
+      return NextResponse.json({ error: "Missing _id" }, { status: 400 })
     }
 
-    const repoIdString = String(repo_id)
+    const idString = String(_id)
 
-    console.log(`[External Deploy] Triggering deployment for repo id: ${repoIdString}`)
+    console.log(`[External Deploy] Triggering deployment for _id: ${idString}`)
 
     const response = await fetch("https://micro1.sycord.com/api/deploy", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ repo_id: repoIdString }),
+      body: JSON.stringify({ _id: idString }),
     })
 
     const data = await response.json()
