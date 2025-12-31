@@ -52,6 +52,7 @@ import {
   Eye,
 } from "lucide-react"
 import { CloudflareDomainManager } from "@/components/cloudflare-domain-manager"
+import { GitHubDeployment } from "@/components/github-deployment"
 import { currencySymbols } from "@/lib/webshop-types"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -199,7 +200,7 @@ export default function SiteSettingsPage() {
   const [productError, setProductError] = useState<string | null>(null)
 
   const [activeTab, setActiveTab] = useState<
-    "styles" | "products" | "payments" | "ai" | "pages" | "orders" | "customers" | "analytics" | "discount" | "deploy" | "domain"
+    "styles" | "products" | "payments" | "ai" | "pages" | "orders" | "customers" | "analytics" | "discount" | "deploy" | "domain" | "github"
   >("styles")
   const [activeSubTab, setActiveSubTab] = useState<"limits" | "connections" | "help">("limits")
 
@@ -591,7 +592,8 @@ export default function SiteSettingsPage() {
         { id: "pages", label: "Pages", icon: FileText },
         { id: "products", label: "Products", icon: ShoppingCart },
         { id: "payments", label: "Payments", icon: CreditCard },
-        { id: "domain", label: "Domain", icon: Globe }, // Added Domain segment
+        { id: "domain", label: "Domain", icon: Globe },
+        { id: "github", label: "GitHub", icon: Github },
       ],
     },
     {
@@ -1199,6 +1201,15 @@ export default function SiteSettingsPage() {
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
                     <h2 className="text-2xl font-bold">Domain Management</h2>
                     <CloudflareDomainManager projectId={id} />
+                </div>
+            )}
+
+            {/* TAB CONTENT: GITHUB DEPLOYMENT */}
+            {activeTab === "github" && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+                    <h2 className="text-2xl font-bold">GitHub Integration</h2>
+                    <p className="text-muted-foreground">Save your website to GitHub and deploy to Cloudflare Pages.</p>
+                    <GitHubDeployment projectId={id} projectName={project?.businessName || "Project"} />
                 </div>
             )}
 
