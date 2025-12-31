@@ -19,8 +19,8 @@ const DEPLOYABLE_EXTENSIONS = [
  * Get GitHub credentials from environment variables
  */
 function getEnvGitHubCredentials(): { token: string; owner: string } | null {
-  const token = process.env.GITHUB_API_TOKEN || process.env.GITHUB_TOKEN
-  const owner = process.env.GITHUB_OWNER || process.env.GITHUB_USERNAME
+  const token = process.env.GITHUB_API_TOKEN || process.env.GITHUB_TOKEN || process.env.GITHUB_API_KEY
+  const owner = process.env.GITHUB_OWNER || process.env.GITHUB_USERNAME || "MDavidka"
   
   if (token && owner) {
     return { token, owner }
