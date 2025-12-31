@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
-import crypto from "crypto";
 import FormData from "form-data";
 
 const CLOUDFLARE_API_BASE = "https://api.cloudflare.com/client/v4";
@@ -114,9 +113,24 @@ async function createProject(
 }
 
 // Calculate SHA-256 hash of content (accepts string or Buffer for flexibility)
-function calculateHash(content: string | Buffer): string {
-  const buffer = typeof content === "string" ? Buffer.from(content, "utf-8") : content;
-  return crypto.createHash("sha256").update(buffer).digest("hex");
+type HashInput = string | ArrayBuffer | ArrayBufferView;
+
+async function calculateHash(content: HashInput): Promise<string> {
+  const encoder = new TextEncoder();
+  let data: Uint8Array;
+
+  if (typeof content === "string") {
+    data = encoder.encode(content);
+  } else if (content instanceof ArrayBuffer) {
+    data = new Uint8Array(content);
+  } else {
+    data = new Uint8Array(content.buffer, content.byteOffset, content.byteLength);
+  }
+
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 // Deploy files to Cloudflare Pages using Direct Upload API
@@ -139,7 +153,7 @@ async function deployToCloudflarePages(
   for (const file of files) {
     // Use Buffer for consistent binary handling
     const contentBuffer = Buffer.from(file.content, "utf-8");
-    const hash = calculateHash(contentBuffer);
+    const hash = await calculateHash(contentBuffer);
     fileHashes[file.path] = hash;
     fileContents[hash] = contentBuffer;
     
