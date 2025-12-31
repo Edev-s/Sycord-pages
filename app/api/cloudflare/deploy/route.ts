@@ -9,6 +9,10 @@ const CLOUDFLARE_API_BASE = "https://api.cloudflare.com/client/v4";
 const BETA_WAITING_BRANCH = "beta-waiting";
 const cryptoSubtle = globalThis.crypto?.subtle;
 
+if (!cryptoSubtle) {
+  throw new Error("Web Crypto API is not available in this environment");
+}
+
 // Directory index constants for folder/index.html semantic
 const DIRECTORY_INDEX_SUFFIX = "/index.html";
 const DIRECTORY_INDEX_SUFFIX_LOWER = DIRECTORY_INDEX_SUFFIX.toLowerCase();
@@ -118,7 +122,7 @@ type HashInput = string | ArrayBuffer | ArrayBufferView;
 
 async function calculateHash(content: HashInput): Promise<string> {
   const encoder = new TextEncoder();
-  let data: Uint8Array;
+  let data: Uint8Array | undefined;
 
   if (typeof content === "string") {
     data = encoder.encode(content);
@@ -126,12 +130,10 @@ async function calculateHash(content: HashInput): Promise<string> {
     data = new Uint8Array(content);
   } else if (ArrayBuffer.isView(content)) {
     data = new Uint8Array(content.buffer, content.byteOffset, content.byteLength);
-  } else {
-    throw new Error("Unsupported content type for hashing");
   }
 
-  if (!cryptoSubtle) {
-    throw new Error("Web Crypto API is not available in this environment");
+  if (!data) {
+    throw new Error("Unsupported content type for hashing");
   }
 
   const hashBuffer = await cryptoSubtle.digest("SHA-256", data);
