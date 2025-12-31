@@ -9,6 +9,19 @@ const GITHUB_API_BASE = "https://api.github.com"
 // Time to wait after creating a repository before uploading files (GitHub needs time to initialize)
 const REPO_CREATION_DELAY_MS = 2000
 
+/**
+ * Get GitHub credentials from environment variables
+ */
+function getEnvGitHubCredentials(): { token: string; owner: string } | null {
+  const token = process.env.GITHUB_API_TOKEN || process.env.GITHUB_TOKEN
+  const owner = process.env.GITHUB_OWNER || process.env.GITHUB_USERNAME
+  
+  if (token && owner) {
+    return { token, owner }
+  }
+  return null
+}
+
 interface GitHubFile {
   path: string
   content: string
@@ -152,21 +165,30 @@ export async function POST(request: Request) {
     const client = await clientPromise
     const db = client.db()
 
-    // Get GitHub credentials
-    const tokenDoc = await db.collection("github_tokens").findOne({
-      projectId: new ObjectId(projectId),
-      userId: session.user.email,
-    })
+    // Get GitHub credentials - first try environment variables, then database
+    let token: string
+    let owner: string
+    
+    const envCredentials = getEnvGitHubCredentials()
+    if (envCredentials) {
+      token = envCredentials.token
+      owner = envCredentials.owner
+      console.log("[GitHub] Using environment credentials")
+    } else {
+      const tokenDoc = await db.collection("github_tokens").findOne({
+        projectId: new ObjectId(projectId),
+        userId: session.user.email,
+      })
 
-    if (!tokenDoc?.token) {
-      return NextResponse.json(
-        { error: "GitHub credentials not found. Please connect your GitHub account first." },
-        { status: 400 }
-      )
+      if (!tokenDoc?.token) {
+        return NextResponse.json(
+          { error: "GitHub credentials not found. Please configure GITHUB_API_TOKEN and GITHUB_OWNER environment variables." },
+          { status: 400 }
+        )
+      }
+      token = tokenDoc.token
+      owner = tokenDoc.owner || tokenDoc.username
     }
-
-    const token = tokenDoc.token
-    const owner = tokenDoc.owner || tokenDoc.username
 
     // Get project
     const project = await db.collection("projects").findOne({
@@ -179,7 +201,7 @@ export async function POST(request: Request) {
     }
 
     // Determine repository name
-    let repo = repoName || tokenDoc.repo
+    let repo = repoName || project.githubRepo
     if (!repo) {
       const baseName = project.name || project.businessName || `sycord-project-${projectId}`
       repo = baseName
@@ -271,12 +293,6 @@ export async function POST(request: Request) {
           githubSavedAt: new Date(),
         },
       }
-    )
-
-    // Update token doc with repo
-    await db.collection("github_tokens").updateOne(
-      { projectId: new ObjectId(projectId), userId: session.user.email },
-      { $set: { repo, updatedAt: new Date() } }
     )
 
     console.log(`[GitHub] Successfully saved ${files.length} files to ${owner}/${repo}`)

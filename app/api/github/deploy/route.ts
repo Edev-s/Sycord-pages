@@ -15,6 +15,19 @@ const DEPLOYABLE_EXTENSIONS = [
   ".woff", ".woff2", ".ttf", ".eot"
 ]
 
+/**
+ * Get GitHub credentials from environment variables
+ */
+function getEnvGitHubCredentials(): { token: string; owner: string } | null {
+  const token = process.env.GITHUB_API_TOKEN || process.env.GITHUB_TOKEN
+  const owner = process.env.GITHUB_OWNER || process.env.GITHUB_USERNAME
+  
+  if (token && owner) {
+    return { token, owner }
+  }
+  return null
+}
+
 interface DeployFile {
   path: string
   content: string
@@ -342,13 +355,44 @@ export async function POST(request: Request) {
     const client = await clientPromise
     const db = client.db()
 
-    // Get GitHub credentials
-    const githubToken = await db.collection("github_tokens").findOne({
-      projectId: new ObjectId(projectId),
-      userId: session.user.email,
+    // Get project first
+    const project = await db.collection("projects").findOne({
+      _id: new ObjectId(projectId),
+      userId: session.user.id,
     })
 
-    if (!githubToken?.token || !githubToken?.repo) {
+    if (!project) {
+      return NextResponse.json({ error: "Project not found" }, { status: 404 })
+    }
+
+    // Get GitHub credentials - first try environment variables
+    let ghToken: string
+    let owner: string
+    let repo: string | null = project.githubRepo
+    
+    const envCredentials = getEnvGitHubCredentials()
+    if (envCredentials) {
+      ghToken = envCredentials.token
+      owner = envCredentials.owner
+      console.log("[GitHub Deploy] Using environment credentials")
+    } else {
+      const githubToken = await db.collection("github_tokens").findOne({
+        projectId: new ObjectId(projectId),
+        userId: session.user.email,
+      })
+
+      if (!githubToken?.token) {
+        return NextResponse.json(
+          { error: "GitHub credentials not found. Please configure GITHUB_API_TOKEN and GITHUB_OWNER environment variables." },
+          { status: 400 }
+        )
+      }
+      ghToken = githubToken.token
+      owner = githubToken.owner || githubToken.username
+      repo = githubToken.repo || project.githubRepo
+    }
+
+    if (!repo) {
       return NextResponse.json(
         { error: "GitHub repository not configured. Please save to GitHub first." },
         { status: 400 }
@@ -378,23 +422,10 @@ export async function POST(request: Request) {
       )
     }
 
-    // Get project
-    const project = await db.collection("projects").findOne({
-      _id: new ObjectId(projectId),
-      userId: session.user.id,
-    })
-
-    if (!project) {
-      return NextResponse.json({ error: "Project not found" }, { status: 404 })
-    }
-
-    const owner = githubToken.owner
-    const repo = githubToken.repo
-
     console.log(`[GitHub Deploy] Starting deployment from ${owner}/${repo}`)
 
     // Step 1: Fetch files from GitHub
-    const files = await getRepoFiles(owner, repo, githubToken.token)
+    const files = await getRepoFiles(owner, repo, ghToken)
 
     if (files.length === 0) {
       return NextResponse.json(

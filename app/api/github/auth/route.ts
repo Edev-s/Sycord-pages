@@ -7,6 +7,20 @@ import { ObjectId } from "mongodb"
 const GITHUB_API_BASE = "https://api.github.com"
 
 /**
+ * Get GitHub credentials from environment variables
+ * Returns null if not configured
+ */
+function getEnvGitHubCredentials(): { token: string; owner: string } | null {
+  const token = process.env.GITHUB_API_TOKEN || process.env.GITHUB_TOKEN
+  const owner = process.env.GITHUB_OWNER || process.env.GITHUB_USERNAME
+  
+  if (token && owner) {
+    return { token, owner }
+  }
+  return null
+}
+
+/**
  * Validate GitHub token by making a test API call
  */
 async function validateGitHubToken(token: string): Promise<{ valid: boolean; username?: string }> {
@@ -134,6 +148,30 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Missing projectId" }, { status: 400 })
     }
 
+    // First check environment variables
+    const envCredentials = getEnvGitHubCredentials()
+    if (envCredentials) {
+      const validation = await validateGitHubToken(envCredentials.token)
+      if (validation.valid) {
+        const client = await clientPromise
+        const db = client.db()
+        
+        // Get repo from project if already saved
+        const project = await db.collection("projects").findOne({
+          _id: new ObjectId(projectId),
+        })
+        
+        return NextResponse.json({
+          isAuthenticated: true,
+          username: validation.username,
+          owner: envCredentials.owner,
+          repo: project?.githubRepo || null,
+          usingEnvCredentials: true,
+        })
+      }
+    }
+
+    // Fall back to database credentials
     const client = await clientPromise
     const db = client.db()
 
@@ -147,6 +185,7 @@ export async function GET(request: Request) {
       username: tokenDoc?.username || null,
       owner: tokenDoc?.owner || null,
       repo: tokenDoc?.repo || null,
+      usingEnvCredentials: false,
     })
   } catch (error: any) {
     console.error("[GitHub] Get auth status error:", error)

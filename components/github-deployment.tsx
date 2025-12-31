@@ -2,18 +2,16 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
   AlertCircle,
-  CheckCircle,
   Loader2,
   ExternalLink,
   Github,
   Rocket,
   Settings,
-  RefreshCw,
   Upload,
   Cloud,
   GitBranch,
@@ -37,20 +35,18 @@ interface AuthStatus {
   username: string | null
   owner: string | null
   repo: string | null
+  usingEnvCredentials?: boolean
 }
 
 export function GitHubDeployment({ projectId, projectName }: GitHubDeploymentProps) {
-  const [isConfiguring, setIsConfiguring] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isDeploying, setIsDeploying] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [logs, setLogs] = useState<LogEntry[]>([])
-  const [showConfig, setShowConfig] = useState(false)
   const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null)
   const [loadingStatus, setLoadingStatus] = useState(true)
 
   // Form state
-  const [token, setToken] = useState("")
   const [repoName, setRepoName] = useState("")
 
   // Result state
@@ -69,7 +65,7 @@ export function GitHubDeployment({ projectId, projectName }: GitHubDeploymentPro
       if (response.ok) {
         const data = await response.json()
         setAuthStatus(data)
-        if (data.repo) {
+        if (data.repo && data.owner) {
           setGithubUrl(`https://github.com/${data.owner}/${data.repo}`)
         }
       }
@@ -85,51 +81,9 @@ export function GitHubDeployment({ projectId, projectName }: GitHubDeploymentPro
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId])
 
-  const handleSaveCredentials = async () => {
-    if (!token) {
-      setError("Please provide a GitHub token")
-      return
-    }
-
-    setIsConfiguring(true)
-    setError(null)
-    setLogs([])
-
-    try {
-      addLog("🔐 Validating GitHub credentials...", "info")
-
-      const response = await fetch("/api/github/auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectId,
-          token,
-        }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "Failed to validate credentials")
-      }
-
-      const result = await response.json()
-      addLog(`✅ Connected as @${result.username}!`, "success")
-      
-      setToken("")
-      setShowConfig(false)
-      await fetchAuthStatus()
-    } catch (err: any) {
-      console.error("[GitHub] Config error:", err)
-      setError(err.message || "Failed to save credentials")
-      addLog(`❌ Error: ${err.message}`, "error")
-    } finally {
-      setIsConfiguring(false)
-    }
-  }
-
   const handleSaveToGitHub = async () => {
     if (!authStatus?.isAuthenticated) {
-      setError("Please connect your GitHub account first")
+      setError("GitHub is not configured. Please set GITHUB_API_TOKEN and GITHUB_OWNER environment variables.")
       return
     }
 
@@ -211,24 +165,6 @@ export function GitHubDeployment({ projectId, projectName }: GitHubDeploymentPro
     }
   }
 
-  const handleDisconnect = async () => {
-    if (!confirm("Are you sure you want to disconnect your GitHub account?")) {
-      return
-    }
-
-    try {
-      await fetch(`/api/github/auth?projectId=${projectId}`, {
-        method: "DELETE",
-      })
-
-      setAuthStatus(null)
-      setGithubUrl(null)
-      addLog("🔓 GitHub account disconnected", "info")
-    } catch (err) {
-      console.error("[GitHub] Disconnect error:", err)
-    }
-  }
-
   if (loadingStatus) {
     return (
       <Card>
@@ -250,54 +186,11 @@ export function GitHubDeployment({ projectId, projectName }: GitHubDeploymentPro
               <Github className="h-6 w-6 text-muted-foreground" />
             </div>
             <div>
-              <h3 className="font-semibold text-lg">Connect GitHub</h3>
+              <h3 className="font-semibold text-lg">GitHub Not Configured</h3>
               <p className="text-sm text-muted-foreground max-w-sm">
-                Save your website files to GitHub and deploy to Cloudflare Pages with a single click.
+                GitHub integration requires server-side configuration. Please ensure the GITHUB_API_TOKEN and GITHUB_OWNER environment variables are set.
               </p>
             </div>
-            <Button onClick={() => setShowConfig(!showConfig)}>
-              {showConfig ? "Hide Configuration" : "Connect GitHub"}
-            </Button>
-
-            {showConfig && (
-              <div className="w-full max-w-md space-y-4 border rounded-lg p-4 bg-muted/20 text-left animate-in slide-in-from-top-2">
-                <div className="space-y-2">
-                  <Label htmlFor="token">Personal Access Token</Label>
-                  <Input
-                    id="token"
-                    type="password"
-                    placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-                    value={token}
-                    onChange={(e) => setToken(e.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Create a token at{" "}
-                    <a
-                      href="https://github.com/settings/tokens/new?scopes=repo"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline"
-                    >
-                      GitHub Settings
-                    </a>{" "}
-                    with &apos;repo&apos; scope.
-                  </p>
-                </div>
-
-                <div className="flex justify-end gap-2 pt-2">
-                  <Button
-                    onClick={handleSaveCredentials}
-                    disabled={isConfiguring || !token}
-                  >
-                    {isConfiguring ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : null}
-                    Connect
-                  </Button>
-                </div>
-              </div>
-            )}
-
             {error && (
               <Alert variant="destructive" className="max-w-md">
                 <AlertCircle className="h-4 w-4" />
@@ -457,7 +350,7 @@ export function GitHubDeployment({ projectId, projectName }: GitHubDeploymentPro
               <summary className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/20 transition-colors">
                 <span className="text-sm font-medium flex items-center gap-2">
                   <Terminal className="h-4 w-4 text-muted-foreground" />
-                  Activity Logs & Settings
+                  Activity Logs
                 </span>
                 <Settings className="h-4 w-4 text-muted-foreground group-open:rotate-90 transition-transform" />
               </summary>
@@ -486,12 +379,6 @@ export function GitHubDeployment({ projectId, projectName }: GitHubDeploymentPro
                     No logs available for this session.
                   </div>
                 )}
-
-                <div className="flex justify-end pt-2">
-                  <Button variant="destructive" size="sm" onClick={handleDisconnect}>
-                    Disconnect GitHub
-                  </Button>
-                </div>
               </div>
             </details>
           </div>
