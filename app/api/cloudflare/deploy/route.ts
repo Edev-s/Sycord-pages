@@ -122,16 +122,15 @@ async function createProject(
 type HashInput = string | ArrayBuffer | ArrayBufferView;
 
 async function calculateHash(content: HashInput): Promise<string> {
-  const data =
-    typeof content === "string"
-      ? textEncoder.encode(content)
-      : content instanceof ArrayBuffer
-        ? new Uint8Array(content)
-        : ArrayBuffer.isView(content)
-          ? new Uint8Array(content.buffer, content.byteOffset, content.byteLength)
-          : undefined;
+  let data: Uint8Array;
 
-  if (!data) {
+  if (typeof content === "string") {
+    data = textEncoder.encode(content);
+  } else if (content instanceof ArrayBuffer) {
+    data = new Uint8Array(content);
+  } else if (ArrayBuffer.isView(content)) {
+    data = new Uint8Array(content.buffer, content.byteOffset, content.byteLength);
+  } else {
     throw new Error("Unsupported content type for hashing");
   }
 
@@ -158,30 +157,32 @@ async function deployToCloudflarePages(
   const fileHashes: Record<string, string> = {};
   const fileContents: Record<string, Buffer> = {};
 
-  for (const file of files) {
-    const contentBytes = textEncoder.encode(file.content);
-    const hash = await calculateHash(contentBytes);
-    const contentBuffer = Buffer.from(contentBytes);
-    fileHashes[file.path] = hash;
-    fileContents[hash] = contentBuffer;
-    
-    // Add directory index mappings for folder/index.html semantic
-    // This allows /folder/index.html to be accessed as /folder and /folder/
-    if (endsWithDirectoryIndex(file.path)) {
-      const basePath = stripDirectoryIndex(file.path);
-      fileHashes[basePath] = hash;
-      // Add trailing slash variant (e.g., /folder/) for all directories except root
-      // Root path (/) already handles both / and /index.html
-      const addedTrailingSlash = basePath !== "/" && !basePath.endsWith("/");
-      if (addedTrailingSlash) {
-        fileHashes[`${basePath}/`] = hash;
+  await Promise.all(
+    files.map(async (file) => {
+      const contentBytes = textEncoder.encode(file.content);
+      const hash = await calculateHash(contentBytes);
+      const contentBuffer = Buffer.from(contentBytes);
+      fileHashes[file.path] = hash;
+      fileContents[hash] = contentBuffer;
+      
+      // Add directory index mappings for folder/index.html semantic
+      // This allows /folder/index.html to be accessed as /folder and /folder/
+      if (endsWithDirectoryIndex(file.path)) {
+        const basePath = stripDirectoryIndex(file.path);
+        fileHashes[basePath] = hash;
+        // Add trailing slash variant (e.g., /folder/) for all directories except root
+        // Root path (/) already handles both / and /index.html
+        const addedTrailingSlash = basePath !== "/" && !basePath.endsWith("/");
+        if (addedTrailingSlash) {
+          fileHashes[`${basePath}/`] = hash;
+        }
+        const mappedPaths = addedTrailingSlash ? `${basePath} and ${basePath}/` : basePath;
+        console.log(`[Cloudflare] File: ${file.path} (${contentBuffer.length} bytes, hash: ${hash.substring(0, 12)}...) -> also mapped to ${mappedPaths}`);
+      } else {
+        console.log(`[Cloudflare] File: ${file.path} (${contentBuffer.length} bytes, hash: ${hash.substring(0, 12)}...)`);
       }
-      const mappedPaths = addedTrailingSlash ? `${basePath} and ${basePath}/` : basePath;
-      console.log(`[Cloudflare] File: ${file.path} (${contentBuffer.length} bytes, hash: ${hash.substring(0, 12)}...) -> also mapped to ${mappedPaths}`);
-    } else {
-      console.log(`[Cloudflare] File: ${file.path} (${contentBuffer.length} bytes, hash: ${hash.substring(0, 12)}...)`);
-    }
-  }
+    })
+  );
 
   console.log(`[Cloudflare] Total manifest entries: ${Object.keys(fileHashes).length} (including directory index mappings)`);
 
