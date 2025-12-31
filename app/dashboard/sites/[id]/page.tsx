@@ -99,6 +99,80 @@ const paymentOptions = [
   { id: "bank", name: "Bank Transfer", description: "Direct bank transfers" },
 ]
 
+// Deployment status reset timeout (in milliseconds)
+const DEPLOY_STATUS_RESET_TIMEOUT_MS = 5000
+
+// Deployment status types
+type DeployStep = "idle" | "saving" | "github" | "deploying" | "complete" | "error"
+
+// DeploymentStatusBar component for reuse across mobile and desktop
+const DeploymentStatusBar = ({
+  deployStep,
+  deployStatus,
+  deployProgress,
+  newDeploymentUrl,
+  variant = "default"
+}: {
+  deployStep: DeployStep
+  deployStatus: string
+  deployProgress: number
+  newDeploymentUrl: string | null
+  variant?: "default" | "compact"
+}) => {
+  if (deployStep === "idle") return null
+
+  return (
+    <div className={cn(
+      "p-4 border animate-in fade-in slide-in-from-top-2",
+      variant === "compact" ? "rounded-lg" : "rounded-xl",
+      deployStep === "error" ? "bg-destructive/10 border-destructive/30" :
+      deployStep === "complete" ? "bg-green-500/10 border-green-500/30" :
+      "bg-primary/10 border-primary/30"
+    )}>
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          {deployStep === "error" ? (
+            <AlertCircle className="h-4 w-4 text-destructive" />
+          ) : deployStep === "complete" ? (
+            <Check className="h-4 w-4 text-green-500" />
+          ) : (
+            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          )}
+          <span className={cn(
+            variant === "compact" ? "text-xs" : "text-sm",
+            "font-medium",
+            deployStep === "error" ? "text-destructive" :
+            deployStep === "complete" ? "text-green-500" :
+            "text-primary"
+          )}>
+            {deployStatus}
+          </span>
+        </div>
+        <span className="text-xs text-muted-foreground">{deployProgress}%</span>
+      </div>
+      <Progress value={deployProgress} className={cn(
+        "h-1.5",
+        deployStep === "error" ? "[&>div]:bg-destructive" :
+        deployStep === "complete" ? "[&>div]:bg-green-500" : ""
+      )} />
+      {deployStep === "complete" && newDeploymentUrl && (
+        <a
+          href={newDeploymentUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={cn(
+            "flex items-center gap-1 text-green-500 hover:underline",
+            variant === "compact" ? "mt-2 text-xs" : "mt-3 text-sm"
+          )}
+        >
+          <ExternalLink className="h-3 w-3" />
+          {newDeploymentUrl.replace(/^https?:\/\//, '')}
+        </a>
+      )}
+    </div>
+  )
+}
+
 // Extract SidebarContent to a separate component to avoid re-renders
 const SidebarContent = ({
   project,
@@ -215,7 +289,7 @@ export default function SiteSettingsPage() {
   // Deployment progress state
   const [deployProgress, setDeployProgress] = useState(0)
   const [deployStatus, setDeployStatus] = useState("")
-  const [deployStep, setDeployStep] = useState<"idle" | "saving" | "github" | "deploying" | "complete" | "error">("idle")
+  const [deployStep, setDeployStep] = useState<DeployStep>("idle")
   const [newDeploymentUrl, setNewDeploymentUrl] = useState<string | null>(null)
 
   // Renamed to match the button name and be consistent
@@ -517,6 +591,13 @@ export default function SiteSettingsPage() {
     }
   }
 
+  // Helper function to reset deployment state
+  const resetDeploymentState = () => {
+    setDeployStep("idle")
+    setDeployProgress(0)
+    setDeployStatus("")
+  }
+
   const handleDeploy = async () => {
     setIsDeploying(true)
     setDeployStep("saving")
@@ -529,7 +610,7 @@ export default function SiteSettingsPage() {
       // Step 1: Save pages to database (if any generated pages exist)
       if (generatedPages.length > 0) {
         setDeployProgress(10)
-        const saveResponse = await fetch(`/api/projects/${encodeURIComponent(id)}/deploy-code`, {
+        const saveResponse = await fetch(`/api/projects/${id}/deploy-code`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -597,11 +678,7 @@ export default function SiteSettingsPage() {
       setDeployStatus("Deployed successfully!")
 
       // Reset after showing success
-      setTimeout(() => {
-        setDeployStep("idle")
-        setDeployProgress(0)
-        setDeployStatus("")
-      }, 5000)
+      setTimeout(resetDeploymentState, DEPLOY_STATUS_RESET_TIMEOUT_MS)
 
     } catch (error: any) {
       console.error("[Deploy] Error:", error)
@@ -610,11 +687,7 @@ export default function SiteSettingsPage() {
       setDeployStatus(error.message || "Deployment failed")
       
       // Reset error state after showing
-      setTimeout(() => {
-        setDeployStep("idle")
-        setDeployProgress(0)
-        setDeployStatus("")
-      }, 5000)
+      setTimeout(resetDeploymentState, DEPLOY_STATUS_RESET_TIMEOUT_MS)
     } finally {
       setIsDeploying(false)
     }
@@ -964,51 +1037,12 @@ export default function SiteSettingsPage() {
                         </Button>
 
                         {/* Deployment Status Bar - Mobile */}
-                        {deployStep !== "idle" && (
-                            <div className={cn(
-                                "p-4 rounded-xl border animate-in fade-in slide-in-from-top-2",
-                                deployStep === "error" ? "bg-destructive/10 border-destructive/30" :
-                                deployStep === "complete" ? "bg-green-500/10 border-green-500/30" :
-                                "bg-primary/10 border-primary/30"
-                            )}>
-                                <div className="flex items-center justify-between mb-2">
-                                    <div className="flex items-center gap-2">
-                                        {deployStep === "error" ? (
-                                            <AlertCircle className="h-4 w-4 text-destructive" />
-                                        ) : deployStep === "complete" ? (
-                                            <Check className="h-4 w-4 text-green-500" />
-                                        ) : (
-                                            <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                                        )}
-                                        <span className={cn(
-                                            "text-sm font-medium",
-                                            deployStep === "error" ? "text-destructive" :
-                                            deployStep === "complete" ? "text-green-500" :
-                                            "text-primary"
-                                        )}>
-                                            {deployStatus}
-                                        </span>
-                                    </div>
-                                    <span className="text-xs text-muted-foreground">{deployProgress}%</span>
-                                </div>
-                                <Progress value={deployProgress} className={cn(
-                                    "h-1.5",
-                                    deployStep === "error" ? "[&>div]:bg-destructive" :
-                                    deployStep === "complete" ? "[&>div]:bg-green-500" : ""
-                                )} />
-                                {deployStep === "complete" && newDeploymentUrl && (
-                                    <a
-                                        href={newDeploymentUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="mt-3 flex items-center gap-1 text-sm text-green-500 hover:underline"
-                                    >
-                                        <ExternalLink className="h-3 w-3" />
-                                        {newDeploymentUrl.replace(/^https?:\/\//, '')}
-                                    </a>
-                                )}
-                            </div>
-                        )}
+                        <DeploymentStatusBar
+                            deployStep={deployStep}
+                            deployStatus={deployStatus}
+                            deployProgress={deployProgress}
+                            newDeploymentUrl={newDeploymentUrl}
+                        />
                     </div>
 
                     {/* Visitor Divider */}
@@ -1141,51 +1175,13 @@ export default function SiteSettingsPage() {
                             </Button>
 
                             {/* Deployment Status Bar - Desktop */}
-                            {deployStep !== "idle" && (
-                                <div className={cn(
-                                    "p-4 rounded-lg border animate-in fade-in slide-in-from-top-2",
-                                    deployStep === "error" ? "bg-destructive/10 border-destructive/30" :
-                                    deployStep === "complete" ? "bg-green-500/10 border-green-500/30" :
-                                    "bg-primary/10 border-primary/30"
-                                )}>
-                                    <div className="flex items-center justify-between mb-2">
-                                        <div className="flex items-center gap-2">
-                                            {deployStep === "error" ? (
-                                                <AlertCircle className="h-4 w-4 text-destructive" />
-                                            ) : deployStep === "complete" ? (
-                                                <Check className="h-4 w-4 text-green-500" />
-                                            ) : (
-                                                <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                                            )}
-                                            <span className={cn(
-                                                "text-xs font-medium",
-                                                deployStep === "error" ? "text-destructive" :
-                                                deployStep === "complete" ? "text-green-500" :
-                                                "text-primary"
-                                            )}>
-                                                {deployStatus}
-                                            </span>
-                                        </div>
-                                        <span className="text-xs text-muted-foreground">{deployProgress}%</span>
-                                    </div>
-                                    <Progress value={deployProgress} className={cn(
-                                        "h-1.5",
-                                        deployStep === "error" ? "[&>div]:bg-destructive" :
-                                        deployStep === "complete" ? "[&>div]:bg-green-500" : ""
-                                    )} />
-                                    {deployStep === "complete" && newDeploymentUrl && (
-                                        <a
-                                            href={newDeploymentUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="mt-2 flex items-center gap-1 text-xs text-green-500 hover:underline"
-                                        >
-                                            <ExternalLink className="h-3 w-3" />
-                                            {newDeploymentUrl.replace(/^https?:\/\//, '')}
-                                        </a>
-                                    )}
-                                </div>
-                            )}
+                            <DeploymentStatusBar
+                                deployStep={deployStep}
+                                deployStatus={deployStatus}
+                                deployProgress={deployProgress}
+                                newDeploymentUrl={newDeploymentUrl}
+                                variant="compact"
+                            />
 
                             <div className="grid grid-cols-2 gap-3 pt-2">
                                 <Button variant="outline" className="w-full bg-transparent border-white/10 hover:bg-white/5" onClick={handleSave} disabled={saving}>
