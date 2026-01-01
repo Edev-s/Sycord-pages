@@ -241,7 +241,7 @@ export async function POST(request: Request) {
     // Sanitize userId to prevent path traversal vulnerabilities
     const userId = session.user.id
     const sanitizedUserId = userId
-      .replace(/[^a-zA-Z0-9_]/g, '_')   // Replace invalid characters with underscore (no hyphens)
+      .replace(/[^a-zA-Z0-9_]/g, '_')   // Replace invalid characters with underscore (allows only alphanumeric and underscore)
       .replace(/_{2,}/g, '_')           // Replace multiple consecutive underscores with single underscore
       .replace(/^_+|_+$/g, '')          // Remove leading/trailing underscores
     
