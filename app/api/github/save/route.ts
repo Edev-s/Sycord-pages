@@ -242,12 +242,11 @@ export async function POST(request: Request) {
     const userId = session.user.id
     const sanitizedUserId = userId
       .replace(/[^a-zA-Z0-9_-]/g, '_')  // Replace invalid characters with underscore
-      .replace(/\.+/g, '_')             // Replace any dots with underscore
       .replace(/_{2,}/g, '_')           // Replace multiple consecutive underscores with single underscore
       .replace(/^_+|_+$/g, '')          // Remove leading/trailing underscores
     
     // Validate sanitized userId has sufficient content
-    if (!sanitizedUserId || sanitizedUserId.length < 1 || !/[a-zA-Z0-9]/.test(sanitizedUserId)) {
+    if (!sanitizedUserId || !/[a-zA-Z0-9]/.test(sanitizedUserId)) {
       return NextResponse.json({ error: "Invalid user ID" }, { status: 400 })
     }
     
