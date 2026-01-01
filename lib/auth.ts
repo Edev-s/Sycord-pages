@@ -1,5 +1,6 @@
 import GoogleProvider from "next-auth/providers/google"
 import type { AuthOptions } from "next-auth"
+import { headers } from "next/headers"
 import clientPromise from "./mongodb"
 
 // Log detailed warnings for debugging
@@ -14,6 +15,19 @@ if (!process.env.AUTH_SECRET) {
 }
 
 const NEXTAUTH_URL = process.env.NEXTAUTH_URL || "http://localhost:3000"
+
+const getRequestIP = () => {
+  try {
+    const requestHeaders = headers()
+    const forwarded = requestHeaders.get("x-forwarded-for")
+    if (forwarded) {
+      return forwarded.split(",")[0].trim()
+    }
+    return requestHeaders.get("x-real-ip") || "Unknown"
+  } catch (error) {
+    return "Unknown"
+  }
+}
 
 const getCookieDomain = () => {
   const url = process.env.NEXTAUTH_URL || "http://localhost:3000"
@@ -69,18 +83,35 @@ export const authOptions: AuthOptions = {
 
         // ALWAYS save/update user in MongoDB on login
         try {
+          const existingUser = await db.collection("users").findOne({ id: token.id })
+          const now = new Date()
+          const joinDate = existingUser?.user?.join_date || existingUser?.createdAt || now
+
           const updateData: any = {
             id: token.id,
             email: token.email,
             name: token.name,
             image: token.picture,
-            updatedAt: new Date(),
-            sessionVersion: token.sessionVersion // Set initial session version
+            updatedAt: now,
+            sessionVersion: token.sessionVersion, // Set initial session version
+            user: {
+              name: token.name,
+              email: token.email,
+              join_date: joinDate,
+              ip: getRequestIP(),
+            },
+            git_conection: existingUser?.git_conection || {},
+            infromations: existingUser?.infromations || {},
           }
 
           await db.collection("users").updateOne(
             { id: token.id },
-            { $set: updateData },
+            {
+              $set: updateData,
+              $setOnInsert: {
+                createdAt: now,
+              },
+            },
             { upsert: true },
           )
         } catch (error) {
