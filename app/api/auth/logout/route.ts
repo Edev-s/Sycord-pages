@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { cookies } from "next/headers"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import clientPromise from "@/lib/mongodb"
@@ -19,7 +20,26 @@ export async function POST(request: Request) {
       { $set: { sessionVersion: Date.now() } }
     )
 
-    return NextResponse.json({ success: true, message: "Session invalidated server-side" })
+    const response = NextResponse.json({ success: true, message: "Session invalidated server-side" })
+    const cookieStore = await cookies()
+
+    const clearCookie = (name: string) => {
+      response.cookies.set({
+        name,
+        value: "",
+        maxAge: 0,
+        path: "/",
+      })
+    }
+
+    clearCookie("next-auth.session-token")
+    clearCookie("__Secure-next-auth.session-token")
+    clearCookie("next-auth.csrf-token")
+    clearCookie("__Secure-next-auth.csrf-token")
+    clearCookie("access_token")
+    clearCookie("refresh_token")
+
+    return response
   } catch (error: any) {
     console.error("Error logging out:", error)
     return NextResponse.json({ message: error.message }, { status: 500 })
