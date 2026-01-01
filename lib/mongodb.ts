@@ -5,6 +5,7 @@ if (!process.env.MONGO_URI) {
 }
 
 const uri = process.env.MONGO_URI;
+const defaultDbName = process.env.MONGO_DB_NAME || "main";
 let client: MongoClient;
 let clientPromise: Promise<MongoClient>;
 
@@ -13,13 +14,23 @@ if (process.env.NODE_ENV === "development") {
   // is preserved across module reloads caused by HMR (Hot Module Replacement).
   if (!global._mongoClientPromise) {
     client = new MongoClient(uri, {});
-    global._mongoClientPromise = client.connect();
+    global._mongoClientPromise = client.connect().then((connected) => {
+      const originalDb = connected.db.bind(connected);
+      connected.db = (dbName?: string, options?: any) =>
+        originalDb(dbName || defaultDbName, options);
+      return connected;
+    });
   }
   clientPromise = global._mongoClientPromise;
 } else {
   // In production mode, it's best to not use a global variable.
   client = new MongoClient(uri, {});
-  clientPromise = client.connect();
+  clientPromise = client.connect().then((connected) => {
+    const originalDb = connected.db.bind(connected);
+    connected.db = (dbName?: string, options?: any) =>
+      originalDb(dbName || defaultDbName, options);
+    return connected;
+  });
 }
 
 export default clientPromise;
