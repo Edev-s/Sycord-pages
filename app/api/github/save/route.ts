@@ -152,10 +152,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { projectId, repoName } = await request.json()
+    const { projectId, repoName, environment = "deployment" } = await request.json()
 
     if (!projectId) {
       return NextResponse.json({ error: "Missing projectId" }, { status: 400 })
+    }
+
+    // Validate environment parameter
+    if (environment !== "deployment" && environment !== "production") {
+      return NextResponse.json({ error: "Invalid environment. Must be 'deployment' or 'production'" }, { status: 400 })
     }
 
     if (!ObjectId.isValid(projectId)) {
@@ -231,6 +236,11 @@ export async function POST(request: Request) {
       projectId: new ObjectId(projectId)
     }).toArray()
 
+    // Create folder prefix: users/{userId}/{environment}/
+    const userId = session.user.id
+    const folderPrefix = `users/${userId}/${environment}/`
+    console.log(`[GitHub] Using folder structure: ${folderPrefix}`)
+
     const files: GitHubFile[] = []
     let hasIndexHtml = false
 
@@ -262,20 +272,22 @@ export async function POST(request: Request) {
           hasIndexHtml = true
         }
 
-        files.push({ path, content: page.content })
-        console.log(`[GitHub] Prepared file: ${page.name} -> ${path}`)
+        // Add folder prefix to the path
+        const fullPath = folderPrefix + path
+        files.push({ path: fullPath, content: page.content })
+        console.log(`[GitHub] Prepared file: ${page.name} -> ${fullPath}`)
       }
     } else if (project.aiGeneratedCode) {
       // Fallback to project.aiGeneratedCode
       console.log(`[GitHub] Using legacy aiGeneratedCode as index.html`)
-      files.push({ path: "index.html", content: project.aiGeneratedCode })
+      files.push({ path: folderPrefix + "index.html", content: project.aiGeneratedCode })
       hasIndexHtml = true
     }
 
     // If we have files but no index.html, create one from the first page
     if (files.length > 0 && !hasIndexHtml) {
       console.log(`[GitHub] No index.html found, creating from first page`)
-      files.push({ path: "index.html", content: files[0].content })
+      files.push({ path: folderPrefix + "index.html", content: files[0].content })
     }
 
     if (files.length === 0) {
@@ -314,14 +326,16 @@ export async function POST(request: Request) {
       }
     )
 
-    console.log(`[GitHub] Successfully saved ${files.length} files to ${owner}/${repo} (ID: ${repoId})`)
+    console.log(`[GitHub] Successfully saved ${files.length} files to ${owner}/${repo}/${folderPrefix} (ID: ${repoId})`)
 
     return NextResponse.json({
       success: true,
       owner,
       repo,
       repoId,
-      url: `https://github.com/${owner}/${repo}`,
+      environment,
+      folderPrefix,
+      url: `https://github.com/${owner}/${repo}/tree/main/${folderPrefix}`,
       filesCount: files.length,
     })
   } catch (error: any) {
