@@ -15,36 +15,36 @@ export async function GET(
     const client = await clientPromise
     const db = client.db()
 
-    // Try to find deployment first
-    let deployment = await db.collection("deployments").findOne({
-      subdomain: subdomain.toLowerCase(),
+    // Find user with deployment matching the subdomain
+    const userData = await db.collection("users").findOne({
+      "user.deployments.subdomain": subdomain.toLowerCase()
     })
 
-    let projectId
-
-    if (deployment) {
-      projectId = deployment.projectId
-    } else {
-      // Fallback to project lookup
-      const project = await db.collection("projects").findOne({
-        subdomain: subdomain.toLowerCase(),
-      })
-      if (project) {
-        projectId = project._id
-      }
-    }
-
-    if (!projectId) {
+    if (!userData) {
       return new Response("Site Not Found", { status: 404 })
     }
 
-    const project = await db.collection("projects").findOne({
-      _id: projectId,
-    })
+    // Find the specific deployment
+    const deployment = userData.user?.deployments?.find(
+      (d: any) => d.subdomain === subdomain.toLowerCase()
+    )
 
-    if (!project || !project.pages) {
+    if (!deployment) {
+      return new Response("Site Not Found", { status: 404 })
+    }
+
+    // Find the project associated with this deployment
+    const project = userData.user?.projects?.find(
+      (p: any) => p._id.toString() === deployment.projectId.toString()
+    )
+
+    if (!project) {
+      return new Response("Project Not Found", { status: 404 })
+    }
+
+    if (!project.pages) {
       // Fallback to aiGeneratedCode if pages array doesn't exist (legacy)
-      if (project?.aiGeneratedCode && (filename === "index.html" || filename === "index")) {
+      if (project.aiGeneratedCode && (filename === "index.html" || filename === "index")) {
          return new Response(project.aiGeneratedCode, {
             headers: { "Content-Type": "text/html" },
          })
@@ -75,7 +75,7 @@ export async function GET(
     }
 
     if (!file) {
-      console.log(`[v0] File not found: ${filename} in project ${projectId}`)
+      console.log(`[v0] File not found: ${filename} in project ${project._id}`)
       return new Response("File Not Found", { status: 404 })
     }
 

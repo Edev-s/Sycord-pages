@@ -21,34 +21,27 @@ export default async function SubdomainPage({ params }: PageProps) {
 
     console.log("[v0] Webshop: Looking up deployment for subdomain:", subdomain)
 
-    let deployment = await db.collection("deployments").findOne({
-      subdomain: subdomain.toLowerCase(),
+    // Find user with deployment matching the subdomain
+    const userData = await db.collection("users").findOne({
+      "user.deployments.subdomain": subdomain.toLowerCase()
     })
 
-    if (!deployment) {
-      console.log("[v0] Webshop: Deployment not found by subdomain, trying project lookup")
-      // Fallback: try to find a project directly by subdomain
-      const project = await db.collection("projects").findOne({
-        subdomain: subdomain.toLowerCase(),
-      })
-
-      if (project) {
-        console.log("[v0] Webshop: Found project by subdomain, creating virtual deployment reference")
-        deployment = {
-          _id: new ObjectId(),
-          projectId: project._id,
-          subdomain: subdomain.toLowerCase(),
-          status: "active",
-        }
-      }
-    }
-
-    if (!deployment) {
+    if (!userData) {
       console.log("[v0] Webshop: No deployment or project found for subdomain:", subdomain)
       notFound()
     }
 
-    console.log("[v0] Webshop: Deployment found. ID:", deployment._id, "ProjectID:", deployment.projectId) // Add projectId logging
+    // Find the specific deployment
+    const deployment = userData.user?.deployments?.find(
+      (d: any) => d.subdomain === subdomain.toLowerCase()
+    )
+
+    if (!deployment) {
+      console.log("[v0] Webshop: Deployment not found in user data for subdomain:", subdomain)
+      notFound()
+    }
+
+    console.log("[v0] Webshop: Deployment found. ProjectID:", deployment.projectId)
 
     const projectId = deployment.projectId
     if (!projectId) {
@@ -56,28 +49,13 @@ export default async function SubdomainPage({ params }: PageProps) {
       notFound()
     }
 
-    let projectObjectId: ObjectId
-    try {
-      if (projectId instanceof ObjectId) {
-        projectObjectId = projectId
-      } else if (typeof projectId === "string") {
-        projectObjectId = new ObjectId(projectId)
-      } else {
-        throw new Error("Invalid projectId type")
-      }
-    } catch (err: any) {
-      console.error("[v0] Webshop: Failed to convert projectId to ObjectId:", err.message)
-      notFound()
-    }
-
-    console.log("[v0] Webshop: Querying project with ObjectId:", projectObjectId.toString())
-
-    const project = await db.collection("projects").findOne({
-      _id: projectObjectId,
-    })
+    // Find the project associated with this deployment
+    const project = userData.user?.projects?.find(
+      (p: any) => p._id.toString() === projectId.toString()
+    )
 
     if (!project) {
-      console.error("[v0] Webshop: Project not found for ObjectId:", projectObjectId.toString())
+      console.error("[v0] Webshop: Project not found for ID:", projectId.toString())
       notFound()
     }
 
