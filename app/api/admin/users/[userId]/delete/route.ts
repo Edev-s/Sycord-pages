@@ -12,16 +12,20 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ u
     const client = await clientPromise
     const db = client.db()
 
-    // Delete all projects and deployments for this user
-    const userProjects = await db.collection("projects").find({ userId }).toArray()
-
-    for (const project of userProjects) {
-      if (project.deploymentId) {
-        await db.collection("deployments").deleteOne({ _id: new ObjectId(project.deploymentId) })
+    // Delete the user's projects and deployments from the users collection
+    await db.collection("users").updateOne(
+      { id: userId },
+      {
+        $set: {
+          "user.projects": [],
+          "user.deployments": []
+        }
       }
-    }
+    )
 
-    await db.collection("projects").deleteMany({ userId })
+    // Also clean up any orphaned products and settings
+    await db.collection("products").deleteMany({ userId })
+    await db.collection("webshop_settings").deleteMany({ userId })
 
     return NextResponse.json({
       success: true,

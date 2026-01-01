@@ -190,11 +190,10 @@ export async function POST(request: Request) {
       owner = tokenDoc.owner || tokenDoc.username
     }
 
-    // Get project
-    const project = await db.collection("projects").findOne({
-      _id: new ObjectId(projectId),
-      userId: session.user.id,
-    })
+    // Get project from users collection
+    const userData = await db.collection("users").findOne({ id: session.user.id })
+    const projects = userData?.user?.projects || []
+    const project = projects.find((p: any) => p._id.toString() === projectId)
 
     if (!project) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 })
@@ -226,16 +225,14 @@ export async function POST(request: Request) {
     const { data: repoData } = await githubRequest(`/repos/${owner}/${repo}`, token)
     const repoId = repoData.id
 
-    // Fetch pages from MongoDB
-    const pages = await db.collection("pages").find({
-      projectId: new ObjectId(projectId)
-    }).toArray()
+    // Get pages from project in users collection
+    const pages = project.pages || []
 
     const files: GitHubFile[] = []
     let hasIndexHtml = false
 
     if (pages.length > 0) {
-      console.log(`[GitHub] Found ${pages.length} pages in database`)
+      console.log(`[GitHub] Found ${pages.length} pages in project`)
       
       for (const page of pages) {
         let path = page.name

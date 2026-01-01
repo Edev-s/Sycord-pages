@@ -110,11 +110,10 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   }
 
   try {
-    // Verify project ownership
-    const project = await db.collection("projects").findOne({
-      _id: new ObjectId(id),
-      userId: session.user.id,
-    })
+    // Verify project ownership through users collection
+    const userData = await db.collection("users").findOne({ id: session.user.id })
+    const projects = userData?.user?.projects || []
+    const project = projects.find((p: any) => p._id.toString() === id)
 
     if (!project) {
       console.error("[v0] Project not found for ID:", id)

@@ -18,10 +18,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ message: "Invalid project ID" }, { status: 400 })
   }
 
-  const project = await db.collection("projects").findOne({
-    _id: new ObjectId(id),
-    userId: session.user.id,
-  })
+  const userData = await db.collection("users").findOne({ id: session.user.id })
+  const projects = userData?.user?.projects || []
+  
+  const project = projects.find((p: any) => p._id.toString() === id)
 
   if (!project) {
     return NextResponse.json({ message: "Project not found" }, { status: 404 })
@@ -45,9 +45,23 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ message: "Invalid project ID" }, { status: 400 })
   }
 
-  const result = await db
-    .collection("projects")
-    .updateOne({ _id: new ObjectId(id), userId: session.user.id }, { $set: { ...body, updatedAt: new Date() } })
+  const result = await db.collection("users").updateOne(
+    { 
+      id: session.user.id,
+      "user.projects._id": new ObjectId(id)
+    },
+    {
+      $set: {
+        "user.projects.$[elem].updatedAt": new Date(),
+        ...Object.fromEntries(
+          Object.entries(body).map(([key, value]) => [`user.projects.$[elem].${key}`, value])
+        )
+      }
+    },
+    {
+      arrayFilters: [{ "elem._id": new ObjectId(id) }]
+    }
+  )
 
   if (result.matchedCount === 0) {
     return NextResponse.json({ message: "Project not found" }, { status: 404 })
@@ -71,26 +85,20 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   }
 
   try {
-    // Get the project to verify ownership
-    const project = await db.collection("projects").findOne({
-      _id: new ObjectId(id),
-      userId: session.user.id,
-    })
+    // Delete the project and associated deployments from the user's document
+    const result = await db.collection("users").updateOne(
+      { id: session.user.id },
+      {
+        $pull: {
+          "user.projects": { _id: new ObjectId(id) },
+          "user.deployments": { projectId: new ObjectId(id) }
+        }
+      }
+    )
 
-    if (!project) {
+    if (result.modifiedCount === 0) {
       return NextResponse.json({ message: "Project not found" }, { status: 404 })
     }
-
-    // Delete all deployments associated with this project
-    await db.collection("deployments").deleteMany({
-      projectId: id,
-    })
-
-    // Delete the project itself
-    const result = await db.collection("projects").deleteOne({
-      _id: new ObjectId(id),
-      userId: session.user.id,
-    })
 
     console.log("[v0] Project deleted:", { projectId: id, userId: session.user.id })
 

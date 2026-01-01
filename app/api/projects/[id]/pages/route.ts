@@ -31,34 +31,43 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const client = await clientPromise
     const db = client.db()
 
-    // Validate project ownership
-    const project = await db.collection("projects").findOne({
-      _id: new ObjectId(id),
-      userId: session.user.id
-    })
+    // Validate project exists and user owns it
+    const userData = await db.collection("users").findOne({ id: session.user.id })
+    const projects = userData?.user?.projects || []
+    const project = projects.find((p: any) => p._id.toString() === id)
 
     if (!project) {
         return NextResponse.json({ message: "Project not found" }, { status: 404 })
     }
 
-    // Upsert page in the 'pages' collection
-    // We normalize the name to remove extension for the DB query if desired,
-    // but Cloudflare deploy script expects names that map to routes.
-    // The previous analysis showed Cloudflare deploy script does:
-    // routes[`/${page.name}`] = content;
-
-    await db.collection("pages").updateOne(
-        { projectId: new ObjectId(id), name: name },
+    // Add or update page in the project's pages array
+    await db.collection("users").updateOne(
         {
-            $set: {
-                projectId: new ObjectId(id),
-                name: name,
-                content: content,
-                updatedAt: new Date()
-            },
-            $setOnInsert: { createdAt: new Date() }
+          id: session.user.id,
+          "user.projects._id": new ObjectId(id)
         },
-        { upsert: true }
+        {
+          $pull: {
+            "user.projects.$.pages": { name: name }
+          }
+        }
+    )
+    
+    await db.collection("users").updateOne(
+        {
+          id: session.user.id,
+          "user.projects._id": new ObjectId(id)
+        },
+        {
+          $push: {
+            "user.projects.$.pages": {
+              name: name,
+              content: content,
+              updatedAt: new Date(),
+              createdAt: new Date()
+            }
+          }
+        }
     )
 
     return NextResponse.json({ success: true })
@@ -90,22 +99,28 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     const client = await clientPromise
     const db = client.db()
 
-    // Validate project ownership
-    const project = await db.collection("projects").findOne({
-      _id: new ObjectId(id),
-      userId: session.user.id
-    })
+    // Validate project exists and user owns it
+    const userData = await db.collection("users").findOne({ id: session.user.id })
+    const projects = userData?.user?.projects || []
+    const project = projects.find((p: any) => p._id.toString() === id)
 
     if (!project) {
       return NextResponse.json({ message: "Project not found" }, { status: 404 })
     }
 
-    const result = await db.collection("pages").deleteOne({
-      projectId: new ObjectId(id),
-      name: pageName
-    })
+    const result = await db.collection("users").updateOne(
+      {
+        id: session.user.id,
+        "user.projects._id": new ObjectId(id)
+      },
+      {
+        $pull: {
+          "user.projects.$.pages": { name: pageName }
+        }
+      }
+    )
 
-    if (result.deletedCount === 0) {
+    if (result.modifiedCount === 0) {
         return NextResponse.json({ message: "Page not found" }, { status: 404 })
     }
 
