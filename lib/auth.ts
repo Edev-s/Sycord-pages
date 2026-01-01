@@ -176,8 +176,12 @@ export const authOptions: AuthOptions = {
         // Invalidate session by updating version in DB
         // @ts-ignore
         const userId = message.token?.id || message.session?.user?.id
-        if (userId) {
-          await db.collection("users").updateOne({ id: userId }, { $set: { sessionVersion: Date.now() } })
+        const email = message.token?.email || message.session?.user?.email
+        if (userId || email) {
+          await db.collection("users").updateOne(
+            userId ? { id: userId } : { email },
+            { $set: { sessionVersion: Date.now() } }
+          )
           // console.log(`[v0-EVENT] signOut: Invalidated session for user ${userId}`)
         }
       } catch (error) {
