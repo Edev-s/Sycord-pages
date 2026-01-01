@@ -1,16 +1,55 @@
-import { cookies } from 'next/headers';
+import { NextResponse } from "next/server"
+import { getServerSession } from "next-auth/next"
+import { authOptions } from "@/lib/auth"
+import clientPromise from "@/lib/mongodb"
 
 export async function POST() {
-  const cookieStore = await cookies();
-  const accessToken = cookieStore.get('access_token')?.value;
+  const session = await getServerSession(authOptions)
 
-  if (!accessToken) {
-    return Response.json({ error: 'No access token found' }, { status: 401 });
+  if (!session || !session.user || !session.user.id) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 })
   }
 
-  // Simplified revocation
-  cookieStore.set('access_token', '', { maxAge: 0 });
-  cookieStore.set('refresh_token', '', { maxAge: 0 });
+  try {
+    const client = await clientPromise
+    const db = client.db()
 
-  return Response.json({}, { status: 200 });
+    await db.collection("users").updateOne(
+      { id: session.user.id },
+      { $set: { sessionVersion: Date.now() } }
+    )
+
+    const response = NextResponse.json({ success: true, message: "Session invalidated server-side" })
+    const secure = process.env.NODE_ENV === "production"
+
+    const clearCookie = (name: string) => {
+      response.cookies.set({
+        name,
+        value: "",
+        expires: new Date(0),
+        httpOnly: true,
+        sameSite: "lax",
+        secure,
+        path: "/",
+      })
+    }
+
+    const cookieNames = [
+      "next-auth.session-token",
+      "__Secure-next-auth.session-token",
+      "next-auth.csrf-token",
+      "__Secure-next-auth.csrf-token",
+      "next-auth.callback-url",
+      "next-auth.state",
+      "access_token",
+      "refresh_token",
+    ]
+
+    cookieNames.forEach(clearCookie)
+
+    return response
+  } catch (error: any) {
+    console.error("Error logging out:", error)
+    return NextResponse.json({ message: error.message }, { status: 500 })
+  }
 }

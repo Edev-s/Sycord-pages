@@ -19,7 +19,35 @@ export async function POST(request: Request) {
       { $set: { sessionVersion: Date.now() } }
     )
 
-    return NextResponse.json({ success: true, message: "Session invalidated server-side" })
+    const response = NextResponse.json({ success: true, message: "Session invalidated server-side" })
+    const secure = process.env.NODE_ENV === "production"
+
+    const clearCookie = (name: string) => {
+      response.cookies.set({
+        name,
+        value: "",
+        expires: new Date(0),
+        httpOnly: true,
+        sameSite: "lax",
+        secure,
+        path: "/",
+      })
+    }
+
+    const cookieNames = [
+      "next-auth.session-token",
+      "__Secure-next-auth.session-token",
+      "next-auth.csrf-token",
+      "__Secure-next-auth.csrf-token",
+      "next-auth.callback-url",
+      "next-auth.state",
+      "access_token",
+      "refresh_token",
+    ]
+
+    cookieNames.forEach(clearCookie)
+
+    return response
   } catch (error: any) {
     console.error("Error logging out:", error)
     return NextResponse.json({ message: error.message }, { status: 500 })
