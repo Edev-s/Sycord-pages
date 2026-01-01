@@ -227,9 +227,10 @@ export async function POST(request: Request) {
       await new Promise(resolve => setTimeout(resolve, REPO_CREATION_DELAY_MS))
     }
 
-    // Fetch repo details to get ID
+    // Fetch repo details to get ID and default branch
     const { data: repoData } = await githubRequest(`/repos/${owner}/${repo}`, token)
     const repoId = repoData.id
+    const defaultBranch = repoData.default_branch || "main"
 
     // Fetch pages from MongoDB
     const pages = await db.collection("pages").find({
@@ -237,8 +238,17 @@ export async function POST(request: Request) {
     }).toArray()
 
     // Create folder prefix: users/{userId}/{environment}/
+    // Sanitize userId to prevent path traversal vulnerabilities
     const userId = session.user.id
-    const folderPrefix = `users/${userId}/${environment}/`
+    const sanitizedUserId = userId
+      .replace(/[^a-zA-Z0-9_-]/g, '_')  // Replace invalid characters with underscore
+      .replace(/^\.+|\.+$/g, '')        // Remove leading/trailing dots
+    
+    if (!sanitizedUserId) {
+      return NextResponse.json({ error: "Invalid user ID" }, { status: 400 })
+    }
+    
+    const folderPrefix = `users/${sanitizedUserId}/${environment}/`
     console.log(`[GitHub] Using folder structure: ${folderPrefix}`)
 
     const files: GitHubFile[] = []
@@ -335,7 +345,7 @@ export async function POST(request: Request) {
       repoId,
       environment,
       folderPrefix,
-      url: `https://github.com/${owner}/${repo}/tree/main/${folderPrefix}`,
+      url: `https://github.com/${owner}/${repo}/tree/${defaultBranch}/${folderPrefix}`,
       filesCount: files.length,
     })
   } catch (error: any) {
