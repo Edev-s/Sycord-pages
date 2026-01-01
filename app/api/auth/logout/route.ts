@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server"
-import { cookies } from "next/headers"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import clientPromise from "@/lib/mongodb"
@@ -21,23 +20,32 @@ export async function POST(request: Request) {
     )
 
     const response = NextResponse.json({ success: true, message: "Session invalidated server-side" })
-    const cookieStore = await cookies()
+    const secure = process.env.NODE_ENV === "production"
 
     const clearCookie = (name: string) => {
       response.cookies.set({
         name,
         value: "",
-        maxAge: 0,
+        expires: new Date(0),
+        httpOnly: true,
+        sameSite: "lax",
+        secure,
         path: "/",
       })
     }
 
-    clearCookie("next-auth.session-token")
-    clearCookie("__Secure-next-auth.session-token")
-    clearCookie("next-auth.csrf-token")
-    clearCookie("__Secure-next-auth.csrf-token")
-    clearCookie("access_token")
-    clearCookie("refresh_token")
+    const cookieNames = [
+      "next-auth.session-token",
+      "__Secure-next-auth.session-token",
+      "next-auth.csrf-token",
+      "__Secure-next-auth.csrf-token",
+      "next-auth.callback-url",
+      "next-auth.state",
+      "access_token",
+      "refresh_token",
+    ]
+
+    cookieNames.forEach(clearCookie)
 
     return response
   } catch (error: any) {
