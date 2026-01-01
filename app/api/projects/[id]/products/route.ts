@@ -23,11 +23,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const client = await clientPromise
   const db = client.db()
 
-  // Verify project ownership
-  const project = await db.collection("projects").findOne({
-    _id: new ObjectId(id),
-    userId: session.user.id,
-  })
+  // Verify project ownership through users collection
+  const userData = await db.collection("users").findOne({ id: session.user.id })
+  const projects = userData?.user?.projects || []
+  const project = projects.find((p: any) => p._id.toString() === id)
 
   if (!project) {
     return NextResponse.json({ message: "Project not found" }, { status: 404 })

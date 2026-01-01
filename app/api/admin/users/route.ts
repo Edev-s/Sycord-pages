@@ -9,24 +9,12 @@ export async function GET() {
     const client = await clientPromise
     const db = client.db()
 
-    // 1. Fetch all registered users from the 'users' collection
+    // Fetch all registered users from the 'users' collection
     const users = await db.collection("users").find({}).toArray()
 
-    // 2. Fetch all projects to calculate stats
-    const projects = await db.collection("projects").find({}).toArray()
-
-    // 3. Map projects to users for counting
-    const projectMap = new Map()
-    for (const project of projects) {
-      if (!projectMap.has(project.userId)) {
-        projectMap.set(project.userId, [])
-      }
-      projectMap.get(project.userId).push(project)
-    }
-
-    // 4. Construct the response object combining User + Project data
+    // Construct the response object with user data from users collection
     const userList = users.map(user => {
-        const userProjects = projectMap.get(user.id) || []
+        const userProjects = user.user?.projects || []
 
         return {
             userId: user.id,

@@ -68,11 +68,10 @@ export async function POST(request: Request) {
     const client = await clientPromise
     const db = client.db()
 
-    // Verify project ownership
-    const project = await db.collection("projects").findOne({
-      _id: new ObjectId(projectId),
-      userId: session.user.id,
-    })
+    // Verify project ownership through users collection
+    const userData = await db.collection("users").findOne({ id: session.user.id })
+    const projects = userData?.user?.projects || []
+    const project = projects.find((p: any) => p._id.toString() === projectId)
 
     if (!project) {
       return NextResponse.json(
@@ -156,10 +155,13 @@ export async function GET(request: Request) {
         const client = await clientPromise
         const db = client.db()
         
-        // Get repo from project if already saved
-        const project = await db.collection("projects").findOne({
-          _id: new ObjectId(projectId),
+        // Get repo from project in users collection if already saved
+        const userData = await db.collection("users").findOne({
+          "user.projects._id": new ObjectId(projectId)
         })
+        const project = userData?.user?.projects?.find(
+          (p: any) => p._id.toString() === projectId
+        )
         
         return NextResponse.json({
           isAuthenticated: true,
