@@ -120,7 +120,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       }
     )
 
-    if (result.deletedCount === 0) {
+    if (result.modifiedCount === 0) {
         return NextResponse.json({ message: "Page not found" }, { status: 404 })
     }
 
