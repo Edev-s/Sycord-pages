@@ -242,14 +242,17 @@ export async function POST(request: Request) {
     const userId = session.user.id
     const sanitizedUserId = userId
       .replace(/[^a-zA-Z0-9_-]/g, '_')  // Replace invalid characters with underscore
-      .replace(/^\.+|\.+$/g, '')        // Remove leading/trailing dots
+      .replace(/\.+/g, '_')             // Replace any dots with underscore
+      .replace(/_{2,}/g, '_')           // Replace multiple consecutive underscores with single underscore
+      .replace(/^_+|_+$/g, '')          // Remove leading/trailing underscores
     
-    if (!sanitizedUserId) {
+    // Validate sanitized userId has sufficient content
+    if (!sanitizedUserId || sanitizedUserId.length < 1 || !/[a-zA-Z0-9]/.test(sanitizedUserId)) {
       return NextResponse.json({ error: "Invalid user ID" }, { status: 400 })
     }
     
-    const folderPrefix = `users/${sanitizedUserId}/${environment}/`
-    console.log(`[GitHub] Using folder structure: ${folderPrefix}`)
+    const folderPrefix = `users/${sanitizedUserId}/${environment}`
+    console.log(`[GitHub] Using folder structure: ${folderPrefix}/`)
 
     const files: GitHubFile[] = []
     let hasIndexHtml = false
@@ -283,21 +286,21 @@ export async function POST(request: Request) {
         }
 
         // Add folder prefix to the path
-        const fullPath = folderPrefix + path
+        const fullPath = `${folderPrefix}/${path}`
         files.push({ path: fullPath, content: page.content })
         console.log(`[GitHub] Prepared file: ${page.name} -> ${fullPath}`)
       }
     } else if (project.aiGeneratedCode) {
       // Fallback to project.aiGeneratedCode
       console.log(`[GitHub] Using legacy aiGeneratedCode as index.html`)
-      files.push({ path: folderPrefix + "index.html", content: project.aiGeneratedCode })
+      files.push({ path: `${folderPrefix}/index.html`, content: project.aiGeneratedCode })
       hasIndexHtml = true
     }
 
     // If we have files but no index.html, create one from the first page
     if (files.length > 0 && !hasIndexHtml) {
       console.log(`[GitHub] No index.html found, creating from first page`)
-      files.push({ path: folderPrefix + "index.html", content: files[0].content })
+      files.push({ path: `${folderPrefix}/index.html`, content: files[0].content })
     }
 
     if (files.length === 0) {
