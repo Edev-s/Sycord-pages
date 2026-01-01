@@ -22,8 +22,6 @@ import {
   Package,
   Sparkles,
   Menu,
-  Settings,
-  Store,
   Layout,
   Tag,
   BarChart3,
@@ -36,13 +34,8 @@ import {
   Rocket,
   Globe,
   Save,
-  Upload,
   Smartphone,
   Monitor,
-  Github,
-  Twitter,
-  MessageCircle,
-  Disc,
   Link,
   HelpCircle,
   Activity,
@@ -50,10 +43,7 @@ import {
   MessageSquare,
   Bot,
   Eye,
-  Check,
 } from "lucide-react"
-import { CloudflareDomainManager } from "@/components/cloudflare-domain-manager"
-import { GitHubDeployment } from "@/components/github-deployment"
 import { currencySymbols } from "@/lib/webshop-types"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -98,80 +88,6 @@ const paymentOptions = [
   { id: "paypal", name: "PayPal", description: "PayPal payments" },
   { id: "bank", name: "Bank Transfer", description: "Direct bank transfers" },
 ]
-
-// Deployment status reset timeout (in milliseconds)
-const DEPLOY_STATUS_RESET_TIMEOUT_MS = 5000
-
-// Deployment status types
-type DeployStep = "idle" | "saving" | "github" | "deploying" | "complete" | "error"
-
-// DeploymentStatusBar component for reuse across mobile and desktop
-const DeploymentStatusBar = ({
-  deployStep,
-  deployStatus,
-  deployProgress,
-  newDeploymentUrl,
-  variant = "default"
-}: {
-  deployStep: DeployStep
-  deployStatus: string
-  deployProgress: number
-  newDeploymentUrl: string | null
-  variant?: "default" | "compact"
-}) => {
-  if (deployStep === "idle") return null
-
-  return (
-    <div className={cn(
-      "p-4 border animate-in fade-in slide-in-from-top-2",
-      variant === "compact" ? "rounded-lg" : "rounded-xl",
-      deployStep === "error" ? "bg-destructive/10 border-destructive/30" :
-      deployStep === "complete" ? "bg-green-500/10 border-green-500/30" :
-      "bg-primary/10 border-primary/30"
-    )}>
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          {deployStep === "error" ? (
-            <AlertCircle className="h-4 w-4 text-destructive" />
-          ) : deployStep === "complete" ? (
-            <Check className="h-4 w-4 text-green-500" />
-          ) : (
-            <Loader2 className="h-4 w-4 animate-spin text-primary" />
-          )}
-          <span className={cn(
-            variant === "compact" ? "text-xs" : "text-sm",
-            "font-medium",
-            deployStep === "error" ? "text-destructive" :
-            deployStep === "complete" ? "text-green-500" :
-            "text-primary"
-          )}>
-            {deployStatus}
-          </span>
-        </div>
-        <span className="text-xs text-muted-foreground">{deployProgress}%</span>
-      </div>
-      <Progress value={deployProgress} className={cn(
-        "h-1.5",
-        deployStep === "error" ? "[&>div]:bg-destructive" :
-        deployStep === "complete" ? "[&>div]:bg-green-500" : ""
-      )} />
-      {deployStep === "complete" && newDeploymentUrl && (
-        <a
-          href={newDeploymentUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={cn(
-            "flex items-center gap-1 text-green-500 hover:underline",
-            variant === "compact" ? "mt-2 text-xs" : "mt-3 text-sm"
-          )}
-        >
-          <ExternalLink className="h-3 w-3" />
-          {newDeploymentUrl.replace(/^https?:\/\//, '')}
-        </a>
-      )}
-    </div>
-  )
-}
 
 // Extract SidebarContent to a separate component to avoid re-renders
 const SidebarContent = ({
@@ -254,14 +170,9 @@ export default function SiteSettingsPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saveSuccess, setSaveSuccess] = useState(false)
-  const [deployment, setDeployment] = useState<any>(null)
-  const [deploymentLogs, setDeploymentLogs] = useState<string[]>([])
-  const [deploymentError, setDeploymentError] = useState<string | null>(null)
-
   const [projectLoading, setProjectLoading] = useState(true)
   const [settingsLoading, setSettingsLoading] = useState(true)
   const [productsLoading, setProductsLoading] = useState(true)
-  const [deploymentLoading, setDeploymentLoading] = useState(true)
 
   const [newProduct, setNewProduct] = useState({
     name: "",
@@ -275,22 +186,14 @@ export default function SiteSettingsPage() {
   const [productError, setProductError] = useState<string | null>(null)
 
   const [activeTab, setActiveTab] = useState<
-    "styles" | "products" | "payments" | "ai" | "pages" | "orders" | "customers" | "analytics" | "discount" | "deploy" | "domain" | "github"
+    "styles" | "products" | "payments" | "ai" | "pages" | "orders" | "customers" | "analytics" | "discount"
   >("styles")
   const [activeSubTab, setActiveSubTab] = useState<"limits" | "connections" | "help">("limits")
 
   const [selectedStyle, setSelectedStyle] = useState<string | null>(null)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const [isDeploying, setIsDeploying] = useState(false)
-  const [showDomainManager, setShowDomainManager] = useState(false)
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop")
   const { data: session } = useSession()
-
-  // Deployment progress state
-  const [deployProgress, setDeployProgress] = useState(0)
-  const [deployStatus, setDeployStatus] = useState("")
-  const [deployStep, setDeployStep] = useState<DeployStep>("idle")
-  const [newDeploymentUrl, setNewDeploymentUrl] = useState<string | null>(null)
 
   // Renamed to match the button name and be consistent
   const saving = isSaving
@@ -384,23 +287,7 @@ export default function SiteSettingsPage() {
             setProductsLoading(false)
           })
 
-        const fetchDeployments = fetch(`/api/projects/${id}/deployments`)
-          .then((r) => r.json())
-          .then((data) => {
-            console.log("[v0] Deployments data fetched")
-            setDeployment(data.deployment || null)
-            setDeploymentLoading(false)
-            if (data.logs) {
-              setDeploymentLogs(data.logs)
-            }
-          })
-          .catch((err) => {
-            console.error("[v0] Settings page: Error fetching deployment:", err)
-            setDeploymentLoading(false)
-            setDeploymentError("Failed to fetch deployment status")
-          })
-
-        await Promise.all([fetchProject, fetchSettings, fetchProducts, fetchDeployments])
+        await Promise.all([fetchProject, fetchSettings, fetchProducts])
         console.log("[v0] All data fetches completed")
       } catch (error) {
         console.error("[v0] Error in fetchAllData:", error)
@@ -591,108 +478,6 @@ export default function SiteSettingsPage() {
     }
   }
 
-  // Helper function to reset deployment state
-  const resetDeploymentState = () => {
-    setDeployStep("idle")
-    setDeployProgress(0)
-    setDeployStatus("")
-  }
-
-  const handleDeploy = async () => {
-    setIsDeploying(true)
-    setDeployStep("saving")
-    setDeployProgress(5)
-    setDeployStatus("Saving to database...")
-    setDeploymentError(null)
-    setNewDeploymentUrl(null)
-
-    try {
-      // Step 1: Save pages to database (if any generated pages exist)
-      if (generatedPages.length > 0) {
-        setDeployProgress(10)
-        const saveResponse = await fetch(`/api/projects/${id}/deploy-code`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            files: generatedPages.map(p => ({ name: p.name, content: p.code }))
-          }),
-        })
-
-        if (!saveResponse.ok) {
-          throw new Error("Failed to save files to database")
-        }
-      }
-      
-      setDeployProgress(25)
-      setDeployStep("github")
-      setDeployStatus("Syncing to GitHub...")
-
-      // Step 2: Sync to GitHub
-      const githubResponse = await fetch("/api/github/save", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId: id }),
-      })
-
-      if (!githubResponse.ok) {
-        const errData = await githubResponse.json()
-        throw new Error(errData.error || "GitHub sync failed")
-      }
-
-      const githubData = await githubResponse.json()
-      const repoId = githubData.repoId
-
-      setDeployProgress(50)
-      setDeployStep("deploying")
-      setDeployStatus("Deploying to edge network...")
-
-      // Step 3: Trigger External Deployment API
-      const externalResponse = await fetch("/api/external-deploy", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ _id: id }),
-      })
-
-      if (!externalResponse.ok) {
-        const errData = await externalResponse.json()
-        throw new Error(errData.error || "External deployment failed")
-      }
-
-      const externalData = await externalResponse.json()
-
-      setDeployProgress(90)
-      setDeployStatus("Finalizing deployment...")
-
-      // Step 4: Get the deployed URL from response
-      if (externalData.url) {
-        setNewDeploymentUrl(externalData.url)
-      }
-
-      // Refresh project data to get new deployment status
-      const projectRes = await fetch(`/api/projects/${id}`)
-      const projectData = await projectRes.json()
-      setProject(projectData)
-
-      setDeployProgress(100)
-      setDeployStep("complete")
-      setDeployStatus("Deployed successfully!")
-
-      // Reset after showing success
-      setTimeout(resetDeploymentState, DEPLOY_STATUS_RESET_TIMEOUT_MS)
-
-    } catch (error: any) {
-      console.error("[Deploy] Error:", error)
-      setDeploymentError(error.message || "Deployment failed")
-      setDeployStep("error")
-      setDeployStatus(error.message || "Deployment failed")
-      
-      // Reset error state after showing
-      setTimeout(resetDeploymentState, DEPLOY_STATUS_RESET_TIMEOUT_MS)
-    } finally {
-      setIsDeploying(false)
-    }
-  }
-
   if (isInitialLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
@@ -722,9 +507,6 @@ export default function SiteSettingsPage() {
     )
   }
 
-  const subdomain = (project.businessName || "").toLowerCase().replace(/\s+/g, "-")
-  const siteUrl = project.cloudflareUrl || `https://${subdomain}.ltpd.xyz`
-
   const getWebsiteIcon = () => {
     const style = project.style || "default"
     switch (style) {
@@ -748,8 +530,6 @@ export default function SiteSettingsPage() {
         { id: "pages", label: "Pages", icon: FileText },
         { id: "products", label: "Products", icon: ShoppingCart },
         { id: "payments", label: "Payments", icon: CreditCard },
-        { id: "domain", label: "Domain", icon: Globe },
-        { id: "github", label: "GitHub", icon: Github },
       ],
     },
     {
@@ -779,8 +559,7 @@ export default function SiteSettingsPage() {
       .join("")
       .toUpperCase() || "U"
 
-  const previewUrl =
-    project?.cloudflareUrl || deployment?.cloudflareUrl || (deployment?.domain ? `https://${deployment.domain}` : null)
+  const previewUrl = null
   const displayUrl = previewUrl ? previewUrl.replace(/^https?:\/\//, "") : null
 
   // Calculate real usage stats
@@ -1006,10 +785,10 @@ export default function SiteSettingsPage() {
                             <Button
                                 variant="outline"
                                 className="h-14 text-base font-medium bg-card/50 border-white/10 hover:bg-accent rounded-xl"
-                                onClick={() => setActiveTab("domain")}
+                                disabled
                             >
                                 <Globe className="mr-2 h-5 w-5 opacity-70" />
-                                Domain
+                                Domain (disabled)
                             </Button>
                             <Button
                                 variant="outline"
@@ -1025,24 +804,15 @@ export default function SiteSettingsPage() {
                         <Button
                             size="lg"
                             className="w-full h-14 font-semibold text-base shadow-lg shadow-primary/10 rounded-xl"
-                            onClick={handleDeploy}
-                            disabled={isDeploying}
+                            disabled
                         >
-                            {isDeploying ? (
-                                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                            ) : (
-                                <Rocket className="h-5 w-5 mr-2" />
-                            )}
-                            {isDeploying ? "Deploying..." : "Publish Changes"}
+                            <Rocket className="h-5 w-5 mr-2" />
+                            Deployment locked
                         </Button>
 
-                        {/* Deployment Status Bar - Mobile */}
-                        <DeploymentStatusBar
-                            deployStep={deployStep}
-                            deployStatus={deployStatus}
-                            deployProgress={deployProgress}
-                            newDeploymentUrl={newDeploymentUrl}
-                        />
+                        <p className="text-sm text-muted-foreground text-center">
+                          Deployments are currently disabled. Your site is not yet deployed.
+                        </p>
                     </div>
 
                     {/* Visitor Divider */}
@@ -1096,27 +866,20 @@ export default function SiteSettingsPage() {
                                     <div className="absolute top-0 left-1/2 -translate-x-1/2 h-6 w-32 bg-black rounded-b-xl z-20"></div>
                                 )}
 
-                                {!deploymentLoading && previewUrl && (previewUrl.startsWith("http://") || previewUrl.startsWith("https://")) ? (
-                                <iframe
-                                    src={previewUrl}
-                                    className="w-full h-full border-0 bg-white"
-                                    title="Live Preview"
-                                    sandbox="allow-scripts allow-forms"
-                                />
+                                {previewUrl ? (
+                                  <iframe
+                                      src={previewUrl}
+                                      className="w-full h-full border-0 bg-white"
+                                      title="Live Preview"
+                                      sandbox="allow-scripts allow-forms"
+                                  />
                                 ) : (
-                                <div className="flex items-center justify-center w-full h-full bg-muted/20">
-                                    {deploymentLoading ? (
-                                    <div className="flex flex-col items-center">
-                                        <Loader2 className="h-8 w-8 animate-spin mb-2 text-primary" />
-                                        <p className="text-sm text-muted-foreground">Loading preview...</p>
-                                    </div>
-                                    ) : (
-                                    <div className="text-center">
-                                        <AlertCircle className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
-                                        <p className="text-sm text-muted-foreground">No preview available</p>
-                                    </div>
-                                    )}
-                                </div>
+                                  <div className="flex items-center justify-center w-full h-full bg-muted/20">
+                                      <div className="text-center">
+                                          <AlertCircle className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
+                                          <p className="text-sm text-muted-foreground">Deployment not available</p>
+                                      </div>
+                                  </div>
                                 )}
                             </div>
                         </div>
@@ -1163,34 +926,24 @@ export default function SiteSettingsPage() {
                             <Button
                             size="lg"
                             className="w-full font-semibold shadow-lg shadow-primary/20"
-                            onClick={handleDeploy}
-                            disabled={isDeploying}
+                            disabled
                             >
-                                {isDeploying ? (
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                ) : (
                                 <Rocket className="h-4 w-4 mr-2" />
-                                )}
-                                {isDeploying ? "Deploying..." : "Publish Changes"}
+                                Deployment locked
                             </Button>
 
-                            {/* Deployment Status Bar - Desktop */}
-                            <DeploymentStatusBar
-                                deployStep={deployStep}
-                                deployStatus={deployStatus}
-                                deployProgress={deployProgress}
-                                newDeploymentUrl={newDeploymentUrl}
-                                variant="compact"
-                            />
+                            <p className="text-sm text-muted-foreground">
+                              Deployments are disabled. Your project is not yet deployed.
+                            </p>
 
                             <div className="grid grid-cols-2 gap-3 pt-2">
                                 <Button variant="outline" className="w-full bg-transparent border-white/10 hover:bg-white/5" onClick={handleSave} disabled={saving}>
                                 {saving ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Save className="h-3 w-3 mr-2" />}
                                 Save Draft
                                 </Button>
-                                <Button variant="outline" className="w-full bg-transparent border-white/10 hover:bg-white/5" onClick={() => setActiveTab("domain")}>
+                                <Button variant="outline" className="w-full bg-transparent border-white/10 hover:bg-white/5" disabled>
                                 <Globe className="h-3 w-3 mr-2" />
-                                Domains
+                                Domains (disabled)
                                 </Button>
                             </div>
                         </CardContent>
@@ -1198,12 +951,6 @@ export default function SiteSettingsPage() {
                     </div>
                     </div>
                 </div>
-
-                {showDomainManager && (
-                  <div className="animate-in fade-in slide-in-from-top-4">
-                    <CloudflareDomainManager projectId={id} />
-                  </div>
-                )}
 
                 {/* Shared Content Area - Visible on BOTH Mobile and Desktop */}
                 <div className="space-y-6">
@@ -1367,23 +1114,6 @@ export default function SiteSettingsPage() {
                 </div>
 
               </div>
-            )}
-
-            {/* TAB CONTENT: DOMAIN MANAGER */}
-            {activeTab === "domain" && (
-                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
-                    <h2 className="text-2xl font-bold">Domain Management</h2>
-                    <CloudflareDomainManager projectId={id} />
-                </div>
-            )}
-
-            {/* TAB CONTENT: GITHUB DEPLOYMENT */}
-            {activeTab === "github" && (
-                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
-                    <h2 className="text-2xl font-bold">GitHub Integration</h2>
-                    <p className="text-muted-foreground">Save your website to GitHub and deploy to Cloudflare Pages.</p>
-                    <GitHubDeployment projectId={id} projectName={project?.businessName || "Project"} />
-                </div>
             )}
 
             {/* TAB CONTENT: PRODUCTS */}
