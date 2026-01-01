@@ -65,6 +65,9 @@ export async function POST(request: Request) {
       // explicitly exclude fields that shouldn't be user-settable if any
   };
 
+  let sanitizedSubdomain: string | null = null
+  let deploymentId: any = null
+
   const newProject = {
     ...safeBody,
     webpageId,
@@ -85,7 +88,7 @@ export async function POST(request: Request) {
       if (typeof body.subdomain !== 'string') {
           // just ignore invalid subdomain type
       } else {
-          const sanitizedSubdomain = body.subdomain
+          sanitizedSubdomain = body.subdomain
             .toLowerCase()
             .trim()
             .replace(/[^a-z0-9-]/g, "-")
@@ -108,6 +111,7 @@ export async function POST(request: Request) {
               }
 
               const deploymentResult = await db.collection("deployments").insertOne(deployment)
+              deploymentId = deploymentResult.insertedId
 
               await db.collection("projects").updateOne(
                 { _id: projectResult.insertedId },
@@ -125,6 +129,41 @@ export async function POST(request: Request) {
             }
           }
       }
+    }
+
+    try {
+      await db.collection("users").updateOne(
+        { id: session.user.id },
+        {
+          $addToSet: {
+            "user.projects": {
+              projectId,
+              businessName: safeBody.businessName,
+              subdomain: sanitizedSubdomain,
+            },
+          },
+        },
+        { upsert: true }
+      )
+
+      if (deploymentId) {
+        await db.collection("users").updateOne(
+          { id: session.user.id },
+          {
+            $addToSet: {
+              "user.deployments": {
+                deploymentId,
+                projectId,
+                subdomain: sanitizedSubdomain,
+                domain: sanitizedSubdomain ? `${sanitizedSubdomain}.ltpd.xyz` : null,
+              },
+            },
+          },
+          { upsert: true }
+        )
+      }
+    } catch (err) {
+      console.error("[v0] Error linking project/deployment to user:", (err as any)?.message || err)
     }
 
     const updatedProject = await db.collection("projects").findOne({ _id: projectResult.insertedId })
