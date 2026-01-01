@@ -241,17 +241,19 @@ export async function POST(request: Request) {
     // Sanitize userId to prevent path traversal vulnerabilities
     const userId = session.user.id
     const sanitizedUserId = userId
-      .replace(/[^a-zA-Z0-9_-]/g, '_')  // Replace invalid characters with underscore
+      .replace(/[^a-zA-Z0-9_]/g, '_')   // Replace invalid characters with underscore (no hyphens)
       .replace(/_{2,}/g, '_')           // Replace multiple consecutive underscores with single underscore
       .replace(/^_+|_+$/g, '')          // Remove leading/trailing underscores
     
     // Validate sanitized userId has sufficient content
     if (!sanitizedUserId || !/[a-zA-Z0-9]/.test(sanitizedUserId)) {
-      return NextResponse.json({ error: "Invalid user ID" }, { status: 400 })
+      return NextResponse.json({ 
+        error: "Invalid user ID: User ID must contain alphanumeric characters" 
+      }, { status: 400 })
     }
     
     const folderPrefix = `users/${sanitizedUserId}/${environment}`
-    console.log(`[GitHub] Using folder structure: ${folderPrefix}/`)
+    console.log(`[GitHub] Using folder structure for environment: ${environment}`)
 
     const files: GitHubFile[] = []
     let hasIndexHtml = false
