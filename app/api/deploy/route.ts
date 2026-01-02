@@ -373,48 +373,81 @@ export async function POST(request: Request) {
     let cloudflareProjectName: string | null = null
     let deployMessage = `Successfully deployed ${files.length} file(s) to GitHub`
     
-    // Timeout for Sycord API call (60 seconds to allow for deployment)
+    // Timeout for Sycord API calls (60 seconds to allow for deployment)
     const SYCORD_API_TIMEOUT_MS = 60000
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), SYCORD_API_TIMEOUT_MS)
     
     try {
       console.log(`[Deploy] Calling Sycord deployment API for repo_id: ${repoId}`)
       
-      const sycordResponse = await fetch(`${SYCORD_DEPLOY_API_BASE}/api/deploy/${repoId}`, {
-        method: "POST",
-        headers: {
-          "Accept": "application/json",
-        },
-        signal: controller.signal,
-      })
-
-      const sycordData = await sycordResponse.json()
-
-      if (sycordResponse.ok && sycordData.success) {
-        cloudflareUrl = sycordData.url
-        cloudflareProjectName = sycordData.project_name
-        deployMessage = sycordData.message || `Successfully deployed to Cloudflare Pages!`
-        console.log(`[Deploy] Sycord deployment successful: ${cloudflareUrl}`)
-
-        // Update project with Cloudflare deployment info
-        await db.collection("users").updateOne(
-          {
-            id: session.user.id,
-            "projects._id": new ObjectId(projectId)
+      // Step 1: Trigger the deployment via POST
+      const deployController = new AbortController()
+      const deployTimeoutId = setTimeout(() => deployController.abort(), SYCORD_API_TIMEOUT_MS)
+      
+      try {
+        const sycordDeployResponse = await fetch(`${SYCORD_DEPLOY_API_BASE}/api/deploy/${repoId}`, {
+          method: "POST",
+          headers: {
+            "Accept": "application/json",
           },
-          {
-            $set: {
-              "projects.$.cloudflareUrl": cloudflareUrl,
-              "projects.$.cloudflareProjectName": cloudflareProjectName,
-              "projects.$.cloudflareDeployedAt": new Date()
+          signal: deployController.signal,
+        })
+        
+        const sycordDeployData = await sycordDeployResponse.json()
+        console.log(`[Deploy] Sycord deploy response:`, sycordDeployData)
+        
+        if (!sycordDeployResponse.ok || !sycordDeployData.success) {
+          console.error(`[Deploy] Sycord deployment trigger failed:`, sycordDeployData)
+        }
+      } catch (deployError: any) {
+        console.error(`[Deploy] Sycord deploy POST error:`, deployError)
+      } finally {
+        clearTimeout(deployTimeoutId)
+      }
+      
+      // Step 2: Get the deployment domain via GET /api/deploy/{repo_id}/domain
+      console.log(`[Deploy] Getting deployment domain for repo_id: ${repoId}`)
+      
+      const domainController = new AbortController()
+      const domainTimeoutId = setTimeout(() => domainController.abort(), SYCORD_API_TIMEOUT_MS)
+      
+      try {
+        const domainResponse = await fetch(`${SYCORD_DEPLOY_API_BASE}/api/deploy/${repoId}/domain`, {
+          method: "GET",
+          headers: {
+            "Accept": "application/json",
+          },
+          signal: domainController.signal,
+        })
+        
+        const domainData = await domainResponse.json()
+        console.log(`[Deploy] Sycord domain response:`, domainData)
+        
+        if (domainResponse.ok && domainData.success) {
+          cloudflareUrl = domainData.domain
+          cloudflareProjectName = domainData.project_name
+          deployMessage = `Successfully deployed to Cloudflare Pages!`
+          console.log(`[Deploy] Sycord deployment successful: ${cloudflareUrl}`)
+
+          // Update project with Cloudflare deployment info
+          await db.collection("users").updateOne(
+            {
+              id: session.user.id,
+              "projects._id": new ObjectId(projectId)
+            },
+            {
+              $set: {
+                "projects.$.cloudflareUrl": cloudflareUrl,
+                "projects.$.cloudflareProjectName": cloudflareProjectName,
+                "projects.$.cloudflareDeployedAt": new Date()
+              }
             }
-          }
-        )
-      } else {
-        console.error(`[Deploy] Sycord deployment failed:`, sycordData)
-        // Don't fail the entire request - GitHub deploy succeeded
-        deployMessage = `Deployed to GitHub. Cloudflare deployment failed: ${sycordData.message || 'Unknown error'}`
+          )
+        } else {
+          console.error(`[Deploy] Sycord domain fetch failed:`, domainData)
+          deployMessage = `Deployed to GitHub. Cloudflare deployment pending: ${domainData.message || 'Domain not available yet'}`
+        }
+      } finally {
+        clearTimeout(domainTimeoutId)
       }
     } catch (sycordError: any) {
       console.error(`[Deploy] Sycord API error:`, sycordError)
@@ -424,8 +457,6 @@ export async function POST(request: Request) {
       } else {
         deployMessage = `Deployed to GitHub. Cloudflare deployment unavailable.`
       }
-    } finally {
-      clearTimeout(timeoutId)
     }
 
     return NextResponse.json({
