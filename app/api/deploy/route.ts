@@ -345,10 +345,12 @@ export async function POST(request: Request) {
     )
 
     // Save to user's git_connection in the users collection
+    // Note: git_token is required by the Sycord deployment API
     const gitConnectionData = {
       username: owner,
       repo_id: repoId.toString(),
       git_url: gitUrl,
+      git_token: token,
       repo_name: repo,
       project_id: projectId,
       deployed_at: new Date(),

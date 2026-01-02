@@ -68,6 +68,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
   const [deployProgress, setDeployProgress] = useState(0)
   const [deploySuccess, setDeploySuccess] = useState(false)
   const [deployResult, setDeployResult] = useState<{ url?: string; githubUrl?: string; message?: string } | null>(null)
+  const [deployStatus, setDeployStatus] = useState<string>("")
 
   // Instruction State (The "Plan" text)
   const [instruction, setInstruction] = useState<string>("")
@@ -224,43 +225,39 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
     setDeploySuccess(false)
     setDeployResult(null)
     setError(null)
-
-    // Progress simulation constants
-    const PROGRESS_INTERVAL_MS = 400
-    const PROGRESS_INCREMENT = 10
-    const MAX_SIMULATED_PROGRESS = 80
+    setDeployStatus("Preparing files...")
 
     try {
-      // Simulate progress for UX while actual deployment happens
-      // Progress increases steadily until reaching the maximum simulated value
-      const progressInterval = setInterval(() => {
-        setDeployProgress(prev => {
-          const nextProgress = prev + PROGRESS_INCREMENT
-          if (nextProgress >= MAX_SIMULATED_PROGRESS) {
-            clearInterval(progressInterval)
-            return MAX_SIMULATED_PROGRESS
-          }
-          return nextProgress
-        })
-      }, PROGRESS_INTERVAL_MS)
-
+      // Step 1: Uploading to GitHub (0-40%)
+      setDeployStatus("Uploading to GitHub...")
+      setDeployProgress(10)
+      
       const response = await fetch("/api/deploy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ projectId }),
       })
 
-      clearInterval(progressInterval)
-
       if (!response.ok) {
         const errorData = await response.json()
         throw new Error(errorData.error || "Deployment failed")
       }
 
+      // Step 2: Parse response and check Cloudflare deployment status
+      setDeployProgress(50)
+      setDeployStatus("Deploying to Cloudflare...")
+      
       const result = await response.json()
       
-      // Complete the progress bar
+      // Step 3: Complete
       setDeployProgress(100)
+      
+      if (result.cloudflareUrl) {
+        setDeployStatus("Deployed to Cloudflare Pages!")
+      } else if (result.githubUrl) {
+        setDeployStatus("Deployed to GitHub!")
+      }
+      
       setDeploySuccess(true)
       setDeployResult({
         url: result.cloudflareUrl || result.url,
@@ -268,16 +265,18 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
         message: result.message || `Successfully deployed ${result.filesCount} file(s)`
       })
 
-      // Reset success state after 5 seconds
-      const SUCCESS_DISPLAY_DURATION_MS = 5000
+      // Reset success state after 10 seconds (longer to let user see result)
+      const SUCCESS_DISPLAY_DURATION_MS = 10000
       setTimeout(() => {
         setDeploySuccess(false)
         setDeployProgress(0)
+        setDeployStatus("")
       }, SUCCESS_DISPLAY_DURATION_MS)
 
     } catch (err: any) {
       setError(err.message || "Deployment failed")
       setDeployProgress(0)
+      setDeployStatus("")
     } finally {
       setIsDeploying(false)
     }
@@ -411,17 +410,17 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
                             {isDeploying ? (
                               <>
                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                Deploying to GitHub...
+                                {deployStatus || "Deploying..."}
                               </>
                             ) : deploySuccess ? (
                               <>
                                 <CheckCircle2 className="h-3.5 w-3.5" />
-                                Deployed Successfully!
+                                {deployStatus || "Deployed Successfully!"}
                               </>
                             ) : (
                               <>
                                 <Rocket className="h-3.5 w-3.5" />
-                                Deploy to GitHub
+                                Deploy to Cloudflare
                               </>
                             )}
                           </Button>
@@ -444,9 +443,9 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
                                 href={deployResult.url} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
-                                className="text-primary hover:underline"
+                                className="text-primary hover:underline font-medium"
                               >
-                                View Live Site →
+                                🌐 View Live Site: {deployResult.url}
                               </a>
                             )}
                             {deployResult?.githubUrl && (
