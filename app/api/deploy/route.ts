@@ -373,12 +373,11 @@ export async function POST(request: Request) {
     
     // Timeout for Sycord API call (60 seconds to allow for deployment)
     const SYCORD_API_TIMEOUT_MS = 60000
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), SYCORD_API_TIMEOUT_MS)
     
     try {
       console.log(`[Deploy] Calling Sycord deployment API for repo_id: ${repoId}`)
-      
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), SYCORD_API_TIMEOUT_MS)
       
       const sycordResponse = await fetch(`${SYCORD_DEPLOY_API_BASE}/api/deploy/${repoId}`, {
         method: "POST",
@@ -387,8 +386,6 @@ export async function POST(request: Request) {
         },
         signal: controller.signal,
       })
-      
-      clearTimeout(timeoutId)
 
       const sycordData = await sycordResponse.json()
 
@@ -425,6 +422,8 @@ export async function POST(request: Request) {
       } else {
         deployMessage = `Deployed to GitHub. Cloudflare deployment unavailable.`
       }
+    } finally {
+      clearTimeout(timeoutId)
     }
 
     return NextResponse.json({
