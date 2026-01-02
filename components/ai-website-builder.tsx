@@ -248,6 +248,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
       setDeployStatus("Deploying to Cloudflare...")
       
       const result = await response.json()
+      console.log("[Deploy] API Response:", result)
       
       // Step 3: Complete
       setDeployProgress(100)
@@ -258,12 +259,15 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
         setDeployStatus("Deployed to GitHub!")
       }
       
-      setDeploySuccess(true)
-      setDeployResult({
+      const deployResultData = {
         url: result.cloudflareUrl || result.url,
         githubUrl: result.githubUrl,
         message: result.message || `Successfully deployed ${result.filesCount} file(s)`
-      })
+      }
+      console.log("[Deploy] Setting deployResult:", deployResultData)
+      
+      setDeploySuccess(true)
+      setDeployResult(deployResultData)
 
       // Reset only the progress bar animation after 10 seconds
       // Keep deployResult and deploySuccess to show the URL persistently
@@ -498,6 +502,44 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
         {error && (
           <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/10 p-3 rounded-lg border border-destructive/20">
             <span className="font-bold">Error:</span> {error}
+          </div>
+        )}
+
+        {/* Deployment Result - Always visible when deployed */}
+        {deploySuccess && deployResult && (
+          <div className="w-full max-w-3xl mx-auto p-4 bg-green-500/10 border border-green-500/30 rounded-xl">
+            <div className="flex flex-col gap-2 text-center">
+              <div className="flex items-center justify-center gap-2 text-green-500 font-semibold">
+                <CheckCircle2 className="h-5 w-5" />
+                <span>Deployed Successfully!</span>
+              </div>
+              {deployResult.url && (
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs text-muted-foreground">Your site is live at:</span>
+                  <a 
+                    href={deployResult.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline font-medium text-sm break-all"
+                  >
+                    🌐 {deployResult.url}
+                  </a>
+                </div>
+              )}
+              {deployResult.githubUrl && (
+                <a 
+                  href={deployResult.githubUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-primary hover:underline text-xs mt-1"
+                >
+                  View source on GitHub →
+                </a>
+              )}
+              {deployResult.message && (
+                <p className="text-xs text-muted-foreground mt-1">{deployResult.message}</p>
+              )}
+            </div>
           </div>
         )}
 
