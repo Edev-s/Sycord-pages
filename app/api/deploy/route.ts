@@ -6,8 +6,10 @@ import { ObjectId } from "mongodb"
 
 const GITHUB_API_BASE = "https://api.github.com"
 
-// Time to wait after creating a repository before uploading files
-const REPO_CREATION_DELAY_MS = 2000
+// Initial delay after creating a repository before attempting file upload
+const INITIAL_REPO_DELAY_MS = 1000
+// Maximum number of retries for repository initialization
+const MAX_REPO_INIT_RETRIES = 3
 
 /**
  * Get GitHub credentials from environment variables
@@ -96,6 +98,34 @@ async function createRepo(owner: string, repo: string, token: string, isOrg: boo
   
   console.log(`[Deploy] Repository created: ${owner}/${repo}`)
   return data
+}
+
+/**
+ * Wait for repository to be fully initialized with retry mechanism
+ */
+async function waitForRepoInitialization(owner: string, repo: string, token: string): Promise<void> {
+  for (let attempt = 0; attempt < MAX_REPO_INIT_RETRIES; attempt++) {
+    const delay = INITIAL_REPO_DELAY_MS * Math.pow(2, attempt) // Exponential backoff
+    await new Promise(resolve => setTimeout(resolve, delay))
+    
+    try {
+      // Try to get the default branch ref to verify repo is initialized
+      await githubRequest(`/repos/${owner}/${repo}/git/ref/heads/main`, token)
+      console.log(`[Deploy] Repository initialized after ${attempt + 1} attempt(s)`)
+      return
+    } catch (error: any) {
+      if (error.status === 404 && attempt < MAX_REPO_INIT_RETRIES - 1) {
+        console.log(`[Deploy] Repository not ready, retrying (attempt ${attempt + 1}/${MAX_REPO_INIT_RETRIES})...`)
+        continue
+      }
+      // If this is the last attempt or not a 404 error, throw
+      if (attempt === MAX_REPO_INIT_RETRIES - 1) {
+        console.log(`[Deploy] Repository initialization timeout, proceeding anyway...`)
+        return // Proceed anyway, the file upload will fail if repo isn't ready
+      }
+      throw error
+    }
+  }
 }
 
 /**
@@ -210,8 +240,8 @@ export async function POST(request: Request) {
     if (!repoExists) {
       repoData = await createRepo(owner, repo, token)
       repoId = repoData.id
-      // Wait for GitHub to initialize the repository
-      await new Promise(resolve => setTimeout(resolve, REPO_CREATION_DELAY_MS))
+      // Wait for GitHub to fully initialize the repository with retry mechanism
+      await waitForRepoInitialization(owner, repo, token)
     } else {
       // Fetch existing repo details
       const { data } = await githubRequest(`/repos/${owner}/${repo}`, token)
@@ -312,11 +342,11 @@ export async function POST(request: Request) {
 
     // Save to user's git_connection in the users collection
     // Structure: main > users > {user} > git_connection > {repo_id}
+    // Note: We don't store the actual token for security reasons - it comes from environment variables
     const gitConnectionData = {
       username: owner,
       repo_id: repoId.toString(),
       git_url: gitUrl,
-      git_token: token.substring(0, 8) + "..." + token.substring(token.length - 4), // Store partial token for reference (not full token for security)
       repo_name: repo,
       project_id: projectId,
       deployed_at: new Date(),

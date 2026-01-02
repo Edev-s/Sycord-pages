@@ -495,17 +495,24 @@ export default function SiteSettingsPage() {
     setDeployResult(null)
     setDeployError(null)
 
+    // Progress simulation constants
+    const PROGRESS_INTERVAL_MS = 400
+    const PROGRESS_INCREMENT = 10
+    const MAX_SIMULATED_PROGRESS = 80
+
     try {
       // Simulate progress for UX while actual deployment happens
+      // Progress increases steadily until reaching the maximum simulated value
       const progressInterval = setInterval(() => {
         setDeployProgress(prev => {
-          if (prev >= 85) {
+          const nextProgress = prev + PROGRESS_INCREMENT
+          if (nextProgress >= MAX_SIMULATED_PROGRESS) {
             clearInterval(progressInterval)
-            return 85
+            return MAX_SIMULATED_PROGRESS
           }
-          return prev + Math.random() * 15
+          return nextProgress
         })
-      }, 300)
+      }, PROGRESS_INTERVAL_MS)
 
       const response = await fetch("/api/deploy", {
         method: "POST",
@@ -531,10 +538,11 @@ export default function SiteSettingsPage() {
       })
 
       // Reset success state after 5 seconds
+      const SUCCESS_DISPLAY_DURATION_MS = 5000
       setTimeout(() => {
         setDeploySuccess(false)
         setDeployProgress(0)
-      }, 5000)
+      }, SUCCESS_DISPLAY_DURATION_MS)
 
     } catch (err: any) {
       setDeployError(err.message || "Deployment failed")
