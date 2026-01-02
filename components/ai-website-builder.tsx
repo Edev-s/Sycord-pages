@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Progress } from "@/components/ui/progress"
 import {
   Loader2,
   Bot,
@@ -16,6 +17,7 @@ import {
   Rocket,
   ListTodo,
   BrainCircuit,
+  CheckCircle2,
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -60,6 +62,12 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
   const [step, setStep] = useState<Step>("idle")
   const [currentPlan, setCurrentPlan] = useState("") // UI Status Text
   const [error, setError] = useState<string | null>(null)
+
+  // Deployment State
+  const [isDeploying, setIsDeploying] = useState(false)
+  const [deployProgress, setDeployProgress] = useState(0)
+  const [deploySuccess, setDeploySuccess] = useState(false)
+  const [deployResult, setDeployResult] = useState<{ url?: string; message?: string } | null>(null)
 
   // Instruction State (The "Plan" text)
   const [instruction, setInstruction] = useState<string>("")
@@ -208,8 +216,62 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
     }
   }
 
-  const handleDeployCode = () => {
-    setError("Deployment is disabled.")
+  const handleDeployCode = async () => {
+    if (isDeploying) return
+    
+    setIsDeploying(true)
+    setDeployProgress(0)
+    setDeploySuccess(false)
+    setDeployResult(null)
+    setError(null)
+
+    try {
+      // Simulate progress for UX while actual deployment happens
+      const progressInterval = setInterval(() => {
+        setDeployProgress(prev => {
+          if (prev >= 85) {
+            clearInterval(progressInterval)
+            return 85
+          }
+          return prev + Math.random() * 15
+        })
+      }, 300)
+
+      const response = await fetch("/api/deploy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId }),
+      })
+
+      clearInterval(progressInterval)
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Deployment failed")
+      }
+
+      const result = await response.json()
+      
+      // Complete the progress bar
+      setDeployProgress(100)
+      setDeploySuccess(true)
+      setDeployResult({
+        url: result.url,
+        message: result.message || `Successfully deployed ${result.filesCount} file(s) to GitHub`
+      })
+
+      // Reset success state after 5 seconds
+      setTimeout(() => {
+        setDeploySuccess(false)
+        setDeployProgress(0)
+      }, 5000)
+
+    } catch (err: any) {
+      setError(err.message || "Deployment failed")
+      setDeployProgress(0)
+    } finally {
+      setIsDeploying(false)
+    }
   }
 
   return (
@@ -324,17 +386,60 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
                       </div>
                     </CardContent>
                     {!message.isIntermediate && (
-                      <CardFooter className="p-0 bg-muted/10 border-t border-border/10 flex">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="flex-1 gap-2 h-9 text-xs font-medium rounded-none rounded-bl-lg"
-                          onClick={handleDeployCode}
-                          disabled
-                        >
-                          <Rocket className="h-3.5 w-3.5" />
-                          Deployment disabled
-                        </Button>
+                      <CardFooter className="p-0 bg-muted/10 border-t border-border/10 flex flex-col">
+                        <div className="w-full relative">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className={cn(
+                              "w-full gap-2 h-9 text-xs font-medium rounded-none rounded-b-lg transition-all",
+                              deploySuccess && "bg-green-500/20 text-green-400",
+                              isDeploying && "cursor-not-allowed"
+                            )}
+                            onClick={handleDeployCode}
+                            disabled={isDeploying}
+                          >
+                            {isDeploying ? (
+                              <>
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                Deploying to GitHub...
+                              </>
+                            ) : deploySuccess ? (
+                              <>
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                Deployed Successfully!
+                              </>
+                            ) : (
+                              <>
+                                <Rocket className="h-3.5 w-3.5" />
+                                Deploy to GitHub
+                              </>
+                            )}
+                          </Button>
+                          {(isDeploying || deploySuccess) && (
+                            <div className="absolute bottom-0 left-0 right-0 h-1">
+                              <Progress 
+                                value={deployProgress} 
+                                className={cn(
+                                  "h-1 rounded-none rounded-b-lg",
+                                  deploySuccess ? "[&>div]:bg-green-500" : ""
+                                )} 
+                              />
+                            </div>
+                          )}
+                        </div>
+                        {deployResult?.url && deploySuccess && (
+                          <div className="w-full px-3 py-2 text-[10px] text-center text-muted-foreground border-t border-border/10">
+                            <a 
+                              href={deployResult.url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-primary hover:underline"
+                            >
+                              View on GitHub →
+                            </a>
+                          </div>
+                        )}
                       </CardFooter>
                     )}
                   </Card>
