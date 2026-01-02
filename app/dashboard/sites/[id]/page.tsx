@@ -43,6 +43,7 @@ import {
   MessageSquare,
   Bot,
   Eye,
+  CheckCircle2,
 } from "lucide-react"
 import { currencySymbols } from "@/lib/webshop-types"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -232,6 +233,13 @@ export default function SiteSettingsPage() {
 
   // AI Generated Pages State (Lifted)
   const [generatedPages, setGeneratedPages] = useState<GeneratedPage[]>([])
+
+  // Deployment State
+  const [isDeploying, setIsDeploying] = useState(false)
+  const [deployProgress, setDeployProgress] = useState(0)
+  const [deploySuccess, setDeploySuccess] = useState(false)
+  const [deployError, setDeployError] = useState<string | null>(null)
+  const [deployResult, setDeployResult] = useState<{ url?: string; message?: string } | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -475,6 +483,72 @@ export default function SiteSettingsPage() {
       setGeneratedPages(prev => prev.filter(p => p.name !== pageName))
     } catch (error: any) {
       alert(error.message)
+    }
+  }
+
+  const handleDeploy = async () => {
+    if (isDeploying) return
+    
+    setIsDeploying(true)
+    setDeployProgress(0)
+    setDeploySuccess(false)
+    setDeployResult(null)
+    setDeployError(null)
+
+    // Progress simulation constants
+    const PROGRESS_INTERVAL_MS = 400
+    const PROGRESS_INCREMENT = 10
+    const MAX_SIMULATED_PROGRESS = 80
+
+    try {
+      // Simulate progress for UX while actual deployment happens
+      // Progress increases steadily until reaching the maximum simulated value
+      const progressInterval = setInterval(() => {
+        setDeployProgress(prev => {
+          const nextProgress = prev + PROGRESS_INCREMENT
+          if (nextProgress >= MAX_SIMULATED_PROGRESS) {
+            clearInterval(progressInterval)
+            return MAX_SIMULATED_PROGRESS
+          }
+          return nextProgress
+        })
+      }, PROGRESS_INTERVAL_MS)
+
+      const response = await fetch("/api/deploy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId: id }),
+      })
+
+      clearInterval(progressInterval)
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Deployment failed")
+      }
+
+      const result = await response.json()
+      
+      // Complete the progress bar
+      setDeployProgress(100)
+      setDeploySuccess(true)
+      setDeployResult({
+        url: result.url,
+        message: result.message || `Successfully deployed ${result.filesCount} file(s) to GitHub`
+      })
+
+      // Reset success state after 5 seconds
+      const SUCCESS_DISPLAY_DURATION_MS = 5000
+      setTimeout(() => {
+        setDeploySuccess(false)
+        setDeployProgress(0)
+      }, SUCCESS_DISPLAY_DURATION_MS)
+
+    } catch (err: any) {
+      setDeployError(err.message || "Deployment failed")
+      setDeployProgress(0)
+    } finally {
+      setIsDeploying(false)
     }
   }
 
@@ -801,18 +875,68 @@ export default function SiteSettingsPage() {
                             </Button>
                         </div>
 
-                        <Button
-                            size="lg"
-                            className="w-full h-14 font-semibold text-base shadow-lg shadow-primary/10 rounded-xl"
-                            disabled
-                        >
-                            <Rocket className="h-5 w-5 mr-2" />
-                            Deployment locked
-                        </Button>
+                        <div className="space-y-2 relative">
+                          <Button
+                              size="lg"
+                              className={cn(
+                                "w-full h-14 font-semibold text-base shadow-lg shadow-primary/10 rounded-xl transition-all",
+                                deploySuccess && "bg-green-500/20 text-green-400 border-green-500/30"
+                              )}
+                              onClick={handleDeploy}
+                              disabled={isDeploying}
+                          >
+                              {isDeploying ? (
+                                <>
+                                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                                  Deploying to GitHub...
+                                </>
+                              ) : deploySuccess ? (
+                                <>
+                                  <CheckCircle2 className="h-5 w-5 mr-2" />
+                                  Deployed Successfully!
+                                </>
+                              ) : (
+                                <>
+                                  <Rocket className="h-5 w-5 mr-2" />
+                                  Deploy to GitHub
+                                </>
+                              )}
+                          </Button>
+                          {(isDeploying || deploySuccess) && (
+                            <Progress 
+                              value={deployProgress} 
+                              className={cn(
+                                "h-1.5 rounded-full",
+                                deploySuccess ? "[&>div]:bg-green-500" : ""
+                              )} 
+                            />
+                          )}
+                        </div>
 
-                        <p className="text-sm text-muted-foreground text-center">
-                          Deployments are currently disabled. Your site is not yet deployed.
-                        </p>
+                        {deployError && (
+                          <p className="text-sm text-destructive text-center">
+                            {deployError}
+                          </p>
+                        )}
+
+                        {deployResult?.url && deploySuccess && (
+                          <p className="text-sm text-muted-foreground text-center">
+                            <a 
+                              href={deployResult.url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-primary hover:underline"
+                            >
+                              View on GitHub →
+                            </a>
+                          </p>
+                        )}
+
+                        {!isDeploying && !deploySuccess && !deployError && (
+                          <p className="text-sm text-muted-foreground text-center">
+                            Deploy your site to GitHub. After deployment, repo details will be saved.
+                          </p>
+                        )}
                     </div>
 
                     {/* Visitor Divider */}
@@ -923,18 +1047,68 @@ export default function SiteSettingsPage() {
                             </div>
                             </div>
 
-                            <Button
-                            size="lg"
-                            className="w-full font-semibold shadow-lg shadow-primary/20"
-                            disabled
-                            >
-                                <Rocket className="h-4 w-4 mr-2" />
-                                Deployment locked
-                            </Button>
+                            <div className="space-y-2 relative">
+                              <Button
+                                size="lg"
+                                className={cn(
+                                  "w-full font-semibold shadow-lg shadow-primary/20 transition-all",
+                                  deploySuccess && "bg-green-500/20 text-green-400 border-green-500/30"
+                                )}
+                                onClick={handleDeploy}
+                                disabled={isDeploying}
+                              >
+                                {isDeploying ? (
+                                  <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Deploying to GitHub...
+                                  </>
+                                ) : deploySuccess ? (
+                                  <>
+                                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                                    Deployed Successfully!
+                                  </>
+                                ) : (
+                                  <>
+                                    <Rocket className="h-4 w-4 mr-2" />
+                                    Deploy to GitHub
+                                  </>
+                                )}
+                              </Button>
+                              {(isDeploying || deploySuccess) && (
+                                <Progress 
+                                  value={deployProgress} 
+                                  className={cn(
+                                    "h-1.5 rounded-full",
+                                    deploySuccess ? "[&>div]:bg-green-500" : ""
+                                  )} 
+                                />
+                              )}
+                            </div>
 
-                            <p className="text-sm text-muted-foreground">
-                              Deployments are disabled. Your project is not yet deployed.
-                            </p>
+                            {deployError && (
+                              <p className="text-sm text-destructive">
+                                {deployError}
+                              </p>
+                            )}
+
+                            {deployResult?.url && deploySuccess && (
+                              <p className="text-sm text-muted-foreground">
+                                <a 
+                                  href={deployResult.url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-primary hover:underline"
+                                >
+                                  View on GitHub →
+                                </a>
+                              </p>
+                            )}
+
+                            {!isDeploying && !deploySuccess && !deployError && (
+                              <p className="text-sm text-muted-foreground">
+                                Deploy your site to GitHub. After deployment, repo details will be saved.
+                              </p>
+                            )}
 
                             <div className="grid grid-cols-2 gap-3 pt-2">
                                 <Button variant="outline" className="w-full bg-transparent border-white/10 hover:bg-white/5" onClick={handleSave} disabled={saving}>
