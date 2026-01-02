@@ -165,7 +165,7 @@ export async function POST(request: Request) {
     const client = await clientPromise
     const db = client.db()
 
-    // Get GitHub credentials - first try environment variables, then database
+    // Get GitHub credentials - first try environment variables, then database (users collection)
     let token: string
     let owner: string
     
@@ -175,26 +175,26 @@ export async function POST(request: Request) {
       owner = envCredentials.owner
       console.log("[GitHub] Using environment credentials")
     } else {
-      const tokenDoc = await db.collection("github_tokens").findOne({
-        projectId: new ObjectId(projectId),
-        userId: session.user.email,
-      })
+      // Find user to get embedded token
+      const user = await db.collection("users").findOne({ id: session.user.id });
+      const tokenData = user?.github_tokens?.[projectId];
 
-      if (!tokenDoc?.token) {
+      if (!tokenData?.token) {
         return NextResponse.json(
           { error: "GitHub credentials not found. Please configure GITHUB_API_TOKEN and GITHUB_OWNER environment variables." },
           { status: 400 }
         )
       }
-      token = tokenDoc.token
-      owner = tokenDoc.owner || tokenDoc.username
+      token = tokenData.token
+      owner = tokenData.owner || tokenData.username
     }
 
-    // Get project
-    const project = await db.collection("projects").findOne({
-      _id: new ObjectId(projectId),
-      userId: session.user.id,
-    })
+    // Get project (embedded in user)
+    const userDoc = await db.collection("users").findOne({ id: session.user.id });
+    if (!userDoc || !userDoc.projects) {
+        return NextResponse.json({ error: "Project not found" }, { status: 404 })
+    }
+    const project = userDoc.projects.find((p: any) => p._id.toString() === projectId);
 
     if (!project) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 })
@@ -226,16 +226,14 @@ export async function POST(request: Request) {
     const { data: repoData } = await githubRequest(`/repos/${owner}/${repo}`, token)
     const repoId = repoData.id
 
-    // Fetch pages from MongoDB
-    const pages = await db.collection("pages").find({
-      projectId: new ObjectId(projectId)
-    }).toArray()
+    // Fetch pages from project object (embedded)
+    const pages = project.pages || [];
 
     const files: GitHubFile[] = []
     let hasIndexHtml = false
 
     if (pages.length > 0) {
-      console.log(`[GitHub] Found ${pages.length} pages in database`)
+      console.log(`[GitHub] Found ${pages.length} pages in project`)
       
       for (const page of pages) {
         let path = page.name
@@ -300,16 +298,19 @@ export async function POST(request: Request) {
       )
     }
 
-    // Update project with GitHub info
-    await db.collection("projects").updateOne(
-      { _id: new ObjectId(projectId) },
+    // Update project with GitHub info (embedded in user)
+    await db.collection("users").updateOne(
+      {
+        id: session.user.id,
+        "projects._id": new ObjectId(projectId)
+      },
       {
         $set: {
-          githubOwner: owner,
-          githubRepo: repo,
-          githubRepoId: repoId,
-          githubUrl: `https://github.com/${owner}/${repo}`,
-          githubSavedAt: new Date(),
+          "projects.$.githubOwner": owner,
+          "projects.$.githubRepo": repo,
+          "projects.$.githubRepoId": repoId,
+          "projects.$.githubUrl": `https://github.com/${owner}/${repo}`,
+          "projects.$.githubSavedAt": new Date(),
         },
       }
     )

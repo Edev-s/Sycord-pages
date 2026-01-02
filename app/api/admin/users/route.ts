@@ -12,21 +12,9 @@ export async function GET() {
     // 1. Fetch all registered users from the 'users' collection
     const users = await db.collection("users").find({}).toArray()
 
-    // 2. Fetch all projects to calculate stats
-    const projects = await db.collection("projects").find({}).toArray()
-
-    // 3. Map projects to users for counting
-    const projectMap = new Map()
-    for (const project of projects) {
-      if (!projectMap.has(project.userId)) {
-        projectMap.set(project.userId, [])
-      }
-      projectMap.get(project.userId).push(project)
-    }
-
-    // 4. Construct the response object combining User + Project data
+    // 4. Construct the response object combining User + Project data (embedded)
     const userList = users.map(user => {
-        const userProjects = projectMap.get(user.id) || []
+        const userProjects = user.projects || []
 
         return {
             userId: user.id,
@@ -34,7 +22,8 @@ export async function GET() {
             name: user.name || "Unknown",
             projectCount: userProjects.length,
             isPremium: user.isPremium || false,
-            ip: userProjects.length > 0 ? (userProjects[0].userIP || "Unknown") : "Unknown",
+            // Assuming first project might have IP or user doc has IP (which it does in auth.ts)
+            ip: user.user?.ip || "Unknown",
             createdAt: user.createdAt || new Date().toISOString(),
             websites: userProjects.map((p: any) => ({
                 id: p._id,

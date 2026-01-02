@@ -22,8 +22,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ message: "Name and content required" }, { status: 400 })
     }
 
-    // Basic sanitization/validation for page name to prevent path traversal or invalid filenames
-    // Although Cloudflare Worker handles routing, we want to enforce clean names
     if (name.includes('..') || name.includes('/') || name.includes('\\')) {
          return NextResponse.json({ message: "Invalid page name" }, { status: 400 })
     }
@@ -31,35 +29,62 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const client = await clientPromise
     const db = client.db()
 
-    // Validate project ownership
-    const project = await db.collection("projects").findOne({
-      _id: new ObjectId(id),
-      userId: session.user.id
-    })
-
-    if (!project) {
-        return NextResponse.json({ message: "Project not found" }, { status: 404 })
-    }
-
-    // Upsert page in the 'pages' collection
-    // We normalize the name to remove extension for the DB query if desired,
-    // but Cloudflare deploy script expects names that map to routes.
-    // The previous analysis showed Cloudflare deploy script does:
-    // routes[`/${page.name}`] = content;
-
-    await db.collection("pages").updateOne(
-        { projectId: new ObjectId(id), name: name },
+    // We need to upsert the page in the `projects.$.pages` array.
+    // However, updating an element in an array of objects based on a sub-field is tricky with native Mongo operators if we want to "add or update".
+    // 1. Try to update existing page
+    const updateResult = await db.collection("users").updateOne(
+        {
+            id: session.user.id,
+            "projects": {
+                $elemMatch: {
+                    _id: new ObjectId(id),
+                    "pages.name": name
+                }
+            }
+        },
         {
             $set: {
-                projectId: new ObjectId(id),
-                name: name,
-                content: content,
-                updatedAt: new Date()
-            },
-            $setOnInsert: { createdAt: new Date() }
+                "projects.$[proj].pages.$[page].content": content,
+                "projects.$[proj].pages.$[page].updatedAt": new Date()
+            }
         },
-        { upsert: true }
+        {
+            arrayFilters: [
+                { "proj._id": new ObjectId(id) },
+                { "page.name": name }
+            ]
+        }
     )
+
+    if (updateResult.matchedCount === 0) {
+        // Page did not exist, push it
+        // But first check if project exists
+        const projectCheck = await db.collection("users").findOne({
+             id: session.user.id,
+             "projects._id": new ObjectId(id)
+        });
+
+        if (!projectCheck) {
+            return NextResponse.json({ message: "Project not found" }, { status: 404 });
+        }
+
+        await db.collection("users").updateOne(
+            {
+                id: session.user.id,
+                "projects._id": new ObjectId(id)
+            },
+            {
+                $push: {
+                    "projects.$.pages": {
+                        name: name,
+                        content: content,
+                        createdAt: new Date(),
+                        updatedAt: new Date()
+                    }
+                } as any
+            }
+        )
+    }
 
     return NextResponse.json({ success: true })
   } catch (error: any) {
@@ -90,22 +115,25 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     const client = await clientPromise
     const db = client.db()
 
-    // Validate project ownership
-    const project = await db.collection("projects").findOne({
-      _id: new ObjectId(id),
-      userId: session.user.id
-    })
+    const result = await db.collection("users").updateOne(
+        {
+            id: session.user.id,
+            "projects._id": new ObjectId(id)
+        },
+        {
+            $pull: {
+                "projects.$.pages": { name: pageName }
+            } as any
+        }
+    )
 
-    if (!project) {
-      return NextResponse.json({ message: "Project not found" }, { status: 404 })
+    if (result.matchedCount === 0) {
+        // Either project or user not found
+        return NextResponse.json({ message: "Project not found" }, { status: 404 })
     }
 
-    const result = await db.collection("pages").deleteOne({
-      projectId: new ObjectId(id),
-      name: pageName
-    })
-
-    if (result.deletedCount === 0) {
+    // If matchedCount > 0 but modifiedCount == 0, it means page wasn't in the list
+    if (result.modifiedCount === 0) {
         return NextResponse.json({ message: "Page not found" }, { status: 404 })
     }
 

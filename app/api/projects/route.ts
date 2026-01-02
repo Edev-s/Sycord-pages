@@ -5,6 +5,7 @@ import clientPromise from "@/lib/mongodb"
 import { getClientIP } from "@/lib/get-client-ip"
 import { containsCurseWords } from "@/lib/curse-word-filter"
 import { generateWebpageId } from "@/lib/generate-webpage-id"
+import { ObjectId } from "mongodb"
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions)
@@ -38,7 +39,9 @@ export async function POST(request: Request) {
        return NextResponse.json({ message: "Business description is invalid or too long" }, { status: 400 });
   }
 
-  const userProjects = await db.collection("projects").find({ userId: session.user.id }).toArray()
+  // Fetch user doc to check limits and existing projects
+  const userDoc = await db.collection("users").findOne({ id: session.user.id })
+  const userProjects = userDoc?.projects || []
 
   // @ts-ignore
   const isPremium = session.user.isPremium || false
@@ -53,7 +56,6 @@ export async function POST(request: Request) {
     )
   }
 
-  const userIP = getClientIP(request)
   const webpageId = generateWebpageId()
 
   // sanitize body fields to prevent injection of unexpected fields
@@ -66,106 +68,67 @@ export async function POST(request: Request) {
   };
 
   let sanitizedSubdomain: string | null = null
-  let deploymentId: any = null
+  let deploymentData: any = null
+
+  if (body.subdomain) {
+    if (typeof body.subdomain !== 'string') {
+        // just ignore invalid subdomain type
+    } else {
+        sanitizedSubdomain = body.subdomain
+          .toLowerCase()
+          .trim()
+          .replace(/[^a-z0-9-]/g, "-")
+          .replace(/^-+|-+$/g, "")
+
+        if (sanitizedSubdomain.length >= 3 && !containsCurseWords(sanitizedSubdomain)) {
+            deploymentData = {
+              subdomain: sanitizedSubdomain,
+              domain: `${sanitizedSubdomain}.ltpd.xyz`,
+              status: "active",
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              deploymentData: {
+                businessName: safeBody.businessName,
+                businessDescription: safeBody.businessDescription,
+              },
+            }
+        }
+    }
+  }
+
+  const projectId = new ObjectId()
 
   const newProject = {
+    _id: projectId,
     ...safeBody,
+    subdomain: sanitizedSubdomain, // Ensure subdomain is updated with sanitized version
     webpageId,
-    userId: session.user.id,
+    userId: session.user.id, // Keep userId for reference, though embedded
     isPremium: isPremium,
     status: "active",
     createdAt: new Date(),
+    pages: [], // Initialize empty pages array
+    deployment: deploymentData, // Embed deployment info
+    // Legacy fields for compatibility if needed, but we try to move away
+    deploymentId: deploymentData ? new ObjectId() : null,
   }
 
   try {
-    const projectResult = await db.collection("projects").insertOne(newProject)
-    const projectId = projectResult.insertedId.toString()
-
-    if (body.subdomain) {
-      if (typeof body.subdomain !== 'string') {
-          // just ignore invalid subdomain type
-      } else {
-          sanitizedSubdomain = body.subdomain
-            .toLowerCase()
-            .trim()
-            .replace(/[^a-z0-9-]/g, "-")
-            .replace(/^-+|-+$/g, "")
-
-          if (sanitizedSubdomain.length >= 3 && !containsCurseWords(sanitizedSubdomain)) {
-            try {
-              const deployment = {
-                projectId: projectResult.insertedId,
-                userId: session.user.id,
-                subdomain: sanitizedSubdomain,
-                domain: `${sanitizedSubdomain}.ltpd.xyz`,
-                status: "active",
-                createdAt: new Date(),
-                updatedAt: new Date(),
-                deploymentData: {
-                  businessName: safeBody.businessName,
-                  businessDescription: safeBody.businessDescription,
-                },
-              }
-
-              const deploymentResult = await db.collection("deployments").insertOne(deployment)
-              deploymentId = deploymentResult.insertedId
-
-              await db.collection("projects").updateOne(
-                { _id: projectResult.insertedId },
-                {
-                  $set: {
-                    deploymentId: deploymentResult.insertedId,
-                    subdomain: sanitizedSubdomain,
-                    domain: `${sanitizedSubdomain}.ltpd.xyz`,
-                    deployedAt: new Date(),
-                  },
-                },
-              )
-            } catch (deploymentError: any) {
-              console.error("[v0] Error creating deployment record:", deploymentError.message)
-            }
-          }
+    await db.collection("users").updateOne(
+      { id: session.user.id },
+      {
+        $push: {
+          projects: newProject
+        } as any // TypeScript might complain about pushing to 'projects' if schema not defined
       }
-    }
+    )
 
-    try {
-      await db.collection("users").updateOne(
-        { id: session.user.id },
-        {
-          $addToSet: {
-            "user.projects": {
-              projectId,
-              businessName: safeBody.businessName,
-              subdomain: sanitizedSubdomain,
-            },
-          },
-        },
-        { upsert: true }
-      )
+    console.log("[Project Creation] Project created successfully embedded in user:", projectId.toString())
 
-      if (deploymentId) {
-        await db.collection("users").updateOne(
-          { id: session.user.id },
-          {
-            $addToSet: {
-              "user.deployments": {
-                deploymentId,
-                projectId,
-                subdomain: sanitizedSubdomain,
-                domain: sanitizedSubdomain ? `${sanitizedSubdomain}.ltpd.xyz` : null,
-              },
-            },
-          },
-          { upsert: true }
-        )
-      }
-    } catch (err) {
-      console.error("[v0] Error linking project/deployment to user:", (err as any)?.message || err)
-    }
-
-    const updatedProject = await db.collection("projects").findOne({ _id: projectResult.insertedId })
-    console.log("[Project Creation] Project created successfully:", projectId)
-    return NextResponse.json(updatedProject, { status: 201 })
+    // Return the new project. We cast _id to string for JSON serialization compatibility if needed,
+    // but Next.js usually handles ObjectId in JSON response or we should stringify it.
+    // However, existing frontend likely expects _id to be present.
+    return NextResponse.json(newProject, { status: 201 })
   } catch (error: any) {
     console.error("[v0] Error creating project:", error)
     return NextResponse.json(
@@ -187,7 +150,13 @@ export async function GET() {
   const client = await clientPromise
   const db = client.db()
 
-  const projects = await db.collection("projects").find({ userId: session.user.id }).toArray()
+  try {
+    const userDoc = await db.collection("users").findOne({ id: session.user.id })
+    const projects = userDoc?.projects || []
 
-  return NextResponse.json(projects)
+    return NextResponse.json(projects)
+  } catch (error: any) {
+    console.error("Error fetching projects:", error)
+    return NextResponse.json({ message: "Failed to fetch projects" }, { status: 500 })
+  }
 }

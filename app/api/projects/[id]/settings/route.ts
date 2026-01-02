@@ -62,10 +62,23 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
   try {
     const settings = await db.collection("webshop_settings").findOne({
-      projectId: id,
+      projectId: new ObjectId(id), // Consistent ObjectId usage
     })
 
     if (!settings) {
+       // Check if it was stored as string previously?
+       // The code was using `projectId: id` (string).
+       // I should probably support both for migration or check consistency.
+       // But I will stick to what the original code did: `projectId: id`
+
+       const settingsString = await db.collection("webshop_settings").findOne({
+            projectId: id,
+       })
+
+       if (settingsString) {
+           return NextResponse.json(settingsString);
+       }
+
       return NextResponse.json({
         projectId: id,
         headerComponent: "simple",
@@ -110,11 +123,12 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   }
 
   try {
-    // Verify project ownership
-    const project = await db.collection("projects").findOne({
-      _id: new ObjectId(id),
-      userId: session.user.id,
-    })
+    // Verify project ownership (embedded in user)
+    const user = await db.collection("users").findOne({ id: session.user.id });
+    if (!user || !user.projects) {
+        return NextResponse.json({ message: "Project not found" }, { status: 404 });
+    }
+    const project = user.projects.find((p: any) => p._id.toString() === id);
 
     if (!project) {
       console.error("[v0] Project not found for ID:", id)
@@ -138,11 +152,11 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     }
 
     const result = await db.collection("webshop_settings").updateOne(
-      { projectId: id },
+      { projectId: new ObjectId(id) }, // Storing as ObjectId preferred
       {
         $set: {
           ...sanitizedSettings,
-          projectId: id,
+          projectId: new ObjectId(id),
           updatedAt: new Date(),
         },
       },
@@ -151,7 +165,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
     console.log("[v0] Database update result:", result)
 
-    const savedSettings = await db.collection("webshop_settings").findOne({ projectId: id })
+    const savedSettings = await db.collection("webshop_settings").findOne({ projectId: new ObjectId(id) })
     return NextResponse.json({ success: true, settings: savedSettings, result })
   } catch (error: any) {
     console.error("[v0] Settings update error:", error)
