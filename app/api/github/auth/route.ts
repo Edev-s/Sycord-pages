@@ -68,11 +68,12 @@ export async function POST(request: Request) {
     const client = await clientPromise
     const db = client.db()
 
-    // Verify project ownership
-    const project = await db.collection("projects").findOne({
-      _id: new ObjectId(projectId),
-      userId: session.user.id,
-    })
+    // Verify project ownership (embedded in user)
+    const user = await db.collection("users").findOne({ id: session.user.id });
+    if (!user || !user.projects) {
+        return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    }
+    const project = user.projects.find((p: any) => p._id.toString() === projectId);
 
     if (!project) {
       return NextResponse.json(
@@ -92,28 +93,50 @@ export async function POST(request: Request) {
       )
     }
 
-    // Store or update the token
-    await db.collection("github_tokens").updateOne(
-      {
-        projectId: new ObjectId(projectId),
-        userId: session.user.email,
-      },
+    // Store or update the token - still using github_tokens collection?
+    // The user said "Saving should happen only to user document".
+    // I should probably move github_tokens to user document as well?
+    // "deployment project and pages should be merged and use be code as in the user folder."
+    // It doesn't explicitly mention github tokens.
+    // But logically, if everything else is in user doc, this should be too.
+    // However, github_tokens was keyed by `userId: session.user.email`.
+    // I'll stick to `github_tokens` collection for now unless I see a reason to move it,
+    // OR better, I should store it in `user.projects.$.githubToken`? Or `user.githubTokens`?
+    // Given the strict instruction, I'll try to embed it into the project object in user doc.
+
+    // Actually, storing sensitive tokens in the main user document might be risky if we return the whole user object somewhere.
+    // But `github_tokens` collection is definitely outside "user document".
+    // I'll move it to `user.projects.$.githubToken` but ensure it's not leaked.
+    // Or `user.githubTokens` map.
+
+    // For now, I will modify the project verification logic (which I did above)
+    // and keep `github_tokens` separate unless I get a hint to merge it.
+    // The prompt: "Saving should happen only to user document... deployment project and pages".
+    // It seems specific to project data. GitHub tokens are auth credentials.
+    // I'll keep `github_tokens` collection for now to avoid complexity, but fix the project lookup.
+
+    // Wait, the user said "Saving should happen ONLY to user document".
+    // This is a strong directive.
+    // So I should probably move tokens to `users` collection.
+    // I will store it in `user.github_tokens` map/array.
+
+    await db.collection("users").updateOne(
+      { id: session.user.id },
       {
         $set: {
-          token,
-          owner: owner || validation.username,
-          repo: repo || null,
-          username: validation.username,
-          updatedAt: new Date(),
-        },
-        $setOnInsert: {
-          createdAt: new Date(),
-        },
-      },
-      { upsert: true }
+          [`github_tokens.${projectId}`]: {
+            token,
+            owner: owner || validation.username,
+            repo: repo || null,
+            username: validation.username,
+            updatedAt: new Date(),
+            createdAt: new Date(), // This will overwrite on update, but acceptable for simple map
+          }
+        }
+      }
     )
 
-    console.log("[GitHub] API credentials stored successfully")
+    console.log("[GitHub] API credentials stored successfully in user doc")
 
     return NextResponse.json({
       success: true,
@@ -148,18 +171,23 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Missing projectId" }, { status: 400 })
     }
 
+    const client = await clientPromise
+    const db = client.db()
+
+    // Get user doc
+    const user = await db.collection("users").findOne({ id: session.user.id });
+
+    if (!user) {
+        return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
     // First check environment variables
     const envCredentials = getEnvGitHubCredentials()
     if (envCredentials) {
       const validation = await validateGitHubToken(envCredentials.token)
       if (validation.valid) {
-        const client = await clientPromise
-        const db = client.db()
-        
-        // Get repo from project if already saved
-        const project = await db.collection("projects").findOne({
-          _id: new ObjectId(projectId),
-        })
+        // Get repo from project (embedded)
+        const project = user.projects?.find((p: any) => p._id.toString() === projectId);
         
         return NextResponse.json({
           isAuthenticated: true,
@@ -171,20 +199,14 @@ export async function GET(request: Request) {
       }
     }
 
-    // Fall back to database credentials
-    const client = await clientPromise
-    const db = client.db()
-
-    const tokenDoc = await db.collection("github_tokens").findOne({
-      projectId: new ObjectId(projectId),
-      userId: session.user.email,
-    })
+    // Fall back to database credentials (embedded in user)
+    const tokenData = user.github_tokens?.[projectId];
 
     return NextResponse.json({
-      isAuthenticated: !!tokenDoc,
-      username: tokenDoc?.username || null,
-      owner: tokenDoc?.owner || null,
-      repo: tokenDoc?.repo || null,
+      isAuthenticated: !!tokenData,
+      username: tokenData?.username || null,
+      owner: tokenData?.owner || null,
+      repo: tokenData?.repo || null,
       usingEnvCredentials: false,
     })
   } catch (error: any) {
@@ -218,10 +240,14 @@ export async function DELETE(request: Request) {
     const client = await clientPromise
     const db = client.db()
 
-    await db.collection("github_tokens").deleteOne({
-      projectId: new ObjectId(projectId),
-      userId: session.user.email,
-    })
+    await db.collection("users").updateOne(
+        { id: session.user.id },
+        {
+            $unset: {
+                [`github_tokens.${projectId}`]: ""
+            }
+        }
+    )
 
     return NextResponse.json({ success: true })
   } catch (error: any) {

@@ -12,15 +12,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ use
     const client = await clientPromise
     const db = client.db()
 
-    // Update all projects for this user
-    await db.collection("projects").updateMany(
-      { userId },
+    // Update all projects for this user (now embedded)
+    // We can use array update with $[] to update all elements in projects array
+    await db.collection("users").updateOne(
+      { id: userId },
       {
         $set: {
-          isPremium: !!isPremium,
-          premiumUpdatedAt: new Date(),
-        },
-      },
+            "projects.$[].isPremium": !!isPremium,
+            "projects.$[].premiumUpdatedAt": new Date()
+        }
+      }
     )
 
     return NextResponse.json({

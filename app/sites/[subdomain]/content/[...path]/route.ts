@@ -15,52 +15,34 @@ export async function GET(
     const client = await clientPromise
     const db = client.db()
 
-    // Try to find deployment first
-    let deployment = await db.collection("deployments").findOne({
-      subdomain: subdomain.toLowerCase(),
+    // Find user who has a project with this subdomain
+    const userWithProject = await db.collection("users").findOne({
+      "projects.subdomain": subdomain.toLowerCase()
+    }, {
+      projection: { "projects.$": 1 }
     })
 
-    let projectId
-
-    if (deployment) {
-      projectId = deployment.projectId
-    } else {
-      // Fallback to project lookup
-      const project = await db.collection("projects").findOne({
-        subdomain: subdomain.toLowerCase(),
-      })
-      if (project) {
-        projectId = project._id
-      }
-    }
-
-    if (!projectId) {
+    if (!userWithProject || !userWithProject.projects || userWithProject.projects.length === 0) {
       return new Response("Site Not Found", { status: 404 })
     }
 
-    const project = await db.collection("projects").findOne({
-      _id: projectId,
-    })
+    const project = userWithProject.projects[0];
+    const projectId = project._id;
 
-    if (!project || !project.pages) {
-      // Fallback to aiGeneratedCode if pages array doesn't exist (legacy)
-      if (project?.aiGeneratedCode && (filename === "index.html" || filename === "index")) {
-         return new Response(project.aiGeneratedCode, {
-            headers: { "Content-Type": "text/html" },
-         })
-      }
+    if (!project || (!project.pages && !project.aiGeneratedCode)) {
       return new Response("Content Not Found", { status: 404 })
     }
 
     // Find file in pages array with robust matching
-    let file = project.pages.find((p: any) => {
+    const pages = project.pages || [];
+    let file = pages.find((p: any) => {
         const storedName = p.name.replace(/^\//, "")
         return storedName === filename
     })
 
     // Try adding .html if missing
     if (!file && !filename.includes('.')) {
-        file = project.pages.find((p: any) => {
+        file = pages.find((p: any) => {
             const storedName = p.name.replace(/^\//, "")
             return storedName === `${filename}.html`
         })
@@ -68,10 +50,17 @@ export async function GET(
 
     // Default to index.html if root request
     if (!file && (filename === "" || filename === "index")) {
-        file = project.pages.find((p: any) => {
+        file = pages.find((p: any) => {
             const storedName = p.name.replace(/^\//, "")
             return storedName === "index.html"
         })
+    }
+
+    // Fallback to legacy aiGeneratedCode
+    if (!file && project.aiGeneratedCode && (filename === "index.html" || filename === "index" || filename === "")) {
+         return new Response(project.aiGeneratedCode, {
+            headers: { "Content-Type": "text/html" },
+         })
     }
 
     if (!file) {

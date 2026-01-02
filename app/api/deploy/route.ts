@@ -208,11 +208,13 @@ export async function POST(request: Request) {
     const { token, owner } = envCredentials
     console.log("[Deploy] Using environment credentials")
 
-    // Get project
-    const project = await db.collection("projects").findOne({
-      _id: new ObjectId(projectId),
-      userId: session.user.id,
-    })
+    // Get project from USER document
+    const userDoc = await db.collection("users").findOne({ id: session.user.id });
+    if (!userDoc || !userDoc.projects) {
+        return NextResponse.json({ error: "Project not found" }, { status: 404 })
+    }
+
+    const project = userDoc.projects.find((p: any) => p._id.toString() === projectId);
 
     if (!project) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 })
@@ -249,16 +251,14 @@ export async function POST(request: Request) {
       repoId = data.id
     }
 
-    // Fetch pages from MongoDB
-    const pages = await db.collection("pages").find({
-      projectId: new ObjectId(projectId)
-    }).toArray()
+    // Fetch pages from project object
+    const pages = project.pages || [];
 
     const files: GitHubFile[] = []
     let hasIndexHtml = false
 
     if (pages.length > 0) {
-      console.log(`[Deploy] Found ${pages.length} pages in database`)
+      console.log(`[Deploy] Found ${pages.length} pages in project`)
       
       for (const page of pages) {
         let path = page.name
@@ -325,24 +325,25 @@ export async function POST(request: Request) {
 
     const gitUrl = `https://github.com/${owner}/${repo}`
 
-    // Update project with GitHub info
-    await db.collection("projects").updateOne(
-      { _id: new ObjectId(projectId) },
-      {
-        $set: {
-          githubOwner: owner,
-          githubRepo: repo,
-          githubRepoId: repoId,
-          githubUrl: gitUrl,
-          githubSavedAt: new Date(),
-          deployedAt: new Date(),
+    // Update project with GitHub info (inside users collection)
+    await db.collection("users").updateOne(
+        {
+            id: session.user.id,
+            "projects._id": new ObjectId(projectId)
         },
-      }
+        {
+            $set: {
+                "projects.$.githubOwner": owner,
+                "projects.$.githubRepo": repo,
+                "projects.$.githubRepoId": repoId,
+                "projects.$.githubUrl": gitUrl,
+                "projects.$.githubSavedAt": new Date(),
+                "projects.$.deployedAt": new Date()
+            }
+        }
     )
 
     // Save to user's git_connection in the users collection
-    // Structure: main > users > {user} > git_connection > {repo_id}
-    // Note: We don't store the actual token for security reasons - it comes from environment variables
     const gitConnectionData = {
       username: owner,
       repo_id: repoId.toString(),

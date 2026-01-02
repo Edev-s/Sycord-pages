@@ -18,16 +18,27 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ message: "Invalid project ID" }, { status: 400 })
   }
 
-  const project = await db.collection("projects").findOne({
-    _id: new ObjectId(id),
-    userId: session.user.id,
-  })
+  try {
+    const user = await db.collection("users").findOne(
+        { id: session.user.id },
+        { projection: { projects: 1 } }
+    )
 
-  if (!project) {
-    return NextResponse.json({ message: "Project not found" }, { status: 404 })
+    if (!user || !user.projects) {
+        return NextResponse.json({ message: "Project not found" }, { status: 404 })
+    }
+
+    const project = user.projects.find((p: any) => p._id.toString() === id)
+
+    if (!project) {
+      return NextResponse.json({ message: "Project not found" }, { status: 404 })
+    }
+
+    return NextResponse.json(project)
+  } catch (error) {
+    console.error("Error fetching project:", error)
+    return NextResponse.json({ message: "Error fetching project" }, { status: 500 })
   }
-
-  return NextResponse.json(project)
 }
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -45,9 +56,23 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ message: "Invalid project ID" }, { status: 400 })
   }
 
-  const result = await db
-    .collection("projects")
-    .updateOne({ _id: new ObjectId(id), userId: session.user.id }, { $set: { ...body, updatedAt: new Date() } })
+  // Construct update object for specific fields in the array element
+  // keys in body need to be mapped to "projects.$.key"
+  const updateFields: any = {};
+  for (const key in body) {
+      if (key !== '_id' && key !== 'userId') {
+          updateFields[`projects.$.${key}`] = body[key];
+      }
+  }
+  updateFields[`projects.$.updatedAt`] = new Date();
+
+  const result = await db.collection("users").updateOne(
+    {
+        id: session.user.id,
+        "projects._id": new ObjectId(id)
+    },
+    { $set: updateFields }
+  )
 
   if (result.matchedCount === 0) {
     return NextResponse.json({ message: "Project not found" }, { status: 404 })
@@ -71,26 +96,26 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   }
 
   try {
-    // Get the project to verify ownership
-    const project = await db.collection("projects").findOne({
-      _id: new ObjectId(id),
-      userId: session.user.id,
-    })
+    // Remove the project from the projects array
+    const result = await db.collection("users").updateOne(
+        { id: session.user.id },
+        {
+            $pull: {
+                projects: { _id: new ObjectId(id) }
+            } as any
+        }
+    )
 
-    if (!project) {
-      return NextResponse.json({ message: "Project not found" }, { status: 404 })
+    if (result.modifiedCount === 0) {
+       // Could mean project didn't exist or user didn't own it
+       // Check if user exists
+       const user = await db.collection("users").findOne({ id: session.user.id });
+       if (!user) {
+         return NextResponse.json({ message: "User not found" }, { status: 404 })
+       }
+       // If user exists but modifiedCount is 0, then project wasn't found in array
+       return NextResponse.json({ message: "Project not found" }, { status: 404 })
     }
-
-    // Delete all deployments associated with this project
-    await db.collection("deployments").deleteMany({
-      projectId: id,
-    })
-
-    // Delete the project itself
-    const result = await db.collection("projects").deleteOne({
-      _id: new ObjectId(id),
-      userId: session.user.id,
-    })
 
     console.log("[v0] Project deleted:", { projectId: id, userId: session.user.id })
 

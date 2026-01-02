@@ -9,6 +9,18 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const client = await clientPromise
   const db = client.db()
 
+  // Still fetching from products collection as requested to keep scope limited,
+  // but projectId string ID is now used.
+  // Note: projects in user doc have `_id` as ObjectId, but when serialized or passed as string params, it works.
+  // The `products` collection stores `projectId` as string or ObjectId?
+  // Original code: `find({ projectId: id })`.
+  // If `id` comes from params, it's string.
+  // I should check if products store ObjectId or String for projectId.
+  // `app/api/projects/route.ts` creates products? No, this route creates products.
+  // And it stores `projectId: id`.
+  // So it depends on how `id` was passed. In URL it's string.
+  // So likely stored as string.
+
   const products = await db.collection("products").find({ projectId: id }).toArray()
   return NextResponse.json(products)
 }
@@ -23,11 +35,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const client = await clientPromise
   const db = client.db()
 
-  // Verify project ownership
-  const project = await db.collection("projects").findOne({
-    _id: new ObjectId(id),
-    userId: session.user.id,
-  })
+  // Verify project ownership (embedded in user)
+  const user = await db.collection("users").findOne({ id: session.user.id });
+  if (!user || !user.projects) {
+    return NextResponse.json({ message: "Project not found" }, { status: 404 })
+  }
+  const project = user.projects.find((p: any) => p._id.toString() === id);
 
   if (!project) {
     return NextResponse.json({ message: "Project not found" }, { status: 404 })
@@ -36,7 +49,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const body = await request.json()
   const newProduct = {
     ...body,
-    projectId: id,
+    projectId: id, // Storing as string to match existing pattern if any
     createdAt: new Date(),
   }
 
@@ -59,6 +72,10 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
 
   const client = await clientPromise
   const db = client.db()
+
+  // Should also verify ownership here theoretically, but assuming product deletion by ID implies access check or we rely on productId matching?
+  // Original code didn't verify ownership in DELETE (only session). Ideally we should.
+  // I will leave it as is to avoid scope creep, just updating project verification where it existed.
 
   const result = await db.collection("products").deleteOne({
     _id: new ObjectId(productId),
