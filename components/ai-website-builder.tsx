@@ -265,12 +265,13 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
         message: result.message || `Successfully deployed ${result.filesCount} file(s)`
       })
 
-      // Reset success state after 10 seconds (longer to let user see result)
+      // Reset only the progress bar animation after 10 seconds
+      // Keep deployResult and deploySuccess to show the URL persistently
       const SUCCESS_DISPLAY_DURATION_MS = 10000
       setTimeout(() => {
-        setDeploySuccess(false)
         setDeployProgress(0)
         setDeployStatus("")
+        // Don't reset deploySuccess or deployResult - keep showing the URL
       }, SUCCESS_DISPLAY_DURATION_MS)
 
     } catch (err: any) {
@@ -437,26 +438,30 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
                           )}
                         </div>
                         {deploySuccess && (deployResult?.url || deployResult?.githubUrl) && (
-                          <div className="w-full px-3 py-2 text-[10px] text-center text-muted-foreground border-t border-border/10 flex flex-col gap-1">
+                          <div className="w-full px-3 py-3 text-[11px] text-center border-t border-border/10 flex flex-col gap-2 bg-green-500/5">
                             {deployResult?.url && (
-                              <a 
-                                href={deployResult.url} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="text-primary hover:underline font-medium truncate block max-w-full"
-                                title={deployResult.url}
-                              >
-                                🌐 View Live Site →
-                              </a>
+                              <div className="flex flex-col gap-1">
+                                <span className="text-green-500 font-medium flex items-center justify-center gap-1">
+                                  ✓ Deployed Successfully
+                                </span>
+                                <a 
+                                  href={deployResult.url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-primary hover:underline font-medium break-all"
+                                >
+                                  🌐 {deployResult.url}
+                                </a>
+                              </div>
                             )}
                             {deployResult?.githubUrl && (
                               <a 
                                 href={deployResult.githubUrl} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
-                                className="text-muted-foreground hover:text-primary hover:underline"
+                                className="text-muted-foreground hover:text-primary hover:underline text-[10px]"
                               >
-                                View on GitHub
+                                View source on GitHub
                               </a>
                             )}
                           </div>
