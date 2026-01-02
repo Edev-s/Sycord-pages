@@ -443,9 +443,10 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
                                 href={deployResult.url} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
-                                className="text-primary hover:underline font-medium"
+                                className="text-primary hover:underline font-medium truncate block max-w-full"
+                                title={deployResult.url}
                               >
-                                🌐 View Live Site: {deployResult.url}
+                                🌐 View Live Site →
                               </a>
                             )}
                             {deployResult?.githubUrl && (
