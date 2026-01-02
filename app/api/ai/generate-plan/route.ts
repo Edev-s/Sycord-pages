@@ -36,19 +36,19 @@ export async function POST(request: Request) {
     OUTPUT FORMAT:
     You must output a single text block strictly following this format:
 
-    [0] The user base plan is to create [Overview of the site]. As an AI web builder, I will generate the following files: {index.ts, style.css, utils.ts, ...}. I will mention to myself that the backend will help to identify the file I am building, this happen by the backend will replace the number mark [1] with a [Done] mark.
+    [0] The user base plan is to create [Overview of the site]. As an AI web builder, I will generate the following files: {index.html, about.html, contact.html, ...}. I will mention to myself that the backend will help to identify the file I am building, this happen by the backend will replace the number mark [1] with a [Done] mark.
 
-    [1] index.ts : <entry point logic and DOM structure generation>
-    [2] style.css : <description of file>
-    [3] utils.ts : <description of file>
+    [1] index.html : <entry point with hero section, navigation, and main content>
+    [2] about.html : <description of file>
+    [3] contact.html : <description of file>
     ...
 
     REQUIREMENTS:
-    1.  **Scale**: Plan for a COMPLETE experience (5-10 files typically).
-    2.  **Files**: Do NOT include 'index.html'. The entry point MUST be 'index.ts'. The system will handle the HTML wrapper.
+    1.  **Scale**: Plan for a COMPLETE experience (3-7 HTML files typically).
+    2.  **HTML Files**: All page files MUST use .html extension. The entry point MUST be 'index.html'. Generate pure HTML files with embedded CSS and JavaScript.
     3.  **Strict Syntax**: Use brackets [1], [2], etc. for file steps.
-    4.  **Static Only**: Only suggest files that can run in a browser (HTML/CSS/JS). Do not suggest backend files (e.g., node.js servers, php) unless they are purely client-side mocks.
-    5.  **Language**: The user prefers TypeScript. You should plan for '.ts' files instead of '.js'.
+    4.  **Static Only**: Only suggest files that can run directly in a browser (HTML with embedded CSS/JS). Do not suggest TypeScript, TSX, JSX, React components, or backend files.
+    5.  **Format**: Generate complete HTML documents with <!DOCTYPE html>, <html>, <head>, and <body> tags. Use Tailwind CSS via CDN and vanilla JavaScript only.
     `
 
     // Combine history for context

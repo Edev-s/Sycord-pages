@@ -67,7 +67,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
   const [isDeploying, setIsDeploying] = useState(false)
   const [deployProgress, setDeployProgress] = useState(0)
   const [deploySuccess, setDeploySuccess] = useState(false)
-  const [deployResult, setDeployResult] = useState<{ url?: string; message?: string } | null>(null)
+  const [deployResult, setDeployResult] = useState<{ url?: string; githubUrl?: string; message?: string } | null>(null)
 
   // Instruction State (The "Plan" text)
   const [instruction, setInstruction] = useState<string>("")
@@ -263,8 +263,9 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
       setDeployProgress(100)
       setDeploySuccess(true)
       setDeployResult({
-        url: result.url,
-        message: result.message || `Successfully deployed ${result.filesCount} file(s) to GitHub`
+        url: result.cloudflareUrl || result.url,
+        githubUrl: result.githubUrl,
+        message: result.message || `Successfully deployed ${result.filesCount} file(s)`
       })
 
       // Reset success state after 5 seconds
@@ -436,16 +437,28 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
                             </div>
                           )}
                         </div>
-                        {deployResult?.url && deploySuccess && (
-                          <div className="w-full px-3 py-2 text-[10px] text-center text-muted-foreground border-t border-border/10">
-                            <a 
-                              href={deployResult.url} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-primary hover:underline"
-                            >
-                              View on GitHub →
-                            </a>
+                        {deploySuccess && (deployResult?.url || deployResult?.githubUrl) && (
+                          <div className="w-full px-3 py-2 text-[10px] text-center text-muted-foreground border-t border-border/10 flex flex-col gap-1">
+                            {deployResult?.url && (
+                              <a 
+                                href={deployResult.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline"
+                              >
+                                View Live Site →
+                              </a>
+                            )}
+                            {deployResult?.githubUrl && (
+                              <a 
+                                href={deployResult.githubUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-muted-foreground hover:text-primary hover:underline"
+                              >
+                                View on GitHub
+                              </a>
+                            )}
                           </div>
                         )}
                       </CardFooter>

@@ -5,6 +5,7 @@ import clientPromise from "@/lib/mongodb"
 import { ObjectId } from "mongodb"
 
 const GITHUB_API_BASE = "https://api.github.com"
+const SYCORD_DEPLOY_API_BASE = "https://micro1.sycord.com"
 
 // Initial delay after creating a repository before attempting file upload
 const INITIAL_REPO_DELAY_MS = 1000
@@ -365,14 +366,64 @@ export async function POST(request: Request) {
     console.log(`[Deploy] Successfully deployed ${files.length} files to ${owner}/${repo} (ID: ${repoId})`)
     console.log(`[Deploy] Saved git_connection for user ${session.user.id}`)
 
+    // Call external Sycord API to deploy to Cloudflare Pages
+    let cloudflareUrl: string | null = null
+    let cloudflareProjectName: string | null = null
+    let deployMessage = `Successfully deployed ${files.length} file(s) to GitHub`
+    
+    try {
+      console.log(`[Deploy] Calling Sycord deployment API for repo_id: ${repoId}`)
+      const sycordResponse = await fetch(`${SYCORD_DEPLOY_API_BASE}/api/deploy/${repoId}`, {
+        method: "POST",
+        headers: {
+          "Accept": "application/json",
+        },
+      })
+
+      const sycordData = await sycordResponse.json()
+
+      if (sycordResponse.ok && sycordData.success) {
+        cloudflareUrl = sycordData.url
+        cloudflareProjectName = sycordData.project_name
+        deployMessage = sycordData.message || `Successfully deployed to Cloudflare Pages!`
+        console.log(`[Deploy] Sycord deployment successful: ${cloudflareUrl}`)
+
+        // Update project with Cloudflare deployment info
+        await db.collection("users").updateOne(
+          {
+            id: session.user.id,
+            "projects._id": new ObjectId(projectId)
+          },
+          {
+            $set: {
+              "projects.$.cloudflareUrl": cloudflareUrl,
+              "projects.$.cloudflareProjectName": cloudflareProjectName,
+              "projects.$.cloudflareDeployedAt": new Date()
+            }
+          }
+        )
+      } else {
+        console.error(`[Deploy] Sycord deployment failed:`, sycordData)
+        // Don't fail the entire request - GitHub deploy succeeded
+        deployMessage = `Deployed to GitHub. Cloudflare deployment failed: ${sycordData.message || 'Unknown error'}`
+      }
+    } catch (sycordError: any) {
+      console.error(`[Deploy] Sycord API error:`, sycordError)
+      // Don't fail the entire request - GitHub deploy succeeded
+      deployMessage = `Deployed to GitHub. Cloudflare deployment unavailable.`
+    }
+
     return NextResponse.json({
       success: true,
       owner,
       repo,
       repoId,
-      url: gitUrl,
+      url: cloudflareUrl || gitUrl,
+      githubUrl: gitUrl,
+      cloudflareUrl,
+      cloudflareProjectName,
       filesCount: files.length,
-      message: `Successfully deployed ${files.length} file(s) to GitHub`
+      message: deployMessage
     })
   } catch (error: any) {
     console.error("[Deploy] Error:", error)
