@@ -86,6 +86,15 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
     scrollToBottom()
   }, [messages, currentPlan, step])
 
+  // Debug: Log whenever deployment state changes
+  useEffect(() => {
+    console.log("[Deploy] DEBUG useEffect: deploySuccess changed to:", deploySuccess)
+    console.log("[Deploy] DEBUG useEffect: deployResult changed to:", JSON.stringify(deployResult, null, 2))
+    if (deploySuccess && deployResult) {
+      console.log("[Deploy] DEBUG useEffect: BOTH deploySuccess AND deployResult are truthy - banner should be visible!")
+    }
+  }, [deploySuccess, deployResult])
+
   // Start the process
   const startGeneration = async () => {
     if (!input.trim()) return
@@ -297,8 +306,15 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
       }
       console.log("[Deploy] DEBUG: Final deployResultData:", JSON.stringify(deployResultData, null, 2))
       
+      console.log("[Deploy] DEBUG: About to call setDeploySuccess(true)")
       setDeploySuccess(true)
+      console.log("[Deploy] DEBUG: About to call setDeployResult with:", deployResultData)
       setDeployResult(deployResultData)
+      console.log("[Deploy] DEBUG: State updates called - deploySuccess and deployResult should now be set")
+      
+      // Force a small delay to ensure React has time to process the state updates
+      await new Promise(resolve => setTimeout(resolve, 100))
+      console.log("[Deploy] DEBUG: After delay - UI should now show deployment result")
 
       // Reset only the progress bar animation after 10 seconds
       // Keep deployResult and deploySuccess to show the URL persistently
@@ -307,14 +323,17 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
         setDeployProgress(0)
         setDeployStatus("")
         // Don't reset deploySuccess or deployResult - keep showing the URL
+        console.log("[Deploy] DEBUG: Progress bar reset, but keeping deploySuccess and deployResult")
       }, SUCCESS_DISPLAY_DURATION_MS)
 
     } catch (err: any) {
+      console.error("[Deploy] DEBUG: Error caught:", err.message)
       setError(err.message || "Deployment failed")
       setDeployProgress(0)
       setDeployStatus("")
     } finally {
       setIsDeploying(false)
+      console.log("[Deploy] DEBUG: Finally block - isDeploying set to false")
     }
   }
 
@@ -359,6 +378,45 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
           </DropdownMenu>
         </div>
       </div>
+
+      {/* DEPLOYMENT SUCCESS BANNER - Always visible at top when deployed */}
+      {deploySuccess && deployResult && (
+        <div className="px-4 py-3 bg-green-500/10 border-b border-green-500/30">
+          <div className="max-w-3xl mx-auto flex flex-col gap-2">
+            <div className="flex items-center justify-center gap-2 text-green-500 font-semibold">
+              <CheckCircle2 className="h-5 w-5" />
+              <span>✓ Deployed Successfully!</span>
+            </div>
+            {deployResult.url ? (
+              <div className="flex flex-col items-center gap-1">
+                <span className="text-xs text-muted-foreground">Your site is live at:</span>
+                <a 
+                  href={deployResult.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline font-bold text-lg break-all"
+                >
+                  🌐 {deployResult.url}
+                </a>
+              </div>
+            ) : (
+              <div className="text-center text-xs text-yellow-600 bg-yellow-500/10 p-2 rounded">
+                ⚠️ Deployed but no Cloudflare URL received. Debug: {deployResult.debug?.substring(0, 200)}...
+              </div>
+            )}
+            {deployResult.githubUrl && (
+              <a 
+                href={deployResult.githubUrl} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-primary hover:underline text-xs text-center"
+              >
+                View source on GitHub →
+              </a>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-8 custom-scrollbar">
