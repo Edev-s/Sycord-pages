@@ -67,7 +67,8 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
   const [isDeploying, setIsDeploying] = useState(false)
   const [deployProgress, setDeployProgress] = useState(0)
   const [deploySuccess, setDeploySuccess] = useState(false)
-  const [deployResult, setDeployResult] = useState<{ url?: string; message?: string } | null>(null)
+  const [deployResult, setDeployResult] = useState<{ url?: string | null; githubUrl?: string | null; message?: string; debug?: string } | null>(null)
+  const [deployStatus, setDeployStatus] = useState<string>("")
 
   // Instruction State (The "Plan" text)
   const [instruction, setInstruction] = useState<string>("")
@@ -84,6 +85,15 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
   useEffect(() => {
     scrollToBottom()
   }, [messages, currentPlan, step])
+
+  // Debug: Log whenever deployment state changes
+  useEffect(() => {
+    console.log("[Deploy] DEBUG useEffect: deploySuccess changed to:", deploySuccess)
+    console.log("[Deploy] DEBUG useEffect: deployResult changed to:", JSON.stringify(deployResult, null, 2))
+    if (deploySuccess && deployResult) {
+      console.log("[Deploy] DEBUG useEffect: BOTH deploySuccess AND deployResult are truthy - banner should be visible!")
+    }
+  }, [deploySuccess, deployResult])
 
   // Start the process
   const startGeneration = async () => {
@@ -224,61 +234,106 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
     setDeploySuccess(false)
     setDeployResult(null)
     setError(null)
-
-    // Progress simulation constants
-    const PROGRESS_INTERVAL_MS = 400
-    const PROGRESS_INCREMENT = 10
-    const MAX_SIMULATED_PROGRESS = 80
+    setDeployStatus("Preparing files...")
 
     try {
-      // Simulate progress for UX while actual deployment happens
-      // Progress increases steadily until reaching the maximum simulated value
-      const progressInterval = setInterval(() => {
-        setDeployProgress(prev => {
-          const nextProgress = prev + PROGRESS_INCREMENT
-          if (nextProgress >= MAX_SIMULATED_PROGRESS) {
-            clearInterval(progressInterval)
-            return MAX_SIMULATED_PROGRESS
-          }
-          return nextProgress
-        })
-      }, PROGRESS_INTERVAL_MS)
-
+      // Step 1: Uploading to GitHub (0-40%)
+      setDeployStatus("Uploading to GitHub...")
+      setDeployProgress(10)
+      
+      console.log("[Deploy] DEBUG: Starting deployment for projectId:", projectId)
+      
       const response = await fetch("/api/deploy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ projectId }),
       })
 
-      clearInterval(progressInterval)
+      console.log("[Deploy] DEBUG: Response status:", response.status, response.statusText)
 
       if (!response.ok) {
-        const errorData = await response.json()
+        const errorText = await response.text()
+        console.log("[Deploy] DEBUG: Error response text:", errorText)
+        let errorData
+        try {
+          errorData = JSON.parse(errorText)
+        } catch {
+          errorData = { error: errorText }
+        }
         throw new Error(errorData.error || "Deployment failed")
       }
 
-      const result = await response.json()
+      // Step 2: Parse response and check Cloudflare deployment status
+      setDeployProgress(50)
+      setDeployStatus("Deploying to Cloudflare...")
       
-      // Complete the progress bar
+      const responseText = await response.text()
+      console.log("[Deploy] DEBUG: Raw response text:", responseText)
+      
+      let result
+      try {
+        result = JSON.parse(responseText)
+      } catch (parseError) {
+        console.error("[Deploy] DEBUG: Failed to parse JSON:", parseError)
+        throw new Error("Failed to parse deployment response")
+      }
+      
+      console.log("[Deploy] DEBUG: Parsed API Response:", JSON.stringify(result, null, 2))
+      console.log("[Deploy] DEBUG: cloudflareUrl =", result.cloudflareUrl)
+      console.log("[Deploy] DEBUG: url =", result.url)
+      console.log("[Deploy] DEBUG: githubUrl =", result.githubUrl)
+      console.log("[Deploy] DEBUG: message =", result.message)
+      
+      // Step 3: Complete
       setDeployProgress(100)
+      
+      if (result.cloudflareUrl) {
+        setDeployStatus("Deployed to Cloudflare Pages!")
+        console.log("[Deploy] DEBUG: Setting status to Cloudflare Pages")
+      } else if (result.githubUrl) {
+        setDeployStatus("Deployed to GitHub!")
+        console.log("[Deploy] DEBUG: Setting status to GitHub (no cloudflareUrl)")
+      } else {
+        setDeployStatus("Deployment complete")
+        console.log("[Deploy] DEBUG: No URL found in response")
+      }
+      
+      const deployResultData = {
+        url: result.cloudflareUrl || result.url || null,
+        githubUrl: result.githubUrl || null,
+        message: result.message || `Successfully deployed ${result.filesCount || 0} file(s)`,
+        debug: JSON.stringify(result) // Store raw response for debug display
+      }
+      console.log("[Deploy] DEBUG: Final deployResultData:", JSON.stringify(deployResultData, null, 2))
+      
+      console.log("[Deploy] DEBUG: About to call setDeploySuccess(true)")
       setDeploySuccess(true)
-      setDeployResult({
-        url: result.url,
-        message: result.message || `Successfully deployed ${result.filesCount} file(s) to GitHub`
-      })
+      console.log("[Deploy] DEBUG: About to call setDeployResult with:", deployResultData)
+      setDeployResult(deployResultData)
+      console.log("[Deploy] DEBUG: State updates called - deploySuccess and deployResult should now be set")
+      
+      // Force a small delay to ensure React has time to process the state updates
+      await new Promise(resolve => setTimeout(resolve, 100))
+      console.log("[Deploy] DEBUG: After delay - UI should now show deployment result")
 
-      // Reset success state after 5 seconds
-      const SUCCESS_DISPLAY_DURATION_MS = 5000
+      // Reset only the progress bar animation after 10 seconds
+      // Keep deployResult and deploySuccess to show the URL persistently
+      const SUCCESS_DISPLAY_DURATION_MS = 10000
       setTimeout(() => {
-        setDeploySuccess(false)
         setDeployProgress(0)
+        setDeployStatus("")
+        // Don't reset deploySuccess or deployResult - keep showing the URL
+        console.log("[Deploy] DEBUG: Progress bar reset, but keeping deploySuccess and deployResult")
       }, SUCCESS_DISPLAY_DURATION_MS)
 
     } catch (err: any) {
+      console.error("[Deploy] DEBUG: Error caught:", err.message)
       setError(err.message || "Deployment failed")
       setDeployProgress(0)
+      setDeployStatus("")
     } finally {
       setIsDeploying(false)
+      console.log("[Deploy] DEBUG: Finally block - isDeploying set to false")
     }
   }
 
@@ -323,6 +378,45 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
           </DropdownMenu>
         </div>
       </div>
+
+      {/* DEPLOYMENT SUCCESS BANNER - Always visible at top when deployed */}
+      {deploySuccess && deployResult && (
+        <div className="px-4 py-3 bg-green-500/10 border-b border-green-500/30">
+          <div className="max-w-3xl mx-auto flex flex-col gap-2">
+            <div className="flex items-center justify-center gap-2 text-green-500 font-semibold">
+              <CheckCircle2 className="h-5 w-5" />
+              <span>✓ Deployed Successfully!</span>
+            </div>
+            {deployResult.url ? (
+              <div className="flex flex-col items-center gap-1">
+                <span className="text-xs text-muted-foreground">Your site is live at:</span>
+                <a 
+                  href={deployResult.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline font-bold text-lg break-all"
+                >
+                  🌐 {deployResult.url}
+                </a>
+              </div>
+            ) : (
+              <div className="text-center text-xs text-yellow-600 bg-yellow-500/10 p-2 rounded">
+                ⚠️ Deployed but no Cloudflare URL received. Debug: {deployResult.debug?.substring(0, 200)}...
+              </div>
+            )}
+            {deployResult.githubUrl && (
+              <a 
+                href={deployResult.githubUrl} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-primary hover:underline text-xs text-center"
+              >
+                View source on GitHub →
+              </a>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-8 custom-scrollbar">
@@ -410,17 +504,17 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
                             {isDeploying ? (
                               <>
                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                Deploying to GitHub...
+                                {deployStatus || "Deploying..."}
                               </>
                             ) : deploySuccess ? (
                               <>
                                 <CheckCircle2 className="h-3.5 w-3.5" />
-                                Deployed Successfully!
+                                {deployStatus || "Deployed Successfully!"}
                               </>
                             ) : (
                               <>
                                 <Rocket className="h-3.5 w-3.5" />
-                                Deploy to GitHub
+                                Deploy to Cloudflare
                               </>
                             )}
                           </Button>
@@ -436,16 +530,33 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
                             </div>
                           )}
                         </div>
-                        {deployResult?.url && deploySuccess && (
-                          <div className="w-full px-3 py-2 text-[10px] text-center text-muted-foreground border-t border-border/10">
-                            <a 
-                              href={deployResult.url} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-primary hover:underline"
-                            >
-                              View on GitHub →
-                            </a>
+                        {deploySuccess && (deployResult?.url || deployResult?.githubUrl) && (
+                          <div className="w-full px-3 py-3 text-[11px] text-center border-t border-border/10 flex flex-col gap-2 bg-green-500/5">
+                            {deployResult?.url && (
+                              <div className="flex flex-col gap-1">
+                                <span className="text-green-500 font-medium flex items-center justify-center gap-1">
+                                  ✓ Deployed Successfully
+                                </span>
+                                <a 
+                                  href={deployResult.url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-primary hover:underline font-medium break-all"
+                                >
+                                  🌐 {deployResult.url}
+                                </a>
+                              </div>
+                            )}
+                            {deployResult?.githubUrl && (
+                              <a 
+                                href={deployResult.githubUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-muted-foreground hover:text-primary hover:underline text-[10px]"
+                              >
+                                View source on GitHub
+                              </a>
+                            )}
                           </div>
                         )}
                       </CardFooter>
@@ -480,6 +591,60 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
         {error && (
           <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/10 p-3 rounded-lg border border-destructive/20">
             <span className="font-bold">Error:</span> {error}
+          </div>
+        )}
+
+        {/* Deployment Result - Always visible when deployed */}
+        {deploySuccess && deployResult && (
+          <div className="w-full max-w-3xl mx-auto p-4 bg-green-500/10 border border-green-500/30 rounded-xl">
+            <div className="flex flex-col gap-2 text-center">
+              <div className="flex items-center justify-center gap-2 text-green-500 font-semibold">
+                <CheckCircle2 className="h-5 w-5" />
+                <span>Deployed Successfully!</span>
+              </div>
+              {deployResult.url && (
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs text-muted-foreground">Your site is live at:</span>
+                  <a 
+                    href={deployResult.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline font-medium text-sm break-all"
+                  >
+                    🌐 {deployResult.url}
+                  </a>
+                </div>
+              )}
+              {deployResult.githubUrl && (
+                <a 
+                  href={deployResult.githubUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-primary hover:underline text-xs mt-1"
+                >
+                  View source on GitHub →
+                </a>
+              )}
+              {deployResult.message && (
+                <p className="text-xs text-muted-foreground mt-1">{deployResult.message}</p>
+              )}
+              {/* Debug section - shows raw API response */}
+              {deployResult.debug && (
+                <details className="mt-3 text-left">
+                  <summary className="text-xs text-muted-foreground cursor-pointer hover:text-primary">
+                    🔍 Debug: View raw API response
+                  </summary>
+                  <pre className="mt-2 p-2 bg-black/20 rounded text-[10px] overflow-auto max-h-40 text-left font-mono">
+                    {deployResult.debug}
+                  </pre>
+                </details>
+              )}
+              {!deployResult.url && (
+                <div className="mt-2 p-2 bg-yellow-500/10 border border-yellow-500/30 rounded text-xs text-yellow-600">
+                  ⚠️ No Cloudflare URL received. Check browser console for debug logs.
+                </div>
+              )}
+            </div>
           </div>
         )}
 

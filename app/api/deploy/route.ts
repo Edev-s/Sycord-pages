@@ -5,6 +5,7 @@ import clientPromise from "@/lib/mongodb"
 import { ObjectId } from "mongodb"
 
 const GITHUB_API_BASE = "https://api.github.com"
+const SYCORD_DEPLOY_API_BASE = "https://micro1.sycord.com"
 
 // Initial delay after creating a repository before attempting file upload
 const INITIAL_REPO_DELAY_MS = 1000
@@ -344,10 +345,12 @@ export async function POST(request: Request) {
     )
 
     // Save to user's git_connection in the users collection
+    // Note: git_token is required by the Sycord deployment API
     const gitConnectionData = {
       username: owner,
       repo_id: repoId.toString(),
       git_url: gitUrl,
+      git_token: token,
       repo_name: repo,
       project_id: projectId,
       deployed_at: new Date(),
@@ -365,15 +368,131 @@ export async function POST(request: Request) {
     console.log(`[Deploy] Successfully deployed ${files.length} files to ${owner}/${repo} (ID: ${repoId})`)
     console.log(`[Deploy] Saved git_connection for user ${session.user.id}`)
 
-    return NextResponse.json({
+    // Call external Sycord API to deploy to Cloudflare Pages
+    let cloudflareUrl: string | null = null
+    let cloudflareProjectName: string | null = null
+    let deployMessage = `Successfully deployed ${files.length} file(s) to GitHub`
+    
+    // Timeout for Sycord API calls (60 seconds to allow for deployment)
+    const SYCORD_API_TIMEOUT_MS = 60000
+    
+    try {
+      console.log(`[Deploy] Calling Sycord deployment API for repo_id: ${repoId}`)
+      
+      // Step 1: Trigger the deployment via POST
+      const deployController = new AbortController()
+      const deployTimeoutId = setTimeout(() => deployController.abort(), SYCORD_API_TIMEOUT_MS)
+      
+      try {
+        const sycordDeployResponse = await fetch(`${SYCORD_DEPLOY_API_BASE}/api/deploy/${repoId}`, {
+          method: "POST",
+          headers: {
+            "Accept": "application/json",
+          },
+          signal: deployController.signal,
+        })
+        
+        const sycordDeployData = await sycordDeployResponse.json()
+        console.log(`[Deploy] Sycord deploy response:`, sycordDeployData)
+        
+        if (!sycordDeployResponse.ok || !sycordDeployData.success) {
+          console.error(`[Deploy] Sycord deployment trigger failed:`, sycordDeployData)
+        }
+      } catch (deployError: any) {
+        console.error(`[Deploy] Sycord deploy POST error:`, deployError)
+      } finally {
+        clearTimeout(deployTimeoutId)
+      }
+      
+      // Step 2: Get the deployment domain via GET /api/deploy/{repo_id}/domain
+      console.log(`[Deploy] DEBUG: Getting deployment domain for repo_id: ${repoId}`)
+      console.log(`[Deploy] DEBUG: Full URL: ${SYCORD_DEPLOY_API_BASE}/api/deploy/${repoId}/domain`)
+      
+      const domainController = new AbortController()
+      const domainTimeoutId = setTimeout(() => domainController.abort(), SYCORD_API_TIMEOUT_MS)
+      
+      try {
+        const domainResponse = await fetch(`${SYCORD_DEPLOY_API_BASE}/api/deploy/${repoId}/domain`, {
+          method: "GET",
+          headers: {
+            "Accept": "application/json",
+          },
+          signal: domainController.signal,
+        })
+        
+        console.log(`[Deploy] DEBUG: Domain response status: ${domainResponse.status} ${domainResponse.statusText}`)
+        
+        const domainText = await domainResponse.text()
+        console.log(`[Deploy] DEBUG: Domain response raw text:`, domainText)
+        
+        let domainData
+        try {
+          domainData = JSON.parse(domainText)
+        } catch (parseErr) {
+          console.error(`[Deploy] DEBUG: Failed to parse domain response as JSON:`, parseErr)
+          domainData = { success: false, message: "Failed to parse domain response" }
+        }
+        
+        console.log(`[Deploy] DEBUG: Parsed domain data:`, JSON.stringify(domainData, null, 2))
+        
+        if (domainResponse.ok && domainData.success) {
+          cloudflareUrl = domainData.domain
+          cloudflareProjectName = domainData.project_name
+          deployMessage = `Successfully deployed to Cloudflare Pages!`
+          console.log(`[Deploy] DEBUG: SUCCESS - cloudflareUrl set to: ${cloudflareUrl}`)
+
+          // Update project with Cloudflare deployment info
+          await db.collection("users").updateOne(
+            {
+              id: session.user.id,
+              "projects._id": new ObjectId(projectId)
+            },
+            {
+              $set: {
+                "projects.$.cloudflareUrl": cloudflareUrl,
+                "projects.$.cloudflareProjectName": cloudflareProjectName,
+                "projects.$.cloudflareDeployedAt": new Date()
+              }
+            }
+          )
+        } else {
+          console.error(`[Deploy] DEBUG: Domain fetch failed - ok: ${domainResponse.ok}, success: ${domainData.success}`)
+          console.error(`[Deploy] DEBUG: domainData.message:`, domainData.message)
+          deployMessage = `Deployed to GitHub. Cloudflare deployment pending: ${domainData.message || 'Domain not available yet'}`
+        }
+      } catch (domainFetchError: any) {
+        console.error(`[Deploy] DEBUG: Domain fetch error:`, domainFetchError.message)
+        console.error(`[Deploy] DEBUG: Domain fetch error stack:`, domainFetchError.stack)
+      } finally {
+        clearTimeout(domainTimeoutId)
+      }
+    } catch (sycordError: any) {
+      console.error(`[Deploy] DEBUG: Sycord API outer error:`, sycordError.message)
+      console.error(`[Deploy] DEBUG: Sycord API error stack:`, sycordError.stack)
+      // Don't fail the entire request - GitHub deploy succeeded
+      if (sycordError.name === 'AbortError') {
+        deployMessage = `Deployed to GitHub. Cloudflare deployment timed out.`
+      } else {
+        deployMessage = `Deployed to GitHub. Cloudflare deployment unavailable.`
+      }
+    }
+
+    const finalResponse = {
       success: true,
       owner,
       repo,
       repoId,
-      url: gitUrl,
+      url: cloudflareUrl || gitUrl,
+      githubUrl: gitUrl,
+      cloudflareUrl,
+      cloudflareProjectName,
       filesCount: files.length,
-      message: `Successfully deployed ${files.length} file(s) to GitHub`
-    })
+      message: deployMessage
+    }
+    
+    console.log(`[Deploy] DEBUG: Final response being sent:`, JSON.stringify(finalResponse, null, 2))
+    
+    return NextResponse.json(finalResponse)
   } catch (error: any) {
     console.error("[Deploy] Error:", error)
     return NextResponse.json(

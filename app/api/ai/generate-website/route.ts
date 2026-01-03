@@ -111,7 +111,7 @@ export async function POST(request: Request) {
     const systemPrompt = `
       ${UI_UX_PROMPT}
 
-      CRITICAL: You MUST generate valid, complete HTML/CSS/JS code for the requested file.
+      CRITICAL: You MUST generate valid, complete HTML files with embedded CSS and JavaScript.
 
       CURRENT FILE: ${currentTask.filename}
       CONTEXT: ${currentTask.description}
@@ -129,12 +129,12 @@ export async function POST(request: Request) {
       [1<${currentTask.filename}>]
 
       REQUIREMENTS:
-      1. **Tailwind CSS**: You MUST use Tailwind CSS (https://tailwindcss.com/) for ALL styling. Do not use custom CSS classes unless absolutely necessary.
+      1. **Tailwind CSS**: You MUST use Tailwind CSS via CDN. Include this in the <head>: <script src="https://cdn.tailwindcss.com"></script>. Use Tailwind utility classes for ALL styling. Do not use custom CSS classes unless absolutely necessary.
       2. **Functional Code**: CRITICAL: Do NOT generate functions that are empty or 'pass'. Every button and input MUST have working JavaScript logic (e.g., localStorage persistence, DOM manipulation, navigation). Do NOT use alerts for 'feature coming soon'. Build it or don't include it.
       3. **No Bloat**: Do NOT include 'Demo' sections, 'Lorem Ipsum', or placeholders that don't function. Only generate code that is relevant to the user's specific request.
-      4. **Language**: The user requested TypeScript ('.ts'). You should generate **valid TypeScript** code. Use strict type safety, interfaces, and types. The deployment system will handle the transpilation using Babel.
-      5. **Entry Point**: If generating 'index.ts', ensure it creates the DOM structure (e.g., using React.createRoot or document.body.appendChild). The environment will provide React and ReactDOM via CDN.
-      6. **Production Ready**: Code must be ready to deploy.
+      4. **HTML Format**: CRITICAL: You MUST generate a complete HTML file with <!DOCTYPE html>, <html>, <head>, and <body> tags. Use inline <script> tags for JavaScript and <style> tags or Tailwind classes for CSS. Do NOT generate TypeScript, TSX, JSX, or React components. Generate pure HTML with vanilla JavaScript only.
+      5. **File Extension**: All page files should use .html extension (e.g., index.html, about.html, contact.html).
+      6. **Production Ready**: Code must be ready to deploy directly to static hosting without any build step.
     `
 
     // 3. Call AI
