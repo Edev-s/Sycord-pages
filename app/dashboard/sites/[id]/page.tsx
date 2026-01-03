@@ -633,7 +633,7 @@ export default function SiteSettingsPage() {
       .join("")
       .toUpperCase() || "U"
 
-  const previewUrl = null
+  const previewUrl = project?.cloudflareUrl || null
   const displayUrl = previewUrl ? previewUrl.replace(/^https?:\/\//, "") : null
 
   // Calculate real usage stats
