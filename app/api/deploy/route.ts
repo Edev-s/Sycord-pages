@@ -216,11 +216,10 @@ export async function POST(request: Request) {
 
     // 5. Prepare Files
     const pages = project.pages || []
-    const files = []
+    const files: { path: string, content: string }[] = []
 
-    // Always adding base Vite config if missing?
-    // The AI should generate it, but we can ensure package.json exists if we want.
-    // For now, trust the AI output + Memory.
+    // Helper to check if a file exists in the pages
+    const hasFile = (filename: string) => pages.some((p: any) => p.name === filename || p.name === `/${filename}`)
 
     if (pages.length > 0) {
         for (const page of pages) {
@@ -230,6 +229,43 @@ export async function POST(request: Request) {
         }
     } else if (project.aiGeneratedCode) {
         files.push({ path: "index.html", content: project.aiGeneratedCode })
+    }
+
+    // Auto-generate essential config files if missing
+    if (!hasFile('package.json')) {
+        const packageJson = {
+            name: repo,
+            version: "1.0.0",
+            private: true,
+            type: "module",
+            scripts: {
+                dev: "vite",
+                build: "vite build",
+                preview: "vite preview"
+            },
+            devDependencies: {
+                typescript: "^5.0.0",
+                vite: "^5.0.0"
+            }
+        }
+        files.push({ path: "package.json", content: JSON.stringify(packageJson, null, 2) })
+    }
+
+    if (!hasFile('vite.config.ts')) {
+        const viteConfig = `import { defineConfig } from 'vite'
+
+export default defineConfig({
+  root: 'public',
+  build: {
+    outDir: '../dist',
+    emptyOutDir: true,
+  },
+  server: {
+    port: 3000,
+  },
+})
+`
+        files.push({ path: "vite.config.ts", content: viteConfig })
     }
 
     if (files.length === 0) return NextResponse.json({ error: "No files to deploy." }, { status: 400 })
