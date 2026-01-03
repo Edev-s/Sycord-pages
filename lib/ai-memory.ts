@@ -120,7 +120,10 @@ export function isValidCode(content: string): boolean {
     /^(TASK|TODO|INSTRUCTIONS?):/im,
     /^(Step \d+|Phase \d+):/im,
     /^(Requirements|Guidelines):/im,
-    /^\d+\.\s+(Create|Generate|Build|Make)/im
+    /^\d+\.\s+(Create|Generate|Build|Make)/im,
+    /^(Here is|I will|Let me|I'll)/im,  // Common AI response prefixes
+    /^(Sure|Certainly|Of course)[,!]/im,
+    /^(The following|Below is)/im
   ]
 
   for (const pattern of instructionPatterns) {

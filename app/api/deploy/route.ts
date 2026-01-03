@@ -11,6 +11,13 @@ const SYCORD_DEPLOY_API_BASE = "https://micro1.sycord.com"
 const INITIAL_REPO_DELAY_MS = 1000
 const MAX_REPO_INIT_RETRIES = 5
 
+// Type for page objects in projects
+interface ProjectPage {
+  name: string
+  content: string
+  usedFor?: string
+}
+
 function getEnvGitHubCredentials() {
   const token = process.env.GITHUB_API_TOKEN || process.env.GITHUB_TOKEN
   const owner = process.env.GITHUB_OWNER || process.env.GITHUB_USERNAME
@@ -215,11 +222,11 @@ export async function POST(request: Request) {
     }
 
     // 5. Prepare Files
-    const pages = project.pages || []
+    const pages: ProjectPage[] = project.pages || []
     const files: { path: string, content: string }[] = []
 
     // Helper to check if a file exists in the pages
-    const hasFile = (filename: string) => pages.some((p: any) => p.name === filename || p.name === `/${filename}`)
+    const hasFile = (filename: string) => pages.some((p) => p.name === filename || p.name === `/${filename}`)
 
     if (pages.length > 0) {
         for (const page of pages) {
