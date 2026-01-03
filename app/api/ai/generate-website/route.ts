@@ -13,6 +13,34 @@ const MODEL_CONFIGS: Record<string, { url: string, envVar: string, provider: str
   "deepseek-v3.2-exp": { url: DEEPSEEK_API_URL, envVar: "DEEPSEEK_API", provider: "DeepSeek" }
 }
 
+// File type templates for different Vite project files
+const FILE_TEMPLATES: Record<string, { extension: string, template: string }> = {
+  "public/index.html": {
+    extension: "html",
+    template: `Complete HTML with <!DOCTYPE html>, Tailwind CDN, and script type="module" pointing to /src/main.ts`
+  },
+  "src/main.ts": {
+    extension: "ts",
+    template: `TypeScript entry point that imports and initializes components`
+  },
+  "src/components": {
+    extension: "ts",
+    template: `TypeScript component exporting a function that returns/renders HTML`
+  },
+  "src/utils.ts": {
+    extension: "ts",
+    template: `TypeScript utility functions with proper types`
+  },
+  "public/style.css": {
+    extension: "css",
+    template: `Tailwind CSS directives and custom styles`
+  },
+  "package.json": {
+    extension: "json",
+    template: `Vite project package.json with proper scripts`
+  }
+}
+
 const UI_UX_PROMPT = `
 Set prompt : Here is a clean, text-only, large styling prompt with no formatting, no emojis, no markdown, ready to copy and paste anywhere.
 
@@ -72,19 +100,12 @@ export async function POST(request: Request) {
     }
 
     // 1. Parse Instruction to find next task
-    // Looking for [N] filename : description
+    // Looking for [N] filepath : [usedfor]description[usedfor]
     // ignoring [0] (overview) and [Done]
-    const taskRegex = /\[(\d+)\]\s*([^\s:]+)\s*:/g
+    // Using non-greedy matching to handle content with brackets
+    const taskRegex = /\[(\d+)\]\s*([^\s:]+)\s*:\s*(?:\[usedfor\](.*?)\[usedfor\])?/g
     let match
     let currentTask = null
-    let taskNumber = null
-
-    // We loop to find the first one that hasn't been replaced by "Done" logic (which would presumably change the marker)
-    // Actually the logic is: find the first [N].
-    // If the instruction string has [Done] replacing [N], then the regex won't match [N].
-    // So the first match of `[\d+]` is our next task. (Assuming [0] is the overview, we might skip it if needed, but user said [0] is base plan. The file tasks start at [1]?)
-    // User said: "[0] The user base plan... [1] name.html"
-    // So we skip [0].
 
     while ((match = taskRegex.exec(instruction)) !== null) {
         if (match[1] === "0") continue; // Skip overview
@@ -92,6 +113,7 @@ export async function POST(request: Request) {
             fullMatch: match[0],
             number: match[1],
             filename: match[2].trim(),
+            usedFor: match[3]?.trim() || instruction.substring(match.index + match[0].length).split('\n')[0].trim(),
             description: instruction.substring(match.index + match[0].length).split('\n')[0]
         }
         break; // Stop at first valid file task
@@ -106,35 +128,91 @@ export async function POST(request: Request) {
     }
 
     console.log(`[v0] Generating file: ${currentTask.filename} (Task [${currentTask.number}])`)
+    console.log(`[v0] File purpose: ${currentTask.usedFor}`)
 
-    // 2. Prepare System Prompt
+    // Determine file type and appropriate generation instructions
+    const fileExt = currentTask.filename.split('.').pop() || ''
+    const isTypeScript = fileExt === 'ts'
+    const isHTML = fileExt === 'html'
+    const isCSS = fileExt === 'css'
+    const isJSON = fileExt === 'json'
+    const isMD = fileExt === 'md'
+
+    // 2. Prepare System Prompt based on file type
+    let fileSpecificInstructions = ''
+    
+    if (isHTML) {
+      fileSpecificInstructions = `
+      Generate a complete HTML file with:
+      - <!DOCTYPE html>, <html>, <head>, <body> tags
+      - Include Tailwind CSS via CDN: <script src="https://cdn.tailwindcss.com"></script>
+      - For Vite projects, include: <script type="module" src="/src/main.ts"></script>
+      - Use semantic HTML5 elements
+      - Make it responsive and accessible
+      `
+    } else if (isTypeScript) {
+      fileSpecificInstructions = `
+      Generate TypeScript code with:
+      - Proper type annotations for all functions and variables
+      - Export functions/classes that need to be imported elsewhere
+      - Use modern ES6+ syntax
+      - If this is a component, export a render function that returns HTML string or manipulates DOM
+      - Include JSDoc comments for complex functions
+      - Use Tailwind CSS classes in any HTML strings
+      `
+    } else if (isCSS) {
+      fileSpecificInstructions = `
+      Generate CSS with:
+      - @tailwind directives if using Tailwind: @tailwind base; @tailwind components; @tailwind utilities;
+      - Custom utility classes using Tailwind's @apply if needed
+      - CSS variables for theming
+      - Mobile-first responsive styles
+      `
+    } else if (isJSON) {
+      fileSpecificInstructions = `
+      Generate valid JSON. For package.json include:
+      - "name", "version", "type": "module"
+      - "scripts" with "dev": "vite", "build": "vite build", "preview": "vite preview"
+      - "devDependencies" with "vite": "^5.0.0", "typescript": "^5.0.0"
+      `
+    } else if (isMD) {
+      fileSpecificInstructions = `
+      Generate Markdown documentation with:
+      - Project title and description
+      - Installation instructions
+      - Usage examples
+      - File structure overview
+      `
+    }
+
     const systemPrompt = `
       ${UI_UX_PROMPT}
 
-      CRITICAL: You MUST generate valid, complete HTML files with embedded CSS and JavaScript.
+      CRITICAL: You are generating files for a Vite + TypeScript project deployable to Cloudflare Pages.
 
       CURRENT FILE: ${currentTask.filename}
-      CONTEXT: ${currentTask.description}
+      FILE PURPOSE: ${currentTask.usedFor}
+      FILE TYPE: ${fileExt.toUpperCase()}
+
+      ${fileSpecificInstructions}
 
       CONSISTENCY & CONNECTION RULES:
       1.  **Unified Design**: You are building a *single* cohesive website.
-      2.  **Inherit Layout**: If 'index.html' or other files exist in the history, you MUST use the EXACT SAME Navigation Bar, Footer, Layout Structure, Fonts, and Color Palette. Do not reinvent the style.
-      3.  **Functional Links**: Ensure navigation links point correctly to the other files in the plan (e.g., <a href="index.html">Home</a>).
-      4.  **Shared Resources**: Use the same CDN links (Tailwind, FontAwesome, etc.) as previous files.
+      2.  **Inherit Layout**: Match the style, colors, and design patterns from other files in the plan.
+      3.  **Proper Imports**: TypeScript files should import from proper relative paths.
+      4.  **Shared Resources**: Use consistent Tailwind classes across all files.
 
       MARKER INSTRUCTIONS:
-      Wrap code EXACTLY like this with NO backticks or markdown code blocks:
-      [1]
-      ... content ...
-      [1<${currentTask.filename}>]
+      Wrap your code EXACTLY like this with NO backticks or markdown code blocks:
+      [code]
+      ... your complete code here ...
+      [code][file]${currentTask.filename}[file][usedfor]${currentTask.usedFor}[usedfor]
 
       REQUIREMENTS:
-      1. **Tailwind CSS**: You MUST use Tailwind CSS via CDN. Include this in the <head>: <script src="https://cdn.tailwindcss.com"></script>. Use Tailwind utility classes for ALL styling. Do not use custom CSS classes unless absolutely necessary.
-      2. **Functional Code**: CRITICAL: Do NOT generate functions that are empty or 'pass'. Every button and input MUST have working JavaScript logic (e.g., localStorage persistence, DOM manipulation, navigation). Do NOT use alerts for 'feature coming soon'. Build it or don't include it.
-      3. **No Bloat**: Do NOT include 'Demo' sections, 'Lorem Ipsum', or placeholders that don't function. Only generate code that is relevant to the user's specific request.
-      4. **HTML Format**: CRITICAL: You MUST generate a complete HTML file with <!DOCTYPE html>, <html>, <head>, and <body> tags. Use inline <script> tags for JavaScript and <style> tags or Tailwind classes for CSS. Do NOT generate TypeScript, TSX, JSX, or React components. Generate pure HTML with vanilla JavaScript only.
-      5. **File Extension**: All page files should use .html extension (e.g., index.html, about.html, contact.html).
-      6. **Production Ready**: Code must be ready to deploy directly to static hosting without any build step.
+      1. **Tailwind CSS**: Use Tailwind CSS utility classes. For HTML files, include CDN. For CSS files, use @tailwind directives.
+      2. **Functional Code**: Every function must have working logic. No empty stubs or placeholders.
+      3. **TypeScript**: Use proper types. Export what needs to be imported elsewhere.
+      4. **Production Ready**: Code must work without build errors.
     `
 
     // 3. Call AI
@@ -148,7 +226,7 @@ export async function POST(request: Request) {
       messages: [
           { role: "system", content: systemPrompt },
           ...conversationHistory,
-          { role: "user", content: `Generate code for ${currentTask.filename} based on the plan.` }
+          { role: "user", content: `Generate code for ${currentTask.filename} based on the plan. This file is for: ${currentTask.usedFor}` }
       ],
       temperature: 0.7
     }
@@ -166,17 +244,21 @@ export async function POST(request: Request) {
     const data = await response.json()
     const responseText = data.choices?.[0]?.message?.content || ""
 
-    // 4. Extract Code
+    // 4. Extract Code using new marker format
     let extractedCode = null
-    const markerRegex = /\[1\]([\s\S]*?)\[1<(.+?)>\]/
-    const markerMatch = responseText.match(markerRegex)
+    let extractedFile = currentTask.filename
+    let extractedUsedFor = currentTask.usedFor
 
-    if (markerMatch) {
-        let rawCode = markerMatch[1].trim()
+    // Try new format first: [code]...[code][file]...[file][usedfor]...[usedfor]
+    // Using non-greedy (.*?) matching for content that may contain brackets
+    const newMarkerRegex = /\[code\]([\s\S]*?)\[code\](?:\[file\](.*?)\[file\])?(?:\[usedfor\](.*?)\[usedfor\])?/
+    const newMarkerMatch = responseText.match(newMarkerRegex)
 
-        // Remove markdown code blocks if present (e.g. ```typescript ... ```)
-        // We look for the pattern ```lang? ... ``` and extract just the inner content
-        const markdownBlockRegex = /```(?:typescript|js|jsx|tsx|html|css)?\s*([\s\S]*?)```/
+    if (newMarkerMatch) {
+        let rawCode = newMarkerMatch[1].trim()
+        
+        // Remove markdown code blocks if present
+        const markdownBlockRegex = /```(?:typescript|ts|js|jsx|tsx|html|css|json|md)?\s*([\s\S]*?)```/
         const codeBlockMatch = rawCode.match(markdownBlockRegex)
 
         if (codeBlockMatch) {
@@ -184,23 +266,45 @@ export async function POST(request: Request) {
         } else {
             extractedCode = rawCode
         }
+
+        if (newMarkerMatch[2]) extractedFile = newMarkerMatch[2].trim()
+        if (newMarkerMatch[3]) extractedUsedFor = newMarkerMatch[3].trim()
     } else {
-        // Fallback checks
-        if (responseText.includes("<!DOCTYPE html") || responseText.includes("<html")) {
-            extractedCode = responseText
+        // Fallback to old format: [1]...[1<filename>]
+        const oldMarkerRegex = /\[1\]([\s\S]*?)\[1<(.+?)>\]/
+        const oldMarkerMatch = responseText.match(oldMarkerRegex)
+
+        if (oldMarkerMatch) {
+            let rawCode = oldMarkerMatch[1].trim()
+
+            const markdownBlockRegex = /```(?:typescript|ts|js|jsx|tsx|html|css|json|md)?\s*([\s\S]*?)```/
+            const codeBlockMatch = rawCode.match(markdownBlockRegex)
+
+            if (codeBlockMatch) {
+                extractedCode = codeBlockMatch[1].trim()
+            } else {
+                extractedCode = rawCode
+            }
+        } else {
+            // Last resort fallback - look for recognizable code patterns
+            if (responseText.includes("<!DOCTYPE html") || responseText.includes("<html")) {
+                extractedCode = responseText
+            } else if (responseText.includes("export ") || responseText.includes("function ") || responseText.includes("const ")) {
+                // Extract TypeScript/JavaScript
+                const cleanedCode = responseText.replace(/```(?:typescript|ts|js|jsx|tsx)?\s*/g, '').replace(/```/g, '').trim()
+                extractedCode = cleanedCode
+            }
         }
     }
 
-    // 5. Update Instruction
-    // Replace `[N]` with `[Done]`
-    // The user prompt said "backend will help to identify... by replacing the number mark [1] with a [Done] mark"
-    // So `[1] index.html` becomes `[Done] index.html`
+    // 5. Update Instruction - Replace [N] with [Done]
     const updatedInstruction = instruction.replace(`[${currentTask.number}]`, `[Done]`)
 
     return NextResponse.json({
         content: responseText,
         code: extractedCode,
-        pageName: currentTask.filename,
+        pageName: extractedFile,
+        usedFor: extractedUsedFor,
         updatedInstruction: updatedInstruction,
         isComplete: false
     })

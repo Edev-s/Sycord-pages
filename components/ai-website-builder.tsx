@@ -48,6 +48,7 @@ export interface GeneratedPage {
   name: string
   code: string
   timestamp: number
+  usedFor?: string
 }
 
 interface AIWebsiteBuilderProps {
@@ -191,25 +192,36 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
       const newHistory = [...currentHistory, assistantMessage]
       setMessages(prev => [...prev, assistantMessage])
 
-      // Update Pages State
+      // Update Pages State with usedFor metadata
       if (data.code && data.pageName) {
         setGeneratedPages(prev => {
           const existing = prev.findIndex(p => p.name === data.pageName)
           if (existing >= 0) {
             const updated = [...prev]
-            updated[existing] = { name: data.pageName, code: data.code, timestamp: Date.now() }
+            updated[existing] = { 
+              name: data.pageName, 
+              code: data.code, 
+              timestamp: Date.now(),
+              usedFor: data.usedFor || ''
+            }
             return updated
           }
-          return [...prev, { name: data.pageName, code: data.code, timestamp: Date.now() }]
+          return [...prev, { 
+            name: data.pageName, 
+            code: data.code, 
+            timestamp: Date.now(),
+            usedFor: data.usedFor || ''
+          }]
         })
 
-        // Auto-save to DB
+        // Auto-save to DB with usedFor metadata
         await fetch(`/api/projects/${projectId}/pages`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             name: data.pageName, // Keep extension to support .ts, .css, etc.
-            content: data.code
+            content: data.code,
+            usedFor: data.usedFor || ''
           })
         })
       }

@@ -12,7 +12,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   try {
     const { id } = await params
-    const { name, content } = await request.json()
+    const { name, content, usedFor } = await request.json()
 
     if (!ObjectId.isValid(id)) {
         return NextResponse.json({ message: "Invalid project ID" }, { status: 400 })
@@ -22,8 +22,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ message: "Name and content required" }, { status: 400 })
     }
 
-    if (name.includes('..') || name.includes('/') || name.includes('\\')) {
-         return NextResponse.json({ message: "Invalid page name" }, { status: 400 })
+    // Validate path - prevent directory traversal and other security issues
+    const decodedName = decodeURIComponent(name)
+    if (
+      decodedName.includes('..') ||           // Directory traversal
+      decodedName.startsWith('/') ||          // Absolute path
+      decodedName.startsWith('\\') ||         // Windows absolute path
+      decodedName.includes('\0') ||           // Null byte injection
+      /[<>:"|?*]/.test(decodedName) ||        // Invalid filename characters
+      decodedName.length > 255                // Path too long
+    ) {
+      return NextResponse.json({ message: "Invalid page name" }, { status: 400 })
     }
 
     const client = await clientPromise
@@ -45,6 +54,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         {
             $set: {
                 "projects.$[proj].pages.$[page].content": content,
+                "projects.$[proj].pages.$[page].usedFor": usedFor || '',
                 "projects.$[proj].pages.$[page].updatedAt": new Date()
             }
         },
@@ -78,6 +88,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
                     "projects.$.pages": {
                         name: name,
                         content: content,
+                        usedFor: usedFor || '',
                         createdAt: new Date(),
                         updatedAt: new Date()
                     }
