@@ -24,7 +24,7 @@ export default function LoginForm() {
           <div className="border border-border rounded-xl sm:rounded-2xl p-6 sm:p-8 bg-card shadow-lg backdrop-blur-sm">
             <div className="flex items-center gap-3 mb-6 sm:mb-8">
               <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                <Image src="/logo.png" alt="Logo" width={32} height={32} className="sm:w-8 sm:h-8" />
+                <Image src="/logo.png" alt="Logo" width={40} height={40} />
               </div>
               <span className="text-xl sm:text-2xl font-bold text-foreground">Sycord</span>
             </div>

@@ -22,10 +22,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ message: "Name and content required" }, { status: 400 })
     }
 
-    // Allow paths with forward slashes for directory structure (e.g., src/main.ts)
-    // But prevent directory traversal attacks
-    if (name.includes('..')) {
-         return NextResponse.json({ message: "Invalid page name" }, { status: 400 })
+    // Validate path - prevent directory traversal and other security issues
+    const decodedName = decodeURIComponent(name)
+    if (
+      decodedName.includes('..') ||           // Directory traversal
+      decodedName.startsWith('/') ||          // Absolute path
+      decodedName.startsWith('\\') ||         // Windows absolute path
+      decodedName.includes('\0') ||           // Null byte injection
+      /[<>:"|?*]/.test(decodedName) ||        // Invalid filename characters
+      decodedName.length > 255                // Path too long
+    ) {
+      return NextResponse.json({ message: "Invalid page name" }, { status: 400 })
     }
 
     const client = await clientPromise

@@ -102,7 +102,8 @@ export async function POST(request: Request) {
     // 1. Parse Instruction to find next task
     // Looking for [N] filepath : [usedfor]description[usedfor]
     // ignoring [0] (overview) and [Done]
-    const taskRegex = /\[(\d+)\]\s*([^\s:]+)\s*:\s*(?:\[usedfor\]([^[]*)\[usedfor\])?/g
+    // Using non-greedy matching to handle content with brackets
+    const taskRegex = /\[(\d+)\]\s*([^\s:]+)\s*:\s*(?:\[usedfor\](.*?)\[usedfor\])?/g
     let match
     let currentTask = null
 
@@ -249,7 +250,8 @@ export async function POST(request: Request) {
     let extractedUsedFor = currentTask.usedFor
 
     // Try new format first: [code]...[code][file]...[file][usedfor]...[usedfor]
-    const newMarkerRegex = /\[code\]([\s\S]*?)\[code\](?:\[file\]([^\[]*)\[file\])?(?:\[usedfor\]([^\[]*)\[usedfor\])?/
+    // Using non-greedy (.*?) matching for content that may contain brackets
+    const newMarkerRegex = /\[code\]([\s\S]*?)\[code\](?:\[file\](.*?)\[file\])?(?:\[usedfor\](.*?)\[usedfor\])?/
     const newMarkerMatch = responseText.match(newMarkerRegex)
 
     if (newMarkerMatch) {

@@ -265,7 +265,20 @@ const FileTreeView = ({
   selectedPage: GeneratedPage | null
   onDeleteFile: (name: string) => void
 }) => {
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['src', 'public', 'src/components']))
+  // Compute initial expanded folders based on actual pages
+  const getInitialExpandedFolders = () => {
+    const folders = new Set<string>()
+    pages.forEach(page => {
+      const parts = page.name.split('/')
+      // Add all parent folder paths
+      for (let i = 1; i < parts.length; i++) {
+        folders.add(parts.slice(0, i).join('/'))
+      }
+    })
+    return folders
+  }
+  
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(getInitialExpandedFolders)
   
   const toggleFolder = (path: string) => {
     setExpandedFolders(prev => {
