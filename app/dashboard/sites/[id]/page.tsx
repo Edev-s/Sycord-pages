@@ -44,6 +44,13 @@ import {
   Bot,
   Eye,
   CheckCircle2,
+  Folder,
+  FolderOpen,
+  File,
+  FileCode,
+  FileType,
+  ChevronRight,
+  Code,
 } from "lucide-react"
 import { currencySymbols } from "@/lib/webshop-types"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -89,6 +96,207 @@ const paymentOptions = [
   { id: "paypal", name: "PayPal", description: "PayPal payments" },
   { id: "bank", name: "Bank Transfer", description: "Direct bank transfers" },
 ]
+
+// File tree node interface
+interface FileTreeNode {
+  name: string
+  type: 'file' | 'folder'
+  path: string
+  children?: FileTreeNode[]
+  page?: GeneratedPage
+}
+
+// Helper function to get file icon based on extension
+const getFileIcon = (filename: string) => {
+  const ext = filename.split('.').pop()?.toLowerCase()
+  switch (ext) {
+    case 'ts':
+    case 'tsx':
+    case 'js':
+    case 'jsx':
+      return FileCode
+    case 'json':
+      return FileType
+    case 'css':
+      return FileType
+    case 'html':
+      return FileText
+    case 'md':
+      return FileText
+    default:
+      return File
+  }
+}
+
+// Build file tree from flat file list
+const buildFileTree = (pages: GeneratedPage[]): FileTreeNode[] => {
+  const root: FileTreeNode[] = []
+  
+  pages.forEach(page => {
+    const parts = page.name.split('/')
+    let currentLevel = root
+    
+    parts.forEach((part, index) => {
+      const isFile = index === parts.length - 1
+      const path = parts.slice(0, index + 1).join('/')
+      
+      let existing = currentLevel.find(n => n.name === part)
+      
+      if (!existing) {
+        const newNode: FileTreeNode = {
+          name: part,
+          type: isFile ? 'file' : 'folder',
+          path: path,
+          page: isFile ? page : undefined,
+          children: isFile ? undefined : []
+        }
+        currentLevel.push(newNode)
+        existing = newNode
+      }
+      
+      if (!isFile && existing.children) {
+        currentLevel = existing.children
+      }
+    })
+  })
+  
+  // Sort: folders first, then files, alphabetically
+  const sortNodes = (nodes: FileTreeNode[]): FileTreeNode[] => {
+    return nodes.sort((a, b) => {
+      if (a.type !== b.type) {
+        return a.type === 'folder' ? -1 : 1
+      }
+      return a.name.localeCompare(b.name)
+    }).map(node => ({
+      ...node,
+      children: node.children ? sortNodes(node.children) : undefined
+    }))
+  }
+  
+  return sortNodes(root)
+}
+
+// File Tree Item Component
+const FileTreeItem = ({ 
+  node, 
+  depth = 0, 
+  onSelectFile, 
+  selectedPage,
+  onDeleteFile,
+  expandedFolders,
+  toggleFolder
+}: { 
+  node: FileTreeNode
+  depth?: number
+  onSelectFile: (page: GeneratedPage) => void
+  selectedPage: GeneratedPage | null
+  onDeleteFile: (name: string) => void
+  expandedFolders: Set<string>
+  toggleFolder: (path: string) => void
+}) => {
+  const isExpanded = expandedFolders.has(node.path)
+  const isSelected = selectedPage?.name === node.page?.name
+  const FileIcon = node.type === 'file' ? getFileIcon(node.name) : (isExpanded ? FolderOpen : Folder)
+  
+  return (
+    <div>
+      <button
+        onClick={() => {
+          if (node.type === 'folder') {
+            toggleFolder(node.path)
+          } else if (node.page) {
+            onSelectFile(node.page)
+          }
+        }}
+        className={cn(
+          "w-full flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-white/5 transition-colors group",
+          isSelected && "bg-primary/10 text-primary"
+        )}
+        style={{ paddingLeft: `${12 + depth * 16}px` }}
+      >
+        {node.type === 'folder' ? (
+          <ChevronRight className={cn(
+            "h-3 w-3 text-muted-foreground transition-transform",
+            isExpanded && "rotate-90"
+          )} />
+        ) : (
+          <span className="w-3" />
+        )}
+        <FileIcon className={cn(
+          "h-4 w-4 flex-shrink-0",
+          node.type === 'folder' ? "text-yellow-500" : "text-blue-400"
+        )} />
+        <span className="truncate flex-1 text-left">{node.name}</span>
+        {node.type === 'file' && node.page?.usedFor && (
+          <span className="text-[10px] text-muted-foreground bg-muted/30 px-1.5 py-0.5 rounded hidden group-hover:block truncate max-w-[100px]">
+            {node.page.usedFor}
+          </span>
+        )}
+      </button>
+      {node.type === 'folder' && isExpanded && node.children && (
+        <div>
+          {node.children.map((child, i) => (
+            <FileTreeItem 
+              key={i} 
+              node={child} 
+              depth={depth + 1}
+              onSelectFile={onSelectFile}
+              selectedPage={selectedPage}
+              onDeleteFile={onDeleteFile}
+              expandedFolders={expandedFolders}
+              toggleFolder={toggleFolder}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// File Tree View Component
+const FileTreeView = ({ 
+  pages, 
+  onSelectFile, 
+  selectedPage,
+  onDeleteFile 
+}: { 
+  pages: GeneratedPage[]
+  onSelectFile: (page: GeneratedPage) => void
+  selectedPage: GeneratedPage | null
+  onDeleteFile: (name: string) => void
+}) => {
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['src', 'public', 'src/components']))
+  
+  const toggleFolder = (path: string) => {
+    setExpandedFolders(prev => {
+      const next = new Set(prev)
+      if (next.has(path)) {
+        next.delete(path)
+      } else {
+        next.add(path)
+      }
+      return next
+    })
+  }
+  
+  const tree = buildFileTree(pages)
+  
+  return (
+    <div className="py-2 max-h-[400px] overflow-y-auto custom-scrollbar">
+      {tree.map((node, i) => (
+        <FileTreeItem 
+          key={i} 
+          node={node}
+          onSelectFile={onSelectFile}
+          selectedPage={selectedPage}
+          onDeleteFile={onDeleteFile}
+          expandedFolders={expandedFolders}
+          toggleFolder={toggleFolder}
+        />
+      ))}
+    </div>
+  )
+}
 
 // Extract SidebarContent to a separate component to avoid re-renders
 const SidebarContent = ({
@@ -233,6 +441,9 @@ export default function SiteSettingsPage() {
 
   // AI Generated Pages State (Lifted)
   const [generatedPages, setGeneratedPages] = useState<GeneratedPage[]>([])
+  
+  // Selected page for preview in Pages tab
+  const [selectedPage, setSelectedPage] = useState<GeneratedPage | null>(null)
 
   // Deployment State
   const [isDeploying, setIsDeploying] = useState(false)
@@ -260,7 +471,8 @@ export default function SiteSettingsPage() {
                 data.pages.map((p: any) => ({
                   name: p.name,
                   code: p.content,
-                  timestamp: Date.now(),
+                  timestamp: p.updatedAt ? new Date(p.updatedAt).getTime() : Date.now(),
+                  usedFor: p.usedFor || ''
                 })),
               )
             }
@@ -1470,7 +1682,7 @@ export default function SiteSettingsPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <h2 className="text-2xl font-bold">Site Pages</h2>
-                      <p className="text-muted-foreground">Manage AI-generated content</p>
+                      <p className="text-muted-foreground">Manage AI-generated content (Vite + TypeScript)</p>
                     </div>
                     <Button onClick={() => setActiveTab("ai")}>
                        <Sparkles className="h-4 w-4 mr-2" />
@@ -1485,30 +1697,76 @@ export default function SiteSettingsPage() {
                        <Button variant="link" onClick={() => setActiveTab("ai")}>Go to AI Builder</Button>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                       {generatedPages.map((page, i) => (
-                         <Card key={i} className="bg-card/50 backdrop-blur-sm border-white/10 overflow-hidden group">
-                            <CardHeader className="pb-2">
-                               <CardTitle className="flex items-center justify-between text-base">
-                                  <span className="truncate flex items-center gap-2">
-                                    <FileText className="h-4 w-4 text-primary"/>
-                                    {page.name}
-                                  </span>
-                                  <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => handleDeletePage(page.name)}>
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                  </Button>
-                               </CardTitle>
-                               <CardDescription className="text-xs">
-                                  {new Date(page.timestamp).toLocaleDateString()}
-                               </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                               <div className="h-32 bg-black/40 rounded border border-white/5 p-2 overflow-hidden text-[10px] font-mono text-muted-foreground opacity-70">
-                                  {page.code}
-                               </div>
-                            </CardContent>
-                         </Card>
-                       ))}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                      {/* File Tree View */}
+                      <Card className="lg:col-span-1 bg-card/50 backdrop-blur-sm border-white/10">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-sm flex items-center gap-2">
+                            <Folder className="h-4 w-4 text-primary" />
+                            Project Structure
+                          </CardTitle>
+                          <CardDescription className="text-xs">
+                            {generatedPages.length} files generated
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                          <FileTreeView 
+                            pages={generatedPages} 
+                            onSelectFile={(page) => setSelectedPage(page)}
+                            selectedPage={selectedPage}
+                            onDeleteFile={handleDeletePage}
+                          />
+                        </CardContent>
+                      </Card>
+
+                      {/* File Preview */}
+                      <Card className="lg:col-span-2 bg-card/50 backdrop-blur-sm border-white/10">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-sm flex items-center justify-between">
+                            <span className="flex items-center gap-2">
+                              <FileCode className="h-4 w-4 text-primary" />
+                              {selectedPage ? selectedPage.name : 'Select a file'}
+                            </span>
+                            {selectedPage && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded">
+                                  {new Date(selectedPage.timestamp).toLocaleDateString()}
+                                </span>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-6 w-6 text-muted-foreground hover:text-destructive" 
+                                  onClick={() => handleDeletePage(selectedPage.name)}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            )}
+                          </CardTitle>
+                          {selectedPage?.usedFor && (
+                            <CardDescription className="text-xs flex items-center gap-1">
+                              <Code className="h-3 w-3" />
+                              Purpose: {selectedPage.usedFor}
+                            </CardDescription>
+                          )}
+                        </CardHeader>
+                        <CardContent>
+                          {selectedPage ? (
+                            <div className="relative">
+                              <pre className="bg-black/40 rounded-lg border border-white/5 p-4 overflow-auto max-h-[500px] text-xs font-mono text-muted-foreground custom-scrollbar">
+                                <code>{selectedPage.code}</code>
+                              </pre>
+                              <div className="absolute bottom-2 right-2 text-[10px] text-muted-foreground/50 bg-black/60 px-2 py-1 rounded">
+                                {selectedPage.code.length} bytes
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="h-64 bg-black/20 rounded-lg border border-white/5 flex items-center justify-center">
+                              <p className="text-muted-foreground text-sm">Select a file from the tree to preview</p>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
                     </div>
                   )}
                </div>

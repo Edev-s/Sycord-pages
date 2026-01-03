@@ -257,6 +257,7 @@ export async function POST(request: Request) {
 
     const files: GitHubFile[] = []
     let hasIndexHtml = false
+    let hasPublicIndexHtml = false
 
     if (pages.length > 0) {
       console.log(`[Deploy] Found ${pages.length} pages in project`)
@@ -268,22 +269,32 @@ export async function POST(request: Request) {
           path = path.substring(1)
         }
 
-        // Force .html extension for TypeScript/JavaScript files
-        if (path.endsWith('.ts') || path.endsWith('.tsx')) {
-          path = path.replace(/\.(ts|tsx)$/, '.html')
-        } else if (path.endsWith('.js') || path.endsWith('.jsx')) {
-          path = path.replace(/\.(js|jsx)$/, '.html')
+        // For Vite projects, keep the original file structure
+        // Only convert files that are in root and don't have proper extension
+        const isViteProject = path.startsWith('src/') || path.startsWith('public/')
+        
+        if (!isViteProject) {
+          // Legacy behavior for non-Vite projects
+          // Force .html extension for TypeScript/JavaScript files at root
+          if (path.endsWith('.ts') || path.endsWith('.tsx')) {
+            path = path.replace(/\.(ts|tsx)$/, '.html')
+          } else if (path.endsWith('.js') || path.endsWith('.jsx')) {
+            path = path.replace(/\.(js|jsx)$/, '.html')
+          }
+
+          // Ensure .html extension for pages without extension
+          const hasExtension = path.includes('.') && path.lastIndexOf('.') > path.lastIndexOf('/')
+          if (!hasExtension && !path.endsWith('/')) {
+            path = path + '.html'
+          }
         }
 
-        // Ensure .html extension for pages
-        const hasExtension = path.includes('.') && path.lastIndexOf('.') > path.lastIndexOf('/')
-        if (!hasExtension && !path.endsWith('/')) {
-          path = path + '.html'
-        }
-
-        // Track if we have an index.html
+        // Track if we have an index.html (at root or in public/)
         if (path === 'index.html' || path.toLowerCase() === 'index.html') {
           hasIndexHtml = true
+        }
+        if (path === 'public/index.html' || path.toLowerCase() === 'public/index.html') {
+          hasPublicIndexHtml = true
         }
 
         files.push({ path, content: page.content })
@@ -294,6 +305,16 @@ export async function POST(request: Request) {
       console.log(`[Deploy] Using legacy aiGeneratedCode as index.html`)
       files.push({ path: "index.html", content: project.aiGeneratedCode })
       hasIndexHtml = true
+    }
+
+    // For Vite projects, copy public/index.html to root index.html if needed
+    if (hasPublicIndexHtml && !hasIndexHtml) {
+      const publicIndex = files.find(f => f.path.toLowerCase() === 'public/index.html')
+      if (publicIndex) {
+        files.push({ path: "index.html", content: publicIndex.content })
+        hasIndexHtml = true
+        console.log(`[Deploy] Copied public/index.html to root index.html for deployment`)
+      }
     }
 
     // If we have files but no index.html, create one from the first page
