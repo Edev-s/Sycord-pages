@@ -405,7 +405,8 @@ export async function POST(request: Request) {
       }
       
       // Step 2: Get the deployment domain via GET /api/deploy/{repo_id}/domain
-      console.log(`[Deploy] Getting deployment domain for repo_id: ${repoId}`)
+      console.log(`[Deploy] DEBUG: Getting deployment domain for repo_id: ${repoId}`)
+      console.log(`[Deploy] DEBUG: Full URL: ${SYCORD_DEPLOY_API_BASE}/api/deploy/${repoId}/domain`)
       
       const domainController = new AbortController()
       const domainTimeoutId = setTimeout(() => domainController.abort(), SYCORD_API_TIMEOUT_MS)
@@ -419,14 +420,26 @@ export async function POST(request: Request) {
           signal: domainController.signal,
         })
         
-        const domainData = await domainResponse.json()
-        console.log(`[Deploy] Sycord domain response:`, domainData)
+        console.log(`[Deploy] DEBUG: Domain response status: ${domainResponse.status} ${domainResponse.statusText}`)
+        
+        const domainText = await domainResponse.text()
+        console.log(`[Deploy] DEBUG: Domain response raw text:`, domainText)
+        
+        let domainData
+        try {
+          domainData = JSON.parse(domainText)
+        } catch (parseErr) {
+          console.error(`[Deploy] DEBUG: Failed to parse domain response as JSON:`, parseErr)
+          domainData = { success: false, message: "Failed to parse domain response" }
+        }
+        
+        console.log(`[Deploy] DEBUG: Parsed domain data:`, JSON.stringify(domainData, null, 2))
         
         if (domainResponse.ok && domainData.success) {
           cloudflareUrl = domainData.domain
           cloudflareProjectName = domainData.project_name
           deployMessage = `Successfully deployed to Cloudflare Pages!`
-          console.log(`[Deploy] Sycord deployment successful: ${cloudflareUrl}`)
+          console.log(`[Deploy] DEBUG: SUCCESS - cloudflareUrl set to: ${cloudflareUrl}`)
 
           // Update project with Cloudflare deployment info
           await db.collection("users").updateOne(
@@ -443,14 +456,19 @@ export async function POST(request: Request) {
             }
           )
         } else {
-          console.error(`[Deploy] Sycord domain fetch failed:`, domainData)
+          console.error(`[Deploy] DEBUG: Domain fetch failed - ok: ${domainResponse.ok}, success: ${domainData.success}`)
+          console.error(`[Deploy] DEBUG: domainData.message:`, domainData.message)
           deployMessage = `Deployed to GitHub. Cloudflare deployment pending: ${domainData.message || 'Domain not available yet'}`
         }
+      } catch (domainFetchError: any) {
+        console.error(`[Deploy] DEBUG: Domain fetch error:`, domainFetchError.message)
+        console.error(`[Deploy] DEBUG: Domain fetch error stack:`, domainFetchError.stack)
       } finally {
         clearTimeout(domainTimeoutId)
       }
     } catch (sycordError: any) {
-      console.error(`[Deploy] Sycord API error:`, sycordError)
+      console.error(`[Deploy] DEBUG: Sycord API outer error:`, sycordError.message)
+      console.error(`[Deploy] DEBUG: Sycord API error stack:`, sycordError.stack)
       // Don't fail the entire request - GitHub deploy succeeded
       if (sycordError.name === 'AbortError') {
         deployMessage = `Deployed to GitHub. Cloudflare deployment timed out.`
@@ -459,7 +477,7 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json({
+    const finalResponse = {
       success: true,
       owner,
       repo,
@@ -470,7 +488,11 @@ export async function POST(request: Request) {
       cloudflareProjectName,
       filesCount: files.length,
       message: deployMessage
-    })
+    }
+    
+    console.log(`[Deploy] DEBUG: Final response being sent:`, JSON.stringify(finalResponse, null, 2))
+    
+    return NextResponse.json(finalResponse)
   } catch (error: any) {
     console.error("[Deploy] Error:", error)
     return NextResponse.json(

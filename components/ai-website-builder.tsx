@@ -67,7 +67,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
   const [isDeploying, setIsDeploying] = useState(false)
   const [deployProgress, setDeployProgress] = useState(0)
   const [deploySuccess, setDeploySuccess] = useState(false)
-  const [deployResult, setDeployResult] = useState<{ url?: string; githubUrl?: string; message?: string } | null>(null)
+  const [deployResult, setDeployResult] = useState<{ url?: string | null; githubUrl?: string | null; message?: string; debug?: string } | null>(null)
   const [deployStatus, setDeployStatus] = useState<string>("")
 
   // Instruction State (The "Plan" text)
@@ -232,14 +232,25 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
       setDeployStatus("Uploading to GitHub...")
       setDeployProgress(10)
       
+      console.log("[Deploy] DEBUG: Starting deployment for projectId:", projectId)
+      
       const response = await fetch("/api/deploy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ projectId }),
       })
 
+      console.log("[Deploy] DEBUG: Response status:", response.status, response.statusText)
+
       if (!response.ok) {
-        const errorData = await response.json()
+        const errorText = await response.text()
+        console.log("[Deploy] DEBUG: Error response text:", errorText)
+        let errorData
+        try {
+          errorData = JSON.parse(errorText)
+        } catch {
+          errorData = { error: errorText }
+        }
         throw new Error(errorData.error || "Deployment failed")
       }
 
@@ -247,24 +258,44 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
       setDeployProgress(50)
       setDeployStatus("Deploying to Cloudflare...")
       
-      const result = await response.json()
-      console.log("[Deploy] API Response:", result)
+      const responseText = await response.text()
+      console.log("[Deploy] DEBUG: Raw response text:", responseText)
+      
+      let result
+      try {
+        result = JSON.parse(responseText)
+      } catch (parseError) {
+        console.error("[Deploy] DEBUG: Failed to parse JSON:", parseError)
+        throw new Error("Failed to parse deployment response")
+      }
+      
+      console.log("[Deploy] DEBUG: Parsed API Response:", JSON.stringify(result, null, 2))
+      console.log("[Deploy] DEBUG: cloudflareUrl =", result.cloudflareUrl)
+      console.log("[Deploy] DEBUG: url =", result.url)
+      console.log("[Deploy] DEBUG: githubUrl =", result.githubUrl)
+      console.log("[Deploy] DEBUG: message =", result.message)
       
       // Step 3: Complete
       setDeployProgress(100)
       
       if (result.cloudflareUrl) {
         setDeployStatus("Deployed to Cloudflare Pages!")
+        console.log("[Deploy] DEBUG: Setting status to Cloudflare Pages")
       } else if (result.githubUrl) {
         setDeployStatus("Deployed to GitHub!")
+        console.log("[Deploy] DEBUG: Setting status to GitHub (no cloudflareUrl)")
+      } else {
+        setDeployStatus("Deployment complete")
+        console.log("[Deploy] DEBUG: No URL found in response")
       }
       
       const deployResultData = {
-        url: result.cloudflareUrl || result.url,
-        githubUrl: result.githubUrl,
-        message: result.message || `Successfully deployed ${result.filesCount} file(s)`
+        url: result.cloudflareUrl || result.url || null,
+        githubUrl: result.githubUrl || null,
+        message: result.message || `Successfully deployed ${result.filesCount || 0} file(s)`,
+        debug: JSON.stringify(result) // Store raw response for debug display
       }
-      console.log("[Deploy] Setting deployResult:", deployResultData)
+      console.log("[Deploy] DEBUG: Final deployResultData:", JSON.stringify(deployResultData, null, 2))
       
       setDeploySuccess(true)
       setDeployResult(deployResultData)
@@ -538,6 +569,22 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
               )}
               {deployResult.message && (
                 <p className="text-xs text-muted-foreground mt-1">{deployResult.message}</p>
+              )}
+              {/* Debug section - shows raw API response */}
+              {deployResult.debug && (
+                <details className="mt-3 text-left">
+                  <summary className="text-xs text-muted-foreground cursor-pointer hover:text-primary">
+                    🔍 Debug: View raw API response
+                  </summary>
+                  <pre className="mt-2 p-2 bg-black/20 rounded text-[10px] overflow-auto max-h-40 text-left font-mono">
+                    {deployResult.debug}
+                  </pre>
+                </details>
+              )}
+              {!deployResult.url && (
+                <div className="mt-2 p-2 bg-yellow-500/10 border border-yellow-500/30 rounded text-xs text-yellow-600">
+                  ⚠️ No Cloudflare URL received. Check browser console for debug logs.
+                </div>
               )}
             </div>
           </div>
