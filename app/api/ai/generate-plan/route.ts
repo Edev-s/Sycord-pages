@@ -46,12 +46,13 @@ export async function POST(request: Request) {
     │   ├── index.html        (main HTML entry point)
     │   └── style.css         (global styles with Tailwind)
     ├── package.json          (project dependencies)
+    ├── vite.config.ts        (Vite configuration for build)
     └── README.md             (project documentation)
 
     OUTPUT FORMAT:
     You must output a single text block strictly following this format:
 
-    [0] The user base plan is to create [Overview of the site]. As an AI web builder using Vite + TypeScript for Cloudflare Pages, I will generate the following files following proper project structure. The backend will mark completed files by replacing [N] with [Done].
+    [0] The user wants to create [Brief overview]. As an AI web builder using Vite + TypeScript for Cloudflare Pages, I will generate files following proper project structure. The backend will mark completed files by replacing [N] with [Done].
 
     [1] public/index.html : [usedfor]main HTML entry point that loads the Vite app[usedfor]
     [2] src/main.ts : [usedfor]TypeScript entry point that initializes components[usedfor]
@@ -60,7 +61,8 @@ export async function POST(request: Request) {
     [5] src/utils.ts : [usedfor]shared utility functions[usedfor]
     [6] public/style.css : [usedfor]global Tailwind CSS styles[usedfor]
     [7] package.json : [usedfor]npm dependencies and scripts for Vite[usedfor]
-    [8] README.md : [usedfor]project documentation[usedfor]
+    [8] vite.config.ts : [usedfor]Vite build configuration[usedfor]
+    [9] README.md : [usedfor]project documentation[usedfor]
     ...
 
     REQUIREMENTS:
@@ -69,8 +71,9 @@ export async function POST(request: Request) {
     3.  **Components**: Create modular components in src/components/ directory.
     4.  **Tailwind CSS**: Use Tailwind CSS classes. Include CDN in index.html for simplicity.
     5.  **Strict Syntax**: Use brackets [1], [2], etc. for file steps. Include [usedfor]...[usedfor] markers.
-    6.  **Scale**: Plan for a COMPLETE experience (5-10 files typically).
+    6.  **Scale**: Plan for a COMPLETE experience (6-12 files typically).
     7.  **Cloudflare Pages Ready**: Structure must be deployable to Cloudflare Pages with Vite.
+    8.  **Config Files**: Always include package.json and vite.config.ts for proper build setup.
     `
 
     // Combine history for context

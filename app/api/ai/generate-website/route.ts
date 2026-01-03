@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { FILE_STRUCTURE, getShortTermMemory } from "@/lib/ai-memory"
+import { FILE_STRUCTURE, getShortTermMemory, extractFileMetadata, isValidCode } from "@/lib/ai-memory"
 
 // API Configurations
 const GOOGLE_API_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
@@ -26,9 +26,15 @@ Your goal is to build a high-performance, production-ready website deployable to
 *   **Responsiveness:** Mobile-first approach. Grid/Flexbox for layouts.
 
 **TECH STACK:**
-*   **Framework:** Vite (Vanilla TS or React-based if specified, but assume Vanilla TS + DOM manipulation for "simple" requests unless React is explicitly requested). *Actually, let's standardize on Vanilla TypeScript for maximum performance and simplicity in this builder unless otherwise specified.*
+*   **Framework:** Vite (Vanilla TypeScript for maximum performance).
 *   **Language:** TypeScript (Strict typing).
-*   **Styling:** Tailwind CSS (via CDN for HTML files, or @apply in style.css).
+*   **Styling:** Tailwind CSS (via CDN in HTML, or in style.css).
+
+**CRITICAL RULES:**
+1.  Output ONLY valid code - no instructions, explanations, or comments outside the code.
+2.  Do NOT include [file], [usedfor], or any bracket markers inside the actual code content.
+3.  Metadata markers should appear ONLY after the [/code] closing tag.
+4.  Never write "Step 1:", "TODO:", or instructional text as code content.
 `
 
 export async function POST(request: Request) {
@@ -38,7 +44,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { messages, instruction, model, projectId } = await request.json()
+    const { messages, instruction, model } = await request.json()
 
     // Default to Google if not specified
     const modelId = model || "gemini-2.5-flash-lite"
@@ -61,12 +67,8 @@ export async function POST(request: Request) {
     let currentTask = null
 
     // Find the first task that isn't "0" (Overview) and isn't marked as [Done]
-    // We iterate through all matches
     while ((match = taskRegex.exec(instruction)) !== null) {
-        if (match[1] === "0") continue;
-
-        // Check if this specific task number is already marked done in the instruction string?
-        // Actually, the calling code replaces [N] with [Done]. So if we see [N] where N is a number, it's pending.
+        if (match[1] === "0") continue
 
         currentTask = {
             fullMatch: match[0],
@@ -74,7 +76,7 @@ export async function POST(request: Request) {
             filename: match[2].trim(),
             usedFor: match[3]?.trim() || "Implementation"
         }
-        break; // Stop at first pending task
+        break // Stop at first pending task
     }
 
     if (!currentTask) {
@@ -91,8 +93,9 @@ export async function POST(request: Request) {
     const isTS = fileExt === 'ts' || fileExt === 'tsx'
     const isHTML = fileExt === 'html'
     const isJSON = fileExt === 'json'
+    const isCSS = fileExt === 'css'
 
-    // 2. Prepare System Prompt
+    // 2. Prepare System Prompt with improved memory context
     const shortTermMemory = getShortTermMemory(instruction)
     
     const systemPrompt = `
@@ -105,29 +108,48 @@ export async function POST(request: Request) {
       **PROJECT STRUCTURE (TARGET):**
       ${FILE_STRUCTURE}
 
-      **MEMORY (CONTEXT):**
+      **MEMORY (Previously generated files):**
       ${shortTermMemory}
 
       **RULES FOR ${fileExt.toUpperCase()} GENERATION:**
-      ${isHTML ? `- Use <!DOCTYPE html>. Include <script src="https://cdn.tailwindcss.com"></script>. Include <script type="module" src="/src/main.ts"></script>.` : ''}
-      ${isTS ? `- Write valid TypeScript. Use 'export' for modules. Import from relative paths (e.g. './utils'). DOM manipulation must be type-safe (use 'as HTMLElement' if needed).` : ''}
-      ${isJSON ? `- Return valid JSON only.` : ''}
+      ${isHTML ? `
+      - Use <!DOCTYPE html> declaration
+      - Include <script src="https://cdn.tailwindcss.com"></script> in head
+      - Include <script type="module" src="/src/main.ts"></script> before </body>
+      - Use semantic HTML5 elements
+      ` : ''}
+      ${isTS ? `
+      - Write valid TypeScript with proper type annotations
+      - Use 'export' for module exports
+      - Import from relative paths (e.g. './utils', './components/header')
+      - DOM queries must use type assertions (e.g. document.getElementById('app') as HTMLElement)
+      ` : ''}
+      ${isJSON ? `
+      - Return valid JSON only
+      - For package.json include: name, version, scripts (dev, build, preview), dependencies, devDependencies
+      - Include vite and typescript as devDependencies
+      ` : ''}
+      ${isCSS ? `
+      - Use Tailwind CSS utilities with @apply directive
+      - Include global reset styles
+      - Define CSS custom properties for theming
+      ` : ''}
 
       **OUTPUT FORMAT (STRICT):**
-      You must wrap the code content in [code]...[code] blocks.
-      You must add metadata markers AFTER the code block.
-
-      Example:
+      Wrap code in [code]...[/code] tags. Add metadata AFTER the closing tag.
+      
+      CORRECT FORMAT:
       [code]
-      import { setupCounter } from './counter'
-      document.querySelector('#app').innerHTML = '...'
+      // actual code content here
+      // NO metadata markers inside the code
       [/code]
       [file]${currentTask.filename}[file][usedfor]${currentTask.usedFor}[usedfor]
 
-      **IMPORTANT:**
-      1. DO NOT use markdown code blocks (\`\`\`). Just use the [code] tags.
-      2. Ensure the code is complete and functional.
-      3. Do not include placeholders like "// rest of code". Write it all.
+      **FORBIDDEN:**
+      - Do NOT put [file], [usedfor], or any bracket markers inside the code content
+      - Do NOT include markdown code blocks (\`\`\`)
+      - Do NOT include instructional text like "Step 1:", "TODO:", etc.
+      - Do NOT include explanatory comments that aren't part of actual code
     `
 
     // 3. Call AI
@@ -141,7 +163,7 @@ export async function POST(request: Request) {
       messages: [
           { role: "system", content: systemPrompt },
           ...conversationHistory,
-          { role: "user", content: `Generate the full content for ${currentTask.filename}.` }
+          { role: "user", content: `Generate the complete, production-ready content for ${currentTask.filename}. Output only the code wrapped in [code] tags.` }
       ],
       temperature: 0.2 // Lower temperature for code stability
     }
@@ -159,7 +181,7 @@ export async function POST(request: Request) {
     const data = await response.json()
     const responseText = data.choices?.[0]?.message?.content || ""
 
-    // 4. Robust Parsing
+    // 4. Robust Parsing with validation
     let extractedCode = ""
 
     // Attempt to find [code]...[/code] or [code]...[code]
@@ -179,8 +201,15 @@ export async function POST(request: Request) {
         }
     }
 
-    // Clean up any remaining markers from the code content just in case
-    extractedCode = extractedCode.replace(/\[file\].*?\[file\]/g, '').replace(/\[usedfor\].*?\[usedfor\]/g, '')
+    // Clean up: remove any metadata markers that might have leaked into code
+    const cleanedResult = extractFileMetadata(extractedCode)
+    extractedCode = cleanedResult.code
+
+    // Validate code content
+    if (!isValidCode(extractedCode)) {
+        console.warn(`[v0] Warning: Generated content for ${currentTask.filename} may contain instructions instead of code`)
+        // Still proceed but log warning
+    }
 
     // 5. Update Instruction (Mark as Done)
     const updatedInstruction = instruction.replace(`[${currentTask.number}]`, `[Done]`)
