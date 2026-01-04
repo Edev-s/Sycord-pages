@@ -450,7 +450,15 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
                   )}
 
                   {messages.map(msg => (
-                      <div key={msg.id} className={cn("flex", msg.role === 'user' ? "justify-end" : "justify-start")}>
+                      <div key={msg.id} className={cn("flex flex-col gap-2", msg.role === 'user' ? "items-end" : "items-start")}>
+                          {msg.role === 'assistant' && msg.plan && generatedPages.length > 0 && (
+                            <div className="md:hidden w-full mb-2 bg-black/20 rounded-lg border border-white/10 p-2 overflow-hidden">
+                                <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-1 px-1">
+                                    Project Structure
+                                </div>
+                                <FileTreeVisualizer pages={generatedPages} currentFile={activeFile} />
+                            </div>
+                          )}
                           <div className={cn(
                               "max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
                               msg.role === 'user' ? "bg-primary text-primary-foreground rounded-tr-sm" : "bg-muted/30 border border-white/5 rounded-tl-sm backdrop-blur-sm"
