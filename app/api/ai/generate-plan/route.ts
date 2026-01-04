@@ -46,6 +46,9 @@ export async function POST(request: Request) {
     ├── public/
     │   └── index.html        (main HTML entry point)
     ├── package.json          (project dependencies)
+    ├── tsconfig.json         (TypeScript configuration)
+    ├── vite.config.ts        (Vite build configuration)
+    ├── .gitignore            (git ignore rules)
     └── README.md             (project documentation)
 
     OUTPUT FORMAT:
@@ -60,7 +63,10 @@ export async function POST(request: Request) {
     [5] src/components/footer.ts : [usedfor]reusable footer component[usedfor]
     [6] src/utils.ts : [usedfor]shared utility functions[usedfor]
     [7] package.json : [usedfor]npm dependencies and scripts for Vite[usedfor]
-    [8] README.md : [usedfor]project documentation[usedfor]
+    [8] tsconfig.json : [usedfor]TypeScript configuration for Vite[usedfor]
+    [9] vite.config.ts : [usedfor]Vite configuration[usedfor]
+    [10] .gitignore : [usedfor]ignored files[usedfor]
+    [11] README.md : [usedfor]project documentation[usedfor]
     ...
 
     REQUIREMENTS:
@@ -69,8 +75,12 @@ export async function POST(request: Request) {
     3.  **Components**: Create modular components in src/components/ directory.
     4.  **Tailwind CSS**: Use Tailwind CSS classes. Include CDN in index.html for simplicity.
     5.  **Strict Syntax**: Use brackets [1], [2], etc. for file steps. Include [usedfor]...[usedfor] markers.
-    6.  **Scale**: Plan for a COMPLETE experience (5-10 files typically).
+    6.  **Scale**: Plan for a COMPLETE experience (8-12 files typically).
     7.  **Cloudflare Pages Ready**: Structure must be deployable to Cloudflare Pages with Vite.
+    8.  **Configuration**:
+        - package.json MUST include "build": "vite build"
+        - tsconfig.json MUST include "noEmit": true
+        - vite.config.ts MUST set build.outDir = 'dist'
     `
 
     // Combine history for context

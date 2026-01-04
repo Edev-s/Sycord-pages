@@ -10,6 +10,9 @@ project/
 ├── public/
 │   └── index.html
 ├── package.json
+├── tsconfig.json
+├── vite.config.ts
+├── .gitignore
 └── README.md
 `;
 
