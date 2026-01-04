@@ -9,8 +9,8 @@ const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions"
 
 // Map models to their specific endpoints and Env Vars
 const MODEL_CONFIGS: Record<string, { url: string, envVar: string, provider: string }> = {
+  "gemini-3-flash": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
   "gemini-2.0-flash-001": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
-  "gemini-exp-1206": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
   "deepseek-v3.2-exp": { url: DEEPSEEK_API_URL, envVar: "DEEPSEEK_API", provider: "DeepSeek" }
 }
 
@@ -46,9 +46,9 @@ export async function POST(request: Request) {
   try {
     const { messages, instruction, model } = await request.json()
 
-    // Default to Google if not specified
-    const modelId = model || "gemini-2.5-flash-lite"
-    const config = MODEL_CONFIGS[modelId] || MODEL_CONFIGS["gemini-2.5-flash-lite"]
+    // Default to Gemini 3 Flash if not specified
+    const modelId = model || "gemini-3-flash"
+    const config = MODEL_CONFIGS[modelId] || MODEL_CONFIGS["gemini-3-flash"]
 
     let apiKey = process.env[config.envVar]
     if (config.provider === "Google" && !apiKey) {

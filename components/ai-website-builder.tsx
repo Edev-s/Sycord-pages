@@ -31,8 +31,8 @@ import {
 import { cn } from "@/lib/utils"
 
 const MODELS = [
+  { id: "gemini-3-flash", name: "Gemini 3 Flash", provider: "Google" },
   { id: "gemini-2.0-flash-001", name: "Gemini 2.0 Flash", provider: "Google" },
-  { id: "gemini-exp-1206", name: "Gemini Exp 1206", provider: "Google" },
   { id: "deepseek-v3.2-exp", name: "DeepSeek V3", provider: "DeepSeek" },
 ]
 
@@ -523,30 +523,43 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
 
                   {messages.map(msg => (
                       <div key={msg.id} className={cn("flex", msg.role === 'user' ? "justify-end" : "justify-start")}>
-                          <div className={cn(
-                              "max-w-[90%] sm:max-w-[85%] rounded-xl sm:rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm leading-relaxed",
-                              msg.role === 'user' ? "bg-primary text-primary-foreground rounded-tr-sm" : "bg-muted/30 border border-white/5 rounded-tl-sm backdrop-blur-sm"
-                          )}>
-                              {msg.role === 'assistant' && msg.plan && (
-                                  <div className="flex items-center gap-2 text-[10px] sm:text-xs font-bold text-primary mb-2 uppercase tracking-wider">
-                                      <BrainCircuit className="h-3 w-3" /> Strategy
-                                  </div>
-                              )}
-
-                              {msg.code ? (
-                                  <div className="flex items-center gap-2 sm:gap-3">
-                                      <div className="h-7 w-7 sm:h-8 sm:w-8 bg-black/40 rounded flex items-center justify-center border border-white/10 shrink-0">
-                                          <FileCode className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-400" />
+                          {msg.code ? (
+                              // File generation - inline illustration style
+                              <div className="w-full max-w-md bg-gradient-to-br from-blue-500/5 to-purple-500/5 border border-white/10 rounded-xl p-3 sm:p-4">
+                                  <div className="flex items-start gap-3">
+                                      <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center border border-white/10 shrink-0">
+                                          <FileCode className="h-5 w-5 sm:h-6 sm:w-6 text-blue-400" />
                                       </div>
-                                      <div className="min-w-0">
-                                          <p className="font-mono text-[11px] sm:text-xs truncate">{msg.pageName}</p>
-                                          <p className="text-[9px] sm:text-[10px] text-muted-foreground">{msg.code.length} bytes</p>
+                                      <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-2 mb-1">
+                                              <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                                              <span className="text-[10px] sm:text-xs text-green-500 font-medium uppercase tracking-wider">Generated</span>
+                                          </div>
+                                          <p className="font-mono text-sm sm:text-base text-foreground truncate">{msg.pageName}</p>
+                                          <div className="flex items-center gap-3 mt-2">
+                                              <span className="text-[10px] sm:text-xs text-muted-foreground bg-white/5 px-2 py-0.5 rounded">
+                                                  {msg.code.length.toLocaleString()} bytes
+                                              </span>
+                                              <span className="text-[10px] sm:text-xs text-muted-foreground">
+                                                  {msg.pageName?.split('.').pop()?.toUpperCase() || 'FILE'}
+                                              </span>
+                                          </div>
                                       </div>
                                   </div>
-                              ) : (
+                              </div>
+                          ) : (
+                              <div className={cn(
+                                  "max-w-[90%] sm:max-w-[85%] rounded-xl sm:rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm leading-relaxed",
+                                  msg.role === 'user' ? "bg-primary text-primary-foreground rounded-tr-sm" : "bg-muted/30 border border-white/5 rounded-tl-sm backdrop-blur-sm"
+                              )}>
+                                  {msg.role === 'assistant' && msg.plan && (
+                                      <div className="flex items-center gap-2 text-[10px] sm:text-xs font-bold text-primary mb-2 uppercase tracking-wider">
+                                          <BrainCircuit className="h-3 w-3" /> Strategy
+                                      </div>
+                                  )}
                                   <div className="whitespace-pre-wrap break-words">{msg.content}</div>
-                              )}
-                          </div>
+                              </div>
+                          )}
                       </div>
                   ))}
                   <div ref={messagesEndRef} />
