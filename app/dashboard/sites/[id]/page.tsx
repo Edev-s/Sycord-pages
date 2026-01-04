@@ -464,6 +464,9 @@ export default function SiteSettingsPage() {
   const [deploySuccess, setDeploySuccess] = useState(false)
   const [deployError, setDeployError] = useState<string | null>(null)
   const [deployResult, setDeployResult] = useState<{ url?: string; message?: string } | null>(null)
+  
+  // Delete All Pages State
+  const [isDeletingAllPages, setIsDeletingAllPages] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -708,6 +711,32 @@ export default function SiteSettingsPage() {
       setGeneratedPages(prev => prev.filter(p => p.name !== pageName))
     } catch (error: any) {
       alert(error.message)
+    }
+  }
+
+  const handleDeleteAllPages = async () => {
+    if (!confirm(`Are you sure you want to delete ALL ${generatedPages.length} files? This will clear the entire project and cannot be undone.`)) return
+
+    setIsDeletingAllPages(true)
+    
+    try {
+      // Delete each page one by one
+      for (const page of generatedPages) {
+        const response = await fetch(`/api/projects/${id}/pages?name=${encodeURIComponent(page.name)}`, {
+          method: "DELETE",
+        })
+
+        if (!response.ok) {
+          console.error(`Failed to delete ${page.name}`)
+        }
+      }
+
+      setGeneratedPages([])
+      setSelectedPage(null)
+    } catch (error: any) {
+      alert("Failed to delete all pages: " + error.message)
+    } finally {
+      setIsDeletingAllPages(false)
     }
   }
 
@@ -1692,15 +1721,38 @@ export default function SiteSettingsPage() {
             {/* TAB CONTENT: PAGES */}
             {activeTab === "pages" && (
                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between flex-wrap gap-4">
                     <div>
                       <h2 className="text-2xl font-bold">Site Pages</h2>
                       <p className="text-muted-foreground">Manage AI-generated content (Vite + TypeScript)</p>
                     </div>
-                    <Button onClick={() => setActiveTab("ai")}>
-                       <Sparkles className="h-4 w-4 mr-2" />
-                       Generate New
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      {generatedPages.length > 0 && (
+                        <Button 
+                          variant="destructive" 
+                          size="sm"
+                          onClick={handleDeleteAllPages}
+                          disabled={isDeletingAllPages}
+                          className="bg-destructive/10 text-destructive hover:bg-destructive/20 border border-destructive/20"
+                        >
+                          {isDeletingAllPages ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Deleting...
+                            </>
+                          ) : (
+                            <>
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete All Files
+                            </>
+                          )}
+                        </Button>
+                      )}
+                      <Button onClick={() => setActiveTab("ai")}>
+                         <Sparkles className="h-4 w-4 mr-2" />
+                         Generate New
+                      </Button>
+                    </div>
                   </div>
 
                   {generatedPages.length === 0 ? (

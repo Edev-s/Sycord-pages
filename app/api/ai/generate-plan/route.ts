@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { GoogleGenerativeAI } from "@google/generative-ai"
 
-const PLAN_MODEL = "gemini-2.0-flash"
+const PLAN_MODEL = "gemini-3-flash"
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions)
@@ -36,41 +36,46 @@ export async function POST(request: Request) {
     PROJECT STRUCTURE:
     You must plan for this exact Vite project structure:
     project/
+    ├── index.html            (main HTML entry point - Vite requires this at root)
     ├── src/
-    │   ├── main.ts           (entry point - initializes the app)
+    │   ├── main.ts           (entry point - initializes the app, imports style.css)
+    │   ├── style.css         (global styles with Tailwind - MUST be in src/ for import)
     │   ├── utils.ts          (shared utility functions)
     │   └── components/
     │       ├── header.ts     (navigation and header component)
     │       └── footer.ts     (footer component)
-    ├── public/
-    │   ├── index.html        (main HTML entry point)
-    │   └── style.css         (global styles with Tailwind)
+    ├── public/               (static assets only)
     ├── package.json          (project dependencies)
+    ├── vite.config.ts        (Vite configuration for build)
     └── README.md             (project documentation)
 
     OUTPUT FORMAT:
     You must output a single text block strictly following this format:
 
-    [0] The user base plan is to create [Overview of the site]. As an AI web builder using Vite + TypeScript for Cloudflare Pages, I will generate the following files following proper project structure. The backend will mark completed files by replacing [N] with [Done].
+    [0] The user wants to create [Brief overview]. As an AI web builder using Vite + TypeScript for Cloudflare Pages, I will generate files following proper project structure. The backend will mark completed files by replacing [N] with [Done].
 
-    [1] public/index.html : [usedfor]main HTML entry point that loads the Vite app[usedfor]
-    [2] src/main.ts : [usedfor]TypeScript entry point that initializes components[usedfor]
-    [3] src/components/header.ts : [usedfor]reusable header/navigation component[usedfor]
-    [4] src/components/footer.ts : [usedfor]reusable footer component[usedfor]
-    [5] src/utils.ts : [usedfor]shared utility functions[usedfor]
-    [6] public/style.css : [usedfor]global Tailwind CSS styles[usedfor]
+    [1] index.html : [usedfor]main HTML entry point that loads the Vite app (must be at root for Vite)[usedfor]
+    [2] src/main.ts : [usedfor]TypeScript entry point that initializes components and imports ./style.css[usedfor]
+    [3] src/style.css : [usedfor]global Tailwind CSS styles (in src/ so main.ts can import it)[usedfor]
+    [4] src/components/header.ts : [usedfor]reusable header/navigation component[usedfor]
+    [5] src/components/footer.ts : [usedfor]reusable footer component[usedfor]
+    [6] src/utils.ts : [usedfor]shared utility functions[usedfor]
     [7] package.json : [usedfor]npm dependencies and scripts for Vite[usedfor]
-    [8] README.md : [usedfor]project documentation[usedfor]
+    [8] vite.config.ts : [usedfor]Vite build configuration[usedfor]
+    [9] README.md : [usedfor]project documentation[usedfor]
     ...
 
     REQUIREMENTS:
-    1.  **Vite Structure**: Follow the exact Vite project structure above. Entry point is public/index.html.
+    1.  **Vite Structure**: Follow the exact Vite project structure above. index.html MUST be at project root (not in public/).
     2.  **TypeScript**: All source files in src/ must use .ts extension and be properly typed.
     3.  **Components**: Create modular components in src/components/ directory.
     4.  **Tailwind CSS**: Use Tailwind CSS classes. Include CDN in index.html for simplicity.
     5.  **Strict Syntax**: Use brackets [1], [2], etc. for file steps. Include [usedfor]...[usedfor] markers.
-    6.  **Scale**: Plan for a COMPLETE experience (5-10 files typically).
+    6.  **Scale**: Plan for a COMPLETE experience (6-12 files typically).
     7.  **Cloudflare Pages Ready**: Structure must be deployable to Cloudflare Pages with Vite.
+    8.  **Config Files**: Always include package.json and vite.config.ts for proper build setup.
+    9.  **main.ts Location**: Entry point must be at src/main.ts (not src/types/ or other locations).
+    10. **style.css Location**: MUST be at src/style.css so main.ts can import './style.css'.
     `
 
     // Combine history for context
