@@ -3,12 +3,12 @@ project/
 ├── src/
 │   ├── main.ts
 │   ├── utils.ts
+│   ├── style.css
 │   └── components/
 │       ├── header.ts
 │       └── footer.ts
 ├── public/
-│   ├── index.html
-│   └── style.css
+│   └── index.html
 ├── package.json
 └── README.md
 `;
