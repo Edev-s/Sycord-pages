@@ -127,7 +127,17 @@ export async function POST(request: Request) {
           - Must include "scripts": { "dev": "vite", "build": "vite build", "preview": "vite preview", "check": "tsc --noEmit" }
           - Must include dependencies: "vite", "typescript"
       - **tsconfig.json**:
-          - Must include "compilerOptions": { "noEmit": true, "target": "esnext", "module": "esnext", "moduleResolution": "node", "strict": true }
+          - Must include "compilerOptions": {
+              "target": "ES2020",
+              "lib": ["ES2020", "DOM", "DOM.Iterable"],
+              "module": "ESNext",
+              "moduleResolution": "Bundler",
+              "strict": true,
+              "skipLibCheck": true,
+              "esModuleInterop": true,
+              "useDefineForClassFields": true,
+              "noEmit": true
+          }
           - Must include "include": ["src"]
       - **vite.config.ts**:
           - Must include "build": { "outDir": "dist" }
@@ -138,6 +148,9 @@ export async function POST(request: Request) {
           - MUST include \`import './style.css'\` at the top.
       - **src/style.css**:
           - Must be placed in **src/** (not public/).
+      - **index.html**:
+          - Must be in the **ROOT** directory (not public/).
+          - Must include \`<script type="module" src="/src/main.ts"></script>\`.
 
       **OUTPUT FORMAT (STRICT):**
       You must wrap the code content in [code]...[code] blocks.
