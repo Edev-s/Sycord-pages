@@ -99,6 +99,7 @@ export async function POST(request: Request) {
     const isTS = fileExt === 'ts' || fileExt === 'tsx'
     const isHTML = fileExt === 'html'
     const isJSON = fileExt === 'json'
+    const isCSS = fileExt === 'css'
 
     // 2. Prepare System Prompt
     const shortTermMemory = getShortTermMemory(instruction)
@@ -120,8 +121,23 @@ export async function POST(request: Request) {
       ${isHTML ? `- Use <!DOCTYPE html>. Include <script src="https://cdn.tailwindcss.com"></script>. Include <script type="module" src="/src/main.ts"></script>.` : ''}
       ${isTS ? `- Write valid TypeScript. Use 'export' for modules. Import from relative paths (e.g. './utils'). DOM manipulation must be type-safe (use 'as HTMLElement' if needed).` : ''}
       ${isJSON ? `- Return valid JSON only.` : ''}
-      - **CRITICAL**: If generating **src/main.ts**, you MUST include \`import './style.css'\` at the top.
-      - **CRITICAL**: If generating **style.css**, ensure it is placed in **src/** (not public/).
+
+      **SPECIFIC RULES PER FILE:**
+      - **package.json**:
+          - Must include "scripts": { "dev": "vite", "build": "vite build", "preview": "vite preview", "check": "tsc --noEmit" }
+          - Must include dependencies: "vite", "typescript"
+      - **tsconfig.json**:
+          - Must include "compilerOptions": { "noEmit": true, "target": "esnext", "module": "esnext", "moduleResolution": "node", "strict": true }
+          - Must include "include": ["src"]
+      - **vite.config.ts**:
+          - Must include "build": { "outDir": "dist" }
+          - Must export default defineConfig(...)
+      - **.gitignore**:
+          - Must include: node_modules/, dist/, *.log
+      - **src/main.ts**:
+          - MUST include \`import './style.css'\` at the top.
+      - **src/style.css**:
+          - Must be placed in **src/** (not public/).
 
       **OUTPUT FORMAT (STRICT):**
       You must wrap the code content in [code]...[code] blocks.
