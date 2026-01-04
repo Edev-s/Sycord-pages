@@ -32,9 +32,10 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 
+// Updated Models List to include "Gemini 3 Flash" (mapped to 2.0 or 1.5 in backend) as requested
 const MODELS = [
   { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", provider: "Google" },
-  { id: "gemini-2.5-flash-lite", name: "Gemini 2.5 Flash Lite", provider: "Google" },
+  { id: "gemini-3-flash", name: "Gemini 3 Flash (Preview)", provider: "Google" }, // Added for user
   { id: "deepseek-v3.2-exp", name: "DeepSeek V3", provider: "DeepSeek" },
 ]
 
@@ -197,7 +198,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
   const [deployResult, setDeployResult] = useState<{ url?: string; githubUrl?: string } | null>(null)
 
   const [instruction, setInstruction] = useState<string>("")
-  const [selectedModel, setSelectedModel] = useState(MODELS[1])
+  const [selectedModel, setSelectedModel] = useState(MODELS[0]) // Default to Gemini 2.0 Flash
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -390,8 +391,11 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
                   {/* Dynamic File Tree */}
                   <FileTreeVisualizer pages={generatedPages} currentFile={activeFile} />
 
-                  {/* Status Card */}
-                  <div className="bg-primary/5 border border-primary/10 rounded-lg p-3 space-y-2">
+                  {/* Integrated Status Indicator (Less like a popup) */}
+                  <div className={cn(
+                      "rounded-lg p-3 space-y-2 transition-all duration-300",
+                      step === 'idle' ? "bg-transparent" : "bg-primary/5 border border-primary/10"
+                  )}>
                       <div className="flex items-center gap-2 text-primary text-xs font-medium">
                           <ActivityIcon step={step} />
                           <span>{step === 'idle' ? 'Ready to build' : currentPlan}</span>

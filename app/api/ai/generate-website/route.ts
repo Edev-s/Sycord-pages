@@ -10,7 +10,7 @@ const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions"
 // Map models to their specific endpoints and Env Vars
 const MODEL_CONFIGS: Record<string, { url: string, envVar: string, provider: string }> = {
   "gemini-2.0-flash": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
-  "gemini-2.5-flash-lite": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
+  "gemini-1.5-flash": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
   "deepseek-v3.2-exp": { url: DEEPSEEK_API_URL, envVar: "DEEPSEEK_API", provider: "DeepSeek" }
 }
 
@@ -28,7 +28,7 @@ Your goal is to build a high-performance, production-ready website deployable to
 **TECH STACK:**
 *   **Framework:** Vite (Vanilla TS or React-based if specified, but assume Vanilla TS + DOM manipulation for "simple" requests unless React is explicitly requested). *Actually, let's standardize on Vanilla TypeScript for maximum performance and simplicity in this builder unless otherwise specified.*
 *   **Language:** TypeScript (Strict typing).
-*   **Styling:** Tailwind CSS (via CDN for HTML files, or @apply in style.css).
+*   **Styling:** Tailwind CSS (via CDN for HTML files, or @apply in src/style.css).
 `
 
 export async function POST(request: Request) {
@@ -40,9 +40,16 @@ export async function POST(request: Request) {
   try {
     const { messages, instruction, model, projectId } = await request.json()
 
-    // Default to Google if not specified
-    const modelId = model || "gemini-2.5-flash-lite"
-    const config = MODEL_CONFIGS[modelId] || MODEL_CONFIGS["gemini-2.5-flash-lite"]
+    // Default to Gemini 2.0 Flash
+    const modelId = model || "gemini-2.0-flash"
+
+    // Map "gemini-3-flash" or similar user requests to actual model
+    let configKey = modelId
+    if (modelId === "gemini-3-flash" || modelId === "gemini-3.0-flash") {
+       configKey = "gemini-2.0-flash" // Map to latest available
+    }
+
+    const config = MODEL_CONFIGS[configKey] || MODEL_CONFIGS["gemini-2.0-flash"]
 
     let apiKey = process.env[config.envVar]
     if (config.provider === "Google" && !apiKey) {
@@ -137,7 +144,7 @@ export async function POST(request: Request) {
     }))
 
     const payload = {
-      model: modelId,
+      model: modelId === "gemini-3-flash" ? "gemini-2.0-flash" : modelId, // Ensure we send valid ID to Google
       messages: [
           { role: "system", content: systemPrompt },
           ...conversationHistory,

@@ -84,6 +84,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "framer-motion": "^12.23.26",
+    "playwright": "^1.57.0",
     "postcss": "^8.5",
     "tailwindcss": "^4.1.9",
     "tw-animate-css": "1.3.3",
