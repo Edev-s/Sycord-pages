@@ -1,5 +1,6 @@
 export const FILE_STRUCTURE = `
 project/
+├── index.html            (main HTML entry point - Vite requires this at root)
 ├── src/
 │   ├── main.ts           (entry point - initializes the app)
 │   ├── utils.ts          (shared utility functions)
@@ -7,7 +8,6 @@ project/
 │       ├── header.ts     (navigation and header component)
 │       └── footer.ts     (footer component)
 ├── public/
-│   ├── index.html        (main HTML entry point)
 │   └── style.css         (global styles with Tailwind)
 ├── package.json          (project dependencies)
 ├── vite.config.ts        (Vite configuration)

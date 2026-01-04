@@ -36,6 +36,7 @@ export async function POST(request: Request) {
     PROJECT STRUCTURE:
     You must plan for this exact Vite project structure:
     project/
+    ├── index.html            (main HTML entry point - Vite requires this at root)
     ├── src/
     │   ├── main.ts           (entry point - initializes the app)
     │   ├── utils.ts          (shared utility functions)
@@ -43,7 +44,6 @@ export async function POST(request: Request) {
     │       ├── header.ts     (navigation and header component)
     │       └── footer.ts     (footer component)
     ├── public/
-    │   ├── index.html        (main HTML entry point)
     │   └── style.css         (global styles with Tailwind)
     ├── package.json          (project dependencies)
     ├── vite.config.ts        (Vite configuration for build)
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
 
     [0] The user wants to create [Brief overview]. As an AI web builder using Vite + TypeScript for Cloudflare Pages, I will generate files following proper project structure. The backend will mark completed files by replacing [N] with [Done].
 
-    [1] public/index.html : [usedfor]main HTML entry point that loads the Vite app[usedfor]
+    [1] index.html : [usedfor]main HTML entry point that loads the Vite app (must be at root for Vite)[usedfor]
     [2] src/main.ts : [usedfor]TypeScript entry point that initializes components[usedfor]
     [3] src/components/header.ts : [usedfor]reusable header/navigation component[usedfor]
     [4] src/components/footer.ts : [usedfor]reusable footer component[usedfor]
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
     ...
 
     REQUIREMENTS:
-    1.  **Vite Structure**: Follow the exact Vite project structure above. Entry point is public/index.html.
+    1.  **Vite Structure**: Follow the exact Vite project structure above. index.html MUST be at project root (not in public/).
     2.  **TypeScript**: All source files in src/ must use .ts extension and be properly typed.
     3.  **Components**: Create modular components in src/components/ directory.
     4.  **Tailwind CSS**: Use Tailwind CSS classes. Include CDN in index.html for simplicity.
@@ -74,6 +74,7 @@ export async function POST(request: Request) {
     6.  **Scale**: Plan for a COMPLETE experience (6-12 files typically).
     7.  **Cloudflare Pages Ready**: Structure must be deployable to Cloudflare Pages with Vite.
     8.  **Config Files**: Always include package.json and vite.config.ts for proper build setup.
+    9.  **main.ts Location**: Entry point must be at src/main.ts (not src/types/ or other locations).
     `
 
     // Combine history for context
