@@ -39,12 +39,12 @@ export async function POST(request: Request) {
     ├── src/
     │   ├── main.ts           (entry point - initializes the app)
     │   ├── utils.ts          (shared utility functions)
+    │   ├── style.css         (global styles with Tailwind)
     │   └── components/
     │       ├── header.ts     (navigation and header component)
     │       └── footer.ts     (footer component)
     ├── public/
-    │   ├── index.html        (main HTML entry point)
-    │   └── style.css         (global styles with Tailwind)
+    │   └── index.html        (main HTML entry point)
     ├── package.json          (project dependencies)
     └── README.md             (project documentation)
 
@@ -55,10 +55,10 @@ export async function POST(request: Request) {
 
     [1] public/index.html : [usedfor]main HTML entry point that loads the Vite app[usedfor]
     [2] src/main.ts : [usedfor]TypeScript entry point that initializes components[usedfor]
-    [3] src/components/header.ts : [usedfor]reusable header/navigation component[usedfor]
-    [4] src/components/footer.ts : [usedfor]reusable footer component[usedfor]
-    [5] src/utils.ts : [usedfor]shared utility functions[usedfor]
-    [6] public/style.css : [usedfor]global Tailwind CSS styles[usedfor]
+    [3] src/style.css : [usedfor]global Tailwind CSS styles[usedfor]
+    [4] src/components/header.ts : [usedfor]reusable header/navigation component[usedfor]
+    [5] src/components/footer.ts : [usedfor]reusable footer component[usedfor]
+    [6] src/utils.ts : [usedfor]shared utility functions[usedfor]
     [7] package.json : [usedfor]npm dependencies and scripts for Vite[usedfor]
     [8] README.md : [usedfor]project documentation[usedfor]
     ...
