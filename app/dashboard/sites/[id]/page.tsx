@@ -67,6 +67,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { Progress } from "@/components/ui/progress"
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from "recharts"
+import { AutoFixModal } from "@/components/auto-fix-modal"
 
 const headerComponents = {
   simple: { name: "Simple", description: "A clean, minimalist header" },
@@ -465,6 +466,32 @@ export default function SiteSettingsPage() {
   const [deployError, setDeployError] = useState<string | null>(null)
   const [deployResult, setDeployResult] = useState<{ url?: string; message?: string } | null>(null)
 
+  // Auto-Fix State
+  const [logs, setLogs] = useState<string[]>([])
+  const [hasDeployError, setHasDeployError] = useState(false)
+  const [isAutoFixModalOpen, setIsAutoFixModalOpen] = useState(false)
+
+  const fetchLogs = async () => {
+    try {
+        const res = await fetch(`https://micro1.sycord.com/api/logs?project_id=${id}&limit=50`)
+        if (res.ok) {
+            const data = await res.json()
+            if (data.success && Array.isArray(data.logs)) {
+                setLogs(data.logs)
+                // Simple error detection in logs
+                const errorFound = data.logs.some((log: string) =>
+                    log.toLowerCase().includes('error') ||
+                    log.toLowerCase().includes('fail') ||
+                    log.toLowerCase().includes('exception')
+                )
+                setHasDeployError(errorFound)
+            }
+        }
+    } catch (e) {
+        console.error("Failed to fetch logs", e)
+    }
+  }
+
   useEffect(() => {
     if (!id) return
 
@@ -522,6 +549,7 @@ export default function SiteSettingsPage() {
 
         await Promise.all([fetchProject, fetchSettings, fetchProducts])
         console.log("[v0] All data fetches completed")
+        fetchLogs()
       } catch (error) {
         console.error("[v0] Error in fetchAllData:", error)
       } finally {
@@ -772,8 +800,10 @@ export default function SiteSettingsPage() {
     } catch (err: any) {
       setDeployError(err.message || "Deployment failed")
       setDeployProgress(0)
+      setHasDeployError(true)
     } finally {
       setIsDeploying(false)
+      setTimeout(fetchLogs, 2000)
     }
   }
 
@@ -1105,9 +1135,10 @@ export default function SiteSettingsPage() {
                               size="lg"
                               className={cn(
                                 "w-full h-14 font-semibold text-base shadow-lg shadow-primary/10 rounded-xl transition-all",
-                                deploySuccess && "bg-green-500/20 text-green-400 border-green-500/30"
+                                deploySuccess && "bg-green-500/20 text-green-400 border-green-500/30",
+                                hasDeployError && !isDeploying && !deploySuccess && "bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30"
                               )}
-                              onClick={handleDeploy}
+                              onClick={hasDeployError ? () => setIsAutoFixModalOpen(true) : handleDeploy}
                               disabled={isDeploying}
                           >
                               {isDeploying ? (
@@ -1119,6 +1150,15 @@ export default function SiteSettingsPage() {
                                 <>
                                   <CheckCircle2 className="h-5 w-5 mr-2" />
                                   Deployed Successfully!
+                                </>
+                              ) : hasDeployError ? (
+                                <>
+                                    <Sparkles className="h-5 w-5 mr-2" />
+                                    Fix with AI
+                                    <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                      <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                                    </span>
                                 </>
                               ) : (
                                 <>
@@ -1139,9 +1179,14 @@ export default function SiteSettingsPage() {
                         </div>
 
                         {deployError && (
-                          <p className="text-sm text-destructive text-center">
-                            {deployError}
-                          </p>
+                          <div className="text-center space-y-2">
+                             <p className="text-sm text-destructive">{deployError}</p>
+                             {!hasDeployError && (
+                               <Button variant="link" size="sm" onClick={() => setIsAutoFixModalOpen(true)} className="text-blue-400 h-auto p-0">
+                                 Try fixing with AI
+                               </Button>
+                             )}
+                          </div>
                         )}
 
                         {deployResult?.url && deploySuccess && (
@@ -1277,9 +1322,10 @@ export default function SiteSettingsPage() {
                                 size="lg"
                                 className={cn(
                                   "w-full font-semibold shadow-lg shadow-primary/20 transition-all",
-                                  deploySuccess && "bg-green-500/20 text-green-400 border-green-500/30"
+                                  deploySuccess && "bg-green-500/20 text-green-400 border-green-500/30",
+                                  hasDeployError && !isDeploying && !deploySuccess && "bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30"
                                 )}
-                                onClick={handleDeploy}
+                                onClick={hasDeployError ? () => setIsAutoFixModalOpen(true) : handleDeploy}
                                 disabled={isDeploying}
                               >
                                 {isDeploying ? (
@@ -1292,6 +1338,15 @@ export default function SiteSettingsPage() {
                                     <CheckCircle2 className="h-4 w-4 mr-2" />
                                     Deployed Successfully!
                                   </>
+                                ) : hasDeployError ? (
+                                    <>
+                                        <Sparkles className="h-4 w-4 mr-2" />
+                                        Fix with AI
+                                        <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                            <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                                        </span>
+                                    </>
                                 ) : (
                                   <>
                                     <Rocket className="h-4 w-4 mr-2" />
@@ -1311,9 +1366,14 @@ export default function SiteSettingsPage() {
                             </div>
 
                             {deployError && (
-                              <p className="text-sm text-destructive">
-                                {deployError}
-                              </p>
+                               <div className="space-y-1">
+                                  <p className="text-sm text-destructive">{deployError}</p>
+                                  {!hasDeployError && (
+                                    <Button variant="link" size="sm" onClick={() => setIsAutoFixModalOpen(true)} className="text-blue-400 h-auto p-0">
+                                        Try fixing with AI
+                                    </Button>
+                                  )}
+                               </div>
                             )}
 
                             {deployResult?.url && deploySuccess && (
@@ -1829,6 +1889,15 @@ export default function SiteSettingsPage() {
           </div>
         </main>
       </div>
+
+      <AutoFixModal
+        isOpen={isAutoFixModalOpen}
+        onClose={() => setIsAutoFixModalOpen(false)}
+        projectId={id}
+        logs={logs}
+        pages={generatedPages}
+        setPages={setGeneratedPages}
+      />
     </div>
   )
 }
