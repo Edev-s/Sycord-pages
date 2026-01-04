@@ -1,5 +1,6 @@
 export const FILE_STRUCTURE = `
 project/
+├── index.html
 ├── src/
 │   ├── main.ts
 │   ├── utils.ts
@@ -8,7 +9,6 @@ project/
 │       ├── header.ts
 │       └── footer.ts
 ├── public/
-│   └── index.html
 ├── package.json
 ├── tsconfig.json
 ├── vite.config.ts
