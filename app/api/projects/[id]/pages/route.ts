@@ -114,41 +114,65 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     const { id } = await params
     const { searchParams } = new URL(request.url)
     const pageName = searchParams.get("name")
+    const deleteAll = searchParams.get("all") === "true"
 
     if (!ObjectId.isValid(id)) {
       return NextResponse.json({ message: "Invalid project ID" }, { status: 400 })
     }
 
-    if (!pageName) {
-      return NextResponse.json({ message: "Page name required" }, { status: 400 })
-    }
-
     const client = await clientPromise
     const db = client.db()
 
-    const result = await db.collection("users").updateOne(
-        {
-            id: session.user.id,
-            "projects._id": new ObjectId(id)
-        },
-        {
-            $pull: {
-                "projects.$.pages": { name: pageName }
-            } as any
+    if (deleteAll) {
+        // Clear all pages for the project
+        const result = await db.collection("users").updateOne(
+            {
+                id: session.user.id,
+                "projects._id": new ObjectId(id)
+            },
+            {
+                $set: {
+                    "projects.$.pages": []
+                }
+            }
+        )
+
+        if (result.matchedCount === 0) {
+             return NextResponse.json({ message: "Project not found" }, { status: 404 })
         }
-    )
 
-    if (result.matchedCount === 0) {
-        // Either project or user not found
-        return NextResponse.json({ message: "Project not found" }, { status: 404 })
+        return NextResponse.json({ success: true, message: "All pages deleted" })
+
+    } else {
+        if (!pageName) {
+          return NextResponse.json({ message: "Page name required" }, { status: 400 })
+        }
+
+        const result = await db.collection("users").updateOne(
+            {
+                id: session.user.id,
+                "projects._id": new ObjectId(id)
+            },
+            {
+                $pull: {
+                    "projects.$.pages": { name: pageName }
+                } as any
+            }
+        )
+
+        if (result.matchedCount === 0) {
+            // Either project or user not found
+            return NextResponse.json({ message: "Project not found" }, { status: 404 })
+        }
+
+        // If matchedCount > 0 but modifiedCount == 0, it means page wasn't in the list
+        if (result.modifiedCount === 0) {
+            return NextResponse.json({ message: "Page not found" }, { status: 404 })
+        }
+
+        return NextResponse.json({ success: true })
     }
 
-    // If matchedCount > 0 but modifiedCount == 0, it means page wasn't in the list
-    if (result.modifiedCount === 0) {
-        return NextResponse.json({ message: "Page not found" }, { status: 404 })
-    }
-
-    return NextResponse.json({ success: true })
   } catch (error: any) {
     console.error("Error deleting page:", error)
     return NextResponse.json({ message: error.message }, { status: 500 })

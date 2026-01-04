@@ -28,7 +28,8 @@ Your goal is to build a high-performance, production-ready website deployable to
 **TECH STACK:**
 *   **Framework:** Vite (Vanilla TS or React-based if specified, but assume Vanilla TS + DOM manipulation for "simple" requests unless React is explicitly requested). *Actually, let's standardize on Vanilla TypeScript for maximum performance and simplicity in this builder unless otherwise specified.*
 *   **Language:** TypeScript (Strict typing).
-*   **Styling:** Tailwind CSS (via CDN for HTML files, or @apply in src/style.css).
+*   **Styling:** Tailwind CSS. **IMPORTANT:** Place all global styles in **src/style.css**. Do NOT put styles in public/.
+*   **Imports:** In 'src/main.ts', you MUST import the styles using: \`import './style.css'\`.
 `
 
 export async function POST(request: Request) {
@@ -119,6 +120,8 @@ export async function POST(request: Request) {
       ${isHTML ? `- Use <!DOCTYPE html>. Include <script src="https://cdn.tailwindcss.com"></script>. Include <script type="module" src="/src/main.ts"></script>.` : ''}
       ${isTS ? `- Write valid TypeScript. Use 'export' for modules. Import from relative paths (e.g. './utils'). DOM manipulation must be type-safe (use 'as HTMLElement' if needed).` : ''}
       ${isJSON ? `- Return valid JSON only.` : ''}
+      - **CRITICAL**: If generating **src/main.ts**, you MUST include \`import './style.css'\` at the top.
+      - **CRITICAL**: If generating **style.css**, ensure it is placed in **src/** (not public/).
 
       **OUTPUT FORMAT (STRICT):**
       You must wrap the code content in [code]...[code] blocks.

@@ -1697,10 +1697,35 @@ export default function SiteSettingsPage() {
                       <h2 className="text-2xl font-bold">Site Pages</h2>
                       <p className="text-muted-foreground">Manage AI-generated content (Vite + TypeScript)</p>
                     </div>
-                    <Button onClick={() => setActiveTab("ai")}>
-                       <Sparkles className="h-4 w-4 mr-2" />
-                       Generate New
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      {generatedPages.length > 0 && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={async () => {
+                            if (!confirm("Are you sure you want to delete ALL generated pages? This cannot be undone.")) return;
+                            try {
+                              const res = await fetch(`/api/projects/${id}/pages?all=true`, { method: "DELETE" });
+                              if (res.ok) {
+                                setGeneratedPages([]);
+                                setSelectedPage(null);
+                              } else {
+                                throw new Error("Failed to delete all pages");
+                              }
+                            } catch (e: any) {
+                              alert(e.message);
+                            }
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete All
+                        </Button>
+                      )}
+                      <Button onClick={() => setActiveTab("ai")}>
+                         <Sparkles className="h-4 w-4 mr-2" />
+                         Generate New
+                      </Button>
+                    </div>
                   </div>
 
                   {generatedPages.length === 0 ? (
