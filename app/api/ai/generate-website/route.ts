@@ -9,8 +9,8 @@ const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions"
 
 // Map models to their specific endpoints and Env Vars
 const MODEL_CONFIGS: Record<string, { url: string, envVar: string, provider: string }> = {
-  "gemini-2.0-flash": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
-  "gemini-2.5-flash-lite": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
+  "gemini-2.0-flash-001": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
+  "gemini-exp-1206": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
   "deepseek-v3.2-exp": { url: DEEPSEEK_API_URL, envVar: "DEEPSEEK_API", provider: "DeepSeek" }
 }
 

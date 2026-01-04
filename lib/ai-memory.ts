@@ -3,12 +3,12 @@ project/
 ├── index.html            (main HTML entry point - Vite requires this at root)
 ├── src/
 │   ├── main.ts           (entry point - initializes the app)
+│   ├── style.css         (global styles with Tailwind - imported by main.ts)
 │   ├── utils.ts          (shared utility functions)
 │   └── components/
 │       ├── header.ts     (navigation and header component)
 │       └── footer.ts     (footer component)
-├── public/
-│   └── style.css         (global styles with Tailwind)
+├── public/               (static assets)
 ├── package.json          (project dependencies)
 ├── vite.config.ts        (Vite configuration)
 └── README.md             (project documentation)

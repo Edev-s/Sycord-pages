@@ -31,8 +31,8 @@ import {
 import { cn } from "@/lib/utils"
 
 const MODELS = [
-  { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", provider: "Google" },
-  { id: "gemini-2.5-flash-lite", name: "Gemini 2.5 Flash Lite", provider: "Google" },
+  { id: "gemini-2.0-flash-001", name: "Gemini 2.0 Flash", provider: "Google" },
+  { id: "gemini-exp-1206", name: "Gemini Exp 1206", provider: "Google" },
   { id: "deepseek-v3.2-exp", name: "DeepSeek V3", provider: "DeepSeek" },
 ]
 
@@ -481,12 +481,43 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
           <div className="flex-1 flex flex-col min-h-0 min-w-0">
               <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-4 sm:space-y-6 custom-scrollbar">
                   {messages.length === 0 && (
-                      <div className="h-full flex flex-col items-center justify-center text-center opacity-50 p-4 sm:p-8">
-                          <Sparkles className="h-10 w-10 sm:h-12 sm:w-12 mb-3 sm:mb-4" />
-                          <h3 className="text-base sm:text-lg font-medium">What shall we build?</h3>
-                          <p className="text-xs sm:text-sm max-w-xs mt-2 text-muted-foreground">
-                              e.g., "A modern portfolio for a photographer with a dark theme and gallery grid."
+                      <div className="h-full flex flex-col items-center justify-center text-center p-4 sm:p-8">
+                          <div className="relative mb-6">
+                              <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full" />
+                              <div className="relative h-16 w-16 sm:h-20 sm:w-20 rounded-2xl bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center border border-primary/20">
+                                  <Sparkles className="h-8 w-8 sm:h-10 sm:w-10 text-primary" />
+                              </div>
+                          </div>
+                          <h3 className="text-lg sm:text-xl font-semibold mb-2">What shall we build?</h3>
+                          <p className="text-xs sm:text-sm max-w-md text-muted-foreground mb-6">
+                              Describe your vision and I'll create a complete Vite + TypeScript project ready for Cloudflare Pages.
                           </p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-md">
+                              <button 
+                                  onClick={() => setInput("A modern portfolio for a photographer with dark theme and image gallery")}
+                                  className="text-left px-3 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors text-xs text-muted-foreground"
+                              >
+                                  📷 Photographer portfolio
+                              </button>
+                              <button 
+                                  onClick={() => setInput("A landing page for a SaaS startup with pricing section and features")}
+                                  className="text-left px-3 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors text-xs text-muted-foreground"
+                              >
+                                  🚀 SaaS landing page
+                              </button>
+                              <button 
+                                  onClick={() => setInput("A personal blog with minimalist design and code syntax highlighting")}
+                                  className="text-left px-3 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors text-xs text-muted-foreground"
+                              >
+                                  ✍️ Developer blog
+                              </button>
+                              <button 
+                                  onClick={() => setInput("A restaurant website with menu, location map and reservation form")}
+                                  className="text-left px-3 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors text-xs text-muted-foreground"
+                              >
+                                  🍽️ Restaurant site
+                              </button>
+                          </div>
                       </div>
                   )}
 
