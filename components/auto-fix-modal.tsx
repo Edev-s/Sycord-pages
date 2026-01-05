@@ -28,6 +28,12 @@ export function AutoFixModal({ isOpen, onClose, projectId, logs, pages, setPages
   const [steps, setSteps] = useState<FixStep[]>([])
   const [isFixing, setIsFixing] = useState(false)
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
+  const [displayLogs, setDisplayLogs] = useState<string[]>(logs)
+
+  // Update display logs when props change
+  useEffect(() => {
+    setDisplayLogs(logs)
+  }, [logs])
 
   const addStep = (message: string, status: FixStep['status'] = 'pending') => {
     setSteps(prev => [...prev, { message, status }])
@@ -57,6 +63,7 @@ export function AutoFixModal({ isOpen, onClose, projectId, logs, pages, setPages
           const logData = await logRes.json()
           if (logData.success && Array.isArray(logData.logs)) {
             currentLogs = logData.logs
+            setDisplayLogs(logData.logs)
             addStep("Logs retrieved successfully.", "completed")
           }
         }
@@ -226,9 +233,9 @@ export function AutoFixModal({ isOpen, onClose, projectId, logs, pages, setPages
                            <AlertCircle className="h-4 w-4" />
                            Deployment Failed
                        </h4>
-                       <div className="text-xs text-muted-foreground font-mono bg-black/40 p-2 rounded overflow-x-auto whitespace-pre-wrap max-h-32 custom-scrollbar">
-                           {logs.slice(-3).map((l, i) => (
-                               <div key={i}>{l}</div>
+                       <div className="text-xs text-muted-foreground font-mono bg-black/40 p-2 rounded overflow-x-auto whitespace-pre-wrap max-h-48 custom-scrollbar">
+                           {displayLogs.slice(-50).map((l, i) => (
+                               <div key={i} className="whitespace-nowrap">{l}</div>
                            ))}
                        </div>
                    </div>
