@@ -46,9 +46,27 @@ export function AutoFixModal({ isOpen, onClose, projectId, logs, pages, setPages
   const startAutoFix = async () => {
     setIsFixing(true)
     setSteps([])
-    addStep("Analyzing deployment logs...", "processing")
+    addStep("Fetching recent server logs...", "processing")
 
     try {
+      // Fetch latest logs first
+      let currentLogs = logs
+      try {
+        const logRes = await fetch(`https://micro1.sycord.com/api/logs?project_id=${projectId}&limit=50`)
+        if (logRes.ok) {
+          const logData = await logRes.json()
+          if (logData.success && Array.isArray(logData.logs)) {
+            currentLogs = logData.logs
+            addStep("Logs retrieved successfully.", "completed")
+          }
+        }
+      } catch (e) {
+        console.error("Failed to fetch logs during auto-fix", e)
+        addStep("Could not fetch fresh logs, using cached logs.", "completed")
+      }
+
+      addStep("Analyzing deployment logs...", "processing")
+
       let resolved = false
       let iteration = 0
       const maxIterations = 5
@@ -69,7 +87,7 @@ export function AutoFixModal({ isOpen, onClose, projectId, logs, pages, setPages
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            logs,
+            logs: currentLogs,
             fileStructure,
             fileContent: fileContentToAnalyze,
             lastAction
