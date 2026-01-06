@@ -471,9 +471,12 @@ export default function SiteSettingsPage() {
   const [hasDeployError, setHasDeployError] = useState(false)
   const [isAutoFixModalOpen, setIsAutoFixModalOpen] = useState(false)
 
-  const fetchLogs = async () => {
+  const fetchLogs = async (repoIdOverride?: string) => {
+    const targetId = repoIdOverride || project?.githubRepoId
+    if (!targetId) return
+
     try {
-        const res = await fetch(`https://micro1.sycord.com/api/logs?project_id=${id}&limit=50`)
+        const res = await fetch(`https://micro1.sycord.com/api/logs?project_id=${targetId}&limit=50`)
         if (res.ok) {
             const data = await res.json()
             if (data.success && Array.isArray(data.logs)) {
@@ -795,6 +798,11 @@ export default function SiteSettingsPage() {
         message: result.message || `Successfully deployed ${result.filesCount} file(s) to GitHub`
       })
 
+      // Update project with potentially new githubRepoId if needed
+      if (result.repoId) {
+          setProject((prev: any) => ({ ...prev, githubRepoId: result.repoId }))
+      }
+
       // Reset success state after 5 seconds
       const SUCCESS_DISPLAY_DURATION_MS = 5000
       setTimeout(() => {
@@ -802,13 +810,19 @@ export default function SiteSettingsPage() {
         setDeployProgress(0)
       }, SUCCESS_DISPLAY_DURATION_MS)
 
+      // Fetch logs immediately with new repo ID
+      if (result.repoId) {
+          fetchLogs(result.repoId)
+      }
+
     } catch (err: any) {
       setDeployError(err.message || "Deployment failed")
       setDeployProgress(0)
       setHasDeployError(true)
+      // Attempt logs fetch anyway
+      setTimeout(fetchLogs, 1000)
     } finally {
       setIsDeploying(false)
-      setTimeout(fetchLogs, 2000)
     }
   }
 
@@ -1909,7 +1923,7 @@ export default function SiteSettingsPage() {
       <AutoFixModal
         isOpen={isAutoFixModalOpen}
         onClose={() => setIsAutoFixModalOpen(false)}
-        projectId={id}
+        projectId={project?.githubRepoId || id}
         logs={logs}
         pages={generatedPages}
         setPages={setGeneratedPages}
