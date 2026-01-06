@@ -58,7 +58,7 @@ export function AutoFixModal({ isOpen, onClose, projectId, logs, pages, setPages
       // Fetch latest logs first
       let currentLogs = logs
       try {
-        const fetchUrl = `https://micro1.sycord.com/api/logs?repo_id=${projectId}&limit=50`
+        const fetchUrl = `https://micro1.sycord.com/api/logs?project_id=${projectId}&limit=50`
         console.log(`[AutoFix] Fetching logs from: ${fetchUrl}`)
 
         const logRes = await fetch(fetchUrl)

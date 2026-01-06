@@ -473,7 +473,7 @@ export default function SiteSettingsPage() {
 
   const fetchLogs = async () => {
     try {
-        const res = await fetch(`https://micro1.sycord.com/api/logs?repo_id=${id}&limit=50`)
+        const res = await fetch(`https://micro1.sycord.com/api/logs?project_id=${id}&limit=50`)
         if (res.ok) {
             const data = await res.json()
             if (data.success && Array.isArray(data.logs)) {
