@@ -58,18 +58,37 @@ export function AutoFixModal({ isOpen, onClose, projectId, logs, pages, setPages
       // Fetch latest logs first
       let currentLogs = logs
       try {
-        const logRes = await fetch(`https://micro1.sycord.com/api/logs?project_id=${projectId}&limit=50`)
+        const fetchUrl = `https://micro1.sycord.com/api/logs?repo_id=${projectId}&limit=50`
+        console.log(`[AutoFix] Fetching logs from: ${fetchUrl}`)
+
+        const logRes = await fetch(fetchUrl)
+        console.log(`[AutoFix] Response status: ${logRes.status}`)
+
         if (logRes.ok) {
-          const logData = await logRes.json()
-          if (logData.success && Array.isArray(logData.logs)) {
-            currentLogs = logData.logs
-            setDisplayLogs(logData.logs)
-            addStep("Logs retrieved successfully.", "completed")
+          const rawText = await logRes.text()
+          console.log(`[AutoFix] Response body:`, rawText)
+
+          try {
+            const logData = JSON.parse(rawText)
+            if (logData.success && Array.isArray(logData.logs)) {
+              currentLogs = logData.logs
+              setDisplayLogs(logData.logs)
+              addStep("Logs retrieved successfully.", "completed")
+            } else {
+              console.warn("[AutoFix] Unexpected log data format:", logData)
+              addStep("Log format invalid, using cached logs.", "error")
+            }
+          } catch (jsonErr) {
+            console.error("[AutoFix] JSON parse error:", jsonErr)
+            addStep("Failed to parse logs, using cached logs.", "error")
           }
+        } else {
+            console.error(`[AutoFix] Fetch failed with status: ${logRes.status}`)
+            addStep(`Fetch failed (${logRes.status}), using cached logs.`, "error")
         }
-      } catch (e) {
+      } catch (e: any) {
         console.error("Failed to fetch logs during auto-fix", e)
-        addStep("Could not fetch fresh logs, using cached logs.", "completed")
+        addStep(`Network error: ${e.message}`, "error")
       }
 
       addStep("Analyzing deployment logs...", "processing")
