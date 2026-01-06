@@ -8,7 +8,7 @@
 **Description:** Retrieves recent server logs for a specific repository deployment.
 
 **Query Parameters:**
-*   `repo_id` (string, required): The repository identifier (matches the MongoDB Project ID).
+*   `project_id` (string, required): The repository identifier (matches the MongoDB Project ID).
 *   `limit` (number, optional): Number of lines to return (default: 200, max: 500).
 
 **Response Format:**
@@ -24,4 +24,4 @@
 ```
 
 **Usage in Frontend:**
-When diagnosing deployment failures, fetch logs using the `repo_id` (which corresponds to the project `_id`).
+When diagnosing deployment failures, fetch logs using the `project_id` (which corresponds to the project `_id`).
