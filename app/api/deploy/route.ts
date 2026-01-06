@@ -300,7 +300,8 @@ export async function POST(request: Request) {
         githubUrl: gitUrl,
         cloudflareUrl,
         filesCount: files.length,
-        message: deployMessage
+        message: deployMessage,
+        repoId: repoId.toString()
     })
 
   } catch (error: any) {
