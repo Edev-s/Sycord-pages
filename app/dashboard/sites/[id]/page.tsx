@@ -473,7 +473,7 @@ export default function SiteSettingsPage() {
 
   const fetchLogs = async () => {
     try {
-        const res = await fetch(`https://micro1.sycord.com/api/logs?project_id=${id}&limit=50`)
+        const res = await fetch(`https://micro1.sycord.com/api/logs?repo_id=${id}&limit=50`)
         if (res.ok) {
             const data = await res.json()
             if (data.success && Array.isArray(data.logs)) {
@@ -1192,6 +1192,17 @@ export default function SiteSettingsPage() {
                                </Button>
                              )}
                           </div>
+                        )}
+
+                        {logs.length > 0 && hasDeployError && (
+                            <div className="w-full mt-4">
+                                <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">Error Logs</p>
+                                <div className="text-xs font-mono text-muted-foreground bg-black/40 p-3 rounded-lg border border-white/10 overflow-x-auto whitespace-pre-wrap max-h-48 custom-scrollbar shadow-inner">
+                                    {logs.slice(-20).map((l, i) => (
+                                        <div key={i} className="border-b border-white/5 last:border-0 pb-0.5 mb-0.5 last:mb-0 last:pb-0">{l}</div>
+                                    ))}
+                                </div>
+                            </div>
                         )}
 
                         {deployResult?.url && deploySuccess && (
