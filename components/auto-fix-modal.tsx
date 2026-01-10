@@ -100,12 +100,13 @@ export function AutoFixModal({ isOpen, onClose, projectId, logs, pages, setPages
       let iteration = 0
       let lastAction = null
       let fileContentToAnalyze = null
+      const maxSafeIterations = 50 // Safety limit to prevent infinite loops
 
       // Local copy of pages to prevent closure staleness during the async loop
       let currentPages = [...pages]
 
-      // Continue until AI reports 'done' - no max iterations limit
-      while (!resolved) {
+      // Continue until AI reports 'done' - with safety limit
+      while (!resolved && iteration < maxSafeIterations) {
         iteration++
         addStep(`AI iteration ${iteration}...`, "processing")
 
@@ -225,6 +226,10 @@ export function AutoFixModal({ isOpen, onClose, projectId, logs, pages, setPages
 
         // Small delay for UX
         await new Promise(r => setTimeout(r, 800))
+      }
+
+      if (!resolved && iteration >= maxSafeIterations) {
+        addStep("⚠️ Safety limit reached. Please review the changes and try again if needed.", "error")
       }
 
     } catch (error: any) {
