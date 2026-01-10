@@ -67,7 +67,6 @@ import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { Progress } from "@/components/ui/progress"
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from "recharts"
-import { AutoFixModal } from "@/components/auto-fix-modal"
 
 const headerComponents = {
   simple: { name: "Simple", description: "A clean, minimalist header" },
@@ -469,7 +468,7 @@ export default function SiteSettingsPage() {
   // Auto-Fix State
   const [logs, setLogs] = useState<string[]>([])
   const [hasDeployError, setHasDeployError] = useState(false)
-  const [isAutoFixModalOpen, setIsAutoFixModalOpen] = useState(false)
+  const [autoFixLogs, setAutoFixLogs] = useState<string[] | null>(null)
 
   const fetchLogs = async (repoIdOverride?: string) => {
     const targetId = repoIdOverride || project?.githubRepoId
@@ -740,6 +739,11 @@ export default function SiteSettingsPage() {
     } catch (error: any) {
       alert(error.message)
     }
+  }
+
+  const startAutoFix = () => {
+    setAutoFixLogs(logs)
+    setActiveTab("ai")
   }
 
   const handleDeploy = async () => {
@@ -1157,7 +1161,7 @@ export default function SiteSettingsPage() {
                                 deploySuccess && "bg-green-500/20 text-green-400 border-green-500/30",
                                 hasDeployError && !isDeploying && !deploySuccess && "bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30"
                               )}
-                              onClick={hasDeployError ? () => setIsAutoFixModalOpen(true) : handleDeploy}
+                              onClick={hasDeployError ? startAutoFix : handleDeploy}
                               disabled={isDeploying}
                           >
                               {isDeploying ? (
@@ -1201,7 +1205,7 @@ export default function SiteSettingsPage() {
                           <div className="text-center space-y-2">
                              <p className="text-sm text-destructive">{deployError}</p>
                              {!hasDeployError && (
-                               <Button variant="link" size="sm" onClick={() => setIsAutoFixModalOpen(true)} className="text-blue-400 h-auto p-0">
+                               <Button variant="link" size="sm" onClick={startAutoFix} className="text-blue-400 h-auto p-0">
                                  Try fixing with AI
                                </Button>
                              )}
@@ -1355,7 +1359,7 @@ export default function SiteSettingsPage() {
                                   deploySuccess && "bg-green-500/20 text-green-400 border-green-500/30",
                                   hasDeployError && !isDeploying && !deploySuccess && "bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30"
                                 )}
-                                onClick={hasDeployError ? () => setIsAutoFixModalOpen(true) : handleDeploy}
+                                onClick={hasDeployError ? startAutoFix : handleDeploy}
                                 disabled={isDeploying}
                               >
                                 {isDeploying ? (
@@ -1399,7 +1403,7 @@ export default function SiteSettingsPage() {
                                <div className="space-y-1">
                                   <p className="text-sm text-destructive">{deployError}</p>
                                   {!hasDeployError && (
-                                    <Button variant="link" size="sm" onClick={() => setIsAutoFixModalOpen(true)} className="text-blue-400 h-auto p-0">
+                                    <Button variant="link" size="sm" onClick={startAutoFix} className="text-blue-400 h-auto p-0">
                                         Try fixing with AI
                                     </Button>
                                   )}
@@ -1747,6 +1751,7 @@ export default function SiteSettingsPage() {
                         projectId={id}
                         generatedPages={generatedPages}
                         setGeneratedPages={setGeneratedPages}
+                        autoFixLogs={autoFixLogs}
                       />
                     </div>
                   ) : (
@@ -1920,14 +1925,6 @@ export default function SiteSettingsPage() {
         </main>
       </div>
 
-      <AutoFixModal
-        isOpen={isAutoFixModalOpen}
-        onClose={() => setIsAutoFixModalOpen(false)}
-        projectId={project?.githubRepoId || id}
-        logs={logs}
-        pages={generatedPages}
-        setPages={setGeneratedPages}
-      />
     </div>
   )
 }
