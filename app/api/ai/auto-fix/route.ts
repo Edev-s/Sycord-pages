@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { logs, fileStructure, fileContent, currentStep, lastAction } = await request.json()
+    const { logs, fileStructure, fileContent, currentStep, lastAction, actionHistory } = await request.json()
 
     // Use GOOGLE_AI_API by default, fallback to GOOGLE_API_KEY
     const apiKey = process.env.GOOGLE_AI_API || process.env.GOOGLE_API_KEY
@@ -63,6 +63,17 @@ export async function POST(request: Request) {
       **FILE STRUCTURE:**
       ${fileStructure}
     `
+
+    // Add action history if available
+    if (actionHistory && Array.isArray(actionHistory) && actionHistory.length > 0) {
+      systemPrompt += `
+
+      **ACTIONS ALREADY TAKEN:**
+      ${actionHistory.join('\n')}
+      
+      Review the actions above. DO NOT repeat these exact same actions. Look for different issues or confirm if the problem is solved.
+      `
+    }
 
     if (lastAction === 'take a look' && fileContent) {
         systemPrompt += `

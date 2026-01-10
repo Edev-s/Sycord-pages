@@ -12,6 +12,7 @@ interface AutoFixModalProps {
   isOpen: boolean
   onClose: () => void
   projectId: string
+  projectDbId: string
   logs: string[]
   pages: GeneratedPage[]
   setPages: (pages: GeneratedPage[]) => void
@@ -25,7 +26,7 @@ type FixStep = {
   details?: string
 }
 
-export function AutoFixModal({ isOpen, onClose, projectId, logs, pages, setPages, onRedeploy }: AutoFixModalProps) {
+export function AutoFixModal({ isOpen, onClose, projectId, projectDbId, logs, pages, setPages, onRedeploy }: AutoFixModalProps) {
   const [steps, setSteps] = useState<FixStep[]>([])
   const [isFixing, setIsFixing] = useState(false)
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
@@ -102,6 +103,7 @@ export function AutoFixModal({ isOpen, onClose, projectId, logs, pages, setPages
       let fileContentToAnalyze = null
       const maxSafeIterations = 50 // Safety limit to prevent infinite loops
       const modifiedFiles = new Set<string>() // Track files that have been modified
+      const actionHistory: string[] = [] // Track all actions taken
 
       // Local copy of pages to prevent closure staleness during the async loop
       let currentPages = [...pages]
@@ -117,6 +119,11 @@ export function AutoFixModal({ isOpen, onClose, projectId, logs, pages, setPages
           return `${prefix}${p.name}`
         }).join('\n')
 
+        // Build action history summary
+        const historyContext = actionHistory.length > 0 
+          ? `\n\n**PREVIOUS ACTIONS TAKEN:**\n${actionHistory.join('\n')}\n`
+          : ''
+
         // Call AI
         const response = await fetch('/api/ai/auto-fix', {
           method: 'POST',
@@ -125,7 +132,8 @@ export function AutoFixModal({ isOpen, onClose, projectId, logs, pages, setPages
             logs: currentLogs,
             fileStructure,
             fileContent: fileContentToAnalyze,
-            lastAction
+            lastAction,
+            actionHistory: actionHistory
           })
         })
 
@@ -138,6 +146,32 @@ export function AutoFixModal({ isOpen, onClose, projectId, logs, pages, setPages
             addStep("✓ Issues resolved! Ready to redeploy.", "completed")
             resolved = true
             setFixSuccessful(true)
+            
+            // Auto-save all modified pages to database
+            if (modifiedFiles.size > 0) {
+              addStep("Saving changes to database...", "processing")
+              try {
+                const savePromises = Array.from(modifiedFiles).map(async (fileName) => {
+                  const page = currentPages.find(p => p.name === fileName)
+                  if (page) {
+                    const response = await fetch(`/api/projects/${projectDbId}/pages`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        name: page.name,
+                        content: page.code,
+                        usedFor: page.usedFor || 'Auto-fix'
+                      })
+                    })
+                    if (!response.ok) throw new Error(`Failed to save ${fileName}`)
+                  }
+                })
+                await Promise.all(savePromises)
+                updateLastStep({ status: 'completed', details: `Saved ${modifiedFiles.size} file(s) to database.` })
+              } catch (saveError: any) {
+                updateLastStep({ status: 'error', details: `Save error: ${saveError.message}` })
+              }
+            }
             break
         }
 
@@ -145,6 +179,7 @@ export function AutoFixModal({ isOpen, onClose, projectId, logs, pages, setPages
         if (result.action === 'read') {
             lastAction = 'take a look'
             addStep(`AI wants to check ${result.targetFile}...`, "processing")
+            actionHistory.push(`- Checked file: ${result.targetFile}`)
 
             const page = currentPages.find(p => p.name === result.targetFile)
             if (page) {
@@ -159,6 +194,7 @@ export function AutoFixModal({ isOpen, onClose, projectId, logs, pages, setPages
         } else if (result.action === 'move') {
             lastAction = 'move'
             addStep(`Moving ${result.targetFile} to ${result.newPath}...`, "processing")
+            actionHistory.push(`- Moved file: ${result.targetFile} → ${result.newPath}`)
 
             const pageIndex = currentPages.findIndex(p => p.name === result.targetFile)
             if (pageIndex !== -1) {
@@ -188,6 +224,7 @@ export function AutoFixModal({ isOpen, onClose, projectId, logs, pages, setPages
         } else if (result.action === 'delete') {
             lastAction = 'delete'
             addStep(`Deleting ${result.targetFile}...`, "processing")
+            actionHistory.push(`- Deleted file: ${result.targetFile}`)
 
             // Update local state
             currentPages = currentPages.filter(p => p.name !== result.targetFile)
@@ -200,6 +237,7 @@ export function AutoFixModal({ isOpen, onClose, projectId, logs, pages, setPages
         } else if (result.action === 'write') {
             lastAction = 'fix'
             addStep(`Applying fix to ${result.targetFile}...`, "processing")
+            actionHistory.push(`- Fixed file: ${result.targetFile}`)
 
             // Track this file as modified
             modifiedFiles.add(result.targetFile)

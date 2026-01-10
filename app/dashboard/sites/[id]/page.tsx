@@ -1924,6 +1924,7 @@ export default function SiteSettingsPage() {
         isOpen={isAutoFixModalOpen}
         onClose={() => setIsAutoFixModalOpen(false)}
         projectId={project?.githubRepoId || id}
+        projectDbId={id}
         logs={logs}
         pages={generatedPages}
         setPages={setGeneratedPages}
