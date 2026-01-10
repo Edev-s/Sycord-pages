@@ -1927,6 +1927,7 @@ export default function SiteSettingsPage() {
         logs={logs}
         pages={generatedPages}
         setPages={setGeneratedPages}
+        onRedeploy={handleDeploy}
       />
     </div>
   )
