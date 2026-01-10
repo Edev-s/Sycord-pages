@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { logs, fileStructure, fileContent, currentStep, lastAction } = await request.json()
+    const { logs, fileStructure, fileContent, currentStep, lastAction, actionHistory } = await request.json()
 
     // Use GOOGLE_AI_API by default, fallback to GOOGLE_API_KEY
     const apiKey = process.env.GOOGLE_AI_API || process.env.GOOGLE_API_KEY
@@ -30,11 +30,18 @@ export async function POST(request: Request) {
       The user is trying to deploy a website but encountered errors.
       You have access to the server logs and the project file structure.
 
+      **IMPORTANT:**
+      - Files marked with [MODIFIED] prefix have already been edited by you in previous iterations.
+      - DO NOT modify the same file again unless you see new errors specifically related to it.
+      - Focus on NEW issues or different files that haven't been addressed yet.
+      - If all issues appear to be resolved, use [done] to finish.
+
       **YOUR TOOLKIT:**
       You can perform ONE of the following actions at a time:
 
       1.  **[take a look] <filename>**: Request to see the content of a specific file to debug it.
           *   Use this if the logs point to a syntax error, import error, or logic error in a specific file.
+          *   Avoid checking files marked as [MODIFIED] unless there's a new error.
 
       2.  **[move] <old_path> <new_path>**: Rename or move a file.
           *   Use this if a file is in the wrong place (e.g., index.html in public/ instead of root).
@@ -45,8 +52,10 @@ export async function POST(request: Request) {
       4.  **[fix] <filename>**: Provide the corrected code for a file.
           *   Use this ONLY after you have seen the file content (via [take a look]) or if the fix is obvious from the logs (e.g., creating a missing config file).
           *   You MUST provide the full, corrected file content in a [code] block.
+          *   DO NOT fix files marked as [MODIFIED] unless there's a NEW error in them.
 
       5.  **[done]**: State that the issue is resolved.
+          *   Use this when all deployment errors have been addressed and no further changes are needed.
 
       **LOGS:**
       ${logs.join('\n')}
@@ -54,6 +63,17 @@ export async function POST(request: Request) {
       **FILE STRUCTURE:**
       ${fileStructure}
     `
+
+    // Add action history if available
+    if (actionHistory && Array.isArray(actionHistory) && actionHistory.length > 0) {
+      systemPrompt += `
+
+      **ACTIONS ALREADY TAKEN:**
+      ${actionHistory.join('\n')}
+      
+      Review the actions above. DO NOT repeat these exact same actions. Look for different issues or confirm if the problem is solved.
+      `
+    }
 
     if (lastAction === 'take a look' && fileContent) {
         systemPrompt += `
