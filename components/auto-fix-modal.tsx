@@ -101,6 +101,7 @@ export function AutoFixModal({ isOpen, onClose, projectId, logs, pages, setPages
       let lastAction = null
       let fileContentToAnalyze = null
       const maxSafeIterations = 50 // Safety limit to prevent infinite loops
+      const modifiedFiles = new Set<string>() // Track files that have been modified
 
       // Local copy of pages to prevent closure staleness during the async loop
       let currentPages = [...pages]
@@ -110,8 +111,11 @@ export function AutoFixModal({ isOpen, onClose, projectId, logs, pages, setPages
         iteration++
         addStep(`AI iteration ${iteration}...`, "processing")
 
-        // Prepare context using local state
-        const fileStructure = currentPages.map(p => p.name).join('\n')
+        // Prepare context using local state with modified files info
+        const fileStructure = currentPages.map(p => {
+          const prefix = modifiedFiles.has(p.name) ? '[MODIFIED] ' : ''
+          return `${prefix}${p.name}`
+        }).join('\n')
 
         // Call AI
         const response = await fetch('/api/ai/auto-fix', {
@@ -158,6 +162,10 @@ export function AutoFixModal({ isOpen, onClose, projectId, logs, pages, setPages
 
             const pageIndex = currentPages.findIndex(p => p.name === result.targetFile)
             if (pageIndex !== -1) {
+                // Track the modification
+                modifiedFiles.delete(result.targetFile)
+                modifiedFiles.add(result.newPath)
+                
                 // Update local state
                 const updatedPage = { ...currentPages[pageIndex], name: result.newPath }
                 const newPages = [...currentPages]
@@ -192,6 +200,9 @@ export function AutoFixModal({ isOpen, onClose, projectId, logs, pages, setPages
         } else if (result.action === 'write') {
             lastAction = 'fix'
             addStep(`Applying fix to ${result.targetFile}...`, "processing")
+
+            // Track this file as modified
+            modifiedFiles.add(result.targetFile)
 
             const pageIndex = currentPages.findIndex(p => p.name === result.targetFile)
             if (pageIndex !== -1) {
