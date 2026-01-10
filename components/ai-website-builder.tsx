@@ -22,7 +22,9 @@ import {
   Folder,
   FolderOpen,
   ChevronRight,
-  Code
+  Code,
+  AlertCircle,
+  Bug,
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -39,16 +41,17 @@ const MODELS = [
   { id: "deepseek-v3.2-exp", name: "DeepSeek V3", provider: "DeepSeek" },
 ]
 
-type Step = "idle" | "planning" | "coding" | "done"
+type Step = "idle" | "planning" | "coding" | "fixing" | "done"
 
 interface Message {
   id: string
-  role: "user" | "assistant"
+  role: "user" | "assistant" | "system"
   content: string
   code?: string
   plan?: string
   pageName?: string
   isIntermediate?: boolean
+  isErrorLog?: boolean
 }
 
 export interface GeneratedPage {
@@ -181,9 +184,10 @@ interface AIWebsiteBuilderProps {
   projectId: string
   generatedPages: GeneratedPage[]
   setGeneratedPages: React.Dispatch<React.SetStateAction<GeneratedPage[]>>
+  autoFixLogs?: string[] | null
 }
 
-const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWebsiteBuilderProps) => {
+const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFixLogs }: AIWebsiteBuilderProps) => {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [step, setStep] = useState<Step>("idle")
@@ -203,7 +207,205 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
 
+  // Track auto-fix history locally
+  const [fixHistory, setFixHistory] = useState<any[]>([])
+
   useEffect(() => { scrollToBottom() }, [messages, currentPlan, step])
+
+  // Trigger Auto Fix if logs are provided
+  useEffect(() => {
+    if (autoFixLogs && autoFixLogs.length > 0 && step === 'idle') {
+      startAutoFixSession(autoFixLogs)
+    }
+  }, [autoFixLogs])
+
+  const startAutoFixSession = async (logs: string[]) => {
+    setStep("fixing")
+    setCurrentPlan("Analyzing logs...")
+    setFixHistory([]) // Reset history for new session
+
+    const logMessage: Message = {
+      id: Date.now().toString(),
+      role: "system",
+      content: "Deployment failed with the following logs. Starting automated diagnosis and repair...",
+      isErrorLog: true
+    }
+
+    // Show only last 20 logs in chat to avoid clutter
+    const visibleLogs = logs.slice(-20).join('\n')
+    const logsDisplayMessage: Message = {
+      id: (Date.now() + 1).toString(),
+      role: "user",
+      content: `Here are the error logs:\n\`\`\`\n${visibleLogs}\n\`\`\``
+    }
+
+    setMessages(prev => [...prev, logMessage, logsDisplayMessage])
+
+    // Start the fix loop
+    await processAutoFix(logs, [], 0)
+  }
+
+  const processAutoFix = async (logs: string[], history: any[], iteration: number) => {
+    if (iteration >= 5) {
+       setStep("idle")
+       setMessages(prev => [...prev, {
+         id: Date.now().toString(),
+         role: "system",
+         content: "Auto-fix session stopped after maximum attempts. Please review manually."
+       }])
+       return
+    }
+
+    try {
+       // Prepare context
+       const fileStructure = generatedPages.map(p => p.name).join('\n')
+
+       // Find if we need to send file content (based on last history item)
+       let fileContent = null
+       let lastAction = null
+
+       if (history.length > 0) {
+         const lastItem = history[history.length - 1]
+         lastAction = lastItem.action === 'read' ? 'take a look' : null // Map back to prompt keyword
+         if (lastItem.action === 'read' && lastItem.result && lastItem.result.code) {
+           fileContent = {
+             filename: lastItem.target,
+             code: lastItem.result.code
+           }
+         }
+       }
+
+       const response = await fetch('/api/ai/auto-fix', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            logs,
+            fileStructure,
+            fileContent,
+            lastAction,
+            history: history.map(h => ({ action: h.action, target: h.target, result: h.result.status || 'done' })) // Send simplified history
+          })
+       })
+
+       if (!response.ok) throw new Error("AI Fix request failed")
+       const result = await response.json()
+
+       // Add Assistant Message explaining what it's doing
+       if (result.explanation) {
+         setMessages(prev => [...prev, {
+            id: Date.now().toString(),
+            role: "assistant",
+            content: result.explanation
+         }])
+       }
+
+       if (result.action === 'done') {
+          setStep("idle")
+          setMessages(prev => [...prev, {
+            id: Date.now().toString(),
+            role: "assistant",
+            content: "I believe I have fixed the issues. Please try deploying again."
+          }])
+          return
+       }
+
+       // Execute Action
+       let actionResult: any = { status: 'success' }
+
+       if (result.action === 'read') {
+          setCurrentPlan(`Reading ${result.targetFile}...`)
+          const page = generatedPages.find(p => p.name === result.targetFile)
+          if (page) {
+             actionResult = { status: 'success', code: page.code }
+             // We don't necessarily show the whole file in chat, maybe just a note
+          } else {
+             actionResult = { status: 'error', message: 'File not found' }
+             setMessages(prev => [...prev, {
+               id: Date.now().toString(),
+               role: "system",
+               content: `Could not find file: ${result.targetFile}`
+             }])
+          }
+       }
+       else if (result.action === 'move') {
+          setCurrentPlan(`Moving ${result.targetFile}...`)
+          const page = generatedPages.find(p => p.name === result.targetFile)
+          if (page) {
+             const newName = result.newPath
+             setGeneratedPages(prev => prev.map(p => p.name === result.targetFile ? { ...p, name: newName } : p))
+             // Sync DB - Delete old, Create new (or just update if API supported move, but recreate is safer for now)
+             await fetch(`/api/projects/${projectId}/pages?name=${encodeURIComponent(result.targetFile)}`, { method: "DELETE" })
+             await fetch(`/api/projects/${projectId}/pages`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name: newName, content: page.code, usedFor: page.usedFor })
+             })
+
+             setMessages(prev => [...prev, {
+               id: Date.now().toString(),
+               role: "assistant",
+               content: `Moved ${result.targetFile} to ${result.newPath}`
+             }])
+          } else {
+             actionResult = { status: 'error', message: 'File not found' }
+          }
+       }
+       else if (result.action === 'delete') {
+          setCurrentPlan(`Deleting ${result.targetFile}...`)
+          setGeneratedPages(prev => prev.filter(p => p.name !== result.targetFile))
+          await fetch(`/api/projects/${projectId}/pages?name=${encodeURIComponent(result.targetFile)}`, { method: "DELETE" })
+          setMessages(prev => [...prev, {
+             id: Date.now().toString(),
+             role: "assistant",
+             content: `Deleted ${result.targetFile}`
+          }])
+       }
+       else if (result.action === 'write') {
+          setCurrentPlan(`Fixing ${result.targetFile}...`)
+          // Update State
+          setGeneratedPages(prev => {
+             const exists = prev.find(p => p.name === result.targetFile)
+             if (exists) {
+                return prev.map(p => p.name === result.targetFile ? { ...p, code: result.code, timestamp: Date.now() } : p)
+             } else {
+                return [...prev, { name: result.targetFile, code: result.code, timestamp: Date.now(), usedFor: 'Auto-fix' }]
+             }
+          })
+
+          // Update DB
+          await fetch(`/api/projects/${projectId}/pages`, {
+             method: "POST",
+             headers: { "Content-Type": "application/json" },
+             body: JSON.stringify({ name: result.targetFile, content: result.code, usedFor: 'Auto-fix' })
+          })
+
+          setMessages(prev => [...prev, {
+             id: Date.now().toString(),
+             role: "assistant",
+             content: `Updated ${result.targetFile}`,
+             code: result.code,
+             pageName: result.targetFile
+          }])
+       }
+
+       // Update History
+       const newHistory = [...history, {
+          action: result.action,
+          target: result.targetFile,
+          result: actionResult
+       }]
+
+       setFixHistory(newHistory)
+
+       // Next Iteration
+       await processAutoFix(logs, newHistory, iteration + 1)
+
+    } catch (e: any) {
+       console.error("Auto fix loop error", e)
+       setError(e.message)
+       setStep("idle")
+    }
+  }
 
   const startGeneration = async () => {
     if (!input.trim()) return
@@ -415,7 +617,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
                           className="w-full text-xs"
                           size="sm"
                           onClick={handleDeploy}
-                          disabled={isDeploying || step === 'planning' || step === 'coding'}
+                          disabled={isDeploying || step === 'planning' || step === 'coding' || step === 'fixing'}
                           variant={deploySuccess ? "outline" : "default"}
                       >
                           {isDeploying ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Rocket className="h-3 w-3 mr-2" />}
@@ -459,30 +661,40 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
                                 <FileTreeVisualizer pages={generatedPages} currentFile={activeFile} />
                             </div>
                           )}
-                          <div className={cn(
-                              "max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
-                              msg.role === 'user' ? "bg-primary text-primary-foreground rounded-tr-sm" : "bg-muted/30 border border-white/5 rounded-tl-sm backdrop-blur-sm"
-                          )}>
-                              {msg.role === 'assistant' && msg.plan && (
-                                  <div className="flex items-center gap-2 text-xs font-bold text-primary mb-2 uppercase tracking-wider">
-                                      <BrainCircuit className="h-3 w-3" /> Strategy
-                                  </div>
-                              )}
 
-                              {msg.code ? (
-                                  <div className="flex items-center gap-3">
-                                      <div className="h-8 w-8 bg-black/40 rounded flex items-center justify-center border border-white/10">
-                                          <FileCode className="h-4 w-4 text-blue-400" />
-                                      </div>
-                                      <div>
-                                          <p className="font-mono text-xs">{msg.pageName}</p>
-                                          <p className="text-[10px] text-muted-foreground">{msg.code.length} bytes</p>
-                                      </div>
-                                  </div>
-                              ) : (
-                                  <div className="whitespace-pre-wrap">{msg.content}</div>
-                              )}
-                          </div>
+                          {msg.isErrorLog ? (
+                             <div className="w-full max-w-[85%] bg-red-500/10 border border-red-500/20 text-red-200 rounded-2xl px-4 py-3 text-sm flex items-start gap-3">
+                                <Bug className="h-5 w-5 shrink-0" />
+                                <div>{msg.content}</div>
+                             </div>
+                          ) : (
+                            <div className={cn(
+                                "max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
+                                msg.role === 'user' ? "bg-primary text-primary-foreground rounded-tr-sm" :
+                                msg.role === 'system' ? "bg-muted text-muted-foreground rounded-2xl text-center w-full max-w-none text-xs" :
+                                "bg-muted/30 border border-white/5 rounded-tl-sm backdrop-blur-sm"
+                            )}>
+                                {msg.role === 'assistant' && msg.plan && (
+                                    <div className="flex items-center gap-2 text-xs font-bold text-primary mb-2 uppercase tracking-wider">
+                                        <BrainCircuit className="h-3 w-3" /> Strategy
+                                    </div>
+                                )}
+
+                                {msg.code ? (
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-8 w-8 bg-black/40 rounded flex items-center justify-center border border-white/10">
+                                            <FileCode className="h-4 w-4 text-blue-400" />
+                                        </div>
+                                        <div>
+                                            <p className="font-mono text-xs">{msg.pageName}</p>
+                                            <p className="text-[10px] text-muted-foreground">{msg.code.length} bytes</p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="whitespace-pre-wrap">{msg.content}</div>
+                                )}
+                            </div>
+                          )}
                       </div>
                   ))}
                   <div ref={messagesEndRef} />
@@ -497,15 +709,15 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
                           onKeyDown={e => e.key === 'Enter' && !e.shiftKey && startGeneration()}
                           placeholder="Describe your vision..."
                           className="pr-12 h-12 rounded-xl bg-white/5 border-white/10 focus-visible:ring-primary/50"
-                          disabled={step === 'planning' || step === 'coding'}
+                          disabled={step === 'planning' || step === 'coding' || step === 'fixing'}
                       />
                       <Button
                           size="icon"
                           className="absolute right-1.5 top-1.5 h-9 w-9 rounded-lg"
                           onClick={startGeneration}
-                          disabled={!input.trim() || step === 'planning' || step === 'coding'}
+                          disabled={!input.trim() || step === 'planning' || step === 'coding' || step === 'fixing'}
                       >
-                          {step === 'planning' || step === 'coding' ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+                          {step === 'planning' || step === 'coding' || step === 'fixing' ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
                       </Button>
                   </div>
               </div>
@@ -519,6 +731,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages }: AIWe
 function ActivityIcon({ step }: { step: Step }) {
     if (step === 'planning') return <BrainCircuit className="h-4 w-4 animate-pulse" />
     if (step === 'coding') return <Terminal className="h-4 w-4 animate-pulse" />
+    if (step === 'fixing') return <Bug className="h-4 w-4 animate-pulse" />
     if (step === 'done') return <CheckCircle2 className="h-4 w-4" />
     return <Sparkles className="h-4 w-4" />
 }

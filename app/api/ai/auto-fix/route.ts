@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { logs, fileStructure, fileContent, currentStep, lastAction } = await request.json()
+    const { logs, fileStructure, fileContent, lastAction, history } = await request.json()
 
     // Use GOOGLE_AI_API by default, fallback to GOOGLE_API_KEY
     const apiKey = process.env.GOOGLE_AI_API || process.env.GOOGLE_API_KEY
@@ -54,6 +54,15 @@ export async function POST(request: Request) {
       **FILE STRUCTURE:**
       ${fileStructure}
     `
+
+    if (history && Array.isArray(history) && history.length > 0) {
+        systemPrompt += `
+
+        **PREVIOUS ATTEMPTS (MEMORY):**
+        The following actions have already been attempted in this session. DO NOT repeat failed actions unless you have new information.
+        ${history.map((h: any) => `- Action: ${h.action} on ${h.target} -> Result: ${h.result}`).join('\n')}
+        `
+    }
 
     if (lastAction === 'take a look' && fileContent) {
         systemPrompt += `
