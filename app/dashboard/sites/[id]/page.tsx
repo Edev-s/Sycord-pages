@@ -746,6 +746,34 @@ export default function SiteSettingsPage() {
     setActiveTab("ai")
   }
 
+  // --- NEW: Domain Polling Logic ---
+  const pollForDomain = async (repoId: string, attempts = 0) => {
+    if (attempts >= 20) return // Stop after ~60 seconds (20 * 3s)
+
+    try {
+      const res = await fetch(`/api/deploy/${repoId}/domain`)
+      const data = await res.json()
+
+      if (data.success && data.domain) {
+        // Domain found! Update local state
+        setProject((prev: any) => ({ ...prev, cloudflareUrl: data.domain }))
+        // Also update deploy result if it's still showing
+        setDeployResult((prev: any) => ({
+            ...prev,
+            url: data.domain,
+            message: "Deployed to Cloudflare Pages!"
+        }))
+        // Force refresh logs now that we have a domain (deployment likely finished)
+        fetchLogs(repoId)
+      } else {
+        // Not yet, try again in 3s
+        setTimeout(() => pollForDomain(repoId, attempts + 1), 3000)
+      }
+    } catch (e) {
+      console.error("Polling error:", e)
+    }
+  }
+
   const handleDeploy = async () => {
     if (isDeploying) return
     
@@ -805,6 +833,18 @@ export default function SiteSettingsPage() {
       // Update project with potentially new githubRepoId if needed
       if (result.repoId) {
           setProject((prev: any) => ({ ...prev, githubRepoId: result.repoId }))
+
+          // NEW: If cloudflareUrl is missing (normal for async), start polling
+          if (!result.cloudflareUrl) {
+              console.log("[v0] Deployment started, polling for Cloudflare domain...")
+              pollForDomain(result.repoId)
+          } else {
+              // Immediate update if lucky
+              setProject((prev: any) => ({ ...prev, cloudflareUrl: result.cloudflareUrl }))
+          }
+
+          // Fetch logs immediately with new repo ID
+          fetchLogs(result.repoId)
       }
 
       // Reset success state after 5 seconds
@@ -813,11 +853,6 @@ export default function SiteSettingsPage() {
         setDeploySuccess(false)
         setDeployProgress(0)
       }, SUCCESS_DISPLAY_DURATION_MS)
-
-      // Fetch logs immediately with new repo ID
-      if (result.repoId) {
-          fetchLogs(result.repoId)
-      }
 
     } catch (err: any) {
       setDeployError(err.message || "Deployment failed")
