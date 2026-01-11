@@ -748,7 +748,7 @@ export default function SiteSettingsPage() {
 
   // --- NEW: Domain Polling Logic ---
   const pollForDomain = async (repoId: string, attempts = 0) => {
-    if (attempts >= 20) return // Stop after ~60 seconds (20 * 3s)
+    if (attempts >= 40) return // Stop after ~120 seconds (40 * 3s)
 
     try {
       const res = await fetch(`/api/deploy/${repoId}/domain`)
