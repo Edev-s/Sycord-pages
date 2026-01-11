@@ -246,7 +246,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
   }
 
   const processAutoFix = async (logs: string[], history: any[], iteration: number) => {
-    if (iteration >= 5) {
+    if (iteration >= 15) {
        setStep("idle")
        setMessages(prev => [...prev, {
          id: Date.now().toString(),
