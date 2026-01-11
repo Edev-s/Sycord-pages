@@ -39,9 +39,9 @@ export async function GET(
             console.error(`[Domain Check] API fetch error:`, apiError)
         }
 
-        // 2. Fallback: Parse Logs if API failed
-        if (!domain) {
-            console.log(`[Domain Check] Domain not found via API, checking logs...`)
+        // 2. Fallback: Parse Logs if API failed or returned generic placeholder
+        if (!domain || domain === "https://test.pages.dev") {
+            console.log(`[Domain Check] Domain is missing or placeholder, checking logs...`)
             try {
                 const logsRes = await fetch(`${SYCORD_DEPLOY_API_BASE}/api/logs?project_id=${repoId}&limit=100`)
                 if (logsRes.ok) {
