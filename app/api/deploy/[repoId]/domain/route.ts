@@ -12,9 +12,6 @@ export async function GET(
     const { repoId } = await params
     const session = await getServerSession(authOptions)
 
-    // We strictly need user session to allow updating the DB,
-    // although technically checking the domain is public info if you know the repoId.
-    // Sticking to auth for security.
     if (!session?.user?.id) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
@@ -24,46 +21,91 @@ export async function GET(
     }
 
     try {
-        // Fetch from upstream
-        const res = await fetch(`${SYCORD_DEPLOY_API_BASE}/api/deploy/${repoId}/domain`)
-        const data = await res.json()
+        console.log(`[Domain Check] Checking domain for repo ${repoId}`)
 
-        if (data.success && data.domain) {
-            // Update Database if we found a domain
+        let domain = null
+
+        // 1. Try Upstream Domain API
+        try {
+            const res = await fetch(`${SYCORD_DEPLOY_API_BASE}/api/deploy/${repoId}/domain`)
+            if (res.ok) {
+                const data = await res.json()
+                if (data.success && data.domain) {
+                    domain = data.domain
+                    console.log(`[Domain Check] Found via API: ${domain}`)
+                }
+            }
+        } catch (apiError) {
+            console.error(`[Domain Check] API fetch error:`, apiError)
+        }
+
+        // 2. Fallback: Parse Logs if API failed
+        if (!domain) {
+            console.log(`[Domain Check] Domain not found via API, checking logs...`)
+            try {
+                const logsRes = await fetch(`${SYCORD_DEPLOY_API_BASE}/api/logs?project_id=${repoId}&limit=100`)
+                if (logsRes.ok) {
+                    const logData = await logsRes.json()
+                    if (logData.success && Array.isArray(logData.logs)) {
+                        // Join logs to search across lines if needed, or iterate
+                        // Pattern: "Take a peek over at https://..."
+                        const combinedLogs = logData.logs.join('\n')
+                        // Regex to capture URL. Handles variations.
+                        const match = combinedLogs.match(/Take a peek over at\s+(https:\/\/[^\s]+)/)
+                        if (match && match[1]) {
+                            // Clean potential trailing characters (like colors codes if raw, though usually stripped)
+                            // The provided log sample looks clean.
+                            domain = match[1].trim()
+                            // Remove trailing dot if present (common in sentences)
+                            if (domain.endsWith('.')) domain = domain.slice(0, -1)
+
+                            console.log(`[Domain Check] Found via Logs: ${domain}`)
+                        }
+                    }
+                }
+            } catch (logError) {
+                console.error(`[Domain Check] Log parsing error:`, logError)
+            }
+        }
+
+        // 3. Update Database if Found
+        if (domain) {
             const client = await clientPromise
             const db = client.db()
 
-            // We need to find the project with this repoId.
-            // The projects are embedded in users.
-            // We filter by user ID AND the project's repo ID to ensure ownership.
-            // Note: githubRepoId is stored as a number in DB typically (from GitHub API), but might be string in param.
+            // Try updating with numeric ID
+            const numericId = parseInt(repoId)
+            let updateResult
 
-            // Try to update.
-            const updateResult = await db.collection("users").updateOne(
-                {
-                    id: session.user.id,
-                    "projects.githubRepoId": parseInt(repoId) // GitHub IDs are numbers
-                },
-                {
-                    $set: { "projects.$.cloudflareUrl": data.domain }
-                }
-            )
+            if (!isNaN(numericId)) {
+                updateResult = await db.collection("users").updateOne(
+                    {
+                        id: session.user.id,
+                        "projects.githubRepoId": numericId
+                    },
+                    {
+                        $set: { "projects.$.cloudflareUrl": domain }
+                    }
+                )
+            }
 
-            // If parseInt failed or didn't match, maybe it's stored as string?
-            if (updateResult.matchedCount === 0) {
+            // Fallback to string ID if numeric failed
+            if (!updateResult || updateResult.matchedCount === 0) {
                  await db.collection("users").updateOne(
                     {
                         id: session.user.id,
                         "projects.githubRepoId": repoId
                     },
                     {
-                        $set: { "projects.$.cloudflareUrl": data.domain }
+                        $set: { "projects.$.cloudflareUrl": domain }
                     }
                 )
             }
+
+            return NextResponse.json({ success: true, domain })
         }
 
-        return NextResponse.json(data)
+        return NextResponse.json({ success: false, message: "Domain not found yet" })
 
     } catch (e: any) {
         console.error("Domain fetch error:", e)
