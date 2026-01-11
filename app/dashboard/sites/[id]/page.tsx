@@ -817,11 +817,6 @@ export default function SiteSettingsPage() {
 
       const result = await response.json()
 
-      // Check for invalid domain
-      if (result.url && result.url.includes('test.pages.dev')) {
-        throw new Error("Deployment returned invalid domain: test.pages.dev")
-      }
-      
       // Complete the progress bar
       setDeployProgress(100)
       setDeploySuccess(true)

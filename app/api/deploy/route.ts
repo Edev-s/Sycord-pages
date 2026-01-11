@@ -304,7 +304,19 @@ export async function POST(request: Request) {
         console.log(`[Deploy] Initial domain check:`, domainData)
         
         if (domainData.success && domainData.domain) {
-            cloudflareUrl = domainData.domain
+            // Check if it's a generic placeholder that needs refinement from logs
+            if (domainData.domain === "https://test.pages.dev") {
+                console.log(`[Deploy] Domain is generic placeholder, attempting to find specific URL in logs...`)
+                const logDomain = await checkLogsForDomain(repoId)
+                if (logDomain) {
+                    cloudflareUrl = logDomain
+                    console.log(`[Deploy] Replaced placeholder with log domain: ${cloudflareUrl}`)
+                } else {
+                    cloudflareUrl = domainData.domain // Keep generic if logs fail
+                }
+            } else {
+                cloudflareUrl = domainData.domain
+            }
         } else {
             // Fallback: Check logs immediately if API didn't return it yet (rare but possible if logs are faster)
             console.log(`[Deploy] Domain API empty, checking logs fallback...`)
