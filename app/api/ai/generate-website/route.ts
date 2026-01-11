@@ -223,7 +223,7 @@ export async function POST(request: Request) {
       - Text gradient: bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent
 
       **OUTPUT FORMAT (STRICT):**
-      Wrap ALL code in [code]...[/code] blocks (note the forward slash).
+      Wrap ALL code in [code]...[/code] blocks.
       Add metadata markers AFTER the code block.
 
       Example:

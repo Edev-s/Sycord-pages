@@ -36,10 +36,17 @@ import { cn } from "@/lib/utils"
 
 // Updated Models List to include "Gemini 3 Flash" (mapped to 2.0 or 1.5 in backend) as requested
 const MODELS = [
-  { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", provider: "Google" },
-  { id: "gemini-3-flash", name: "Gemini 3 Flash (Preview)", provider: "Google" }, // Added for user
-  { id: "deepseek-v3.2-exp", name: "DeepSeek V3", provider: "DeepSeek" },
+  { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", provider: "Google", shortName: "Gemini 2.0" },
+  { id: "gemini-3-flash", name: "Gemini 3 Flash (Preview)", provider: "Google", shortName: "Gemini 3" },
+  { id: "deepseek-v3.2-exp", name: "DeepSeek V3", provider: "DeepSeek", shortName: "DeepSeek" },
 ]
+
+// Suggestion prompts for quick start
+const QUICK_SUGGESTIONS = [
+  "Portfolio site",
+  "Landing page", 
+  "Blog template"
+] as const
 
 type Step = "idle" | "planning" | "coding" | "fixing" | "done"
 
@@ -577,7 +584,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="h-7 md:h-8 rounded-full border-white/10 bg-white/5 hover:bg-white/10 px-2 md:px-3">
                   <span className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-green-500 mr-1.5 md:mr-2 animate-pulse"></span>
-                  <span className="text-[10px] md:text-xs truncate max-w-[60px] md:max-w-none">{selectedModel.name.split(' ').slice(0,2).join(' ')}</span>
+                  <span className="text-[10px] md:text-xs truncate max-w-[60px] md:max-w-none">{selectedModel.shortName}</span>
                   <ChevronDown className="h-3 w-3 ml-1 opacity-50" />
                 </Button>
               </DropdownMenuTrigger>
@@ -674,7 +681,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                             Describe your website idea and I'll create stunning code with Tailwind CSS.
                           </p>
                           <div className="mt-4 flex flex-wrap gap-2 justify-center">
-                            {["Portfolio site", "Landing page", "Blog template"].map(suggestion => (
+                            {QUICK_SUGGESTIONS.map(suggestion => (
                               <button 
                                 key={suggestion}
                                 onClick={() => setInput(suggestion + " with dark theme")}
