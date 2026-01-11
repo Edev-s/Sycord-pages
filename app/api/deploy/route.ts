@@ -176,6 +176,28 @@ async function deployViaGitTree(
     console.log(`[Deploy] Atomic deployment complete. New commit: ${commitData.sha}`)
 }
 
+// Helper to check for domain in logs (same logic as in domain route)
+async function checkLogsForDomain(repoId: string | number): Promise<string | null> {
+    try {
+        const logsRes = await fetch(`${SYCORD_DEPLOY_API_BASE}/api/logs?project_id=${repoId}&limit=100`)
+        if (logsRes.ok) {
+            const logData = await logsRes.json()
+            if (logData.success && Array.isArray(logData.logs)) {
+                const combinedLogs = logData.logs.join('\n')
+                const match = combinedLogs.match(/Take a peek over at\s+(https:\/\/[^\s]+)/)
+                if (match && match[1]) {
+                    let domain = match[1].trim()
+                    if (domain.endsWith('.')) domain = domain.slice(0, -1)
+                    return domain
+                }
+            }
+        }
+    } catch (e) {
+        console.error("[Deploy] Log fallback check error:", e)
+    }
+    return null
+}
+
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
@@ -217,10 +239,6 @@ export async function POST(request: Request) {
     // 5. Prepare Files
     const pages = project.pages || []
     const files = []
-
-    // Always adding base Vite config if missing?
-    // The AI should generate it, but we can ensure package.json exists if we want.
-    // For now, trust the AI output + Memory.
 
     if (pages.length > 0) {
         for (const page of pages) {
@@ -273,18 +291,32 @@ export async function POST(request: Request) {
 
     try {
         // Trigger
-        await fetch(`${SYCORD_DEPLOY_API_BASE}/api/deploy/${repoId}`, { method: "POST" })
+        console.log(`[Deploy] Triggering downstream deploy for repo ${repoId}...`)
+        const triggerRes = await fetch(`${SYCORD_DEPLOY_API_BASE}/api/deploy/${repoId}`, { method: "POST" })
+        console.log(`[Deploy] Trigger status: ${triggerRes.status}`)
         
-        // Get Domain (Polling logic simplified for brevity, maybe frontend polls or we wait once)
-        // We'll try once after a short delay
+        // Wait briefly for initial provisioning
         await new Promise(r => setTimeout(r, 2000))
+
+        // Check Domain via API
         const domainRes = await fetch(`${SYCORD_DEPLOY_API_BASE}/api/deploy/${repoId}/domain`)
         const domainData = await domainRes.json()
+        console.log(`[Deploy] Initial domain check:`, domainData)
         
-        if (domainData.success) {
+        if (domainData.success && domainData.domain) {
             cloudflareUrl = domainData.domain
-            deployMessage = "Deployed to Cloudflare Pages!"
+        } else {
+            // Fallback: Check logs immediately if API didn't return it yet (rare but possible if logs are faster)
+            console.log(`[Deploy] Domain API empty, checking logs fallback...`)
+            const logDomain = await checkLogsForDomain(repoId)
+            if (logDomain) {
+                cloudflareUrl = logDomain
+                console.log(`[Deploy] Found domain in logs: ${cloudflareUrl}`)
+            }
+        }
 
+        if (cloudflareUrl) {
+            deployMessage = "Deployed to Cloudflare Pages!"
             await db.collection("users").updateOne(
                 { id: session.user.id, "projects._id": new ObjectId(projectId) },
                 { $set: { "projects.$.cloudflareUrl": cloudflareUrl } }
