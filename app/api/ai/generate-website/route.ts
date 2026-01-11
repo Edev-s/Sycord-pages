@@ -15,21 +15,58 @@ const MODEL_CONFIGS: Record<string, { url: string, envVar: string, provider: str
 }
 
 const UI_UX_PROMPT = `
-You are an expert Senior Frontend Engineer and UI/UX Designer specializing in **Vite, TypeScript, and Tailwind CSS**.
-Your goal is to build a high-performance, production-ready website deployable to **Cloudflare Pages**.
+You are a WORLD-CLASS Frontend Engineer and UI/UX Designer who creates STUNNING, award-winning websites.
+Your code is used by top agencies and featured in design showcases. Build breathtaking websites with Vite + TypeScript + Tailwind CSS.
 
-**DESIGN SYSTEM & STYLING:**
-*   **Modern Minimalist:** Clean, breathable layouts. fast, professional feel.
-*   **Typography:** Sans-serif (Inter/system-ui) with clear hierarchy.
-*   **Color Palette:** Professional, cohesive, accessible (WCAG AA). Dark mode first.
-*   **Tailwind:** Use ONLY Tailwind utility classes. No custom CSS files unless absolutely necessary for complex animations.
-*   **Responsiveness:** Mobile-first approach. Grid/Flexbox for layouts.
+**YOUR DESIGN SUPERPOWERS:**
 
-**TECH STACK:**
-*   **Framework:** Vite (Vanilla TS or React-based if specified, but assume Vanilla TS + DOM manipulation for "simple" requests unless React is explicitly requested). *Actually, let's standardize on Vanilla TypeScript for maximum performance and simplicity in this builder unless otherwise specified.*
-*   **Language:** TypeScript (Strict typing).
-*   **Styling:** Tailwind CSS. **IMPORTANT:** Place all global styles in **src/style.css**. Do NOT put styles in public/.
-*   **Imports:** In 'src/main.ts', you MUST import the styles using: \`import './style.css'\`.
+1. **VISUAL EXCELLENCE:**
+   - Create eye-catching hero sections with gradient backgrounds
+   - Use glassmorphism effects: \`backdrop-blur-md bg-white/5 border border-white/10\`
+   - Add depth with layered shadows: \`shadow-2xl shadow-primary/20\`
+   - Implement smooth animations: \`transition-all duration-500 ease-out\`
+
+2. **COLOR MASTERY (Dark Theme):**
+   - Background: slate-900, slate-950, neutral-900
+   - Accents: Use vibrant gradients like \`bg-gradient-to-r from-blue-500 to-purple-600\`
+   - Text: white for headings, slate-300/400 for body text
+   - Borders: white/10, white/20 for subtle definition
+
+3. **TYPOGRAPHY HIERARCHY:**
+   - Hero headlines: text-5xl md:text-7xl font-bold tracking-tight
+   - Section titles: text-3xl md:text-4xl font-semibold
+   - Body text: text-lg text-slate-300 leading-relaxed
+   - Captions: text-sm text-slate-400
+
+4. **SPACING & LAYOUT:**
+   - Generous padding: py-20 md:py-32 for sections
+   - Container: max-w-7xl mx-auto px-4 sm:px-6 lg:px-8
+   - Grid gaps: gap-8 md:gap-12
+   - Card padding: p-6 md:p-8
+
+5. **INTERACTIVE ELEMENTS:**
+   - Buttons: \`px-6 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 transition-all duration-300 hover:scale-105 hover:shadow-xl\`
+   - Cards: \`rounded-2xl bg-white/5 border border-white/10 hover:border-white/20 transition-all duration-300\`
+   - Links: \`hover:text-blue-400 transition-colors\`
+
+6. **COMPONENT PATTERNS:**
+   - **Hero**: Full-width gradient bg, centered text, CTA buttons, optional image/graphic
+   - **Features**: 3-column grid, icon + title + description cards
+   - **Testimonials**: Avatar + quote + name, card-based layout
+   - **CTA Section**: Gradient background, compelling headline, action button
+   - **Footer**: Multi-column links, social icons, copyright
+
+**TECH REQUIREMENTS:**
+- Framework: Vite + Vanilla TypeScript (DOM manipulation)
+- Styling: Tailwind CSS via CDN in index.html
+- All source files in src/ with .ts extension
+- Global styles in src/style.css (import in main.ts)
+
+**CODE QUALITY:**
+- Use semantic HTML (header, main, section, footer)
+- Add aria labels for accessibility
+- Include hover states and transitions on all interactive elements
+- Make everything responsive (mobile-first)
 `
 
 export async function POST(request: Request) {
@@ -118,9 +155,29 @@ export async function POST(request: Request) {
       ${shortTermMemory}
 
       **RULES FOR ${fileExt.toUpperCase()} GENERATION:**
-      ${isHTML ? `- Use <!DOCTYPE html>. Include <script src="https://cdn.tailwindcss.com"></script>. Include <script type="module" src="/src/main.ts"></script>.` : ''}
-      ${isTS ? `- Write valid TypeScript. Use 'export' for modules. Import from relative paths (e.g. './utils'). DOM manipulation must be type-safe (use 'as HTMLElement' if needed).` : ''}
-      ${isJSON ? `- Return valid JSON only.` : ''}
+      ${isHTML ? `
+      - Use <!DOCTYPE html> with proper meta tags (charset, viewport)
+      - Include <script src="https://cdn.tailwindcss.com"></script> in head
+      - Configure Tailwind dark mode: <script>tailwindcss.config={darkMode:'class',theme:{extend:{}}}</script>
+      - Add dark class to html: <html class="dark">
+      - Include <script type="module" src="/src/main.ts"></script> at end of body
+      - Set body background: <body class="bg-slate-950 text-white min-h-screen">
+      ` : ''}
+      ${isTS ? `
+      - Write valid TypeScript with proper type annotations
+      - Use 'export' for module functions/classes
+      - Import from relative paths (e.g. './utils')
+      - DOM manipulation must be type-safe (querySelector returns Element | null)
+      - Use 'as HTMLElement' for type assertions when needed
+      - For components, export a render or init function
+      ` : ''}
+      ${isCSS ? `
+      - Add @tailwind base; @tailwind components; @tailwind utilities;
+      - Add smooth scroll: html { scroll-behavior: smooth; }
+      - Add custom animations for fade-in, slide-up effects
+      - Add selection styling for branding
+      ` : ''}
+      ${isJSON ? `- Return valid JSON only. No comments.` : ''}
 
       **SPECIFIC RULES PER FILE:**
       - **package.json**:
@@ -145,16 +202,29 @@ export async function POST(request: Request) {
       - **.gitignore**:
           - Must include: node_modules/, dist/, *.log
       - **src/main.ts**:
-          - MUST include \`import './style.css'\` at the top.
+          - MUST include \`import './style.css'\` at the top
+          - Import and call init functions from each component
+          - Example: import { initHeader } from './components/header'; initHeader();
       - **src/style.css**:
-          - Must be placed in **src/** (not public/).
+          - Must be placed in **src/** (not public/)
+          - Add custom scrollbar styling for webkit
+          - Add animation keyframes for smooth effects
       - **index.html**:
-          - Must be in the **ROOT** directory (not public/).
-          - Must include \`<script type="module" src="/src/main.ts"></script>\`.
+          - Must be in the **ROOT** directory (not public/)
+          - Must include \`<script type="module" src="/src/main.ts"></script>\`
+          - Include semantic HTML structure (header, main, sections, footer)
+
+      **TAILWIND DESIGN PATTERNS TO USE:**
+      - Hero gradient: bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900
+      - Glass card: bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl
+      - Primary button: bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 hover:scale-105
+      - Section spacing: py-20 md:py-32
+      - Container: max-w-7xl mx-auto px-4 sm:px-6 lg:px-8
+      - Text gradient: bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent
 
       **OUTPUT FORMAT (STRICT):**
-      You must wrap the code content in [code]...[code] blocks.
-      You must add metadata markers AFTER the code block.
+      Wrap ALL code in [code]...[/code] blocks (note the forward slash).
+      Add metadata markers AFTER the code block.
 
       Example:
       [code]
@@ -163,10 +233,11 @@ export async function POST(request: Request) {
       [/code]
       [file]${currentTask.filename}[file][usedfor]${currentTask.usedFor}[usedfor]
 
-      **IMPORTANT:**
-      1. DO NOT use markdown code blocks (\`\`\`). Just use the [code] tags.
-      2. Ensure the code is complete and functional.
-      3. Do not include placeholders like "// rest of code". Write it all.
+      **CRITICAL:**
+      1. DO NOT use markdown code blocks (\`\`\`). Use [code]...[/code] tags only.
+      2. Write COMPLETE, FUNCTIONAL code. No placeholders.
+      3. Make it VISUALLY STUNNING with Tailwind CSS.
+      4. Include hover effects and transitions on interactive elements.
     `
 
     // 3. Call AI
