@@ -36,10 +36,17 @@ import { cn } from "@/lib/utils"
 
 // Updated Models List to include "Gemini 3 Flash" (mapped to 2.0 or 1.5 in backend) as requested
 const MODELS = [
-  { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", provider: "Google" },
-  { id: "gemini-3-flash", name: "Gemini 3 Flash (Preview)", provider: "Google" }, // Added for user
-  { id: "deepseek-v3.2-exp", name: "DeepSeek V3", provider: "DeepSeek" },
+  { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", provider: "Google", shortName: "Gemini 2.0" },
+  { id: "gemini-3-flash", name: "Gemini 3 Flash (Preview)", provider: "Google", shortName: "Gemini 3" },
+  { id: "deepseek-v3.2-exp", name: "DeepSeek V3", provider: "DeepSeek", shortName: "DeepSeek" },
 ]
+
+// Suggestion prompts for quick start
+const QUICK_SUGGESTIONS = [
+  "Portfolio site",
+  "Landing page", 
+  "Blog template"
+] as const
 
 type Step = "idle" | "planning" | "coding" | "fixing" | "done"
 
@@ -550,174 +557,223 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
   return (
     <div className="flex flex-col h-full bg-background text-foreground font-sans relative">
 
-      {/* HEADER */}
-      <div className="flex items-center justify-between px-4 md:px-6 py-3 border-b border-white/10 bg-background/50 backdrop-blur-md sticky top-0 z-20">
+      {/* COMPACT HEADER - Mobile optimized */}
+      <div className="flex items-center justify-between px-3 md:px-6 py-2.5 border-b border-white/10 bg-background/80 backdrop-blur-md sticky top-0 z-20">
         <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center border border-primary/20">
-                <Bot className="h-4 w-4 text-primary" />
+            <div className="h-7 w-7 md:h-8 md:w-8 rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center border border-white/10">
+                <Bot className="h-3.5 w-3.5 md:h-4 md:w-4 text-blue-400" />
             </div>
-            <span className="font-semibold text-sm hidden md:inline-block">AI Architect</span>
+            <div className="flex flex-col">
+              <span className="font-semibold text-xs md:text-sm">AI Builder</span>
+              <span className="text-[10px] text-muted-foreground hidden md:block">
+                {step === 'idle' ? 'Ready' : step === 'done' ? 'Complete' : 'Working...'}
+              </span>
+            </div>
         </div>
 
-        <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 rounded-full border-white/10 bg-white/5 hover:bg-white/10">
-                <span className="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse"></span>
-                <span className="text-xs">{selectedModel.name}</span>
-                <ChevronDown className="h-3 w-3 ml-2 opacity-50" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {MODELS.map(model => (
-                <DropdownMenuItem key={model.id} onClick={() => setSelectedModel(model)}>
-                   {model.name}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center gap-2">
+          {/* Status pill - visible on mobile */}
+          {step !== 'idle' && step !== 'done' && (
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-blue-500/10 border border-blue-500/20">
+              <Loader2 className="h-3 w-3 animate-spin text-blue-400" />
+              <span className="text-[10px] font-medium text-blue-400 md:hidden">Building</span>
+            </div>
+          )}
+          
+          <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-7 md:h-8 rounded-full border-white/10 bg-white/5 hover:bg-white/10 px-2 md:px-3">
+                  <span className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-green-500 mr-1.5 md:mr-2 animate-pulse"></span>
+                  <span className="text-[10px] md:text-xs truncate max-w-[60px] md:max-w-none">{selectedModel.shortName}</span>
+                  <ChevronDown className="h-3 w-3 ml-1 opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {MODELS.map(model => (
+                  <DropdownMenuItem key={model.id} onClick={() => setSelectedModel(model)}>
+                     {model.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
+      {/* MAIN CONTENT - Chat-centric mobile layout */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
 
-          {/* LEFT: VISUALIZATION & STATUS (Hidden on small mobile when idle, visible when active) */}
+          {/* LEFT PANEL: File tree & status - Collapsible on mobile */}
           <div className={cn(
-              "md:w-1/3 border-r border-white/10 bg-black/20 p-4 flex flex-col gap-4 overflow-y-auto",
-              step === 'idle' && generatedPages.length === 0 ? "hidden md:flex" : "flex h-1/2 md:h-full order-1 md:order-1"
+              "md:w-80 lg:w-96 border-r border-white/10 bg-black/30 flex flex-col overflow-hidden transition-all duration-300",
+              // On mobile: show as a slim status bar when idle, expand when active
+              step === 'idle' && generatedPages.length === 0 
+                ? "h-0 md:h-full" 
+                : "h-auto max-h-[40vh] md:max-h-none md:h-full"
           )}>
-              <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Blueprint</h3>
-                      {step !== 'idle' && step !== 'done' && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
-                  </div>
-
-                  {/* Dynamic File Tree */}
-                  <FileTreeVisualizer pages={generatedPages} currentFile={activeFile} />
-
-                  {/* Integrated Status Indicator (Less like a popup) */}
+              {/* Mobile-optimized collapsible header */}
+              <div className="p-3 md:p-4 space-y-3 overflow-y-auto custom-scrollbar flex-1">
+                  {/* Status Badge - Always visible */}
                   <div className={cn(
-                      "rounded-lg p-3 space-y-2 transition-all duration-300",
-                      step === 'idle' ? "bg-transparent" : "bg-primary/5 border border-primary/10"
+                      "rounded-xl p-3 transition-all duration-300",
+                      step === 'idle' ? "bg-white/5" : "bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20"
                   )}>
-                      <div className="flex items-center gap-2 text-primary text-xs font-medium">
+                      <div className="flex items-center gap-2 text-xs font-medium">
                           <ActivityIcon step={step} />
-                          <span>{step === 'idle' ? 'Ready to build' : currentPlan}</span>
+                          <span className={cn(
+                            step !== 'idle' && step !== 'done' ? "text-blue-400" : "text-muted-foreground"
+                          )}>
+                            {step === 'idle' ? 'Ready to build' : step === 'done' ? 'Build complete!' : currentPlan}
+                          </span>
                       </div>
                       {activeFile && (
-                          <div className="text-[10px] text-muted-foreground font-mono bg-black/40 px-2 py-1 rounded">
-                              Writing: {activeFile}
+                          <div className="mt-2 text-[10px] text-blue-300 font-mono bg-black/40 px-2 py-1.5 rounded-lg flex items-center gap-2">
+                              <FileCode className="h-3 w-3 animate-pulse" />
+                              <span className="truncate">{activeFile}</span>
                           </div>
                       )}
                   </div>
+
+                  {/* File Tree - Scrollable */}
+                  {(generatedPages.length > 0 || activeFile) && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-1">
+                          Project Files ({generatedPages.length})
+                        </h3>
+                      </div>
+                      <FileTreeVisualizer pages={generatedPages} currentFile={activeFile} />
+                    </div>
+                  )}
               </div>
 
-              {/* Deployment Card */}
+              {/* Deploy Button - Fixed at bottom of panel */}
               {generatedPages.length > 0 && (
-                  <div className="mt-auto pt-4 border-t border-white/5">
+                  <div className="p-3 md:p-4 border-t border-white/5 bg-black/20">
                       <Button
-                          className="w-full text-xs"
+                          className="w-full text-xs h-9 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                           size="sm"
                           onClick={handleDeploy}
                           disabled={isDeploying || step === 'planning' || step === 'coding' || step === 'fixing'}
-                          variant={deploySuccess ? "outline" : "default"}
                       >
                           {isDeploying ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Rocket className="h-3 w-3 mr-2" />}
-                          {deploySuccess ? "Deploy Again" : "Deploy to Cloudflare"}
+                          {deploySuccess ? "Deployed! ✓" : "Deploy"}
                       </Button>
-
-                      {deploySuccess && deployResult && (
-                          <div className="mt-2 text-center space-y-1 animate-in fade-in">
-                              <p className="text-[10px] text-green-400 flex items-center justify-center gap-1">
-                                  <CheckCircle2 className="h-3 w-3" /> Deployed!
-                              </p>
-                              {deployResult.url && (
-                                  <a href={deployResult.url} target="_blank" className="text-xs text-primary hover:underline block truncate">
-                                      {deployResult.url}
-                                  </a>
-                              )}
-                          </div>
+                      {deploySuccess && deployResult?.url && (
+                          <a href={deployResult.url} target="_blank" className="text-[10px] text-blue-400 hover:underline block text-center mt-2 truncate">
+                              {deployResult.url}
+                          </a>
                       )}
                   </div>
               )}
           </div>
 
-          {/* RIGHT: CHAT & INPUT */}
-          <div className="flex-1 flex flex-col h-1/2 md:h-full order-2 md:order-2">
-              <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar">
+          {/* RIGHT PANEL: Chat Interface - Full height on mobile */}
+          <div className="flex-1 flex flex-col min-h-0">
+              {/* Messages Area - Chat style */}
+              <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-4 custom-scrollbar">
                   {messages.length === 0 && (
-                      <div className="h-full flex flex-col items-center justify-center text-center opacity-40 p-8">
-                          <Sparkles className="h-12 w-12 mb-4" />
-                          <h3 className="text-lg font-medium">What shall we build?</h3>
-                          <p className="text-sm max-w-xs mt-2">e.g., "A modern portfolio for a photographer with a dark theme and gallery grid."</p>
+                      <div className="h-full flex flex-col items-center justify-center text-center p-6">
+                          <div className="w-16 h-16 mb-4 rounded-2xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center border border-white/10">
+                            <Sparkles className="h-8 w-8 text-blue-400" />
+                          </div>
+                          <h3 className="text-base md:text-lg font-semibold text-foreground mb-2">What shall we build?</h3>
+                          <p className="text-sm text-muted-foreground max-w-sm">
+                            Describe your website idea and I'll create stunning code with Tailwind CSS.
+                          </p>
+                          <div className="mt-4 flex flex-wrap gap-2 justify-center">
+                            {QUICK_SUGGESTIONS.map(suggestion => (
+                              <button 
+                                key={suggestion}
+                                onClick={() => setInput(suggestion + " with dark theme")}
+                                className="text-xs px-3 py-1.5 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all"
+                              >
+                                {suggestion}
+                              </button>
+                            ))}
+                          </div>
                       </div>
                   )}
 
                   {messages.map(msg => (
-                      <div key={msg.id} className={cn("flex flex-col gap-2", msg.role === 'user' ? "items-end" : "items-start")}>
-                          {msg.role === 'assistant' && msg.plan && generatedPages.length > 0 && (
-                            <div className="md:hidden w-full mb-2 bg-black/20 rounded-lg border border-white/10 p-2 overflow-hidden">
-                                <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-1 px-1">
-                                    Project Structure
-                                </div>
-                                <FileTreeVisualizer pages={generatedPages} currentFile={activeFile} />
+                      <div key={msg.id} className={cn(
+                        "flex gap-2",
+                        msg.role === 'user' ? "justify-end" : "justify-start"
+                      )}>
+                          {/* Avatar for assistant */}
+                          {msg.role === 'assistant' && (
+                            <div className="h-6 w-6 md:h-7 md:w-7 rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center border border-white/10 flex-shrink-0 mt-0.5">
+                              <Bot className="h-3 w-3 md:h-3.5 md:w-3.5 text-blue-400" />
                             </div>
                           )}
 
                           {msg.isErrorLog ? (
-                             <div className="w-full max-w-[85%] bg-red-500/10 border border-red-500/20 text-red-200 rounded-2xl px-4 py-3 text-sm flex items-start gap-3">
-                                <Bug className="h-5 w-5 shrink-0" />
-                                <div>{msg.content}</div>
+                             <div className="max-w-[85%] bg-red-500/10 border border-red-500/20 text-red-200 rounded-xl px-3 py-2.5 text-sm flex items-start gap-2">
+                                <Bug className="h-4 w-4 shrink-0 mt-0.5" />
+                                <div className="text-xs md:text-sm">{msg.content}</div>
                              </div>
                           ) : (
                             <div className={cn(
-                                "max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
-                                msg.role === 'user' ? "bg-primary text-primary-foreground rounded-tr-sm" :
-                                msg.role === 'system' ? "bg-muted text-muted-foreground rounded-2xl text-center w-full max-w-none text-xs" :
-                                "bg-muted/30 border border-white/5 rounded-tl-sm backdrop-blur-sm"
+                                "max-w-[85%] md:max-w-[75%] rounded-xl px-3 py-2.5 text-xs md:text-sm",
+                                msg.role === 'user' 
+                                  ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-br-sm" 
+                                  : msg.role === 'system' 
+                                    ? "bg-white/5 text-muted-foreground text-center text-xs" 
+                                    : "bg-white/5 border border-white/10 rounded-bl-sm"
                             )}>
                                 {msg.role === 'assistant' && msg.plan && (
-                                    <div className="flex items-center gap-2 text-xs font-bold text-primary mb-2 uppercase tracking-wider">
+                                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-blue-400 mb-2 uppercase tracking-wider">
                                         <BrainCircuit className="h-3 w-3" /> Strategy
                                     </div>
                                 )}
 
                                 {msg.code ? (
-                                    <div className="flex items-center gap-3">
-                                        <div className="h-8 w-8 bg-black/40 rounded flex items-center justify-center border border-white/10">
-                                            <FileCode className="h-4 w-4 text-blue-400" />
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="h-8 w-8 bg-black/40 rounded-lg flex items-center justify-center border border-white/10 flex-shrink-0">
+                                            <FileCode className="h-4 w-4 text-green-400" />
                                         </div>
-                                        <div>
-                                            <p className="font-mono text-xs">{msg.pageName}</p>
-                                            <p className="text-[10px] text-muted-foreground">{msg.code.length} bytes</p>
+                                        <div className="min-w-0">
+                                            <p className="font-mono text-xs truncate">{msg.pageName}</p>
+                                            <p className="text-[10px] text-green-400/70">✓ {msg.code.length} bytes</p>
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="whitespace-pre-wrap">{msg.content}</div>
+                                    <div className="whitespace-pre-wrap leading-relaxed">{msg.content}</div>
                                 )}
                             </div>
                           )}
+                          
+                          {/* Avatar spacer for user messages */}
+                          {msg.role === 'user' && <div className="w-6 md:w-7 flex-shrink-0" />}
                       </div>
                   ))}
                   <div ref={messagesEndRef} />
               </div>
 
-              {/* INPUT */}
-              <div className="p-4 border-t border-white/10 bg-background/50 backdrop-blur-md">
-                  <div className="relative max-w-3xl mx-auto">
+              {/* INPUT - Fixed at bottom, chat-app style */}
+              <div className="p-3 md:p-4 border-t border-white/10 bg-background/80 backdrop-blur-md">
+                  <div className="relative max-w-3xl mx-auto flex items-center gap-2">
                       <Input
                           value={input}
                           onChange={e => setInput(e.target.value)}
                           onKeyDown={e => e.key === 'Enter' && !e.shiftKey && startGeneration()}
-                          placeholder="Describe your vision..."
-                          className="pr-12 h-12 rounded-xl bg-white/5 border-white/10 focus-visible:ring-primary/50"
+                          placeholder="Describe your website..."
+                          className="flex-1 h-10 md:h-11 rounded-xl bg-white/5 border-white/10 focus-visible:ring-blue-500/50 text-sm px-4"
                           disabled={step === 'planning' || step === 'coding' || step === 'fixing'}
                       />
                       <Button
                           size="icon"
-                          className="absolute right-1.5 top-1.5 h-9 w-9 rounded-lg"
+                          className={cn(
+                            "h-10 w-10 md:h-11 md:w-11 rounded-xl flex-shrink-0 transition-all",
+                            (step === 'planning' || step === 'coding' || step === 'fixing')
+                              ? "bg-blue-500/20 text-blue-400"
+                              : "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                          )}
                           onClick={startGeneration}
                           disabled={!input.trim() || step === 'planning' || step === 'coding' || step === 'fixing'}
                       >
-                          {step === 'planning' || step === 'coding' || step === 'fixing' ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+                          {step === 'planning' || step === 'coding' || step === 'fixing' 
+                            ? <Loader2 className="h-4 w-4 animate-spin" /> 
+                            : <ArrowRight className="h-4 w-4" />}
                       </Button>
                   </div>
               </div>
@@ -729,11 +785,11 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
 }
 
 function ActivityIcon({ step }: { step: Step }) {
-    if (step === 'planning') return <BrainCircuit className="h-4 w-4 animate-pulse" />
-    if (step === 'coding') return <Terminal className="h-4 w-4 animate-pulse" />
-    if (step === 'fixing') return <Bug className="h-4 w-4 animate-pulse" />
-    if (step === 'done') return <CheckCircle2 className="h-4 w-4" />
-    return <Sparkles className="h-4 w-4" />
+    if (step === 'planning') return <BrainCircuit className="h-3.5 w-3.5 animate-pulse text-blue-400" />
+    if (step === 'coding') return <Terminal className="h-3.5 w-3.5 animate-pulse text-blue-400" />
+    if (step === 'fixing') return <Bug className="h-3.5 w-3.5 animate-pulse text-orange-400" />
+    if (step === 'done') return <CheckCircle2 className="h-3.5 w-3.5 text-green-400" />
+    return <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
 }
 
 export default AIWebsiteBuilder
