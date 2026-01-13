@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { logs, fileStructure, fileContent, lastAction, history } = await request.json()
+    const { logs, fileStructure, fileContent, lastAction, history, fixedFiles } = await request.json()
 
     // Use GOOGLE_AI_API by default, fallback to GOOGLE_API_KEY
     const apiKey = process.env.GOOGLE_AI_API || process.env.GOOGLE_API_KEY
@@ -55,12 +55,26 @@ export async function POST(request: Request) {
       ${fileStructure}
     `
 
+    if (fixedFiles && fixedFiles.length > 0) {
+        systemPrompt += `
+
+        **CRITICAL MEMORY (ALREADY FIXED FILES):**
+        You have already modified the following files in this session:
+        ${fixedFiles.join(', ')}
+
+        WARNING: If you see errors persisting in these files, your previous fix was incorrect.
+        DO NOT apply the exact same fix again. Try a different approach.
+        `
+    }
+
     if (history && Array.isArray(history) && history.length > 0) {
         systemPrompt += `
 
-        **PREVIOUS ATTEMPTS (MEMORY):**
-        The following actions have already been attempted in this session. DO NOT repeat failed actions unless you have new information.
-        ${history.map((h: any) => `- Action: ${h.action} on ${h.target} -> Result: ${h.result}`).join('\n')}
+        **SESSION HISTORY (ACTIONS TAKEN):**
+        The following actions have already been attempted:
+        ${history.map((h: any) => `- ${h.action.toUpperCase()}: ${h.target} -> ${h.summary || h.result}`).join('\n')}
+
+        Use this history to avoid loops. If you read a file and then tried to fix it but it failed again, maybe look at a related file (e.g., tsconfig.json, vite.config.ts).
         `
     }
 
