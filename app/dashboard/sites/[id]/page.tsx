@@ -51,6 +51,7 @@ import {
   FileType,
   ChevronRight,
   Code,
+  Terminal,
 } from "lucide-react"
 import { currencySymbols } from "@/lib/webshop-types"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -67,6 +68,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { Progress } from "@/components/ui/progress"
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from "recharts"
+import { Textarea } from "@/components/ui/textarea"
 
 const headerComponents = {
   simple: { name: "Simple", description: "A clean, minimalist header" },
@@ -265,12 +267,10 @@ const FileTreeView = ({
   selectedPage: GeneratedPage | null
   onDeleteFile: (name: string) => void
 }) => {
-  // Compute initial expanded folders based on actual pages
   const getInitialExpandedFolders = () => {
     const folders = new Set<string>()
     pages.forEach(page => {
       const parts = page.name.split('/')
-      // Add all parent folder paths
       for (let i = 1; i < parts.length; i++) {
         folders.add(parts.slice(0, i).join('/'))
       }
@@ -408,7 +408,7 @@ export default function SiteSettingsPage() {
   const [productError, setProductError] = useState<string | null>(null)
 
   const [activeTab, setActiveTab] = useState<
-    "styles" | "products" | "payments" | "ai" | "pages" | "orders" | "customers" | "analytics" | "discount"
+    "styles" | "products" | "payments" | "ai" | "pages" | "prompts" | "orders" | "customers" | "analytics" | "discount"
   >("styles")
   const [activeSubTab, setActiveSubTab] = useState<"limits" | "connections" | "help">("limits")
 
@@ -416,6 +416,11 @@ export default function SiteSettingsPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop")
   const { data: session } = useSession()
+
+  // Prompts State
+  const [prompts, setPrompts] = useState({ generateWebsite: "", autoFix: "" })
+  const [isPromptsLoading, setIsPromptsLoading] = useState(false)
+  const [isPromptsSaving, setIsPromptsSaving] = useState(false)
 
   // Renamed to match the button name and be consistent
   const saving = isSaving
@@ -493,6 +498,23 @@ export default function SiteSettingsPage() {
         console.error("Failed to fetch logs", e)
     }
   }
+
+  // Fetch prompts when tab is active
+  useEffect(() => {
+    if (activeTab === 'prompts' && id) {
+        setIsPromptsLoading(true)
+        fetch(`/api/projects/${id}/prompts`)
+            .then(res => res.json())
+            .then(data => {
+                setPrompts({
+                    generateWebsite: data.generateWebsite || "",
+                    autoFix: data.autoFix || ""
+                })
+            })
+            .catch(err => console.error(err))
+            .finally(() => setIsPromptsLoading(false))
+    }
+  }, [activeTab, id])
 
   useEffect(() => {
     if (!id) return
@@ -586,7 +608,6 @@ export default function SiteSettingsPage() {
     }
   }
 
-  // Combined save handler for settings and general changes
   const handleSave = async () => {
     setSaving(true)
     setSaveError(null)
@@ -652,6 +673,26 @@ export default function SiteSettingsPage() {
     }
   }
 
+  const handleSavePrompts = async () => {
+      setIsPromptsSaving(true)
+      try {
+          const res = await fetch(`/api/projects/${id}/prompts`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(prompts)
+          })
+          if (res.ok) {
+              alert("Prompts saved!")
+          } else {
+              throw new Error("Failed to save")
+          }
+      } catch (e: any) {
+          alert(e.message)
+      } finally {
+          setIsPromptsSaving(false)
+      }
+  }
+
   const handleAddProduct = async () => {
     setProductError(null)
 
@@ -698,10 +739,6 @@ export default function SiteSettingsPage() {
   }
 
   const handleDeleteProduct = async (productId: string, productName: string) => {
-    // Using a more prominent confirmation method could be implemented here,
-    // but the instruction for "Improve website management" - "Improve deleting a website"
-    // refers more likely to the deployment deletion or project deletion.
-    // For products, standard confirm is usually acceptable, but I will make the message clearer.
     if (!confirm(`Are you sure you want to delete "${productName}"? This action cannot be undone.`)) {
       return
     }
@@ -746,27 +783,22 @@ export default function SiteSettingsPage() {
     setActiveTab("ai")
   }
 
-  // --- NEW: Domain Polling Logic ---
   const pollForDomain = async (repoId: string, attempts = 0) => {
-    if (attempts >= 40) return // Stop after ~120 seconds (40 * 3s)
+    if (attempts >= 40) return
 
     try {
       const res = await fetch(`/api/deploy/${repoId}/domain`)
       const data = await res.json()
 
       if (data.success && data.domain) {
-        // Domain found! Update local state
         setProject((prev: any) => ({ ...prev, cloudflareUrl: data.domain }))
-        // Also update deploy result if it's still showing
         setDeployResult((prev: any) => ({
             ...prev,
             url: data.domain,
             message: "Deployed to Cloudflare Pages!"
         }))
-        // Force refresh logs now that we have a domain (deployment likely finished)
         fetchLogs(repoId)
       } else {
-        // Not yet, try again in 3s
         setTimeout(() => pollForDomain(repoId, attempts + 1), 3000)
       }
     } catch (e) {
@@ -783,14 +815,11 @@ export default function SiteSettingsPage() {
     setDeployResult(null)
     setDeployError(null)
 
-    // Progress simulation constants
     const PROGRESS_INTERVAL_MS = 400
     const PROGRESS_INCREMENT = 10
     const MAX_SIMULATED_PROGRESS = 80
 
     try {
-      // Simulate progress for UX while actual deployment happens
-      // Progress increases steadily until reaching the maximum simulated value
       const progressInterval = setInterval(() => {
         setDeployProgress(prev => {
           const nextProgress = prev + PROGRESS_INCREMENT
@@ -817,7 +846,6 @@ export default function SiteSettingsPage() {
 
       const result = await response.json()
 
-      // Complete the progress bar
       setDeployProgress(100)
       setDeploySuccess(true)
       setDeployResult({
@@ -825,24 +853,16 @@ export default function SiteSettingsPage() {
         message: result.message || `Successfully deployed ${result.filesCount} file(s) to GitHub`
       })
 
-      // Update project with potentially new githubRepoId if needed
       if (result.repoId) {
           setProject((prev: any) => ({ ...prev, githubRepoId: result.repoId }))
-
-          // NEW: If cloudflareUrl is missing (normal for async), start polling
           if (!result.cloudflareUrl) {
-              console.log("[v0] Deployment started, polling for Cloudflare domain...")
               pollForDomain(result.repoId)
           } else {
-              // Immediate update if lucky
               setProject((prev: any) => ({ ...prev, cloudflareUrl: result.cloudflareUrl }))
           }
-
-          // Fetch logs immediately with new repo ID
           fetchLogs(result.repoId)
       }
 
-      // Reset success state after 5 seconds
       const SUCCESS_DISPLAY_DURATION_MS = 5000
       setTimeout(() => {
         setDeploySuccess(false)
@@ -853,7 +873,6 @@ export default function SiteSettingsPage() {
       setDeployError(err.message || "Deployment failed")
       setDeployProgress(0)
       setHasDeployError(true)
-      // Attempt logs fetch anyway
       setTimeout(fetchLogs, 1000)
     } finally {
       setIsDeploying(false)
@@ -909,6 +928,7 @@ export default function SiteSettingsPage() {
       items: [
         { id: "styles", label: "Overview", icon: Layout },
         { id: "ai", label: "AI Builder", icon: Zap },
+        { id: "prompts", label: "AI Prompts", icon: Terminal }, // NEW TAB
         { id: "pages", label: "Pages", icon: FileText },
         { id: "products", label: "Products", icon: ShoppingCart },
         { id: "payments", label: "Payments", icon: CreditCard },
@@ -934,47 +954,18 @@ export default function SiteSettingsPage() {
     { id: "help", label: "Help", icon: HelpCircle },
   ]
 
-  const userInitials =
-    session?.user?.name
-      ?.split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase() || "U"
-
+  const userInitials = session?.user?.name?.split(" ").map((n) => n[0]).join("").toUpperCase() || "U"
   const previewUrl = project?.cloudflareUrl || null
   const displayUrl = previewUrl ? previewUrl.replace(/^https?:\/\//, "") : null
 
-  // Calculate real usage stats
-  // Limit values (mocked for now, but usage is real)
+  // Mock stats
   const stats = {
-    changes: {
-      used: generatedPages.length, // Using generated pages as "changes" proxy
-      limit: 300,
-      label: "MESSAGES REMAIN",
-      icon: MessageSquare
-    },
-    aiBuilds: {
-      used: generatedPages.length, // Using pages as AI builds proxy
-      limit: 100,
-      label: "/MO AI BUILDS",
-      icon: Bot
-    },
-    storage: {
-      used: parseFloat((generatedPages.length * 0.2 + products.length * 0.1).toFixed(1)), // Estimated size
-      limit: 50,
-      label: "MB STORAGE",
-      icon: HardDrive
-    },
-    products: {
-      used: products.length,
-      limit: 500,
-      label: "PRODUCTS",
-      icon: Package
-    },
-    visitors: 0 // Default until functional
+    changes: { used: generatedPages.length, limit: 300, label: "MESSAGES REMAIN", icon: MessageSquare },
+    aiBuilds: { used: generatedPages.length, limit: 100, label: "/MO AI BUILDS", icon: Bot },
+    storage: { used: parseFloat((generatedPages.length * 0.2 + products.length * 0.1).toFixed(1)), limit: 50, label: "MB STORAGE", icon: HardDrive },
+    products: { used: products.length, limit: 500, label: "PRODUCTS", icon: Package },
+    visitors: 0
   }
-
-  // Mock data for activity chart
   const activityData = [
     { name: "Mon", value: 40 },
     { name: "Tue", value: 30 },
@@ -991,7 +982,7 @@ export default function SiteSettingsPage() {
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
     >
-      {/* Desktop Sidebar */}
+      {/* Sidebar */}
       <aside className="hidden md:flex flex-col w-64 border-r border-white/10 bg-black/40 backdrop-blur-xl shrink-0">
         <SidebarContent
           project={project}
@@ -1004,12 +995,10 @@ export default function SiteSettingsPage() {
         />
       </aside>
 
-      {/* Main Content Wrapper */}
+      {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
         <header className="border-b border-white/10 bg-background/50 backdrop-blur-sm z-20 shrink-0">
           <div className="flex items-center justify-between h-16 px-4 md:px-6">
-             {/* Mobile Menu Trigger */}
              <div className="flex items-center gap-3 md:hidden">
               <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(true)} className="-ml-2">
                 <Menu className="h-5 w-5" />
@@ -1017,7 +1006,6 @@ export default function SiteSettingsPage() {
               <span className="font-semibold text-lg truncate max-w-[150px]">{project?.businessName}</span>
             </div>
 
-            {/* Desktop Breadcrumbs/Title */}
             <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
               <button onClick={() => router.push("/dashboard")} className="hover:text-foreground transition-colors">Dashboard</button>
               <span>/</span>
@@ -1026,9 +1014,7 @@ export default function SiteSettingsPage() {
               <span className="capitalize text-foreground">{activeTab.replace("-", " ")}</span>
             </div>
 
-            {/* Right Actions */}
             <div className="flex items-center gap-3 ml-auto">
-              {/* Mobile Save Action (Icon Only to save space) */}
               <Button
                 variant="ghost"
                 size="icon"
@@ -1052,7 +1038,7 @@ export default function SiteSettingsPage() {
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-9 w-9 rounded-full p-0 ring-offset-background transition-all hover:ring-2 hover:ring-ring hover:ring-offset-2">
+                  <Button variant="ghost" className="relative h-9 w-9 rounded-full p-0">
                     <Avatar className="h-9 w-9">
                       <AvatarImage src={session?.user?.image || ""} alt={session?.user?.name || ""} />
                       <AvatarFallback className="bg-primary text-primary-foreground">{userInitials}</AvatarFallback>
@@ -1060,39 +1046,25 @@ export default function SiteSettingsPage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end" forceMount>
-                  <DropdownMenuLabel className="font-normal">
+                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
                       <p className="text-sm font-medium leading-none">{session?.user?.name}</p>
                       <p className="text-xs leading-none text-muted-foreground">{session?.user?.email}</p>
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => router.push("/profile")}>
-                    <User className="mr-2 h-4 w-4" />
-                    <span>Profile</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={async () => {
-                        await fetch('/api/auth/logout', { method: 'POST' });
-                        signOut({ callbackUrl: "/" });
-                    }}
-                    className="text-destructive focus:text-destructive"
-                  >
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Log out</span>
-                  </DropdownMenuItem>
+                   <DropdownMenuItem onClick={() => router.push("/profile")}><User className="mr-2 h-4 w-4"/>Profile</DropdownMenuItem>
+                   <DropdownMenuSeparator />
+                   <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/" })} className="text-destructive"><LogOut className="mr-2 h-4 w-4"/>Log out</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
           </div>
         </header>
 
-        {/* Scrollable Main Content */}
         <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 lg:p-8 custom-scrollbar relative">
           <div className="mx-auto max-w-6xl space-y-8 pb-10">
 
-            {/* Mobile Sidebar (Drawer) */}
             <AnimatePresence>
               {isSidebarOpen && (
                 <>
@@ -1124,363 +1096,119 @@ export default function SiteSettingsPage() {
               )}
             </AnimatePresence>
 
-            {/* TAB CONTENT: STYLES (OVERVIEW) */}
+            {/* TAB CONTENT: STYLES */}
             {activeTab === "styles" && (
-              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-
-                {/* Mobile Specific Header/Status - Visible only on mobile */}
-                <div className="block md:hidden space-y-6">
-                    {/* Domain Status Header with Preview */}
-                    <div className="flex items-center justify-between gap-4">
-                        <div className="flex-1 min-w-0 space-y-1">
-                            <div className="flex items-center gap-2">
-                                <div className={cn("h-2.5 w-2.5 rounded-full shrink-0", previewUrl ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" : "bg-gray-500")} />
-                                <h3 className="font-bold text-xl truncate text-foreground tracking-tight">{displayUrl || 'Not deployed'}</h3>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground pl-4.5 font-medium">
-                                <span>main</span>
-                                <span className="text-muted-foreground/30">•</span>
-                                <span>{project?.cloudflareDeployedAt ? new Date(project.cloudflareDeployedAt).toISOString().split('T')[0].replace(/-/g, ' ') : "Not deployed"}</span>
-                            </div>
-                        </div>
-
-                        {/* Compact Preview Thumbnail (Restored) */}
-                        <div className="w-24 h-14 rounded-lg overflow-hidden border border-white/10 bg-black/20 shrink-0 relative shadow-sm group">
-                            {previewUrl ? (
-                                <iframe
-                                    src={previewUrl}
-                                    className="w-[300%] h-[300%] origin-top-left scale-[0.33] border-0 pointer-events-none"
-                                    title="Mini Preview"
-                                    tabIndex={-1}
-                                />
-                            ) : (
-                                <div className="flex items-center justify-center w-full h-full bg-muted/20">
-                                   <div className="text-[10px] text-muted-foreground/50">No Preview</div>
+                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                    <div className="block md:hidden space-y-6">
+                        <div className="flex items-center justify-between gap-4">
+                            <div className="flex-1 min-w-0 space-y-1">
+                                <div className="flex items-center gap-2">
+                                    <div className={cn("h-2.5 w-2.5 rounded-full shrink-0", previewUrl ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" : "bg-gray-500")} />
+                                    <h3 className="font-bold text-xl truncate text-foreground tracking-tight">{displayUrl || 'Not deployed'}</h3>
                                 </div>
-                            )}
-                         </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <Button
-                                variant="outline"
-                                className="h-14 text-base font-medium bg-card/50 border-white/10 hover:bg-accent rounded-xl"
-                                disabled
-                            >
-                                <Globe className="mr-2 h-5 w-5 opacity-70" />
-                                Domain (disabled)
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="h-14 text-base font-medium bg-card/50 border-white/10 hover:bg-accent rounded-xl"
-                                onClick={() => previewUrl && window.open(previewUrl, "_blank")}
-                                disabled={!previewUrl}
-                            >
-                                <ExternalLink className="mr-2 h-5 w-5 opacity-70" />
-                                Visit
-                            </Button>
-                        </div>
-
-                        <div className="space-y-2 relative">
-                          <Button
-                              size="lg"
-                              className={cn(
-                                "w-full h-14 font-semibold text-base shadow-lg shadow-primary/10 rounded-xl transition-all",
-                                deploySuccess && "bg-green-500/20 text-green-400 border-green-500/30",
-                                hasDeployError && !isDeploying && !deploySuccess && "bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30"
-                              )}
-                              onClick={hasDeployError ? startAutoFix : handleDeploy}
-                              disabled={isDeploying}
-                          >
-                              {isDeploying ? (
-                                <>
-                                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                                  Deploying to GitHub...
-                                </>
-                              ) : deploySuccess ? (
-                                <>
-                                  <CheckCircle2 className="h-5 w-5 mr-2" />
-                                  Deployed Successfully!
-                                </>
-                              ) : hasDeployError ? (
-                                <>
-                                    <Sparkles className="h-5 w-5 mr-2" />
-                                    Fix with AI
-                                    <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                      <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                                    </span>
-                                </>
-                              ) : (
-                                <>
-                                  <Rocket className="h-5 w-5 mr-2" />
-                                  Deploy to GitHub
-                                </>
-                              )}
-                          </Button>
-                          {(isDeploying || deploySuccess) && (
-                            <Progress 
-                              value={deployProgress} 
-                              className={cn(
-                                "h-1.5 rounded-full",
-                                deploySuccess ? "[&>div]:bg-green-500" : ""
-                              )} 
-                            />
-                          )}
-                        </div>
-
-                        {deployError && (
-                          <div className="text-center space-y-2">
-                             <p className="text-sm text-destructive">{deployError}</p>
-                             {!hasDeployError && (
-                               <Button variant="link" size="sm" onClick={startAutoFix} className="text-blue-400 h-auto p-0">
-                                 Try fixing with AI
-                               </Button>
-                             )}
-                          </div>
-                        )}
-
-                        {logs.length > 0 && hasDeployError && (
-                            <div className="w-full mt-4">
-                                <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">Error Logs</p>
-                                <div className="text-xs font-mono text-muted-foreground bg-black/40 p-3 rounded-lg border border-white/10 overflow-x-auto whitespace-pre-wrap max-h-48 custom-scrollbar shadow-inner">
-                                    {logs.slice(-20).map((l, i) => (
-                                        <div key={i} className="border-b border-white/5 last:border-0 pb-0.5 mb-0.5 last:mb-0 last:pb-0">{l}</div>
-                                    ))}
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground pl-4.5 font-medium">
+                                    <span>main</span>
+                                    <span className="text-muted-foreground/30">•</span>
+                                    <span>{project?.cloudflareDeployedAt ? new Date(project.cloudflareDeployedAt).toISOString().split('T')[0].replace(/-/g, ' ') : "Not deployed"}</span>
                                 </div>
                             </div>
-                        )}
-
-                        {deployResult?.url && deploySuccess && (
-                          <p className="text-sm text-muted-foreground text-center">
-                            <a 
-                              href={deployResult.url} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-primary hover:underline"
-                            >
-                              View on GitHub →
-                            </a>
-                          </p>
-                        )}
-
-                        {!isDeploying && !deploySuccess && !deployError && (
-                          <p className="text-sm text-muted-foreground text-center">
-                            Deploy your site to GitHub. After deployment, repo details will be saved.
-                          </p>
-                        )}
-                    </div>
-
-                    {/* Visitor Divider */}
-                    <div className="flex items-center gap-4 py-2">
-                         <div className="h-px bg-border/40 flex-1"></div>
-                         <div className="bg-card/50 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 flex items-center gap-2 shadow-sm">
-                            <Eye className="h-3.5 w-3.5 text-foreground/70" />
-                            <span className="font-bold text-sm text-foreground">{stats.visitors}</span>
-                        </div>
-                         <div className="h-px bg-border/40 flex-1"></div>
-                    </div>
-                </div>
-
-                {/* Desktop Specific Preview/Status - Visible only on desktop */}
-                <div className="hidden md:block">
-                     {/* Deployment & Preview Section */}
-                    <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                    {/* Left: Preview */}
-                    <div className="xl:col-span-2 space-y-4">
-                        <div className="flex items-center justify-between">
-                        <h2 className="text-xl font-semibold tracking-tight">Live Preview</h2>
-                        <div className="flex items-center gap-3 bg-muted/30 p-1 rounded-lg border border-white/5">
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className={cn("h-7 px-3 rounded-md", previewMode === "desktop" ? "bg-white/10 text-foreground" : "text-muted-foreground")}
-                                    onClick={() => setPreviewMode("desktop")}
-                                >
-                                    <Monitor className="h-4 w-4 mr-2" />
-                                    Desktop
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className={cn("h-7 px-3 rounded-md", previewMode === "mobile" ? "bg-white/10 text-foreground" : "text-muted-foreground")}
-                                    onClick={() => setPreviewMode("mobile")}
-                                >
-                                    <Smartphone className="h-4 w-4 mr-2" />
-                                    Mobile
-                                </Button>
-                        </div>
-                        </div>
-
-                        <div className="flex justify-center bg-black/10 rounded-xl border border-white/5 p-4 min-h-[400px]">
-                            <div className={cn(
-                                "relative transition-all duration-300 ease-in-out bg-background shadow-2xl overflow-hidden border border-border",
-                                previewMode === "desktop" ? "w-full aspect-video rounded-lg" : "w-full max-w-[320px] aspect-[9/19.5] rounded-[3rem] border-8 border-black/80"
-                            )}>
-                                {/* Mobile Notch (Only visible in mobile mode) */}
-                                {previewMode === "mobile" && (
-                                    <div className="absolute top-0 left-1/2 -translate-x-1/2 h-6 w-32 bg-black rounded-b-xl z-20"></div>
-                                )}
-
+                            <div className="w-24 h-14 rounded-lg overflow-hidden border border-white/10 bg-black/20 shrink-0 relative shadow-sm group">
                                 {previewUrl ? (
-                                  <iframe
-                                      src={previewUrl}
-                                      className="w-full h-full border-0 bg-white"
-                                      title="Live Preview"
-                                      sandbox="allow-scripts allow-forms"
-                                  />
+                                    <iframe src={previewUrl} className="w-[300%] h-[300%] origin-top-left scale-[0.33] border-0 pointer-events-none" title="Mini Preview" tabIndex={-1} />
                                 ) : (
-                                  <div className="flex items-center justify-center w-full h-full bg-muted/20">
-                                      <div className="text-center">
-                                          <AlertCircle className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
-                                          <p className="text-sm text-muted-foreground">Deployment not available</p>
-                                      </div>
-                                  </div>
+                                    <div className="flex items-center justify-center w-full h-full bg-muted/20"><div className="text-[10px] text-muted-foreground/50">No Preview</div></div>
                                 )}
                             </div>
                         </div>
-                    </div>
-
-                    {/* Right: Actions */}
-                    <div className="xl:col-span-1 flex flex-col gap-4">
-                        <Card className="bg-card/50 backdrop-blur-sm border-white/10 shadow-sm">
-                        <CardHeader className="p-4 md:p-6">
-                            <CardTitle className="text-lg">Deployment Status</CardTitle>
-                            <CardDescription>Manage your live production build</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-5 p-4 md:p-6 pt-0">
-                            <div className="flex items-center gap-3 p-3 rounded-lg bg-black/20 border border-white/5">
-                                <div className={cn("h-2.5 w-2.5 rounded-full shrink-0", previewUrl ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" : "bg-gray-500")} />
-                                <div className="min-w-0 flex-1">
-                                    <p className="text-xs text-muted-foreground mb-0.5">Public URL</p>
-                                    <a
-                                        href={previewUrl || '#'}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-sm font-medium text-primary hover:underline truncate block"
-                                    >
-                                        {displayUrl || 'Not deployed'}
-                                    </a>
-                                </div>
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <Button variant="outline" className="h-14 text-base font-medium bg-card/50 border-white/10 hover:bg-accent rounded-xl" disabled>
+                                    <Globe className="mr-2 h-5 w-5 opacity-70" /> Domain (disabled)
+                                </Button>
+                                <Button variant="outline" className="h-14 text-base font-medium bg-card/50 border-white/10 hover:bg-accent rounded-xl" onClick={() => previewUrl && window.open(previewUrl, "_blank")} disabled={!previewUrl}>
+                                    <ExternalLink className="mr-2 h-5 w-5 opacity-70" /> Visit
+                                </Button>
                             </div>
-
-                            <div className="grid grid-cols-2 gap-3">
-                            <div className="p-3 rounded-lg bg-black/20 border border-white/5">
-                                <p className="text-xs text-muted-foreground mb-1">Last Update</p>
-                                <p className="text-sm font-medium">
-                                    {project?.cloudflareDeployedAt
-                                    ? new Date(project.cloudflareDeployedAt).toLocaleDateString()
-                                    : "Never"}
-                                </p>
-                            </div>
-                            <div className="p-3 rounded-lg bg-black/20 border border-white/5">
-                                <p className="text-xs text-muted-foreground mb-1">Environment</p>
-                                <p className="text-sm font-medium">Production</p>
-                            </div>
-                            </div>
-
                             <div className="space-y-2 relative">
                               <Button
-                                size="lg"
-                                className={cn(
-                                  "w-full font-semibold shadow-lg shadow-primary/20 transition-all",
-                                  deploySuccess && "bg-green-500/20 text-green-400 border-green-500/30",
-                                  hasDeployError && !isDeploying && !deploySuccess && "bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30"
-                                )}
-                                onClick={hasDeployError ? startAutoFix : handleDeploy}
-                                disabled={isDeploying}
+                                  size="lg"
+                                  className={cn("w-full h-14 font-semibold text-base shadow-lg shadow-primary/10 rounded-xl transition-all", deploySuccess && "bg-green-500/20 text-green-400 border-green-500/30", hasDeployError && !isDeploying && !deploySuccess && "bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30")}
+                                  onClick={hasDeployError ? startAutoFix : handleDeploy}
+                                  disabled={isDeploying}
                               >
-                                {isDeploying ? (
-                                  <>
-                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                    Deploying to GitHub...
-                                  </>
-                                ) : deploySuccess ? (
-                                  <>
-                                    <CheckCircle2 className="h-4 w-4 mr-2" />
-                                    Deployed Successfully!
-                                  </>
-                                ) : hasDeployError ? (
-                                    <>
-                                        <Sparkles className="h-4 w-4 mr-2" />
-                                        Fix with AI
-                                        <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                            <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                                        </span>
-                                    </>
-                                ) : (
-                                  <>
-                                    <Rocket className="h-4 w-4 mr-2" />
-                                    Deploy to GitHub
-                                  </>
-                                )}
+                                  {isDeploying ? <><Loader2 className="h-5 w-5 mr-2 animate-spin" /> Deploying...</> : deploySuccess ? <><CheckCircle2 className="h-5 w-5 mr-2" /> Deployed!</> : hasDeployError ? <><Sparkles className="h-5 w-5 mr-2" /> Fix with AI</> : <><Rocket className="h-5 w-5 mr-2" /> Deploy to GitHub</>}
                               </Button>
-                              {(isDeploying || deploySuccess) && (
-                                <Progress 
-                                  value={deployProgress} 
-                                  className={cn(
-                                    "h-1.5 rounded-full",
-                                    deploySuccess ? "[&>div]:bg-green-500" : ""
-                                  )} 
-                                />
-                              )}
+                              {(isDeploying || deploySuccess) && <Progress value={deployProgress} className={cn("h-1.5 rounded-full", deploySuccess ? "[&>div]:bg-green-500" : "")} />}
                             </div>
-
                             {deployError && (
-                               <div className="space-y-1">
-                                  <p className="text-sm text-destructive">{deployError}</p>
-                                  {!hasDeployError && (
-                                    <Button variant="link" size="sm" onClick={startAutoFix} className="text-blue-400 h-auto p-0">
-                                        Try fixing with AI
-                                    </Button>
-                                  )}
-                               </div>
+                              <div className="text-center space-y-2">
+                                 <p className="text-sm text-destructive">{deployError}</p>
+                                 {!hasDeployError && <Button variant="link" size="sm" onClick={startAutoFix} className="text-blue-400 h-auto p-0">Try fixing with AI</Button>}
+                              </div>
                             )}
-
-                            {deployResult?.url && deploySuccess && (
-                              <p className="text-sm text-muted-foreground">
-                                <a 
-                                  href={deployResult.url} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="text-primary hover:underline"
-                                >
-                                  View on GitHub →
-                                </a>
-                              </p>
-                            )}
-
-                            {!isDeploying && !deploySuccess && !deployError && (
-                              <p className="text-sm text-muted-foreground">
-                                Deploy your site to GitHub. After deployment, repo details will be saved.
-                              </p>
-                            )}
-
-                            <div className="grid grid-cols-2 gap-3 pt-2">
-                                <Button variant="outline" className="w-full bg-transparent border-white/10 hover:bg-white/5" onClick={handleSave} disabled={saving}>
-                                {saving ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Save className="h-3 w-3 mr-2" />}
-                                Save Draft
-                                </Button>
-                                <Button variant="outline" className="w-full bg-transparent border-white/10 hover:bg-white/5" disabled>
-                                <Globe className="h-3 w-3 mr-2" />
-                                Domains (disabled)
-                                </Button>
+                        </div>
+                        <div className="flex items-center gap-4 py-2">
+                             <div className="h-px bg-border/40 flex-1"></div>
+                             <div className="bg-card/50 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 flex items-center gap-2 shadow-sm">
+                                <Eye className="h-3.5 w-3.5 text-foreground/70" />
+                                <span className="font-bold text-sm text-foreground">{stats.visitors}</span>
                             </div>
-                        </CardContent>
-                        </Card>
+                             <div className="h-px bg-border/40 flex-1"></div>
+                        </div>
                     </div>
+
+                    <div className="hidden md:block">
+                        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                        <div className="xl:col-span-2 space-y-4">
+                            <div className="flex items-center justify-between">
+                            <h2 className="text-xl font-semibold tracking-tight">Live Preview</h2>
+                            <div className="flex items-center gap-3 bg-muted/30 p-1 rounded-lg border border-white/5">
+                                    <Button variant="ghost" size="sm" className={cn("h-7 px-3 rounded-md", previewMode === "desktop" ? "bg-white/10 text-foreground" : "text-muted-foreground")} onClick={() => setPreviewMode("desktop")}>
+                                        <Monitor className="h-4 w-4 mr-2" /> Desktop
+                                    </Button>
+                                    <Button variant="ghost" size="sm" className={cn("h-7 px-3 rounded-md", previewMode === "mobile" ? "bg-white/10 text-foreground" : "text-muted-foreground")} onClick={() => setPreviewMode("mobile")}>
+                                        <Smartphone className="h-4 w-4 mr-2" /> Mobile
+                                    </Button>
+                            </div>
+                            </div>
+                            <div className="flex justify-center bg-black/10 rounded-xl border border-white/5 p-4 min-h-[400px]">
+                                <div className={cn("relative transition-all duration-300 ease-in-out bg-background shadow-2xl overflow-hidden border border-border", previewMode === "desktop" ? "w-full aspect-video rounded-lg" : "w-full max-w-[320px] aspect-[9/19.5] rounded-[3rem] border-8 border-black/80")}>
+                                    {previewMode === "mobile" && <div className="absolute top-0 left-1/2 -translate-x-1/2 h-6 w-32 bg-black rounded-b-xl z-20"></div>}
+                                    {previewUrl ? <iframe src={previewUrl} className="w-full h-full border-0 bg-white" title="Live Preview" sandbox="allow-scripts allow-forms" /> : <div className="flex items-center justify-center w-full h-full bg-muted/20"><div className="text-center"><AlertCircle className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" /><p className="text-sm text-muted-foreground">Deployment not available</p></div></div>}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="xl:col-span-1 flex flex-col gap-4">
+                            <Card className="bg-card/50 backdrop-blur-sm border-white/10 shadow-sm">
+                            <CardHeader className="p-4 md:p-6"><CardTitle className="text-lg">Deployment Status</CardTitle><CardDescription>Manage your live production build</CardDescription></CardHeader>
+                            <CardContent className="space-y-5 p-4 md:p-6 pt-0">
+                                <div className="flex items-center gap-3 p-3 rounded-lg bg-black/20 border border-white/5">
+                                    <div className={cn("h-2.5 w-2.5 rounded-full shrink-0", previewUrl ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" : "bg-gray-500")} />
+                                    <div className="min-w-0 flex-1"><p className="text-xs text-muted-foreground mb-0.5">Public URL</p><a href={previewUrl || '#'} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-primary hover:underline truncate block">{displayUrl || 'Not deployed'}</a></div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                <div className="p-3 rounded-lg bg-black/20 border border-white/5"><p className="text-xs text-muted-foreground mb-1">Last Update</p><p className="text-sm font-medium">{project?.cloudflareDeployedAt ? new Date(project.cloudflareDeployedAt).toLocaleDateString() : "Never"}</p></div>
+                                <div className="p-3 rounded-lg bg-black/20 border border-white/5"><p className="text-xs text-muted-foreground mb-1">Environment</p><p className="text-sm font-medium">Production</p></div>
+                                </div>
+                                <div className="space-y-2 relative">
+                                  <Button size="lg" className={cn("w-full font-semibold shadow-lg shadow-primary/20 transition-all", deploySuccess && "bg-green-500/20 text-green-400 border-green-500/30", hasDeployError && !isDeploying && !deploySuccess && "bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30")} onClick={hasDeployError ? startAutoFix : handleDeploy} disabled={isDeploying}>
+                                    {isDeploying ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Deploying...</> : deploySuccess ? <><CheckCircle2 className="h-4 w-4 mr-2" /> Deployed!</> : hasDeployError ? <><Sparkles className="h-4 w-4 mr-2" /> Fix with AI</> : <><Rocket className="h-4 w-4 mr-2" /> Deploy to GitHub</>}
+                                  </Button>
+                                  {(isDeploying || deploySuccess) && <Progress value={deployProgress} className={cn("h-1.5 rounded-full", deploySuccess ? "[&>div]:bg-green-500" : "")} />}
+                                </div>
+                                {deployError && <div className="space-y-1"><p className="text-sm text-destructive">{deployError}</p>{!hasDeployError && <Button variant="link" size="sm" onClick={startAutoFix} className="text-blue-400 h-auto p-0">Try fixing with AI</Button>}</div>}
+                                <div className="grid grid-cols-2 gap-3 pt-2">
+                                    <Button variant="outline" className="w-full bg-transparent border-white/10 hover:bg-white/5" onClick={handleSave} disabled={saving}>{saving ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Save className="h-3 w-3 mr-2" />} Save Draft</Button>
+                                    <Button variant="outline" className="w-full bg-transparent border-white/10 hover:bg-white/5" disabled><Globe className="h-3 w-3 mr-2" /> Domains (disabled)</Button>
+                                </div>
+                            </CardContent>
+                            </Card>
+                        </div>
+                        </div>
                     </div>
-                </div>
 
-                {/* Shared Content Area - Visible on BOTH Mobile and Desktop */}
-                <div className="space-y-6">
-
-                    {/* Configuration Tabs - Segmented Control Style */}
-                    <div className="flex flex-col gap-6">
-                        <div className="w-full bg-muted/40 p-1.5 rounded-xl border border-white/5">
+                    <div className="space-y-6">
+                         <div className="w-full bg-muted/40 p-1.5 rounded-xl border border-white/5">
                             <div className="flex items-center gap-1">
                                 {subTabs.map((tab) => {
                                     const Icon = tab.icon
@@ -1501,97 +1229,23 @@ export default function SiteSettingsPage() {
                                 })}
                             </div>
                         </div>
-
-                        {/* Limits Sub-Tab Content */}
                         {activeSubTab === "limits" && (
                             <div className="animate-in fade-in slide-in-from-bottom-2">
                                 <Card className="bg-card/50 backdrop-blur-xl border-white/10 shadow-sm">
-                                    <CardHeader className="pb-4 pt-6 px-6">
-                                        <div className="flex items-center gap-3">
-                                            <CardTitle className="text-xl font-bold">Statistics</CardTitle>
-                                            <span className="bg-muted text-muted-foreground text-[10px] font-medium px-2 py-0.5 rounded-md border border-border/50 uppercase tracking-wide">Free</span>
-                                        </div>
-                                    </CardHeader>
+                                    <CardHeader className="pb-4 pt-6 px-6"><div className="flex items-center gap-3"><CardTitle className="text-xl font-bold">Statistics</CardTitle><span className="bg-muted text-muted-foreground text-[10px] font-medium px-2 py-0.5 rounded-md border border-border/50 uppercase tracking-wide">Free</span></div></CardHeader>
                                     <CardContent className="space-y-8 px-6 pb-8">
-                                        {/* Changes */}
-                                        <div className="flex items-center gap-5">
-                                            <div className="h-12 w-12 bg-muted/50 rounded-xl shrink-0 flex items-center justify-center border border-white/5">
-                                                <stats.changes.icon className="h-6 w-6 text-foreground/70" />
-                                            </div>
-                                            <div className="flex-1">
-                                                 <Progress value={(stats.changes.used / stats.changes.limit) * 100} className="h-1.5 bg-muted/50" />
-                                            </div>
-                                            <div className="text-right min-w-[80px]">
-                                                <span className="text-lg font-bold block leading-none mb-1">{stats.changes.limit - stats.changes.used}</span>
-                                                <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">{stats.changes.label}</span>
-                                            </div>
-                                        </div>
-
-                                        {/* AI Chat Build */}
-                                        <div className="flex items-center gap-5">
-                                            <div className="h-12 w-12 bg-muted/50 rounded-xl shrink-0 flex items-center justify-center border border-white/5">
-                                                <stats.aiBuilds.icon className="h-6 w-6 text-foreground/70" />
-                                            </div>
-                                            <div className="flex-1">
-                                                <Progress value={(stats.aiBuilds.used / stats.aiBuilds.limit) * 100} className="h-1.5 bg-muted/50" />
-                                            </div>
-                                            <div className="text-right min-w-[80px]">
-                                                <span className="text-lg font-bold block leading-none mb-1">{stats.aiBuilds.used} / {stats.aiBuilds.limit}</span>
-                                                <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">{stats.aiBuilds.label}</span>
-                                            </div>
-                                        </div>
-
-                                        {/* Storage */}
-                                        <div className="flex items-center gap-5">
-                                            <div className="h-12 w-12 bg-muted/50 rounded-xl shrink-0 flex items-center justify-center border border-white/5">
-                                                <stats.storage.icon className="h-6 w-6 text-foreground/70" />
-                                            </div>
-                                            <div className="flex-1">
-                                                <Progress value={(stats.storage.used / stats.storage.limit) * 100} className="h-1.5 bg-muted/50" />
-                                            </div>
-                                            <div className="text-right min-w-[80px]">
-                                                <span className="text-lg font-bold block leading-none mb-1">{stats.storage.used}MB</span>
-                                                <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">{stats.storage.label}</span>
-                                            </div>
-                                        </div>
-
-                                         {/* Products */}
-                                         <div className="flex items-center gap-5">
-                                            <div className="h-12 w-12 bg-muted/50 rounded-xl shrink-0 flex items-center justify-center border border-white/5">
-                                                <stats.products.icon className="h-6 w-6 text-foreground/70" />
-                                            </div>
-                                            <div className="flex-1">
-                                                <Progress value={(stats.products.used / stats.products.limit) * 100} className="h-1.5 bg-muted/50" />
-                                            </div>
-                                            <div className="text-right min-w-[80px]">
-                                                <span className="text-lg font-bold block leading-none mb-1">{stats.products.used} / {stats.products.limit}</span>
-                                                <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">{stats.products.label}</span>
-                                            </div>
-                                        </div>
-
+                                        <div className="flex items-center gap-5"><div className="h-12 w-12 bg-muted/50 rounded-xl shrink-0 flex items-center justify-center border border-white/5"><stats.changes.icon className="h-6 w-6 text-foreground/70" /></div><div className="flex-1"><Progress value={(stats.changes.used / stats.changes.limit) * 100} className="h-1.5 bg-muted/50" /></div><div className="text-right min-w-[80px]"><span className="text-lg font-bold block leading-none mb-1">{stats.changes.limit - stats.changes.used}</span><span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">{stats.changes.label}</span></div></div>
+                                        <div className="flex items-center gap-5"><div className="h-12 w-12 bg-muted/50 rounded-xl shrink-0 flex items-center justify-center border border-white/5"><stats.aiBuilds.icon className="h-6 w-6 text-foreground/70" /></div><div className="flex-1"><Progress value={(stats.aiBuilds.used / stats.aiBuilds.limit) * 100} className="h-1.5 bg-muted/50" /></div><div className="text-right min-w-[80px]"><span className="text-lg font-bold block leading-none mb-1">{stats.aiBuilds.used} / {stats.aiBuilds.limit}</span><span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">{stats.aiBuilds.label}</span></div></div>
+                                        <div className="flex items-center gap-5"><div className="h-12 w-12 bg-muted/50 rounded-xl shrink-0 flex items-center justify-center border border-white/5"><stats.storage.icon className="h-6 w-6 text-foreground/70" /></div><div className="flex-1"><Progress value={(stats.storage.used / stats.storage.limit) * 100} className="h-1.5 bg-muted/50" /></div><div className="text-right min-w-[80px]"><span className="text-lg font-bold block leading-none mb-1">{stats.storage.used}MB</span><span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">{stats.storage.label}</span></div></div>
+                                        <div className="flex items-center gap-5"><div className="h-12 w-12 bg-muted/50 rounded-xl shrink-0 flex items-center justify-center border border-white/5"><stats.products.icon className="h-6 w-6 text-foreground/70" /></div><div className="flex-1"><Progress value={(stats.products.used / stats.products.limit) * 100} className="h-1.5 bg-muted/50" /></div><div className="text-right min-w-[80px]"><span className="text-lg font-bold block leading-none mb-1">{stats.products.used} / {stats.products.limit}</span><span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">{stats.products.label}</span></div></div>
                                         <div className="pt-6 border-t border-white/5">
                                             <h4 className="text-sm font-medium mb-4 text-muted-foreground uppercase tracking-wider">Weekly Activity</h4>
                                             <div className="h-[200px] w-full">
                                                 <ResponsiveContainer width="100%" height="100%">
                                                     <AreaChart data={activityData}>
-                                                        <defs>
-                                                            <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                                                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                                                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                                                            </linearGradient>
-                                                        </defs>
-                                                        <Tooltip
-                                                            contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '8px' }}
-                                                            itemStyle={{ color: '#e4e4e7' }}
-                                                        />
-                                                        <Area
-                                                            type="monotone"
-                                                            dataKey="value"
-                                                            stroke="#3b82f6"
-                                                            fillOpacity={1}
-                                                            fill="url(#colorValue)"
-                                                            strokeWidth={2}
-                                                        />
+                                                        <defs><linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/><stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/></linearGradient></defs>
+                                                        <Tooltip contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '8px' }} itemStyle={{ color: '#e4e4e7' }} />
+                                                        <Area type="monotone" dataKey="value" stroke="#3b82f6" fillOpacity={1} fill="url(#colorValue)" strokeWidth={2} />
                                                     </AreaChart>
                                                 </ResponsiveContainer>
                                             </div>
@@ -1600,8 +1254,6 @@ export default function SiteSettingsPage() {
                                 </Card>
                             </div>
                         )}
-
-                        {/* Connections Sub-Tab Content */}
                         {activeSubTab === "connections" && (
                             <div className="flex flex-col items-center justify-center h-[30vh] text-center border-2 border-dashed border-white/10 rounded-xl bg-white/5 animate-in fade-in slide-in-from-bottom-2">
                                 <Link className="h-10 w-10 text-muted-foreground mb-3 opacity-50" />
@@ -1609,8 +1261,6 @@ export default function SiteSettingsPage() {
                                 <p className="text-muted-foreground text-sm">Currently under construction</p>
                             </div>
                         )}
-
-                        {/* Help Sub-Tab Content */}
                         {activeSubTab === "help" && (
                             <div className="flex flex-col items-center justify-center h-[30vh] text-center border-2 border-dashed border-white/10 rounded-xl bg-white/5 animate-in fade-in slide-in-from-bottom-2">
                                 <HelpCircle className="h-10 w-10 text-muted-foreground mb-3 opacity-50" />
@@ -1620,23 +1270,6 @@ export default function SiteSettingsPage() {
                         )}
                     </div>
                 </div>
-
-                {/* Footer Section - Visible only on mobile for now as per design request */}
-                <div className="block md:hidden">
-                    <footer className="pt-12 pb-6 text-center space-y-4">
-                         <div className="flex items-center justify-center gap-2 text-muted-foreground text-sm">
-                             <span className="opacity-50">Draft</span>
-                             <span>&copy; 2024 Sycord. Minden jog fenntartva.</span>
-                         </div>
-                         <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground font-medium">
-                            <a href="#" className="hover:text-foreground transition-colors">Twitter</a>
-                            <a href="#" className="hover:text-foreground transition-colors">GitHub</a>
-                            <a href="#" className="hover:text-foreground transition-colors">Discord</a>
-                         </div>
-                    </footer>
-                </div>
-
-              </div>
             )}
 
             {/* TAB CONTENT: PRODUCTS */}
@@ -1792,6 +1425,71 @@ export default function SiteSettingsPage() {
                   )}
                 </div>
               </div>
+            )}
+
+            {/* TAB CONTENT: AI PROMPTS (NEW) */}
+            {activeTab === "prompts" && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h2 className="text-2xl font-bold flex items-center gap-2">
+                                <Terminal className="h-6 w-6 text-primary" />
+                                AI System Prompts
+                            </h2>
+                            <p className="text-muted-foreground">Customize how the AI behaves for this project.</p>
+                        </div>
+                        <Button onClick={handleSavePrompts} disabled={isPromptsSaving || isPromptsLoading}>
+                            {isPromptsSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2"/> : <Save className="h-4 w-4 mr-2"/>}
+                            Save Changes
+                        </Button>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <Card className="bg-card/50 backdrop-blur-sm border-white/10">
+                            <CardHeader>
+                                <CardTitle className="text-lg">Generation Prompt</CardTitle>
+                                <CardDescription>Used when creating new files (Structure + Task)</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                {isPromptsLoading ? (
+                                    <div className="h-[400px] flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin"/></div>
+                                ) : (
+                                    <Textarea
+                                        className="font-mono text-xs h-[400px] bg-black/20 border-white/10 leading-relaxed custom-scrollbar"
+                                        value={prompts.generateWebsite}
+                                        onChange={(e) => setPrompts({...prompts, generateWebsite: e.target.value})}
+                                        placeholder="System instruction for file generation..."
+                                    />
+                                )}
+                                <div className="mt-2 text-[10px] text-muted-foreground">
+                                    Available variables: {'{{FILENAME}}'}, {'{{USEDFOR}}'}, {'{{FILE_STRUCTURE}}'}, {'{{MEMORY}}'}, {'{{FILE_EXT}}'}, {'{{FILE_RULES}}'}
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="bg-card/50 backdrop-blur-sm border-white/10">
+                            <CardHeader>
+                                <CardTitle className="text-lg">Auto-Fix Prompt</CardTitle>
+                                <CardDescription>Used when fixing deployment errors (Read/Write/Logic)</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                {isPromptsLoading ? (
+                                    <div className="h-[400px] flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin"/></div>
+                                ) : (
+                                    <Textarea
+                                        className="font-mono text-xs h-[400px] bg-black/20 border-white/10 leading-relaxed custom-scrollbar"
+                                        value={prompts.autoFix}
+                                        onChange={(e) => setPrompts({...prompts, autoFix: e.target.value})}
+                                        placeholder="System instruction for auto-fixing..."
+                                    />
+                                )}
+                                <div className="mt-2 text-[10px] text-muted-foreground">
+                                    Available variables: {'{{LOGS}}'}, {'{{FILE_STRUCTURE}}'}, {'{{MEMORY_SECTION}}'}, {'{{CONTENT_SECTION}}'}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
             )}
 
             {/* TAB CONTENT: PAYMENTS */}

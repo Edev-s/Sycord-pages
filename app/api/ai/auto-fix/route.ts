@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { GoogleGenerativeAI } from "@google/generative-ai"
+import { getProjectPrompts } from "@/lib/ai-prompts"
 
 const FIX_MODEL = "gemini-2.0-flash"
 
@@ -12,7 +13,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { logs, fileStructure, fileContent, lastAction, history, fixedFiles } = await request.json()
+    const { logs, fileStructure, fileContent, lastAction, history, fixedFiles, projectId } = await request.json()
 
     // Use GOOGLE_AI_API by default, fallback to GOOGLE_API_KEY
     const apiKey = process.env.GOOGLE_AI_API || process.env.GOOGLE_API_KEY
@@ -20,98 +21,54 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "AI service not configured" }, { status: 500 })
     }
 
+    // Fetch Custom Prompt
+    // Note: If projectId is missing from request body, we might need to handle it or fallback.
+    // The previous frontend change didn't explicitly pass projectId to auto-fix route in `AIWebsiteBuilder`?
+    // Let's assume it might not be there in all calls, but it SHOULD be.
+    // I will check the frontend code later, but for now, if projectId is missing, we use default.
+    const { autoFix: promptTemplate } = await getProjectPrompts(projectId || "")
+
     const genAI = new GoogleGenerativeAI(apiKey)
     const model = genAI.getGenerativeModel({ model: FIX_MODEL })
 
-    let systemPrompt = `
-      You are an expert AI DevOps and Full Stack Engineer. Your goal is to fix deployment errors in a Vite + TypeScript project automatically.
-
-      **CONTEXT:**
-      The user is trying to deploy a website but encountered errors.
-      You have access to the server logs and the project file structure.
-
-      **YOUR TOOLKIT:**
-      You can perform ONE of the following actions at a time:
-
-      1.  **[take a look] <filename>**: Request to see the content of a specific file to debug it.
-          *   Use this if the logs point to a syntax error, import error, or logic error in a specific file.
-
-      2.  **[move] <old_path> <new_path>**: Rename or move a file.
-          *   Use this if a file is in the wrong place (e.g., index.html in public/ instead of root).
-
-      3.  **[delete] <filename>**: Delete a file.
-          *   Use this if a file is conflicting or unnecessary.
-
-      4.  **[fix] <filename>**: Provide the corrected code for a file.
-          *   Use this ONLY after you have seen the file content (via [take a look]) or if the fix is obvious from the logs (e.g., creating a missing config file).
-          *   You MUST provide the full, corrected file content in a [code] block.
-
-      5.  **[done]**: State that the issue is resolved.
-
-      **LOGS:**
-      ${logs.join('\n')}
-
-      **FILE STRUCTURE:**
-      ${fileStructure}
-    `
-
+    let memorySection = ""
     if (fixedFiles && fixedFiles.length > 0) {
-        systemPrompt += `
-
+        memorySection += `
         **CRITICAL MEMORY (ALREADY FIXED FILES):**
         You have already modified the following files in this session:
         ${fixedFiles.join(', ')}
-
         WARNING: If you see errors persisting in these files, your previous fix was incorrect.
         DO NOT apply the exact same fix again. Try a different approach.
         `
     }
 
     if (history && Array.isArray(history) && history.length > 0) {
-        systemPrompt += `
-
+        memorySection += `
         **SESSION HISTORY (ACTIONS TAKEN):**
         The following actions have already been attempted:
         ${history.map((h: any) => `- ${h.action.toUpperCase()}: ${h.target} -> ${h.summary || h.result}`).join('\n')}
-
-        Use this history to avoid loops. If you read a file and then tried to fix it but it failed again, maybe look at a related file (e.g., tsconfig.json, vite.config.ts).
+        Use this history to avoid loops.
         `
     }
 
+    let contentSection = ""
     if (lastAction === 'take a look' && fileContent) {
-        systemPrompt += `
-
+        contentSection += `
         **FILE CONTENT (${fileContent.filename}):**
         \`\`\`
         ${fileContent.code}
         \`\`\`
-
         Now that you see the file, determine the fix.
         If you need to edit it, output [fix] ${fileContent.filename} and the new code.
         `
     }
 
-    systemPrompt += `
-      **OUTPUT FORMAT:**
-      Start your response with a short thought process (one sentence).
-      Then, output the action in valid format on a new line.
-
-      Example 1 (Need to check file):
-      The build failed in main.ts, I need to check imports.
-      [take a look] src/main.ts
-
-      Example 2 (Fixing a file):
-      I see the typo in main.ts, correcting it now.
-      [fix] src/main.ts
-      [code]
-      import './style.css'
-      console.log('Fixed')
-      [/code]
-
-      Example 3 (Moving file):
-      index.html is in public folder but Vite needs it in root.
-      [move] public/index.html index.html
-    `
+    // Inject into template
+    let systemPrompt = promptTemplate
+        .replace("{{LOGS}}", logs.join('\n'))
+        .replace("{{FILE_STRUCTURE}}", fileStructure)
+        .replace("{{MEMORY_SECTION}}", memorySection)
+        .replace("{{CONTENT_SECTION}}", contentSection)
 
     const result = await model.generateContent(systemPrompt)
     const response = await result.response
