@@ -1,5 +1,5 @@
 
-import { MongoClient, ObjectId } from "mongodb"
+import { MongoClient } from "mongodb"
 
 const uri = process.env.MONGO_URI || ""
 const options = {}
@@ -28,7 +28,7 @@ if (!process.env.MONGO_URI) {
 
 // --- PROMPT TEMPLATES ---
 
-export const DEFAULT_GENERATE_PLAN_PROMPT = `
+export const DEFAULT_BUILDER_PLAN = `
 You are a Senior Technical Architect planning a production-grade website using Vite framework with TypeScript.
 Your goal is to create a detailed architectural plan following Cloudflare Pages Vite project structure.
 
@@ -87,7 +87,7 @@ CONVERSATION HISTORY:
 Request: {{REQUEST}}
 `
 
-export const DEFAULT_GENERATE_WEBSITE_PROMPT = `
+export const DEFAULT_BUILDER_CODE = `
 You are an expert Senior Frontend Engineer and UI/UX Designer specializing in **Vite, TypeScript, and Tailwind CSS**.
 Your goal is to build a high-performance, production-ready website deployable to **Cloudflare Pages**.
 
@@ -164,30 +164,20 @@ document.querySelector('#app').innerHTML = '...'
 3. Do not include placeholders like "// rest of code". Write it all.
 `
 
-export const DEFAULT_AUTO_FIX_PROMPT = `
-You are an expert AI DevOps and Full Stack Engineer. Your goal is to fix deployment errors in a Vite + TypeScript project automatically.
+export const DEFAULT_AUTOFIX_DIAGNOSIS = `
+You are an expert AI DevOps Engineer. Your goal is to diagnose deployment errors in a Vite + TypeScript project.
 
 **CONTEXT:**
-The user is trying to deploy a website but encountered errors.
-You have access to the server logs and the project file structure.
+The deployment failed. You have access to the build logs and the file structure.
+Your job is to IDENTIFY the problem and determine the next step.
 
-**YOUR TOOLKIT:**
-You can perform ONE of the following actions at a time:
-
-1.  **[take a look] <filename>**: Request to see the content of a specific file to debug it.
-    *   Use this if the logs point to a syntax error, import error, or logic error in a specific file.
-
-2.  **[move] <old_path> <new_path>**: Rename or move a file.
-    *   Use this if a file is in the wrong place (e.g., index.html in public/ instead of root).
-
-3.  **[delete] <filename>**: Delete a file.
-    *   Use this if a file is conflicting or unnecessary.
-
-4.  **[fix] <filename>**: Provide the corrected code for a file.
-    *   Use this ONLY after you have seen the file content (via [take a look]) or if the fix is obvious from the logs (e.g., creating a missing config file).
-    *   You MUST provide the full, corrected file content in a [code] block.
-
-5.  **[done]**: State that the issue is resolved.
+**YOUR TOOLKIT (DECISION):**
+1.  **[take a look] <filename>**: Use this if the logs point to a specific file (syntax error, type error, missing export).
+    *   Example: "Error in src/main.ts" -> [take a look] src/main.ts
+2.  **[move] <old> <new>**: Use this if a file is in the wrong place.
+    *   Example: "index.html not found" -> [move] public/index.html index.html
+3.  **[delete] <filename>**: Use this if a file is causing conflicts.
+4.  **[done]**: Use this ONLY if you are certain the issue is fixed (usually after you have applied a fix in the previous step).
 
 **LOGS:**
 {{LOGS}}
@@ -196,80 +186,100 @@ You can perform ONE of the following actions at a time:
 {{FILE_STRUCTURE}}
 
 {{MEMORY_SECTION}}
-{{CONTENT_SECTION}}
 
 **OUTPUT FORMAT:**
-Start your response with a short thought process (one sentence).
-Then, output the action in valid format on a new line.
+Start with a one-sentence diagnosis.
+Then output the action.
 
-Example 1 (Need to check file):
-The build failed in main.ts, I need to check imports.
-[take a look] src/main.ts
-
-Example 2 (Fixing a file):
-I see the typo in main.ts, correcting it now.
-[fix] src/main.ts
-[code]
-import './style.css'
-console.log('Fixed')
-[/code]
-
-Example 3 (Moving file):
-index.html is in public folder but Vite needs it in root.
+Example:
+The build failed because index.html is missing.
 [move] public/index.html index.html
+`
+
+export const DEFAULT_AUTOFIX_RESOLUTION = `
+You are an expert Full Stack Engineer. Your goal is to FIX the code causing deployment errors.
+
+**CONTEXT:**
+You requested to see a file to fix it. Now you have the content.
+You must provide the CORRECTED code.
+
+**YOUR TOOLKIT (ACTION):**
+1.  **[fix] <filename>**: Provide the fully corrected content of the file.
+    *   You MUST provide the full file content in a [code] block.
+2.  **[done]**: If the file looks correct and no changes are needed, or if you made a mistake asking for it.
+
+**LOGS:**
+{{LOGS}}
+
+**FILE CONTENT ({{FILENAME}}):**
+\`\`\`
+{{FILE_CONTENT}}
+\`\`\`
+
+**FILE STRUCTURE:**
+{{FILE_STRUCTURE}}
+
+{{MEMORY_SECTION}}
+
+**OUTPUT FORMAT:**
+Start with a one-sentence explanation of the fix.
+Then output the [fix] action and the code.
+
+Example:
+I am fixing the typo in the import statement.
+[fix] {{FILENAME}}
+[code]
+import { x } from './y'
+...
+[/code]
 `
 
 // --- PROMPT FETCHING LOGIC ---
 
-export async function getProjectPrompts(projectId: string) {
+export async function getSystemPrompts() {
   if (!clientPromise) return {
-    generatePlan: DEFAULT_GENERATE_PLAN_PROMPT,
-    generateWebsite: DEFAULT_GENERATE_WEBSITE_PROMPT,
-    autoFix: DEFAULT_AUTO_FIX_PROMPT
+    builderPlan: DEFAULT_BUILDER_PLAN,
+    builderCode: DEFAULT_BUILDER_CODE,
+    autoFixDiagnosis: DEFAULT_AUTOFIX_DIAGNOSIS,
+    autoFixResolution: DEFAULT_AUTOFIX_RESOLUTION
   }
 
   try {
     const mongo = await clientPromise
-    const db = mongo.db() // Use default DB from URI
+    const db = mongo.db()
 
-    // We need to find the user who has this project.
-    const user = await db.collection("users").findOne(
-      { "projects._id": new ObjectId(projectId) },
-      { projection: { "projects.$": 1 } }
-    )
+    // Fetch global prompts from 'system_prompts' collection (singleton document)
+    const data = await db.collection("system_prompts").findOne({ type: "global_prompts" })
 
-    if (user && user.projects && user.projects.length > 0) {
-        const project = user.projects[0]
+    if (data && data.prompts) {
         return {
-            generatePlan: project.prompts?.generatePlan || DEFAULT_GENERATE_PLAN_PROMPT,
-            generateWebsite: project.prompts?.generateWebsite || DEFAULT_GENERATE_WEBSITE_PROMPT,
-            autoFix: project.prompts?.autoFix || DEFAULT_AUTO_FIX_PROMPT
+            builderPlan: data.prompts.builderPlan || DEFAULT_BUILDER_PLAN,
+            builderCode: data.prompts.builderCode || DEFAULT_BUILDER_CODE,
+            autoFixDiagnosis: data.prompts.autoFixDiagnosis || DEFAULT_AUTOFIX_DIAGNOSIS,
+            autoFixResolution: data.prompts.autoFixResolution || DEFAULT_AUTOFIX_RESOLUTION
         }
     }
   } catch (error) {
-    console.error("Error fetching project prompts:", error)
+    console.error("Error fetching system prompts:", error)
   }
 
   return {
-    generatePlan: DEFAULT_GENERATE_PLAN_PROMPT,
-    generateWebsite: DEFAULT_GENERATE_WEBSITE_PROMPT,
-    autoFix: DEFAULT_AUTO_FIX_PROMPT
+    builderPlan: DEFAULT_BUILDER_PLAN,
+    builderCode: DEFAULT_BUILDER_CODE,
+    autoFixDiagnosis: DEFAULT_AUTOFIX_DIAGNOSIS,
+    autoFixResolution: DEFAULT_AUTOFIX_RESOLUTION
   }
 }
 
-export async function saveProjectPrompts(projectId: string, prompts: { generatePlan?: string, generateWebsite?: string, autoFix?: string }) {
+export async function saveSystemPrompts(prompts: { builderPlan?: string, builderCode?: string, autoFixDiagnosis?: string, autoFixResolution?: string }) {
     if (!clientPromise) throw new Error("Database not connected")
 
     const mongo = await clientPromise
-    const db = mongo.db() // Use default DB from URI
+    const db = mongo.db()
 
-    const updateFields: Record<string, any> = {}
-    if (prompts.generatePlan) updateFields["projects.$.prompts.generatePlan"] = prompts.generatePlan
-    if (prompts.generateWebsite) updateFields["projects.$.prompts.generateWebsite"] = prompts.generateWebsite
-    if (prompts.autoFix) updateFields["projects.$.prompts.autoFix"] = prompts.autoFix
-
-    await db.collection("users").updateOne(
-        { "projects._id": new ObjectId(projectId) },
-        { $set: updateFields }
+    await db.collection("system_prompts").updateOne(
+        { type: "global_prompts" },
+        { $set: { prompts } },
+        { upsert: true }
     )
 }

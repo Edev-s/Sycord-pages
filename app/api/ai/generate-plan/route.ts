@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { GoogleGenerativeAI } from "@google/generative-ai"
+import { getSystemPrompts } from "@/lib/ai-prompts"
 
 const PLAN_MODEL = "gemini-2.0-flash"
 
@@ -28,64 +29,15 @@ export async function POST(request: Request) {
 
     const lastUserMessage = messages[messages.length - 1]
 
-    // Construct prompt for Vite + TypeScript project structure
-    const systemContext = `
-    You are a Senior Technical Architect planning a production-grade website using Vite framework with TypeScript.
-    Your goal is to create a detailed architectural plan following Cloudflare Pages Vite project structure.
-
-    PROJECT STRUCTURE:
-    You must plan for this exact Vite project structure:
-    project/
-    ├── index.html            (main HTML entry point - MUST be in root)
-    ├── src/
-    │   ├── main.ts           (entry point - initializes the app)
-    │   ├── utils.ts          (shared utility functions)
-    │   ├── style.css         (global styles with Tailwind)
-    │   └── components/
-    │       ├── header.ts     (navigation and header component)
-    │       └── footer.ts     (footer component)
-    ├── public/               (static assets like images/favicon)
-    ├── package.json          (project dependencies)
-    ├── tsconfig.json         (TypeScript configuration)
-    ├── vite.config.ts        (Vite build configuration)
-    ├── .gitignore            (git ignore rules)
-    └── README.md             (project documentation)
-
-    OUTPUT FORMAT:
-    You must output a single text block strictly following this format:
-
-    [0] The user base plan is to create [Overview of the site]. As an AI web builder using Vite + TypeScript for Cloudflare Pages, I will generate the following files following proper project structure. The backend will mark completed files by replacing [N] with [Done].
-
-    [1] index.html : [usedfor]main HTML entry point that loads the Vite app[usedfor]
-    [2] src/main.ts : [usedfor]TypeScript entry point that initializes components[usedfor]
-    [3] src/style.css : [usedfor]global Tailwind CSS styles[usedfor]
-    [4] src/components/header.ts : [usedfor]reusable header/navigation component[usedfor]
-    [5] src/components/footer.ts : [usedfor]reusable footer component[usedfor]
-    [6] src/utils.ts : [usedfor]shared utility functions[usedfor]
-    [7] package.json : [usedfor]npm dependencies and scripts for Vite[usedfor]
-    [8] tsconfig.json : [usedfor]TypeScript configuration for Vite[usedfor]
-    [9] vite.config.ts : [usedfor]Vite configuration[usedfor]
-    [10] .gitignore : [usedfor]ignored files[usedfor]
-    [11] README.md : [usedfor]project documentation[usedfor]
-    ...
-
-    REQUIREMENTS:
-    1.  **Vite Structure**: Follow the exact Vite project structure above. **index.html MUST be in the ROOT directory**, not public.
-    2.  **TypeScript**: All source files in src/ must use .ts extension and be properly typed.
-    3.  **Components**: Create modular components in src/components/ directory.
-    4.  **Tailwind CSS**: Use Tailwind CSS classes. Include CDN in index.html for simplicity.
-    5.  **Strict Syntax**: Use brackets [1], [2], etc. for file steps. Include [usedfor]...[usedfor] markers.
-    6.  **Scale**: Plan for a COMPLETE experience (8-12 files typically).
-    7.  **Cloudflare Pages Ready**: Structure must be deployable to Cloudflare Pages with Vite.
-    8.  **Configuration**:
-        - package.json MUST include "build": "vite build"
-        - tsconfig.json MUST use "target": "ES2020", "lib": ["ES2020", "DOM", "DOM.Iterable"], "moduleResolution": "Bundler", "noEmit": true
-        - vite.config.ts MUST set build.outDir = 'dist'
-    `
+    // Fetch Global Prompt
+    const { builderPlan: systemContextTemplate } = await getSystemPrompts()
 
     // Combine history for context
     const historyText = messages.map((m: any) => `${m.role.toUpperCase()}: ${m.content}`).join("\n\n")
-    const finalPrompt = `${systemContext}\n\nCONVERSATION HISTORY:\n${historyText}\n\nRequest: ${lastUserMessage.content}`
+
+    const finalPrompt = systemContextTemplate
+        .replace("{{HISTORY}}", historyText)
+        .replace("{{REQUEST}}", lastUserMessage.content)
 
     console.log(`[v0] Generating plan with Google model: ${PLAN_MODEL}`)
 

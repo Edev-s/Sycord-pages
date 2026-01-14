@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
+import { Textarea } from "@/components/ui/textarea"
 import {
   AlertCircle,
   Users,
@@ -35,7 +36,10 @@ import {
   Lock,
   Upload,
   Image as ImageIcon,
-  Loader2
+  Loader2,
+  Terminal,
+  Save,
+  RotateCcw
 } from "lucide-react"
 
 const availableIcons = [
@@ -72,11 +76,21 @@ export default function AdminPage() {
   const [updatingUser, setUpdatingUser] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<"overview" | "users" | "env" | "monitors">("overview")
+  const [activeTab, setActiveTab] = useState<"overview" | "users" | "env" | "monitors" | "prompts">("overview")
   const [monitors, setMonitors] = useState<any[]>([])
   const [monitorsLoading, setMonitorsLoading] = useState(false)
   const [editingIcon, setEditingIcon] = useState<string | null>(null)
   const [uploadingIcon, setUploadingIcon] = useState<string | null>(null)
+
+  // Prompts State
+  const [prompts, setPrompts] = useState({
+    builderPlan: "",
+    builderCode: "",
+    autoFixDiagnosis: "",
+    autoFixResolution: ""
+  })
+  const [promptsLoading, setPromptsLoading] = useState(false)
+  const [promptsSaving, setPromptsSaving] = useState(false)
 
   useEffect(() => {
     if (session?.user?.email !== "dmarton336@gmail.com") {
@@ -87,6 +101,12 @@ export default function AdminPage() {
     fetchUsers()
     fetchMonitors()
   }, [session, router])
+
+  useEffect(() => {
+    if (activeTab === 'prompts') {
+        fetchPrompts()
+    }
+  }, [activeTab])
 
   useEffect(() => {
     const query = searchQuery.toLowerCase()
@@ -128,6 +148,43 @@ export default function AdminPage() {
     }
   }
 
+  const fetchPrompts = async () => {
+      try {
+          setPromptsLoading(true)
+          const res = await fetch("/api/admin/prompts")
+          if (res.ok) {
+              const data = await res.json()
+              setPrompts(data)
+          }
+      } catch (e) {
+          console.error("Failed to fetch prompts", e)
+          toast.error("Failed to fetch prompts")
+      } finally {
+          setPromptsLoading(false)
+      }
+  }
+
+  const savePrompts = async () => {
+      try {
+          setPromptsSaving(true)
+          const res = await fetch("/api/admin/prompts", {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(prompts)
+          })
+          if (res.ok) {
+              toast.success("Prompts updated globally")
+          } else {
+              throw new Error("Failed to save")
+          }
+      } catch (e) {
+          console.error("Error saving prompts", e)
+          toast.error("Failed to save prompts")
+      } finally {
+          setPromptsSaving(false)
+      }
+  }
+
   const updateMonitorIcon = async (id: string, icon: string, iconType: string = 'preset') => {
     try {
       const response = await fetch("/api/admin/monitors", {
@@ -148,13 +205,11 @@ export default function AdminPage() {
     const file = event.target.files?.[0]
     if (!file) return
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       toast.error('Please upload an image file (PNG, JPG, etc.)')
       return
     }
 
-    // Validate file size (max 1MB)
     if (file.size > 1024 * 1024) {
       toast.error('Image must be smaller than 1MB')
       return
@@ -238,9 +293,6 @@ export default function AdminPage() {
     return null
   }
 
-  // Calculate the redirect URI for display
-  const currentAppUrl = "https://ltpd.xyz";
-
   return (
     <div className="min-h-screen bg-background relative">
       {/* Mobile Navigation Controls */}
@@ -300,6 +352,17 @@ export default function AdminPage() {
             >
               <Users className="h-5 w-5" />
               <span className="font-medium text-sm">User Management</span>
+            </button>
+            <button
+              onClick={() => { setActiveTab("prompts"); setIsSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group ${
+                activeTab === "prompts"
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
+                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              }`}
+            >
+              <Terminal className="h-5 w-5" />
+              <span className="font-medium text-sm">AI Prompts</span>
             </button>
             <button
               onClick={() => { setActiveTab("env"); setIsSidebarOpen(false); }}
@@ -373,6 +436,7 @@ export default function AdminPage() {
           {/* Overview Tab */}
           {activeTab === "overview" && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+               {/* ... (Existing Overview Content) ... */}
                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <Card className="border-border shadow-sm hover:shadow-md transition-shadow">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -415,6 +479,7 @@ export default function AdminPage() {
           {/* Users Tab */}
           {activeTab === "users" && (
              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                {/* ... (Existing Users Content) ... */}
                 <div className="relative">
                   <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -535,9 +600,103 @@ export default function AdminPage() {
              </div>
           )}
 
+          {/* AI Prompts Tab (NEW) */}
+          {activeTab === "prompts" && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <div className="flex items-center justify-between">
+                      <div>
+                          <h2 className="text-xl font-bold flex items-center gap-2">
+                              <Terminal className="h-6 w-6 text-primary" />
+                              Global System Prompts
+                          </h2>
+                          <p className="text-muted-foreground">Manage AI behavior across all user projects.</p>
+                      </div>
+                      <Button onClick={savePrompts} disabled={promptsSaving}>
+                          {promptsSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                          Save Changes
+                      </Button>
+                  </div>
+
+                  {promptsLoading ? (
+                      <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+                  ) : (
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                          <Card className="bg-card border-border shadow-sm">
+                              <CardHeader>
+                                  <CardTitle className="text-lg">Auto-Fix: Diagnosis Phase</CardTitle>
+                                  <CardDescription>Step 1: Analyze logs and identify the file.</CardDescription>
+                              </CardHeader>
+                              <CardContent>
+                                  <Textarea
+                                      className="font-mono text-xs min-h-[300px] bg-background/50 leading-relaxed"
+                                      value={prompts.autoFixDiagnosis}
+                                      onChange={(e) => setPrompts({...prompts, autoFixDiagnosis: e.target.value})}
+                                  />
+                                  <div className="mt-2 text-[10px] text-muted-foreground">
+                                      Vars: {'{{LOGS}}'}, {'{{FILE_STRUCTURE}}'}, {'{{MEMORY_SECTION}}'}
+                                  </div>
+                              </CardContent>
+                          </Card>
+
+                          <Card className="bg-card border-border shadow-sm">
+                              <CardHeader>
+                                  <CardTitle className="text-lg">Auto-Fix: Resolution Phase</CardTitle>
+                                  <CardDescription>Step 2: Provide the corrected code content.</CardDescription>
+                              </CardHeader>
+                              <CardContent>
+                                  <Textarea
+                                      className="font-mono text-xs min-h-[300px] bg-background/50 leading-relaxed"
+                                      value={prompts.autoFixResolution}
+                                      onChange={(e) => setPrompts({...prompts, autoFixResolution: e.target.value})}
+                                  />
+                                  <div className="mt-2 text-[10px] text-muted-foreground">
+                                      Vars: {'{{LOGS}}'}, {'{{FILE_STRUCTURE}}'}, {'{{FILENAME}}'}, {'{{FILE_CONTENT}}'}
+                                  </div>
+                              </CardContent>
+                          </Card>
+
+                          <Card className="bg-card border-border shadow-sm">
+                              <CardHeader>
+                                  <CardTitle className="text-lg">Builder: Plan Generation</CardTitle>
+                                  <CardDescription>Generates the file structure blueprint.</CardDescription>
+                              </CardHeader>
+                              <CardContent>
+                                  <Textarea
+                                      className="font-mono text-xs min-h-[300px] bg-background/50 leading-relaxed"
+                                      value={prompts.builderPlan}
+                                      onChange={(e) => setPrompts({...prompts, builderPlan: e.target.value})}
+                                  />
+                                  <div className="mt-2 text-[10px] text-muted-foreground">
+                                      Vars: {'{{HISTORY}}'}, {'{{REQUEST}}'}
+                                  </div>
+                              </CardContent>
+                          </Card>
+
+                          <Card className="bg-card border-border shadow-sm">
+                              <CardHeader>
+                                  <CardTitle className="text-lg">Builder: Code Generation</CardTitle>
+                                  <CardDescription>Generates individual file content.</CardDescription>
+                              </CardHeader>
+                              <CardContent>
+                                  <Textarea
+                                      className="font-mono text-xs min-h-[300px] bg-background/50 leading-relaxed"
+                                      value={prompts.builderCode}
+                                      onChange={(e) => setPrompts({...prompts, builderCode: e.target.value})}
+                                  />
+                                  <div className="mt-2 text-[10px] text-muted-foreground">
+                                      Vars: {'{{FILENAME}}'}, {'{{USEDFOR}}'}, {'{{FILE_STRUCTURE}}'}, {'{{MEMORY}}'}
+                                  </div>
+                              </CardContent>
+                          </Card>
+                      </div>
+                  )}
+              </div>
+          )}
+
           {/* Monitors Tab */}
           {activeTab === "monitors" && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                {/* ... (Existing Monitors Content) ... */}
               <Card className="border-border shadow-sm">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-xl">
@@ -683,6 +842,7 @@ export default function AdminPage() {
           {/* Environment Variables Guide Tab */}
           {activeTab === "env" && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                {/* ... (Existing Env Content) ... */}
               <Card className="border-border shadow-sm">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-xl">

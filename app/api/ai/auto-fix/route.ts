@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { GoogleGenerativeAI } from "@google/generative-ai"
-import { getProjectPrompts } from "@/lib/ai-prompts"
+import { getSystemPrompts } from "@/lib/ai-prompts"
 
 const FIX_MODEL = "gemini-2.0-flash"
 
@@ -13,7 +13,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { logs, fileStructure, fileContent, lastAction, history, fixedFiles, projectId } = await request.json()
+    const { logs, fileStructure, fileContent, lastAction, history, fixedFiles } = await request.json()
 
     // Use GOOGLE_AI_API by default, fallback to GOOGLE_API_KEY
     const apiKey = process.env.GOOGLE_AI_API || process.env.GOOGLE_API_KEY
@@ -21,12 +21,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "AI service not configured" }, { status: 500 })
     }
 
-    // Fetch Custom Prompt
-    // Note: If projectId is missing from request body, we might need to handle it or fallback.
-    // The previous frontend change didn't explicitly pass projectId to auto-fix route in `AIWebsiteBuilder`?
-    // Let's assume it might not be there in all calls, but it SHOULD be.
-    // I will check the frontend code later, but for now, if projectId is missing, we use default.
-    const { autoFix: promptTemplate } = await getProjectPrompts(projectId || "")
+    // Fetch Global Prompts
+    const { autoFixDiagnosis, autoFixResolution } = await getSystemPrompts()
 
     const genAI = new GoogleGenerativeAI(apiKey)
     const model = genAI.getGenerativeModel({ model: FIX_MODEL })
@@ -51,24 +47,26 @@ export async function POST(request: Request) {
         `
     }
 
-    let contentSection = ""
-    if (lastAction === 'take a look' && fileContent) {
-        contentSection += `
-        **FILE CONTENT (${fileContent.filename}):**
-        \`\`\`
-        ${fileContent.code}
-        \`\`\`
-        Now that you see the file, determine the fix.
-        If you need to edit it, output [fix] ${fileContent.filename} and the new code.
-        `
-    }
+    // Determine Logic State
+    let systemPrompt = ""
 
-    // Inject into template
-    let systemPrompt = promptTemplate
-        .replace("{{LOGS}}", logs.join('\n'))
-        .replace("{{FILE_STRUCTURE}}", fileStructure)
-        .replace("{{MEMORY_SECTION}}", memorySection)
-        .replace("{{CONTENT_SECTION}}", contentSection)
+    // If last action was 'read', we are in RESOLUTION phase (we have file content)
+    // Or if last action was 'take a look' (frontend maps this to read)
+    // Actually, logic is: if we HAVE fileContent, we are fixing it.
+    if (lastAction === 'take a look' && fileContent) {
+        systemPrompt = autoFixResolution
+            .replace("{{LOGS}}", logs.join('\n'))
+            .replace("{{FILE_STRUCTURE}}", fileStructure)
+            .replace("{{MEMORY_SECTION}}", memorySection)
+            .replace("{{FILENAME}}", fileContent.filename)
+            .replace("{{FILE_CONTENT}}", fileContent.code)
+    } else {
+        // Diagnosis / Decision Phase
+        systemPrompt = autoFixDiagnosis
+            .replace("{{LOGS}}", logs.join('\n'))
+            .replace("{{FILE_STRUCTURE}}", fileStructure)
+            .replace("{{MEMORY_SECTION}}", memorySection)
+    }
 
     const result = await model.generateContent(systemPrompt)
     const response = await result.response
