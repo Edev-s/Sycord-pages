@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { FILE_STRUCTURE, getShortTermMemory } from "@/lib/ai-memory"
-import { getProjectPrompts } from "@/lib/ai-prompts"
+import { getSystemPrompts } from "@/lib/ai-prompts"
 
 // API Configurations
 const GOOGLE_API_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { messages, instruction, model, projectId } = await request.json()
+    const { messages, instruction, model } = await request.json()
 
     // Default to Gemini 2.0 Flash
     const modelId = model || "gemini-2.0-flash"
@@ -75,8 +75,8 @@ export async function POST(request: Request) {
     const isHTML = fileExt === 'html'
     const isJSON = fileExt === 'json'
 
-    // Fetch Prompts (Custom or Default)
-    const { generateWebsite: promptTemplate } = await getProjectPrompts(projectId)
+    // Fetch Prompts (Global)
+    const { builderCode: promptTemplate } = await getSystemPrompts()
 
     // 2. Prepare System Prompt (Inject Variables)
     const shortTermMemory = getShortTermMemory(instruction)

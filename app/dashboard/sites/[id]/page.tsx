@@ -51,7 +51,6 @@ import {
   FileType,
   ChevronRight,
   Code,
-  Terminal,
 } from "lucide-react"
 import { currencySymbols } from "@/lib/webshop-types"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -68,7 +67,6 @@ import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { Progress } from "@/components/ui/progress"
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from "recharts"
-import { Textarea } from "@/components/ui/textarea"
 
 const headerComponents = {
   simple: { name: "Simple", description: "A clean, minimalist header" },
@@ -408,7 +406,7 @@ export default function SiteSettingsPage() {
   const [productError, setProductError] = useState<string | null>(null)
 
   const [activeTab, setActiveTab] = useState<
-    "styles" | "products" | "payments" | "ai" | "pages" | "prompts" | "orders" | "customers" | "analytics" | "discount"
+    "styles" | "products" | "payments" | "ai" | "pages" | "orders" | "customers" | "analytics" | "discount"
   >("styles")
   const [activeSubTab, setActiveSubTab] = useState<"limits" | "connections" | "help">("limits")
 
@@ -416,11 +414,6 @@ export default function SiteSettingsPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop")
   const { data: session } = useSession()
-
-  // Prompts State
-  const [prompts, setPrompts] = useState({ generateWebsite: "", autoFix: "" })
-  const [isPromptsLoading, setIsPromptsLoading] = useState(false)
-  const [isPromptsSaving, setIsPromptsSaving] = useState(false)
 
   // Renamed to match the button name and be consistent
   const saving = isSaving
@@ -498,23 +491,6 @@ export default function SiteSettingsPage() {
         console.error("Failed to fetch logs", e)
     }
   }
-
-  // Fetch prompts when tab is active
-  useEffect(() => {
-    if (activeTab === 'prompts' && id) {
-        setIsPromptsLoading(true)
-        fetch(`/api/projects/${id}/prompts`)
-            .then(res => res.json())
-            .then(data => {
-                setPrompts({
-                    generateWebsite: data.generateWebsite || "",
-                    autoFix: data.autoFix || ""
-                })
-            })
-            .catch(err => console.error(err))
-            .finally(() => setIsPromptsLoading(false))
-    }
-  }, [activeTab, id])
 
   useEffect(() => {
     if (!id) return
@@ -671,26 +647,6 @@ export default function SiteSettingsPage() {
     } finally {
       setSaving(false)
     }
-  }
-
-  const handleSavePrompts = async () => {
-      setIsPromptsSaving(true)
-      try {
-          const res = await fetch(`/api/projects/${id}/prompts`, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(prompts)
-          })
-          if (res.ok) {
-              alert("Prompts saved!")
-          } else {
-              throw new Error("Failed to save")
-          }
-      } catch (e: any) {
-          alert(e.message)
-      } finally {
-          setIsPromptsSaving(false)
-      }
   }
 
   const handleAddProduct = async () => {
@@ -928,7 +884,6 @@ export default function SiteSettingsPage() {
       items: [
         { id: "styles", label: "Overview", icon: Layout },
         { id: "ai", label: "AI Builder", icon: Zap },
-        { id: "prompts", label: "AI Prompts", icon: Terminal }, // NEW TAB
         { id: "pages", label: "Pages", icon: FileText },
         { id: "products", label: "Products", icon: ShoppingCart },
         { id: "payments", label: "Payments", icon: CreditCard },
@@ -1425,71 +1380,6 @@ export default function SiteSettingsPage() {
                   )}
                 </div>
               </div>
-            )}
-
-            {/* TAB CONTENT: AI PROMPTS (NEW) */}
-            {activeTab === "prompts" && (
-                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h2 className="text-2xl font-bold flex items-center gap-2">
-                                <Terminal className="h-6 w-6 text-primary" />
-                                AI System Prompts
-                            </h2>
-                            <p className="text-muted-foreground">Customize how the AI behaves for this project.</p>
-                        </div>
-                        <Button onClick={handleSavePrompts} disabled={isPromptsSaving || isPromptsLoading}>
-                            {isPromptsSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2"/> : <Save className="h-4 w-4 mr-2"/>}
-                            Save Changes
-                        </Button>
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <Card className="bg-card/50 backdrop-blur-sm border-white/10">
-                            <CardHeader>
-                                <CardTitle className="text-lg">Generation Prompt</CardTitle>
-                                <CardDescription>Used when creating new files (Structure + Task)</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                {isPromptsLoading ? (
-                                    <div className="h-[400px] flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin"/></div>
-                                ) : (
-                                    <Textarea
-                                        className="font-mono text-xs h-[400px] bg-black/20 border-white/10 leading-relaxed custom-scrollbar"
-                                        value={prompts.generateWebsite}
-                                        onChange={(e) => setPrompts({...prompts, generateWebsite: e.target.value})}
-                                        placeholder="System instruction for file generation..."
-                                    />
-                                )}
-                                <div className="mt-2 text-[10px] text-muted-foreground">
-                                    Available variables: {'{{FILENAME}}'}, {'{{USEDFOR}}'}, {'{{FILE_STRUCTURE}}'}, {'{{MEMORY}}'}, {'{{FILE_EXT}}'}, {'{{FILE_RULES}}'}
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <Card className="bg-card/50 backdrop-blur-sm border-white/10">
-                            <CardHeader>
-                                <CardTitle className="text-lg">Auto-Fix Prompt</CardTitle>
-                                <CardDescription>Used when fixing deployment errors (Read/Write/Logic)</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                {isPromptsLoading ? (
-                                    <div className="h-[400px] flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin"/></div>
-                                ) : (
-                                    <Textarea
-                                        className="font-mono text-xs h-[400px] bg-black/20 border-white/10 leading-relaxed custom-scrollbar"
-                                        value={prompts.autoFix}
-                                        onChange={(e) => setPrompts({...prompts, autoFix: e.target.value})}
-                                        placeholder="System instruction for auto-fixing..."
-                                    />
-                                )}
-                                <div className="mt-2 text-[10px] text-muted-foreground">
-                                    Available variables: {'{{LOGS}}'}, {'{{FILE_STRUCTURE}}'}, {'{{MEMORY_SECTION}}'}, {'{{CONTENT_SECTION}}'}
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
-                </div>
             )}
 
             {/* TAB CONTENT: PAYMENTS */}
