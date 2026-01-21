@@ -189,6 +189,11 @@ export default function LandingPage() {
                   </Link>
                 </li>
                 <li>
+                  <Link href="/contact" className="text-sm text-muted-foreground hover:text-foreground">
+                    Kapcsolat
+                  </Link>
+                </li>
+                <li>
                   <Link href="#" className="text-sm text-muted-foreground hover:text-foreground">
                     Blog
                   </Link>
