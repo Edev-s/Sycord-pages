@@ -470,24 +470,56 @@ export default function SiteSettingsPage() {
 
   const fetchLogs = async (repoIdOverride?: string) => {
     const targetId = repoIdOverride || project?.githubRepoId
-    if (!targetId) return
+    if (!targetId) {
+      setLogs((prev) => [...prev, "[Log fetch debug] Missing project_id, cannot fetch external deployment logs."])
+      return
+    }
+
+    const fetchUrl = `https://micro1.sycord.com/api/logs?project_id=${targetId}&limit=50`
 
     try {
-        const res = await fetch(`https://micro1.sycord.com/api/logs?project_id=${targetId}&limit=50`)
+        const res = await fetch(fetchUrl)
+        const rawText = await res.text()
+
         if (res.ok) {
-            const data = await res.json()
-            if (data.success && Array.isArray(data.logs)) {
-                setLogs(data.logs)
-                // Simple error detection in logs
-                const errorFound = data.logs.some((log: string) =>
-                    log.toLowerCase().includes('error') ||
-                    log.toLowerCase().includes('fail') ||
-                    log.toLowerCase().includes('exception')
-                )
-                setHasDeployError(errorFound)
+            try {
+                const data = JSON.parse(rawText)
+                if (data.success && Array.isArray(data.logs)) {
+                    setLogs(data.logs)
+                    // Simple error detection in logs
+                    const errorFound = data.logs.some((log: string) =>
+                        log.toLowerCase().includes('error') ||
+                        log.toLowerCase().includes('fail') ||
+                        log.toLowerCase().includes('exception')
+                    )
+                    setHasDeployError(errorFound)
+                } else {
+                    setLogs((prev) => [
+                        ...prev,
+                        "[Log fetch debug] Unexpected log payload received from external API.",
+                        `[Log fetch debug] Payload preview: ${rawText.slice(0, 500) || "empty response"}`
+                    ])
+                }
+            } catch (parseErr) {
+                const message = parseErr instanceof Error ? parseErr.message : String(parseErr)
+                setLogs((prev) => [
+                    ...prev,
+                    `[Log fetch debug] Failed to parse external log response: ${message}`,
+                    `[Log fetch debug] Raw response: ${rawText.slice(0, 500) || "empty response"}`
+                ])
             }
+        } else {
+            setLogs((prev) => [
+                ...prev,
+                `[Log fetch debug] External log fetch failed (${res.status} ${res.statusText}).`,
+                rawText
+                  ? `[Log fetch debug] Response body: ${rawText.slice(0, 500)}`
+                  : "[Log fetch debug] No response body received."
+            ])
         }
     } catch (e) {
+        const message = e instanceof Error ? e.message : String(e)
+        setLogs((prev) => [...prev, `[Log fetch debug] Network error calling ${fetchUrl}: ${message}`])
         console.error("Failed to fetch logs", e)
     }
   }
