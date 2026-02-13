@@ -80,7 +80,7 @@ REQUIREMENTS:
     - package.json MUST include "scripts": { "dev": "vite", "build": "tsc && vite build", "preview": "vite preview" }
     - tsconfig.json MUST use "target": "ES2020", "lib": ["ES2020", "DOM", "DOM.Iterable"], "moduleResolution": "Bundler", "noEmit": true
     - vite.config.ts MUST set build.outDir = 'dist'
-    - .gitignore MUST ignore `dist/`, `node_modules/`
+    - .gitignore MUST ignore \`dist/\`, \`node_modules/\`
 
 CONVERSATION HISTORY:
 {{HISTORY}}
@@ -122,7 +122,7 @@ Purpose: **{{USEDFOR}}**
 - **package.json**:
     - Must include "scripts": { "dev": "vite", "build": "tsc && vite build", "preview": "vite preview" }
     - Must include devDependencies: "vite", "typescript", "autoprefixer", "postcss", "tailwindcss"
-    - Cloudflare Pages will run `npm run build`. This MUST create a `dist` folder.
+    - Cloudflare Pages will run \`npm run build\`. This MUST create a \`dist\` folder.
 - **tsconfig.json**:
     - Must include "compilerOptions": {
         "target": "ES2020",
