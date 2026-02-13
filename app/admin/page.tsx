@@ -39,7 +39,13 @@ import {
   Loader2,
   Terminal,
   Save,
-  RotateCcw
+  RotateCcw,
+  Workflow,
+  BookOpen,
+  FileJson,
+  BrainCircuit,
+  ArrowRight,
+  ArrowDown
 } from "lucide-react"
 
 const availableIcons = [
@@ -76,7 +82,7 @@ export default function AdminPage() {
   const [updatingUser, setUpdatingUser] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<"overview" | "users" | "env" | "monitors" | "prompts">("overview")
+  const [activeTab, setActiveTab] = useState<"overview" | "users" | "env" | "monitors" | "prompts" | "architecture">("overview")
   const [monitors, setMonitors] = useState<any[]>([])
   const [monitorsLoading, setMonitorsLoading] = useState(false)
   const [editingIcon, setEditingIcon] = useState<string | null>(null)
@@ -363,6 +369,17 @@ export default function AdminPage() {
             >
               <Terminal className="h-5 w-5" />
               <span className="font-medium text-sm">AI Prompts</span>
+            </button>
+            <button
+              onClick={() => { setActiveTab("architecture"); setIsSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group ${
+                activeTab === "architecture"
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
+                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              }`}
+            >
+              <Workflow className="h-5 w-5" />
+              <span className="font-medium text-sm">Architecture</span>
             </button>
             <button
               onClick={() => { setActiveTab("env"); setIsSidebarOpen(false); }}
@@ -836,6 +853,175 @@ export default function AdminPage() {
                   )}
                 </CardContent>
               </Card>
+            </div>
+          )}
+
+          {/* Architecture Tab */}
+          {activeTab === "architecture" && (
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
+                <div className="flex flex-col gap-2">
+                    <h2 className="text-xl font-bold flex items-center gap-2">
+                        <Workflow className="h-6 w-6 text-primary" />
+                        AI Website Generation Architecture
+                    </h2>
+                    <p className="text-muted-foreground">
+                        Visual overview of the "Plan-then-Execute" recursive loop used to generate full-stack projects.
+                    </p>
+                </div>
+
+                {/* 1. HIGH LEVEL DIAGRAM */}
+                <Card className="border-border shadow-sm bg-muted/20">
+                    <CardHeader>
+                        <CardTitle className="text-base flex items-center gap-2">
+                            <Activity className="h-4 w-4 text-primary" /> System Flow Diagram
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-8 overflow-x-auto">
+                        <div className="min-w-[700px] flex flex-col gap-8 relative">
+
+                            {/* PHASE 1: PLANNING */}
+                            <div className="flex items-center gap-4">
+                                <div className="w-32 flex flex-col items-center gap-2">
+                                    <div className="p-4 bg-primary/10 rounded-full border border-primary/20">
+                                        <Users className="h-6 w-6 text-primary" />
+                                    </div>
+                                    <span className="text-xs font-semibold text-muted-foreground">User</span>
+                                </div>
+
+                                <ArrowRight className="h-5 w-5 text-muted-foreground/50" />
+
+                                <div className="flex-1 bg-card border border-border rounded-xl p-4 relative">
+                                    <Badge className="absolute -top-3 left-4 bg-blue-500">Planning Phase</Badge>
+                                    <div className="flex items-center justify-between gap-4">
+                                        <div className="flex flex-col gap-1">
+                                            <span className="font-mono text-xs text-blue-400">startGeneration()</span>
+                                            <span className="text-sm font-medium">Frontend UI</span>
+                                        </div>
+                                        <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                                        <div className="flex flex-col gap-1 text-right">
+                                            <span className="font-mono text-xs text-orange-400">POST /api/ai/generate-plan</span>
+                                            <span className="text-sm font-medium">Planning API</span>
+                                        </div>
+                                    </div>
+                                    <div className="mt-3 pt-3 border-t border-dashed border-border text-xs text-muted-foreground flex items-center gap-2">
+                                        <FileJson className="h-3 w-3" />
+                                        Returns: Instruction List (e.g. "[1] index.html, [2] src/main.ts...")
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* PHASE 2: EXECUTION LOOP */}
+                            <div className="flex items-center gap-4">
+                                <div className="w-32 flex justify-center">
+                                    <div className="h-16 w-0.5 border-l-2 border-dashed border-border"></div>
+                                </div>
+                            </div>
+
+                            <div className="flex items-start gap-4">
+                                <div className="w-32 flex flex-col items-center gap-2 pt-8">
+                                    <div className="p-4 bg-purple-500/10 rounded-full border border-purple-500/20 animate-pulse">
+                                        <RotateCcw className="h-6 w-6 text-purple-500" />
+                                    </div>
+                                    <span className="text-xs font-semibold text-purple-500">Recursive Loop</span>
+                                </div>
+
+                                <div className="flex-1 bg-card border border-border rounded-xl p-6 relative ring-1 ring-purple-500/20">
+                                    <Badge className="absolute -top-3 left-4 bg-purple-500">Execution Phase</Badge>
+
+                                    <div className="space-y-6">
+                                        {/* Step 1: Frontend Logic */}
+                                        <div className="flex items-center gap-4">
+                                            <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center border border-border font-bold text-muted-foreground">1</div>
+                                            <div className="flex-1">
+                                                <h4 className="text-sm font-semibold">processNextStep()</h4>
+                                                <p className="text-xs text-muted-foreground">Parses instruction, identifies next file (e.g., "index.html"). Checks for completion.</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex justify-center"><ArrowDown className="h-4 w-4 text-muted-foreground/30" /></div>
+
+                                        {/* Step 2: Generation API */}
+                                        <div className="flex items-center gap-4">
+                                            <div className="h-8 w-8 rounded-lg bg-orange-500/10 flex items-center justify-center border border-orange-500/20 text-orange-500 font-bold">2</div>
+                                            <div className="flex-1 p-3 rounded-lg border border-orange-500/20 bg-orange-500/5">
+                                                <h4 className="text-sm font-semibold flex items-center gap-2">
+                                                    POST /api/ai/generate-website
+                                                    <Badge variant="outline" className="text-[10px] h-5 border-orange-500/30 text-orange-500">Gemini 2.0</Badge>
+                                                </h4>
+                                                <p className="text-xs text-muted-foreground mt-1">Generates code for single file using `DEFAULT_BUILDER_CODE` prompt.</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex justify-center"><ArrowDown className="h-4 w-4 text-muted-foreground/30" /></div>
+
+                                        {/* Step 3: Storage */}
+                                        <div className="flex items-center gap-4">
+                                            <div className="h-8 w-8 rounded-lg bg-green-500/10 flex items-center justify-center border border-green-500/20 text-green-500 font-bold">3</div>
+                                            <div className="flex-1 flex items-center justify-between p-3 rounded-lg border border-green-500/20 bg-green-500/5">
+                                                <div>
+                                                    <h4 className="text-sm font-semibold">POST /api/projects/[id]/pages</h4>
+                                                    <p className="text-xs text-muted-foreground">Saves file to MongoDB.</p>
+                                                </div>
+                                                <Database className="h-4 w-4 text-green-500" />
+                                            </div>
+                                        </div>
+
+                                        <div className="flex justify-center"><ArrowDown className="h-4 w-4 text-muted-foreground/30" /></div>
+
+                                        {/* Step 4: Recursion */}
+                                        <div className="flex items-center gap-4">
+                                            <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20 text-blue-500 font-bold">4</div>
+                                            <div className="flex-1">
+                                                <h4 className="text-sm font-semibold text-blue-400">Update Instruction & Repeat</h4>
+                                                <p className="text-xs text-muted-foreground">Marks step as [Done]. Calls processNextStep() again.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* 2. DETAILED EXPLANATION GRID */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <Card className="border-border shadow-sm">
+                        <CardHeader>
+                            <CardTitle className="text-base">Planning Phase</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4 text-sm text-muted-foreground">
+                            <p>
+                                Triggered by user prompt. The backend (`/generate-plan`) uses the
+                                <span className="font-mono text-xs bg-muted px-1 py-0.5 rounded mx-1 text-foreground">DEFAULT_BUILDER_PLAN</span>
+                                system prompt to architect the solution.
+                            </p>
+                            <div className="bg-muted/50 p-3 rounded-lg text-xs font-mono border border-border">
+                                Output Example:<br/>
+                                [1] index.html : main entry point<br/>
+                                [2] src/main.ts : logic<br/>
+                                [3] src/style.css : styles
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="border-border shadow-sm">
+                        <CardHeader>
+                            <CardTitle className="text-base">Generation Loop</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4 text-sm text-muted-foreground">
+                            <p>
+                                The frontend iterates through the plan. For each file, it calls `/generate-website` with
+                                <span className="font-mono text-xs bg-muted px-1 py-0.5 rounded mx-1 text-foreground">DEFAULT_BUILDER_CODE</span>.
+                            </p>
+                            <ul className="list-disc pl-4 space-y-1">
+                                <li>Real-time file tree updates.</li>
+                                <li>Robust code block parsing (`[code]...[/code]`).</li>
+                                <li>Auto-correction of common syntax errors.</li>
+                            </ul>
+                        </CardContent>
+                    </Card>
+                </div>
             </div>
           )}
 
