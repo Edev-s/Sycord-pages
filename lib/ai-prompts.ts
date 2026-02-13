@@ -137,7 +137,7 @@ Purpose: **{{USEDFOR}}**
     }
     - Must include "include": ["src"]
 - **vite.config.ts**:
-    - Must include `build: { outDir: 'dist', emptyOutDir: true }`
+    - Must include \`build: { outDir: 'dist', emptyOutDir: true }\`
     - Must export default defineConfig(...)
 - **.gitignore**:
     - Must include: node_modules/, dist/, .DS_Store
