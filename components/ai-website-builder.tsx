@@ -26,7 +26,9 @@ import {
   AlertCircle,
   Bug,
   Layout,
-  Menu
+  Menu,
+  PanelRight,
+  X
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -38,6 +40,8 @@ import {
   Sheet,
   SheetContent,
   SheetTrigger,
+  SheetHeader,
+  SheetTitle
 } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
 
@@ -171,13 +175,10 @@ const FileTreeVisualizer = ({ pages, currentFile }: { pages: GeneratedPage[], cu
   }
 
   return (
-    <div className="font-mono bg-black/20 rounded-xl border border-white/5 p-3 min-h-[200px] max-h-[400px] overflow-y-auto custom-scrollbar">
-      <div className="text-[10px] text-zinc-500 mb-3 flex items-center gap-2 uppercase tracking-wider font-semibold px-2">
-         <Folder className="h-3 w-3" /> Project Structure
-      </div>
+    <div className="font-mono bg-transparent pt-2 overflow-y-auto custom-scrollbar">
       {tree.length === 0 ? (
           <div className="text-center py-8 text-zinc-600 text-xs italic">
-              Waiting for files...
+              No files yet
           </div>
       ) : tree.map(n => renderNode(n, 0))}
     </div>
@@ -212,6 +213,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
 
   const [fixHistory, setFixHistory] = useState<any[]>([])
+  const [isFilesOpen, setIsFilesOpen] = useState(false)
 
   useEffect(() => { scrollToBottom() }, [messages, currentPlan, step])
 
@@ -567,21 +569,36 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
             </div>
             <span className="font-semibold text-sm hidden md:inline-block tracking-tight">AI Editor</span>
 
-            {/* Mobile Menu Trigger for File Tree */}
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="md:hidden h-8 w-8 text-zinc-400">
-                  <Layout className="h-4 w-4" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="bg-zinc-950 border-r-white/10 w-3/4 max-w-sm pt-10">
-                 <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-4">Project Structure</h3>
-                 <FileTreeVisualizer pages={generatedPages} currentFile={activeFile} />
-              </SheetContent>
-            </Sheet>
+            {(step !== 'idle' && step !== 'done') && (
+                <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/10 text-[10px] text-zinc-300 animate-in fade-in">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <span>{activeFile ? `Generating ${activeFile}...` : currentPlan}</span>
+                </div>
+            )}
         </div>
 
         <div className="flex items-center gap-2">
+            {/* File Tree Trigger (Desktop + Mobile) */}
+            <Sheet open={isFilesOpen} onOpenChange={setIsFilesOpen}>
+                <SheetTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-8 text-zinc-400 hover:text-white gap-2">
+                        <PanelRight className="h-4 w-4" />
+                        <span className="hidden sm:inline">Project Files</span>
+                    </Button>
+                </SheetTrigger>
+                <SheetContent side="right" className="bg-zinc-950 border-l-white/10 w-80 p-0 sm:max-w-sm">
+                    <SheetHeader className="p-4 border-b border-white/5">
+                        <SheetTitle className="text-sm font-semibold text-zinc-200 flex items-center gap-2">
+                            <FolderOpen className="h-4 w-4 text-zinc-400" />
+                            Project Structure
+                        </SheetTitle>
+                    </SheetHeader>
+                    <div className="p-4">
+                        <FileTreeVisualizer pages={generatedPages} currentFile={activeFile} />
+                    </div>
+                </SheetContent>
+            </Sheet>
+
             {showAutoDeploy && (
                 <Button
                     size="sm"
@@ -615,63 +632,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
 
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
 
-          {/* LEFT: VISUALIZATION & STATUS (Desktop Only, or hidden) */}
-          <div className="hidden md:flex md:w-80 lg:w-96 border-r border-white/5 bg-black/20 p-4 flex-col gap-4 overflow-y-auto">
-              <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                      <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Blueprint</h3>
-                      {(step !== 'idle' && step !== 'done') && <Loader2 className="h-3 w-3 animate-spin text-zinc-400" />}
-                  </div>
-
-                  <FileTreeVisualizer pages={generatedPages} currentFile={activeFile} />
-
-                  <div className={cn(
-                      "rounded-xl p-4 space-y-2 transition-all duration-500 border",
-                      step === 'idle' ? "bg-transparent border-transparent" : "bg-white/5 border-white/10"
-                  )}>
-                      <div className="flex items-center gap-3 text-zinc-200 text-xs font-medium">
-                          <div className={cn("p-1.5 rounded-md bg-white/10", (step === 'coding' || step === 'fixing') && "animate-pulse")}>
-                             <ActivityIcon step={step} />
-                          </div>
-                          <span>{step === 'idle' ? 'Ready to build' : currentPlan}</span>
-                      </div>
-                      {activeFile && (
-                          <div className="text-[10px] text-zinc-500 font-mono pl-9">
-                              Writing: {activeFile}
-                          </div>
-                      )}
-                  </div>
-              </div>
-
-              {generatedPages.length > 0 && (
-                  <div className="mt-auto pt-4 border-t border-white/5 space-y-3">
-                      <Button
-                          className="w-full text-xs h-9 bg-zinc-100 text-zinc-900 hover:bg-zinc-300 border-none"
-                          size="sm"
-                          onClick={handleDeploy}
-                          disabled={isDeploying || (step !== 'idle' && step !== 'done')}
-                      >
-                          {isDeploying ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Rocket className="h-3 w-3 mr-2" />}
-                          {deploySuccess ? "Deploy Again" : "Deploy to Cloudflare"}
-                      </Button>
-
-                      {deploySuccess && deployResult && (
-                          <div className="text-center space-y-1 animate-in fade-in slide-in-from-bottom-2">
-                              <p className="text-[10px] text-zinc-400 flex items-center justify-center gap-1.5">
-                                  <CheckCircle2 className="h-3 w-3 text-white" /> Live
-                              </p>
-                              {deployResult.url && (
-                                  <a href={deployResult.url} target="_blank" className="text-xs text-white hover:underline block truncate opacity-80 hover:opacity-100">
-                                      {deployResult.url}
-                                  </a>
-                              )}
-                          </div>
-                      )}
-                  </div>
-              )}
-          </div>
-
-          {/* RIGHT: CHAT & INPUT */}
+          {/* MAIN CHAT AREA (FULL WIDTH) */}
           <div className="flex-1 flex flex-col h-full bg-zinc-950 relative z-10">
               <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar pb-24 md:pb-4">
                   {messages.length === 0 && (
@@ -682,10 +643,10 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                   )}
 
                   {messages.map(msg => (
-                      <div key={msg.id} className={cn("flex flex-col gap-2 animate-in fade-in slide-in-from-bottom-2 duration-500", msg.role === 'user' ? "items-end" : "items-start")}>
+                      <div key={msg.id} className={cn("flex flex-col gap-2 animate-in fade-in slide-in-from-bottom-2 duration-500 max-w-4xl mx-auto w-full", msg.role === 'user' ? "items-end" : "items-start")}>
 
                           {msg.isErrorLog ? (
-                             <div className="w-full max-w-[90%] md:max-w-[80%] bg-red-500/10 border border-red-500/20 text-red-200/80 rounded-2xl px-5 py-4 text-xs font-mono flex items-start gap-3">
+                             <div className="w-full bg-red-500/10 border border-red-500/20 text-red-200/80 rounded-2xl px-5 py-4 text-xs font-mono flex items-start gap-3">
                                 <Bug className="h-4 w-4 shrink-0 text-red-400 mt-0.5" />
                                 <div className="overflow-x-auto whitespace-pre-wrap">{msg.content}</div>
                              </div>
@@ -703,7 +664,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                                 )}
 
                                 {msg.code ? (
-                                    <div className="flex items-center gap-4 group cursor-pointer hover:bg-white/5 p-1 -m-1 rounded transition-colors">
+                                    <div className="flex items-center gap-4 group cursor-pointer hover:bg-white/5 p-1 -m-1 rounded transition-colors" onClick={() => setIsFilesOpen(true)}>
                                         <div className="h-10 w-10 bg-black/40 rounded-lg flex items-center justify-center border border-white/5 text-zinc-400 group-hover:text-white group-hover:border-white/10 transition-all">
                                             <FileCode className="h-5 w-5" />
                                         </div>
@@ -724,7 +685,16 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
 
               {/* INPUT AREA */}
               <div className="p-4 border-t border-white/5 bg-zinc-950/80 backdrop-blur-xl">
-                  <div className="relative max-w-4xl mx-auto">
+                  <div className="relative max-w-3xl mx-auto">
+                      {(step !== 'idle' && step !== 'done') && (
+                         <div className="absolute -top-12 left-0 right-0 flex justify-center md:hidden">
+                            <div className="flex items-center gap-2 px-3 py-1 bg-zinc-900/80 backdrop-blur rounded-full border border-white/10 text-[10px] text-zinc-300 animate-pulse shadow-lg">
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                <span>{activeFile ? `Generating ${activeFile}...` : currentPlan}</span>
+                            </div>
+                         </div>
+                      )}
+
                       <Input
                           value={input}
                           onChange={e => setInput(e.target.value)}
