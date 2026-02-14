@@ -1017,7 +1017,7 @@ export default function SiteSettingsPage() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 lg:p-8 custom-scrollbar relative">
+        <main className={cn("flex-1 relative", activeTab === "ai" ? "p-0 overflow-hidden" : "overflow-y-auto overflow-x-hidden p-4 md:p-6 lg:p-8 custom-scrollbar")}>
           <div className="mx-auto max-w-6xl space-y-8 pb-10">
 
             <AnimatePresence>
@@ -1361,8 +1361,8 @@ export default function SiteSettingsPage() {
 
             {/* TAB CONTENT: AI BUILDER */}
             {activeTab === "ai" && (
-              <div className="h-[calc(100vh-100px)] min-h-[600px] flex flex-col -mx-4 md:-mx-6 lg:-mx-8 -my-6">
-                <div className="flex-1 bg-background/50 overflow-hidden rounded-xl m-2 md:m-3 relative">
+              <div className="h-full w-full flex flex-col">
+                <div className="flex-1 bg-background overflow-hidden relative">
                   {id ? (
                     <div className="absolute inset-0 overflow-y-auto custom-scrollbar">
                       <AIWebsiteBuilder
