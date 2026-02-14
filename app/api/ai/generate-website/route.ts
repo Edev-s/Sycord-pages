@@ -8,7 +8,7 @@ import {
   extractDesignSystem,
   type GeneratedFile,
 } from "@/lib/ai-memory"
-import { getSystemPrompts } from "@/lib/ai-prompts"
+import { getSystemPrompts, getProjectPrompts } from "@/lib/ai-prompts"
 
 // API Configurations
 const GOOGLE_API_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
@@ -18,6 +18,7 @@ const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions"
 const MODEL_CONFIGS: Record<string, { url: string, envVar: string, provider: string }> = {
   "gemini-2.0-flash": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
   "gemini-1.5-flash": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
+  "gemini-1.5-pro": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
   "deepseek-v3.2-exp": { url: DEEPSEEK_API_URL, envVar: "DEEPSEEK_API", provider: "DeepSeek" }
 }
 
@@ -28,7 +29,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { messages, instruction, model, generatedPages } = await request.json()
+    const { messages, instruction, model, generatedPages, projectId } = await request.json()
 
     // Parse generatedPages from frontend (array of { name, code })
     const previousFiles: GeneratedFile[] = Array.isArray(generatedPages)
@@ -44,7 +45,10 @@ export async function POST(request: Request) {
     // Map "gemini-3-flash" or similar user requests to actual model
     let configKey = modelId
     if (modelId === "gemini-3-flash" || modelId === "gemini-3.0-flash") {
-       configKey = "gemini-2.0-flash" // Map to latest available
+       configKey = "gemini-2.0-flash"
+    }
+    if (modelId === "gemini-3-pro" || modelId === "gemini-3.0-pro") {
+       configKey = "gemini-1.5-pro"
     }
 
     const config = MODEL_CONFIGS[configKey] || MODEL_CONFIGS["gemini-2.0-flash"]
@@ -91,6 +95,13 @@ export async function POST(request: Request) {
 
     // Fetch Prompts (Global)
     const { builderCode: promptTemplate } = await getSystemPrompts()
+    let projectMemory = "";
+    if (projectId) {
+       const memory = await getProjectPrompts(projectId);
+       if (memory) {
+          projectMemory = `\n\n[PROJECT MEMORY]\n${memory}\n`;
+       }
+    }
 
     // 2. Prepare System Prompt (Inject Variables)
     // Build rich file context from previously generated files
@@ -114,7 +125,7 @@ export async function POST(request: Request) {
         .replace("{{FILE_EXT}}", fileExt.toUpperCase())
         .replace("{{FILE_RULES}}", fileRules)
         // Legacy fallback -- if the prompt still has {{MEMORY}}, fill it
-        .replace("{{MEMORY}}", shortTermMemory)
+        .replace("{{MEMORY}}", shortTermMemory) + projectMemory
 
     // 3. Call AI
     const conversationHistory = messages.map((msg: any) => ({

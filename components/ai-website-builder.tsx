@@ -16,7 +16,7 @@ import {
   ArrowRight,
   Rocket,
   ListTodo,
-  BrainCircuit,
+  BrainCircuit, Brain, Hammer, Wrench, Database,
   CheckCircle2,
   File,
   Folder,
@@ -44,6 +44,7 @@ import { cn } from "@/lib/utils"
 // Updated Models List
 const MODELS = [
   { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", provider: "Google" },
+  { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", provider: "Google" },
   { id: "gemini-3-flash", name: "Gemini 3 Flash (Preview)", provider: "Google" },
   { id: "deepseek-v3.2-exp", name: "DeepSeek V3", provider: "DeepSeek" },
 ]
@@ -645,10 +646,10 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                       step === 'idle' ? "bg-transparent border-transparent" : "bg-white/5 border-white/10"
                   )}>
                       <div className="flex items-center gap-3 text-zinc-200 text-xs font-medium">
-                          <div className={cn("p-1.5 rounded-md bg-white/10", (step === 'coding' || step === 'fixing') && "animate-pulse")}>
+                          <div className={cn("p-1.5 rounded-md bg-white/10", (step !== "idle" && step !== "done") && "animate-pulse")}>
                              <ActivityIcon step={step} />
                           </div>
-                          <span>{step === 'idle' ? 'Ready to build' : currentPlan}</span>
+                          <span>{step === 'idle' ? 'Ready to build' : step === 'planning' ? 'Thinking...' : step === 'coding' ? 'Creating...' : step === 'fixing' ? 'Fixing...' : step === 'done' ? 'Finished' : currentPlan}</span>
                       </div>
                       {activeFile && (
                           <div className="text-[10px] text-zinc-500 font-mono pl-9">
@@ -824,10 +825,10 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
 }
 
 function ActivityIcon({ step }: { step: Step }) {
-    if (step === 'planning') return <BrainCircuit className="h-4 w-4" />
-    if (step === 'coding') return <Terminal className="h-4 w-4" />
-    if (step === 'fixing') return <Bug className="h-4 w-4" />
-    if (step === 'done') return <CheckCircle2 className="h-4 w-4" />
+    if (step === 'planning') return <Brain className="h-4 w-4" />
+    if (step === 'coding') return <Hammer className="h-4 w-4" />
+    if (step === 'fixing') return <Wrench className="h-4 w-4" />
+    if (step === 'done') return <Check className="h-4 w-4" />
     return <Sparkles className="h-4 w-4" />
 }
 

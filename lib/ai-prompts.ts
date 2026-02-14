@@ -1,5 +1,5 @@
 
-import { MongoClient } from "mongodb"
+import { MongoClient, ObjectId } from "mongodb"
 
 const uri = process.env.MONGO_URI || ""
 const options = {}
@@ -340,4 +340,25 @@ export async function saveSystemPrompts(prompts: { builderPlan?: string, builder
         { $set: { prompts } },
         { upsert: true }
     )
+}
+
+export async function getProjectPrompts(projectId: string) {
+  if (!clientPromise) return null
+
+  try {
+    const mongo = await clientPromise
+    const db = mongo.db()
+
+    const user = await db.collection("users").findOne(
+      { "projects._id": new ObjectId(projectId) },
+      { projection: { "projects.$": 1 } }
+    )
+
+    if (user && user.projects && user.projects.length > 0) {
+       return user.projects[0].aiMemory || null
+    }
+  } catch (error) {
+    console.error("Error fetching project prompts:", error)
+  }
+  return null
 }
