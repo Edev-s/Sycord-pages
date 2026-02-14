@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     if (modelId === "gemini-3-flash" || modelId === "gemini-3.0-flash") {
        configKey = "gemini-2.0-flash"
     }
-    if (modelId === "gemini-3-pro" || modelId === "gemini-3.0-pro") {
+    if (modelId === "gemini-3-pro" || modelId === "gemini-3.0-pro" || modelId === "gemini-1.5-pro") {
        configKey = "gemini-1.5-pro"
     }
 
