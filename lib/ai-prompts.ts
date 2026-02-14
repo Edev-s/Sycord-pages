@@ -118,6 +118,16 @@ Purpose: **{{USEDFOR}}**
 **RULES FOR {{FILE_EXT}} GENERATION:**
 {{FILE_RULES}}
 
+**CRITICAL RULES (STRICT ENFORCEMENT):**
+1. **FULL CONTENT ONLY:** You must generate the **COMPLETE** content of the file. Do NOT use placeholders like `// ... rest of code` or `<!-- content -->`.
+2. **CORRECT LANGUAGE:**
+   - If the file is `.ts` or `.tsx`, WRITE TYPESCRIPT. Do NOT write HTML unless it is a JSX/TSX return statement.
+   - If the file is `.html`, write HTML.
+   - If the file is `.css`, write CSS.
+   - If the file is `.json`, write valid JSON.
+3. **NO PARTIAL UPDATES:** Even if you are fixing a small bug, you MUST rewrite the ENTIRE file content.
+4. **NO MARKDOWN EXPLANATIONS:** Do not wrap the code in explanation text outside the `[code]` block.
+
 **SPECIFIC RULES PER FILE:**
 - **package.json**:
     - Must include "scripts": { "dev": "vite", "build": "tsc && vite build", "preview": "vite preview" }
