@@ -49,7 +49,7 @@ const MODELS = [
   { id: "deepseek-v3.2-exp", name: "DeepSeek V3", provider: "DeepSeek" },
 ]
 
-type Step = "idle" | "planning" | "coding" | "fixing" | "done"
+type Step = "idle" | "retrieving" | "planning" | "coding" | "fixing" | "done"
 
 interface Message {
   id: string
@@ -433,11 +433,13 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
 
   const startGeneration = async () => {
     if (!input.trim()) return
+    setStep("retrieving")
+    await new Promise(r => setTimeout(r, 1200)) // Simulate retrieval time
+    if (!input.trim()) return
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
-      content: input,
     }
 
     setMessages(prev => [...prev, userMessage])
@@ -649,7 +651,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                           <div className={cn("p-1.5 rounded-md bg-white/10", (step !== "idle" && step !== "done") && "animate-pulse")}>
                              <ActivityIcon step={step} />
                           </div>
-                          <span>{step === 'idle' ? 'Ready to build' : step === 'planning' ? 'Thinking...' : step === 'coding' ? 'Creating...' : step === 'fixing' ? 'Fixing...' : step === 'done' ? 'Finished' : currentPlan}</span>
+                          <span>{step === 'idle' ? 'Ready to build' : step === 'retrieving' ? 'Retrieving memory...' : step === 'planning' ? 'Thinking...' : step === 'coding' ? 'Creating...' : step === 'fixing' ? 'Fixing...' : step === 'done' ? 'Finished' : currentPlan}</span>
                       </div>
                       {activeFile && (
                           <div className="text-[10px] text-zinc-500 font-mono pl-9">
@@ -825,6 +827,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
 }
 
 function ActivityIcon({ step }: { step: Step }) {
+    if (step === 'retrieving') return <Database className="h-4 w-4" />
     if (step === 'planning') return <Brain className="h-4 w-4" />
     if (step === 'coding') return <Hammer className="h-4 w-4" />
     if (step === 'fixing') return <Wrench className="h-4 w-4" />

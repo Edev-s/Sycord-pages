@@ -97,7 +97,7 @@ DESIGN SYSTEM REQUIREMENT:
 - src/utils.ts MUST export reusable helper functions other files will need.
 
 REQUIREMENTS:
-1.  **Vite Structure**: Follow the exact Vite project structure above. **index.html MUST be in the ROOT directory**, not public.
+1.  **Vite Structure**: Follow the exact Vite project structure above. **index.html MUST be in the ROOT directory** (this is critical for Cloudflare Pages), not public.
 2.  **TypeScript**: All source files in src/ must use .ts extension and be properly typed. Export shared interfaces from src/types.ts.
 3.  **Components**: Create modular components in src/components/ directory. Each component MUST import its types from ../types.
 4.  **Tailwind CSS**: Use Tailwind CSS classes. Include CDN in index.html for simplicity.
@@ -106,7 +106,7 @@ REQUIREMENTS:
 7.  **Cloudflare Pages Ready**: Structure must be deployable to Cloudflare Pages with Vite.
 8.  **Configuration**:
     - package.json MUST include "build": "vite build"
-    - tsconfig.json MUST use "target": "ES2020", "lib": ["ES2020", "DOM", "DOM.Iterable"], "moduleResolution": "Bundler", "noEmit": true
+    - tsconfig.json MUST use "target": "ES2020", "lib": ["ES2020", "DOM", "DOM.Iterable"], "moduleResolution": "Bundler", "noEmit": true, "skipLibCheck": true, "include": ["src"], "exclude": ["node_modules", "dist"] and MUST NOT reference "tsconfig.node.json"
     - vite.config.ts MUST set build.outDir = 'dist'
 9.  **Connected Files**: Every component must properly import from types.ts and utils.ts. The entry point main.ts must import from all components.
 
@@ -176,9 +176,11 @@ Purpose: **{{USEDFOR}}**
         "useDefineForClassFields": true,
         "noEmit": true
     }
-    - Must include "include": ["src"]
+    - Must include "include": ["src"] and "exclude": ["node_modules", "dist"]
+    - Must NOT extend or reference "tsconfig.node.json"
 - **vite.config.ts**:
     - Must include "build": { "outDir": "dist" }
+    - Must be simple and NOT import or rely on "tsconfig.node.json"
     - Must export default defineConfig(...)
 - **.gitignore**:
     - Must include: node_modules/, dist/, *.log
