@@ -1361,8 +1361,8 @@ export default function SiteSettingsPage() {
 
             {/* TAB CONTENT: AI BUILDER */}
             {activeTab === "ai" && (
-              <div className="h-[calc(100vh-100px)] min-h-[600px] flex flex-col -mx-4 md:-mx-6 lg:-mx-8 -my-6">
-                <div className="flex-1 bg-background/50 overflow-hidden rounded-xl m-2 md:m-3 relative">
+              <div className="h-[calc(100vh-140px)] min-h-[600px] flex flex-col -mx-4 md:-mx-6 lg:-mx-8 -my-6">
+                <div className="flex-1 bg-background/50 overflow-hidden rounded-xl m-4 relative">
                   {id ? (
                     <div className="absolute inset-0 overflow-y-auto custom-scrollbar">
                       <AIWebsiteBuilder
