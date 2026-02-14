@@ -1,13 +1,7 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import {
-  FILE_STRUCTURE,
-  getShortTermMemory,
-  getFileContext,
-  extractDesignSystem,
-  type GeneratedFile,
-} from "@/lib/ai-memory"
+import { FILE_STRUCTURE, getShortTermMemory } from "@/lib/ai-memory"
 import { getSystemPrompts } from "@/lib/ai-prompts"
 
 // API Configurations
@@ -28,15 +22,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { messages, instruction, model, generatedPages } = await request.json()
-
-    // Parse generatedPages from frontend (array of { name, code })
-    const previousFiles: GeneratedFile[] = Array.isArray(generatedPages)
-      ? generatedPages.map((p: { name: string; code: string }) => ({
-          name: p.name,
-          code: p.code,
-        }))
-      : []
+    const { messages, instruction, model } = await request.json()
 
     // Default to Gemini 2.0 Flash
     const modelId = model || "gemini-2.0-flash"
@@ -93,28 +79,20 @@ export async function POST(request: Request) {
     const { builderCode: promptTemplate } = await getSystemPrompts()
 
     // 2. Prepare System Prompt (Inject Variables)
-    // Build rich file context from previously generated files
-    const fileContext = getFileContext(previousFiles)
-    const designSystem = extractDesignSystem(previousFiles)
-    // Keep legacy memory as fallback / additional signal
     const shortTermMemory = getShortTermMemory(instruction)
     
     let fileRules = ""
     if (isHTML) fileRules = `- Use <!DOCTYPE html>. Include <script src="https://cdn.tailwindcss.com"></script>. Include <script type="module" src="/src/main.ts"></script>.`
-    if (isTS) fileRules = `- Write valid TypeScript. Use 'export' for modules. Import from relative paths (e.g. './utils'). DOM manipulation must be type-safe (use 'as HTMLElement' if needed). ALL functions must have explicit return types.`
+    if (isTS) fileRules = `- Write valid TypeScript. Use 'export' for modules. Import from relative paths (e.g. './utils'). DOM manipulation must be type-safe (use 'as HTMLElement' if needed).`
     if (isJSON) fileRules = `- Return valid JSON only.`
-    if (fileExt === 'css') fileRules = `- Write valid CSS. Define CSS custom properties in :root for design tokens. Use @tailwind directives if applicable.`
 
     let systemPrompt = promptTemplate
         .replace("{{FILENAME}}", currentTask.filename)
         .replace("{{USEDFOR}}", currentTask.usedFor)
         .replace("{{FILE_STRUCTURE}}", FILE_STRUCTURE)
-        .replace("{{FILE_CONTEXT}}", fileContext)
-        .replace("{{DESIGN_SYSTEM}}", designSystem || "No design system established yet. If generating style.css, define CSS custom properties for the project.")
+        .replace("{{MEMORY}}", shortTermMemory)
         .replace("{{FILE_EXT}}", fileExt.toUpperCase())
         .replace("{{FILE_RULES}}", fileRules)
-        // Legacy fallback -- if the prompt still has {{MEMORY}}, fill it
-        .replace("{{MEMORY}}", shortTermMemory)
 
     // 3. Call AI
     const conversationHistory = messages.map((msg: any) => ({
