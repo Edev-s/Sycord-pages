@@ -208,10 +208,23 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
   const [instruction, setInstruction] = useState<string>("")
   const [selectedModel, setSelectedModel] = useState(MODELS[0])
 
+  const [planExpanded, setPlanExpanded] = useState(false)
+
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
 
   const [fixHistory, setFixHistory] = useState<any[]>([])
+
+  // Compute file-level progress from instruction
+  const getProgress = () => {
+    if (!instruction) return { done: 0, total: 0, percent: 0 }
+    const totalMatch = instruction.match(/\[\d+\]/g) || []
+    const doneMatch = instruction.match(/\[Done\]/gi) || []
+    const total = totalMatch.length + doneMatch.length
+    const done = doneMatch.length
+    const percent = total > 0 ? Math.round((done / total) * 100) : 0
+    return { done, total, percent }
+  }
 
   useEffect(() => { scrollToBottom() }, [messages, currentPlan, step])
 
@@ -477,6 +490,8 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
           messages: currentHistory,
           instruction: currentInstruction,
           model: selectedModel.id,
+          // Send all previously generated files so the AI has full cross-file context
+          generatedPages: generatedPages.map(p => ({ name: p.name, code: p.code })),
         }),
       })
 
@@ -673,11 +688,53 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
 
           {/* RIGHT: CHAT & INPUT */}
           <div className="flex-1 flex flex-col h-full bg-zinc-950 relative z-10">
+
+              {/* Progress Bar */}
+              {(step === 'coding' || step === 'planning') && (() => {
+                const { done, total, percent } = getProgress()
+                return (
+                  <div className="px-4 py-2 border-b border-white/5 bg-zinc-950/80 flex items-center gap-3">
+                    <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-white/80 rounded-full transition-all duration-700 ease-out"
+                        style={{ width: `${percent}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] text-zinc-400 font-mono whitespace-nowrap">
+                      {step === 'planning' ? 'Planning...' : `${done}/${total} files`}
+                    </span>
+                    {activeFile && step === 'coding' && (
+                      <span className="text-[10px] text-zinc-500 font-mono truncate max-w-[140px]">
+                        {activeFile}
+                      </span>
+                    )}
+                  </div>
+                )
+              })()}
+
               <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar pb-24 md:pb-4">
                   {messages.length === 0 && (
-                      <div className="h-full flex flex-col items-center justify-center text-center opacity-30 p-8 select-none">
-                          <Sparkles className="h-10 w-10 mb-4 text-white" />
-                          <h3 className="text-base font-medium text-white">What shall we build?</h3>
+                      <div className="h-full flex flex-col items-center justify-center text-center p-8 select-none">
+                          <div className="h-14 w-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-5">
+                            <Sparkles className="h-6 w-6 text-zinc-400" />
+                          </div>
+                          <h3 className="text-base font-medium text-zinc-300 mb-1">What shall we build?</h3>
+                          <p className="text-xs text-zinc-600 mb-6 max-w-xs">Describe your website and the AI will plan the architecture, generate connected TypeScript files, and deploy it.</p>
+                          <div className="flex flex-wrap gap-2 justify-center max-w-md">
+                            {[
+                              "A modern portfolio site with dark theme",
+                              "SaaS landing page with pricing section",
+                              "Restaurant site with menu and reservations",
+                            ].map((suggestion) => (
+                              <button
+                                key={suggestion}
+                                onClick={() => setInput(suggestion)}
+                                className="text-[11px] text-zinc-500 hover:text-zinc-200 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 rounded-lg px-3 py-1.5 transition-all"
+                              >
+                                {suggestion}
+                              </button>
+                            ))}
+                          </div>
                       </div>
                   )}
 
@@ -696,25 +753,41 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                                 msg.role === 'system' ? "bg-zinc-900/50 border border-white/5 text-zinc-400 text-center w-full max-w-none text-xs py-2" :
                                 "bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-tl-sm backdrop-blur-sm"
                             )}>
-                                {msg.role === 'assistant' && msg.plan && (
-                                    <div className="flex items-center gap-2 text-[10px] font-bold text-zinc-500 mb-2 uppercase tracking-wider">
-                                        <BrainCircuit className="h-3 w-3" /> Strategy
+                                {msg.role === 'assistant' && msg.plan ? (
+                                    <div>
+                                      <button
+                                        onClick={() => setPlanExpanded(p => !p)}
+                                        className="flex items-center gap-2 text-[10px] font-bold text-zinc-500 uppercase tracking-wider hover:text-zinc-300 transition-colors w-full"
+                                      >
+                                        <BrainCircuit className="h-3 w-3" />
+                                        <span>Architecture Plan</span>
+                                        <span className="text-zinc-600 font-normal normal-case">
+                                          ({(msg.content.match(/\[\d+\]/g) || []).length} files)
+                                        </span>
+                                        <ChevronRight className={cn("h-3 w-3 ml-auto transition-transform", planExpanded && "rotate-90")} />
+                                      </button>
+                                      {planExpanded && (
+                                        <div className="mt-2 text-xs text-zinc-500 whitespace-pre-wrap border-t border-white/5 pt-2 max-h-[300px] overflow-y-auto custom-scrollbar">
+                                          {msg.content}
+                                        </div>
+                                      )}
                                     </div>
-                                )}
+                                ) : null}
 
-                                {msg.code ? (
-                                    <div className="flex items-center gap-4 group cursor-pointer hover:bg-white/5 p-1 -m-1 rounded transition-colors">
-                                        <div className="h-10 w-10 bg-black/40 rounded-lg flex items-center justify-center border border-white/5 text-zinc-400 group-hover:text-white group-hover:border-white/10 transition-all">
+                                {!msg.plan && msg.code ? (
+                                    <div className="flex items-center gap-4 group cursor-pointer hover:bg-white/5 p-1 -m-1 rounded-lg transition-colors">
+                                        <div className="h-10 w-10 bg-black/40 rounded-lg flex items-center justify-center border border-white/5 text-zinc-400 group-hover:text-white group-hover:border-white/10 transition-all shrink-0">
                                             <FileCode className="h-5 w-5" />
                                         </div>
-                                        <div>
-                                            <p className="font-mono text-xs text-zinc-200 group-hover:text-white transition-colors">{msg.pageName}</p>
-                                            <p className="text-[10px] text-zinc-500">{msg.code.length} bytes • Updated</p>
+                                        <div className="min-w-0">
+                                            <p className="font-mono text-xs text-zinc-200 group-hover:text-white transition-colors truncate">{msg.pageName}</p>
+                                            <p className="text-[10px] text-zinc-500">{(msg.code.length / 1024).toFixed(1)} KB</p>
                                         </div>
+                                        <CheckCircle2 className="h-3.5 w-3.5 text-zinc-600 ml-auto shrink-0" />
                                     </div>
-                                ) : (
+                                ) : !msg.plan ? (
                                     <div className="whitespace-pre-wrap">{msg.content}</div>
-                                )}
+                                ) : null}
                             </div>
                           )}
                       </div>
