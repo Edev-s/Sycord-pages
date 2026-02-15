@@ -7,7 +7,7 @@ import { getSystemPrompts, getProjectPrompts } from "@/lib/ai-prompts"
 const GOOGLE_API_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
 
 // Default model for planning - using 2.0 Flash as it's stable on the endpoint
-const PLAN_MODEL = "gemini-2.0-flash"
+let PLAN_MODEL = "gemini-2.0-flash"
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions)
@@ -16,7 +16,14 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { messages, projectId } = await request.json()
+    const { messages, projectId, model } = await request.json()
+    if (model === "gemini-3-pro" || model === "gemini-3.0-pro") {
+       PLAN_MODEL = "gemini-2.0-flash";
+    } else if (model === "gemini-1.5-pro") {
+       PLAN_MODEL = "gemini-1.5-pro";
+    } else if (model) {
+       PLAN_MODEL = model;
+    }
 
     // Use GOOGLE_AI_API by default, fallback to GOOGLE_API_KEY
     const apiKey = process.env.GOOGLE_AI_API || process.env.GOOGLE_API_KEY
@@ -49,7 +56,7 @@ export async function POST(request: Request) {
 
     // Use REST API for consistency
     const payload = {
-      model: PLAN_MODEL,
+      model: PLAN_MODEL === "gemini-3-pro" ? "gemini-2.0-flash" : PLAN_MODEL,
       messages: [
           { role: "system", content: "You are an expert software architect." },
           { role: "user", content: finalPrompt }
