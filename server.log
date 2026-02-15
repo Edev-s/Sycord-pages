@@ -1,14 +1,83 @@
 
-> my-v0-project@0.1.0 dev /app
+> my-v0-project@0.1.0 dev
 > next dev
 
- ⚠ Port 3000 is in use by an unknown process, using available port 3001 instead.
    ▲ Next.js 16.0.10 (Turbopack)
-   - Local:         http://localhost:3001
-   - Network:       http://192.168.0.2:3001
+   - Local:         http://localhost:3000
+   - Network:       http://192.168.0.2:3000
 
  ✓ Starting...
- ⨯ Unable to acquire lock at /app/.next/dev/lock, is another instance of next dev running?
-   Suggestion: If you intended to restart next dev, terminate the other process, and then try again.
-[?25h
- ELIFECYCLE  Command failed with exit code 1.
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+ ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+ ✓ Ready in 1369ms
+ ⨯ ./components/ai-website-builder.tsx:220:27
+Parsing ecmascript source code failed
+[0m [90m 218 |[39m       id[33m:[39m ([33mDate[39m[33m.[39mnow() [33m+[39m [35m1[39m)[33m.[39mtoString()[33m,[39m
+ [90m 219 |[39m       role[33m:[39m [32m"user"[39m[33m,[39m
+[31m[1m>[22m[39m[90m 220 |[39m       content[33m:[39m [32m`Logs:\n`[39m[32m``[39m[37m[41m[1m\[22m[49m[39mn${visibleLogs}[37m[41m[1m\[22m[49m[39mn[32m``[39m[32m``[39m
+ [90m     |[39m                           [31m[1m^[22m[39m
+ [90m 221 |[39m     }
+ [90m 222 |[39m
+ [90m 223 |[39m     setMessages(prev [33m=>[39m [[33m...[39mprev[33m,[39m logMessage[33m,[39m logsDisplayMessage])[0m
+
+Expected unicode escape
+
+Import traces:
+  Client Component Browser:
+    ./components/ai-website-builder.tsx [Client Component Browser]
+    ./app/test-ai/page.tsx [Client Component Browser]
+    ./app/test-ai/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./components/ai-website-builder.tsx [Client Component SSR]
+    ./app/test-ai/page.tsx [Client Component SSR]
+    ./app/test-ai/page.tsx [Server Component]
+
+
+ GET /test-ai 500 in 5.2s (compile: 4.6s, proxy.ts: 118ms, render: 440ms)
+ ⨯ ./components/ai-website-builder.tsx:220:27
+Parsing ecmascript source code failed
+[0m [90m 218 |[39m       id[33m:[39m ([33mDate[39m[33m.[39mnow() [33m+[39m [35m1[39m)[33m.[39mtoString()[33m,[39m
+ [90m 219 |[39m       role[33m:[39m [32m"user"[39m[33m,[39m
+[31m[1m>[22m[39m[90m 220 |[39m       content[33m:[39m [32m`Logs:\n`[39m[32m``[39m[37m[41m[1m\[22m[49m[39mn${visibleLogs}[37m[41m[1m\[22m[49m[39mn[32m``[39m[32m``[39m
+ [90m     |[39m                           [31m[1m^[22m[39m
+ [90m 221 |[39m     }
+ [90m 222 |[39m
+ [90m 223 |[39m     setMessages(prev [33m=>[39m [[33m...[39mprev[33m,[39m logMessage[33m,[39m logsDisplayMessage])[0m
+
+Expected unicode escape
+
+Import traces:
+  Client Component Browser:
+    ./components/ai-website-builder.tsx [Client Component Browser]
+    ./app/test-ai/page.tsx [Client Component Browser]
+    ./app/test-ai/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./components/ai-website-builder.tsx [Client Component SSR]
+    ./app/test-ai/page.tsx [Client Component SSR]
+    ./app/test-ai/page.tsx [Server Component]
+
+
+ GET /test-ai 500 in 49ms (compile: 28ms, proxy.ts: 6ms, render: 15ms)
+ ✓ Compiled in 416ms
+ GET /test-ai 200 in 627ms (compile: 343ms, proxy.ts: 4ms, render: 279ms)
+ ⨯ Error: Missing MONGO_URI environment variable
+    at module evaluation (lib/mongodb.ts:4:9)
+    at module evaluation (lib/auth.ts:4:1)
+    at module evaluation (app/api/auth/[...nextauth]/route.ts:2:1)
+    at Object.<anonymous> (.next/dev/server/app/api/auth/[...nextauth]/route.js:9:3)
+  2 |
+  3 | if (!process.env.MONGO_URI) {
+> 4 |   throw new Error("Missing MONGO_URI environment variable");
+    |         ^
+  5 | }
+  6 |
+  7 | const uri = process.env.MONGO_URI; {
+  page: '/api/auth/session'
+}

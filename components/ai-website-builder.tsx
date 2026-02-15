@@ -3,51 +3,29 @@
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Progress } from "@/components/ui/progress"
 import {
   Loader2,
   Bot,
-  Check,
   ChevronDown,
-  Terminal,
   Sparkles,
   FileCode,
   ArrowRight,
   Rocket,
-  ListTodo,
-  BrainCircuit, Brain, Hammer, Wrench, Database,
   CheckCircle2,
   File,
   Folder,
   FolderOpen,
   ChevronRight,
-  Code,
-  AlertCircle,
   Bug,
   Layout,
-  Menu
+  Brain
 } from "lucide-react"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import {
   Sheet,
   SheetContent,
   SheetTrigger,
 } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
-
-// Updated Models List
-const MODELS = [
-  { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", provider: "Google" },
-  { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", provider: "Google" },
-  { id: "gemini-3-flash", name: "Gemini 3 Flash (Preview)", provider: "Google" },
-  { id: "deepseek-v3.2-exp", name: "DeepSeek V3", provider: "DeepSeek" },
-]
 
 type Step = "idle" | "planning" | "coding" | "fixing" | "done"
 
@@ -172,7 +150,7 @@ const FileTreeVisualizer = ({ pages, currentFile }: { pages: GeneratedPage[], cu
   }
 
   return (
-    <div className="font-mono bg-black/20 rounded-xl border border-white/5 p-3 min-h-[200px] max-h-[400px] overflow-y-auto custom-scrollbar">
+    <div className="font-mono bg-black/20 rounded-xl border border-white/5 p-3 h-full overflow-y-auto custom-scrollbar">
       <div className="text-[10px] text-zinc-500 mb-3 flex items-center gap-2 uppercase tracking-wider font-semibold px-2">
          <Folder className="h-3 w-3" /> Project Structure
       </div>
@@ -204,28 +182,14 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
   const [isDeploying, setIsDeploying] = useState(false)
   const [deploySuccess, setDeploySuccess] = useState(false)
   const [deployResult, setDeployResult] = useState<{ url?: string; githubUrl?: string } | null>(null)
-  const [showAutoDeploy, setShowAutoDeploy] = useState(false)
 
   const [instruction, setInstruction] = useState<string>("")
-  const [selectedModel, setSelectedModel] = useState(MODELS[0])
-
   const [planExpanded, setPlanExpanded] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
 
   const [fixHistory, setFixHistory] = useState<any[]>([])
-
-  // Compute file-level progress from instruction
-  const getProgress = () => {
-    if (!instruction) return { done: 0, total: 0, percent: 0 }
-    const totalMatch = instruction.match(/\[\d+\]/g) || []
-    const doneMatch = instruction.match(/\[Done\]/gi) || []
-    const total = totalMatch.length + doneMatch.length
-    const done = doneMatch.length
-    const percent = total > 0 ? Math.round((done / total) * 100) : 0
-    return { done, total, percent }
-  }
 
   useEffect(() => { scrollToBottom() }, [messages, currentPlan, step])
 
@@ -490,8 +454,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
           projectId,
           messages: currentHistory,
           instruction: currentInstruction,
-          model: selectedModel.id,
-          // Send all previously generated files so the AI has full cross-file context
+          // Removed explicit model selection, API now enforces it
           generatedPages: generatedPages.map(p => ({ name: p.name, code: p.code })),
         }),
       })
@@ -575,173 +538,74 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
   return (
     <div className="flex flex-col h-full bg-zinc-950 text-zinc-100 font-sans relative overflow-hidden">
 
-      {/* HEADER */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-20">
+      {/* MINIMAL HEADER */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-20">
         <div className="flex items-center gap-3">
             <div className="h-8 w-8 rounded-lg bg-white/5 flex items-center justify-center border border-white/10">
                 <Bot className="h-4 w-4 text-white" />
             </div>
-            <span className="font-semibold text-sm hidden md:inline-block tracking-tight">AI Editor</span>
+            <span className="font-semibold text-sm tracking-tight text-zinc-200">AI Editor</span>
 
-            {/* Mobile Menu Trigger for File Tree */}
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="md:hidden h-8 w-8 text-zinc-400">
-                  <Layout className="h-4 w-4" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="bg-zinc-950 border-r-white/10 w-3/4 max-w-sm pt-10">
-                 <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-4">Project Structure</h3>
-                 <FileTreeVisualizer pages={generatedPages} currentFile={activeFile} />
-              </SheetContent>
-            </Sheet>
+            {/* Status Indicator */}
+            {(step !== 'idle' && step !== 'done') && (
+                <div className="flex items-center gap-2 ml-4 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20">
+                    <Loader2 className="h-3 w-3 animate-spin text-blue-400" />
+                    <span className="text-[10px] text-blue-300 font-mono uppercase tracking-wider">{step}</span>
+                </div>
+            )}
         </div>
 
         <div className="flex items-center gap-2">
-            {showAutoDeploy && (
+            {/* File Tree Sheet */}
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 text-zinc-400 hover:text-white">
+                  <Layout className="h-4 w-4 mr-2" /> Files
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="bg-zinc-950 border-l-white/10 w-80 pt-10">
+                 <FileTreeVisualizer pages={generatedPages} currentFile={activeFile} />
+              </SheetContent>
+            </Sheet>
+
+            {/* Deploy Button */}
+            {generatedPages.length > 0 && (
                 <Button
                     size="sm"
-                    className="h-8 bg-white text-black hover:bg-zinc-200 animate-in fade-in zoom-in"
+                    className={cn(
+                        "h-8 transition-all",
+                        deploySuccess ? "bg-green-600 hover:bg-green-700 text-white" : "bg-white text-black hover:bg-zinc-200"
+                    )}
                     onClick={handleDeploy}
-                    disabled={isDeploying}
+                    disabled={isDeploying || (step !== 'idle' && step !== 'done')}
                 >
-                    {isDeploying ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Rocket className="h-3 w-3 mr-2" />}
-                    Deploy Fixes
+                    {isDeploying ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : deploySuccess ? <CheckCircle2 className="h-3 w-3 mr-2" /> : <Rocket className="h-3 w-3 mr-2" />}
+                    {deploySuccess ? "Live" : "Deploy"}
                 </Button>
             )}
-
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8 rounded-lg border-white/10 bg-white/5 hover:bg-white/10 text-zinc-300 text-xs">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 mr-2 shadow-[0_0_8px_rgba(34,197,94,0.5)]"></span>
-                    {selectedModel.name}
-                    <ChevronDown className="h-3 w-3 ml-2 opacity-50" />
-                </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-zinc-900 border-white/10 text-zinc-300">
-                {MODELS.map(model => (
-                    <DropdownMenuItem key={model.id} onClick={() => setSelectedModel(model)} className="hover:bg-white/5 focus:bg-white/5">
-                    {model.name}
-                    </DropdownMenuItem>
-                ))}
-                </DropdownMenuContent>
-            </DropdownMenu>
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+      <div className="flex-1 flex flex-col overflow-hidden relative">
 
-          {/* LEFT: VISUALIZATION & STATUS (Desktop Only, or hidden) */}
-          <div className="hidden md:flex md:w-80 lg:w-96 border-r border-white/5 bg-black/20 p-4 flex-col gap-4 overflow-y-auto">
-              <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                      <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Blueprint</h3>
-                      {(step !== 'idle' && step !== 'done') && <Loader2 className="h-3 w-3 animate-spin text-zinc-400" />}
-                  </div>
-
-                  <FileTreeVisualizer pages={generatedPages} currentFile={activeFile} />
-
-                  <div className={cn(
-                      "rounded-xl p-4 space-y-2 transition-all duration-500 border",
-                      step === 'idle' ? "bg-transparent border-transparent" : "bg-white/5 border-white/10"
-                  )}>
-                      <div className="flex items-center gap-3 text-zinc-200 text-xs font-medium">
-                          <div className={cn("p-1.5 rounded-md bg-white/10", (step !== "idle" && step !== "done") && "animate-pulse")}>
-                             <ActivityIcon step={step} />
-                          </div>
-                          <span>{step === 'idle' ? 'Ready to build' : step === 'planning' ? 'Thinking...' : step === 'coding' ? 'Creating...' : step === 'fixing' ? 'Fixing...' : step === 'done' ? 'Finished' : currentPlan}</span>
-                      </div>
-                      {activeFile && (
-                          <div className="text-[10px] text-zinc-500 font-mono pl-9">
-                              Writing: {activeFile}
-                          </div>
-                      )}
-                  </div>
-              </div>
-
-              {generatedPages.length > 0 && (
-                  <div className="mt-auto pt-4 border-t border-white/5 space-y-3">
-                      <Button
-                          className="w-full text-xs h-9 bg-zinc-100 text-zinc-900 hover:bg-zinc-300 border-none"
-                          size="sm"
-                          onClick={handleDeploy}
-                          disabled={isDeploying || (step !== 'idle' && step !== 'done')}
-                      >
-                          {isDeploying ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Rocket className="h-3 w-3 mr-2" />}
-                          {deploySuccess ? "Deploy Again" : "Deploy to Cloudflare"}
-                      </Button>
-
-                      {deploySuccess && deployResult && (
-                          <div className="text-center space-y-1 animate-in fade-in slide-in-from-bottom-2">
-                              <p className="text-[10px] text-zinc-400 flex items-center justify-center gap-1.5">
-                                  <CheckCircle2 className="h-3 w-3 text-white" /> Live
-                              </p>
-                              {deployResult.url && (
-                                  <a href={deployResult.url} target="_blank" className="text-xs text-white hover:underline block truncate opacity-80 hover:opacity-100">
-                                      {deployResult.url}
-                                  </a>
-                              )}
-                          </div>
-                      )}
-                  </div>
-              )}
-          </div>
-
-          {/* RIGHT: CHAT & INPUT */}
+          {/* CHAT AREA (Full Width) */}
           <div className="flex-1 flex flex-col h-full bg-zinc-950 relative z-10">
 
-              {/* Progress Bar */}
-              {(step === 'coding' || step === 'planning') && (() => {
-                const { done, total, percent } = getProgress()
-                return (
-                  <div className="px-4 py-2 border-b border-white/5 bg-zinc-950/80 flex items-center gap-3">
-                    <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-white/80 rounded-full transition-all duration-700 ease-out"
-                        style={{ width: `${percent}%` }}
-                      />
-                    </div>
-                    <span className="text-[10px] text-zinc-400 font-mono whitespace-nowrap">
-                      {step === 'planning' ? 'Planning...' : `${done}/${total} files`}
-                    </span>
-                    {activeFile && step === 'coding' && (
-                      <span className="text-[10px] text-zinc-500 font-mono truncate max-w-[140px]">
-                        {activeFile}
-                      </span>
-                    )}
-                  </div>
-                )
-              })()}
-
-              <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar pb-24 md:pb-4">
+              <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar pb-24 md:pb-4 max-w-5xl mx-auto w-full">
                   {messages.length === 0 && (
-                      <div className="h-full flex flex-col items-center justify-center text-center p-8 select-none">
-                          <div className="h-14 w-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-5">
-                            <Sparkles className="h-6 w-6 text-zinc-400" />
+                      <div className="h-full flex flex-col items-center justify-center text-center p-8 select-none opacity-50">
+                          <div className="h-16 w-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-6">
+                            <Sparkles className="h-8 w-8 text-zinc-500" />
                           </div>
-                          <h3 className="text-base font-medium text-zinc-300 mb-1">What shall we build?</h3>
-                          <p className="text-xs text-zinc-600 mb-6 max-w-xs">Describe your website and the AI will plan the architecture, generate connected TypeScript files, and deploy it.</p>
-                          <div className="flex flex-wrap gap-2 justify-center max-w-md">
-                            {[
-                              "A modern portfolio site with dark theme",
-                              "SaaS landing page with pricing section",
-                              "Restaurant site with menu and reservations",
-                            ].map((suggestion) => (
-                              <button
-                                key={suggestion}
-                                onClick={() => setInput(suggestion)}
-                                className="text-[11px] text-zinc-500 hover:text-zinc-200 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 rounded-lg px-3 py-1.5 transition-all"
-                              >
-                                {suggestion}
-                              </button>
-                            ))}
-                          </div>
+                          <h3 className="text-lg font-medium text-zinc-300 mb-2">Gemini 3 Pro Preview</h3>
+                          <p className="text-sm text-zinc-500 max-w-sm">
+                            Powered by RAG & Database. Describe your website to begin generation.
+                          </p>
                       </div>
                   )}
 
                   {messages.map(msg => (
                       <div key={msg.id} className={cn("flex flex-col gap-2 animate-in fade-in slide-in-from-bottom-2 duration-500", msg.role === 'user' ? "items-end" : "items-start")}>
-
                           {msg.isErrorLog ? (
                              <div className="w-full max-w-[90%] md:max-w-[80%] bg-red-500/10 border border-red-500/20 text-red-200/80 rounded-2xl px-5 py-4 text-xs font-mono flex items-start gap-3">
                                 <Bug className="h-4 w-4 shrink-0 text-red-400 mt-0.5" />
@@ -749,9 +613,9 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                              </div>
                           ) : (
                             <div className={cn(
-                                "max-w-[90%] md:max-w-[80%] rounded-2xl px-5 py-3.5 text-sm leading-relaxed shadow-sm",
+                                "max-w-[90%] md:max-w-[80%] rounded-2xl px-6 py-4 text-sm leading-relaxed shadow-sm",
                                 msg.role === 'user' ? "bg-zinc-100 text-zinc-900 rounded-tr-sm font-medium" :
-                                msg.role === 'system' ? "bg-zinc-900/50 border border-white/5 text-zinc-400 text-center w-full max-w-none text-xs py-2" :
+                                msg.role === 'system' ? "bg-zinc-900/50 border border-white/5 text-zinc-500 text-center w-full max-w-none text-xs py-2" :
                                 "bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-tl-sm backdrop-blur-sm"
                             )}>
                                 {msg.role === 'assistant' && msg.plan ? (
@@ -760,15 +624,12 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                                         onClick={() => setPlanExpanded(p => !p)}
                                         className="flex items-center gap-2 text-[10px] font-bold text-zinc-500 uppercase tracking-wider hover:text-zinc-300 transition-colors w-full"
                                       >
-                                        <BrainCircuit className="h-3 w-3" />
+                                        <Brain className="h-3 w-3" />
                                         <span>Architecture Plan</span>
-                                        <span className="text-zinc-600 font-normal normal-case">
-                                          ({(msg.content.match(/\[\d+\]/g) || []).length} files)
-                                        </span>
                                         <ChevronRight className={cn("h-3 w-3 ml-auto transition-transform", planExpanded && "rotate-90")} />
                                       </button>
                                       {planExpanded && (
-                                        <div className="mt-2 text-xs text-zinc-500 whitespace-pre-wrap border-t border-white/5 pt-2 max-h-[300px] overflow-y-auto custom-scrollbar">
+                                        <div className="mt-4 text-xs text-zinc-500 whitespace-pre-wrap border-t border-white/5 pt-4 font-mono">
                                           {msg.content}
                                         </div>
                                       )}
@@ -776,7 +637,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                                 ) : null}
 
                                 {!msg.plan && msg.code ? (
-                                    <div className="flex items-center gap-4 group cursor-pointer hover:bg-white/5 p-1 -m-1 rounded-lg transition-colors">
+                                    <div className="flex items-center gap-4 group cursor-pointer hover:bg-white/5 p-2 -m-2 rounded-xl transition-colors">
                                         <div className="h-10 w-10 bg-black/40 rounded-lg flex items-center justify-center border border-white/5 text-zinc-400 group-hover:text-white group-hover:border-white/10 transition-all shrink-0">
                                             <FileCode className="h-5 w-5" />
                                         </div>
@@ -784,7 +645,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                                             <p className="font-mono text-xs text-zinc-200 group-hover:text-white transition-colors truncate">{msg.pageName}</p>
                                             <p className="text-[10px] text-zinc-500">{(msg.code.length / 1024).toFixed(1)} KB</p>
                                         </div>
-                                        <CheckCircle2 className="h-3.5 w-3.5 text-zinc-600 ml-auto shrink-0" />
+                                        <CheckCircle2 className="h-4 w-4 text-green-500/50 ml-auto shrink-0" />
                                     </div>
                                 ) : !msg.plan ? (
                                     <div className="whitespace-pre-wrap">{msg.content}</div>
@@ -797,19 +658,19 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
               </div>
 
               {/* INPUT AREA */}
-              <div className="p-4 border-t border-white/5 bg-zinc-950/80 backdrop-blur-xl">
-                  <div className="relative max-w-4xl mx-auto">
+              <div className="p-6 border-t border-white/5 bg-zinc-950/80 backdrop-blur-xl">
+                  <div className="relative max-w-3xl mx-auto">
                       <Input
                           value={input}
                           onChange={e => setInput(e.target.value)}
                           onKeyDown={e => e.key === 'Enter' && !e.shiftKey && startGeneration()}
-                          placeholder="Describe changes or new features..."
-                          className="pr-12 h-14 rounded-2xl bg-zinc-900/50 border-white/5 focus-visible:ring-1 focus-visible:ring-white/20 text-base placeholder:text-zinc-600 shadow-lg"
+                          placeholder="What shall we build with Gemini 3 Pro?"
+                          className="pr-14 h-16 rounded-2xl bg-zinc-900/50 border-white/5 focus-visible:ring-1 focus-visible:ring-white/20 text-base placeholder:text-zinc-600 shadow-xl pl-6"
                           disabled={step === 'planning' || step === 'coding' || step === 'fixing'}
                       />
                       <Button
                           size="icon"
-                          className="absolute right-2 top-2 h-10 w-10 rounded-xl bg-white text-black hover:bg-zinc-200 transition-colors"
+                          className="absolute right-3 top-3 h-10 w-10 rounded-xl bg-white text-black hover:bg-zinc-200 transition-colors shadow-lg"
                           onClick={startGeneration}
                           disabled={!input.trim() || step === 'planning' || step === 'coding' || step === 'fixing'}
                       >
@@ -818,18 +679,9 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                   </div>
               </div>
           </div>
-
       </div>
     </div>
   )
-}
-
-function ActivityIcon({ step }: { step: Step }) {
-    if (step === 'planning') return <Brain className="h-4 w-4" />
-    if (step === 'coding') return <Hammer className="h-4 w-4" />
-    if (step === 'fixing') return <Wrench className="h-4 w-4" />
-    if (step === 'done') return <Check className="h-4 w-4" />
-    return <Sparkles className="h-4 w-4" />
 }
 
 export default AIWebsiteBuilder

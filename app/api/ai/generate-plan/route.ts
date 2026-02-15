@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { GoogleGenerativeAI } from "@google/generative-ai"
 import { getSystemPrompts } from "@/lib/ai-prompts"
 
-const PLAN_MODEL = "gemini-2.0-flash"
+const PLAN_MODEL = "gemini-3-pro-preview"
+
+// API Configurations
+const GOOGLE_API_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions)
@@ -22,11 +24,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "AI service not configured (Google)" }, { status: 500 })
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({
-        model: PLAN_MODEL,
-    })
-
     const lastUserMessage = messages[messages.length - 1]
 
     // Fetch Global Prompt
@@ -41,9 +38,36 @@ export async function POST(request: Request) {
 
     console.log(`[v0] Generating plan with Google model: ${PLAN_MODEL}`)
 
-    const result = await model.generateContent(finalPrompt)
-    const response = await result.response
-    const responseText = response.text()
+    const payload = {
+        model: PLAN_MODEL,
+        messages: [
+             { role: "system", content: "You are an expert technical architect." },
+             { role: "user", content: finalPrompt }
+        ],
+        temperature: 0.2
+    }
+
+    const response = await fetch(GOOGLE_API_URL, {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+    })
+
+    if (!response.ok) {
+        const errorText = await response.text()
+        console.error(`[v0] Plan API error: ${response.status}`, errorText)
+        throw new Error(`Plan generation failed: ${response.status}`)
+    }
+
+    const data = await response.json()
+    const responseText = data.choices?.[0]?.message?.content || ""
+
+    if (!responseText) {
+        throw new Error("Empty response from AI")
+    }
 
     // Return the raw instruction text
     return NextResponse.json({
