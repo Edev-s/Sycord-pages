@@ -453,10 +453,10 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       const planResponse = await fetch("/api/ai/generate-plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: [...messages, userMessage] }),
+        body: JSON.stringify({ messages: [...messages, userMessage], projectId }),
       })
 
-      if (!planResponse.ok) throw new Error("Failed to generate plan")
+      if (!planResponse.ok) { const errorData = await planResponse.json().catch(() => ({})); throw new Error(errorData.message || "Failed to generate plan"); }
       const planData = await planResponse.json()
       const generatedInstruction = planData.instruction
 

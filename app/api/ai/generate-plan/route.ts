@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { GoogleGenerativeAI } from "@google/generative-ai"
-import { getSystemPrompts } from "@/lib/ai-prompts"
+import { getSystemPrompts, getProjectPrompts } from "@/lib/ai-prompts"
 
+// API Configurations
+const GOOGLE_API_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+
+// Default model for planning - using 2.0 Flash as it's stable on the endpoint
 const PLAN_MODEL = "gemini-2.0-flash"
 
 export async function POST(request: Request) {
@@ -13,7 +16,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { messages } = await request.json()
+    const { messages, projectId } = await request.json()
 
     // Use GOOGLE_AI_API by default, fallback to GOOGLE_API_KEY
     const apiKey = process.env.GOOGLE_AI_API || process.env.GOOGLE_API_KEY
@@ -22,28 +25,55 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "AI service not configured (Google)" }, { status: 500 })
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({
-        model: PLAN_MODEL,
-    })
-
     const lastUserMessage = messages[messages.length - 1]
 
     // Fetch Global Prompt
     const { builderPlan: systemContextTemplate } = await getSystemPrompts()
+
+    let projectMemory = "";
+    if (projectId) {
+       const memory = await getProjectPrompts(projectId);
+       if (memory) {
+          projectMemory = `\n\n[PROJECT MEMORY]\n${memory}\n`;
+       }
+    }
 
     // Combine history for context
     const historyText = messages.map((m: any) => `${m.role.toUpperCase()}: ${m.content}`).join("\n\n")
 
     const finalPrompt = systemContextTemplate
         .replace("{{HISTORY}}", historyText)
-        .replace("{{REQUEST}}", lastUserMessage.content)
+        .replace("{{REQUEST}}", lastUserMessage.content) + projectMemory
 
     console.log(`[v0] Generating plan with Google model: ${PLAN_MODEL}`)
 
-    const result = await model.generateContent(finalPrompt)
-    const response = await result.response
-    const responseText = response.text()
+    // Use REST API for consistency
+    const payload = {
+      model: PLAN_MODEL,
+      messages: [
+          { role: "system", content: "You are an expert software architect." },
+          { role: "user", content: finalPrompt }
+      ],
+      temperature: 0.2
+    }
+
+    const response = await fetch(GOOGLE_API_URL, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    })
+
+    if (!response.ok) {
+        const errorText = await response.text()
+        console.error("Google Plan API error:", response.status, errorText)
+        throw new Error(`Google Plan API error: ${response.status}`)
+    }
+
+    const data = await response.json()
+    const responseText = data.choices?.[0]?.message?.content || ""
 
     // Return the raw instruction text
     return NextResponse.json({
