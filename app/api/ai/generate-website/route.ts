@@ -3,23 +3,21 @@ import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import {
   FILE_STRUCTURE,
-  getShortTermMemory,
   getFileContext,
   extractDesignSystem,
   type GeneratedFile,
 } from "@/lib/ai-memory"
 import { getSystemPrompts } from "@/lib/ai-prompts"
+import { generateCode, resolveModelId } from "@/lib/gemini"
+import { getRAGContext } from "@/lib/rag-knowledge"
 
-// API Configurations
-const GOOGLE_API_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions"
-
-// Map models to their specific endpoints and Env Vars
-const MODEL_CONFIGS: Record<string, { url: string, envVar: string, provider: string }> = {
-  "gemini-2.0-flash": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
-  "gemini-1.5-flash": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
-  "deepseek-v3.2-exp": { url: DEEPSEEK_API_URL, envVar: "DEEPSEEK_API", provider: "DeepSeek" }
-}
+// ──────────────────────────────────────────────────────
+// POST /api/ai/generate-website
+// ──────────────────────────────────────────────────────
+// Generates a single file at a time using Gemini 2.5 Pro
+// with RAG-augmented context from the knowledge base and
+// full cross-file awareness from previously generated code.
+// ──────────────────────────────────────────────────────
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions)
@@ -28,9 +26,9 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { messages, instruction, model, generatedPages } = await request.json()
+    const { messages, instruction, model, generatedPages, userPrompt } = await request.json()
 
-    // Parse generatedPages from frontend (array of { name, code })
+    // ── Parse previously generated files for cross-file context ──
     const previousFiles: GeneratedFile[] = Array.isArray(generatedPages)
       ? generatedPages.map((p: { name: string; code: string }) => ({
           name: p.name,
@@ -38,145 +36,155 @@ export async function POST(request: Request) {
         }))
       : []
 
-    // Default to Gemini 2.0 Flash
-    const modelId = model || "gemini-2.0-flash"
-
-    // Map "gemini-3-flash" or similar user requests to actual model
-    let configKey = modelId
-    if (modelId === "gemini-3-flash" || modelId === "gemini-3.0-flash") {
-       configKey = "gemini-2.0-flash" // Map to latest available
-    }
-
-    const config = MODEL_CONFIGS[configKey] || MODEL_CONFIGS["gemini-2.0-flash"]
-
-    let apiKey = process.env[config.envVar]
-    if (config.provider === "Google" && !apiKey) {
-        apiKey = process.env.GOOGLE_API_KEY
-    }
-
-    if (!apiKey) {
-      return NextResponse.json({ message: `AI service not configured (${config.provider})` }, { status: 500 })
-    }
-
-    // 1. Parse Instruction to find next task
+    // ── Find the next file to generate from the instruction ──
     const taskRegex = /\[(\d+)\]\s*([^\s:]+)\s*:\s*(?:\[usedfor\](.*?)\[usedfor\])?/g
     let match
-    let currentTask = null
+    let currentTask: { fullMatch: string; number: string; filename: string; usedFor: string } | null = null
 
     while ((match = taskRegex.exec(instruction)) !== null) {
-        if (match[1] === "0") continue;
-        currentTask = {
-            fullMatch: match[0],
-            number: match[1],
-            filename: match[2].trim(),
-            usedFor: match[3]?.trim() || "Implementation"
-        }
-        break;
+      if (match[1] === "0") continue
+      currentTask = {
+        fullMatch: match[0],
+        number: match[1],
+        filename: match[2].trim(),
+        usedFor: match[3]?.trim() || "Implementation",
+      }
+      break
     }
 
+    // All files generated
     if (!currentTask) {
-        return NextResponse.json({
-            isComplete: true,
-            updatedInstruction: instruction
-        })
+      return NextResponse.json({
+        isComplete: true,
+        updatedInstruction: instruction,
+      })
     }
 
-    console.log(`[v0] Generating file: ${currentTask.filename} (Task [${currentTask.number}])`)
+    console.log(`[AI] Generating: ${currentTask.filename} [${currentTask.number}] with model: ${model || 'gemini-2.5-pro'}`)
 
-    // Determine file type
-    const fileExt = currentTask.filename.split('.').pop() || ''
-    const isTS = fileExt === 'ts' || fileExt === 'tsx'
-    const isHTML = fileExt === 'html'
-    const isJSON = fileExt === 'json'
+    // ── Determine file type for type-specific rules ──
+    const fileExt = currentTask.filename.split(".").pop() || ""
+    const isTS = fileExt === "ts" || fileExt === "tsx"
+    const isHTML = fileExt === "html"
+    const isJSON = fileExt === "json"
+    const isCSS = fileExt === "css"
 
-    // Fetch Prompts (Global)
-    const { builderCode: promptTemplate } = await getSystemPrompts()
+    let fileRules = ""
+    if (isHTML) {
+      fileRules = [
+        "- Use <!DOCTYPE html> with lang attribute.",
+        '- Include <script src="https://cdn.tailwindcss.com"></script>.',
+        '- Include <script type="module" src="/src/main.ts"></script>.',
+        "- Add proper <meta> tags for SEO and viewport.",
+        "- Use semantic HTML elements.",
+      ].join("\n")
+    } else if (isTS) {
+      fileRules = [
+        "- Write valid, strict TypeScript with explicit return types on ALL functions.",
+        "- Use 'export' for all public APIs.",
+        "- Import from relative paths (e.g., './utils', '../types').",
+        "- DOM manipulation must be type-safe (use querySelector<HTMLElement> generics).",
+        "- Define proper interfaces for all function parameters.",
+        "- Use 'as const' for literal arrays and objects where appropriate.",
+      ].join("\n")
+    } else if (isJSON) {
+      fileRules = "- Return valid JSON only. No comments, no trailing commas."
+    } else if (isCSS) {
+      fileRules = [
+        "- Define CSS custom properties in :root for design tokens.",
+        "- Include @tailwind base; @tailwind components; @tailwind utilities; directives.",
+        "- Add animation keyframes for scroll-reveal effects.",
+        "- Include a .container utility class.",
+        "- Add :focus-visible styles for accessibility.",
+      ].join("\n")
+    } else {
+      fileRules = "- Follow standard formatting for this file type."
+    }
 
-    // 2. Prepare System Prompt (Inject Variables)
-    // Build rich file context from previously generated files
+    // ── Build rich context layers ──
     const fileContext = getFileContext(previousFiles)
     const designSystem = extractDesignSystem(previousFiles)
-    // Keep legacy memory as fallback / additional signal
-    const shortTermMemory = getShortTermMemory(instruction)
-    
-    let fileRules = ""
-    if (isHTML) fileRules = `- Use <!DOCTYPE html>. Include <script src="https://cdn.tailwindcss.com"></script>. Include <script type="module" src="/src/main.ts"></script>.`
-    if (isTS) fileRules = `- Write valid TypeScript. Use 'export' for modules. Import from relative paths (e.g. './utils'). DOM manipulation must be type-safe (use 'as HTMLElement' if needed). ALL functions must have explicit return types.`
-    if (isJSON) fileRules = `- Return valid JSON only.`
-    if (fileExt === 'css') fileRules = `- Write valid CSS. Define CSS custom properties in :root for design tokens. Use @tailwind directives if applicable.`
+    const ragContext = getRAGContext(
+      currentTask.filename,
+      currentTask.usedFor,
+      userPrompt || messages?.[0]?.content || "",
+      4
+    )
 
-    let systemPrompt = promptTemplate
-        .replace("{{FILENAME}}", currentTask.filename)
-        .replace("{{USEDFOR}}", currentTask.usedFor)
-        .replace("{{FILE_STRUCTURE}}", FILE_STRUCTURE)
-        .replace("{{FILE_CONTEXT}}", fileContext)
-        .replace("{{DESIGN_SYSTEM}}", designSystem || "No design system established yet. If generating style.css, define CSS custom properties for the project.")
-        .replace("{{FILE_EXT}}", fileExt.toUpperCase())
-        .replace("{{FILE_RULES}}", fileRules)
-        // Legacy fallback -- if the prompt still has {{MEMORY}}, fill it
-        .replace("{{MEMORY}}", shortTermMemory)
+    // ── Fetch the system prompt template ──
+    const { builderCode: promptTemplate } = await getSystemPrompts()
 
-    // 3. Call AI
-    const conversationHistory = messages.map((msg: any) => ({
-        role: msg.role === "user" ? "user" : "assistant",
-        content: msg.content
+    // ── Inject all variables into the prompt ──
+    const systemPrompt = promptTemplate
+      .replace("{{FILENAME}}", currentTask.filename)
+      .replace("{{USEDFOR}}", currentTask.usedFor)
+      .replace("{{FILE_STRUCTURE}}", FILE_STRUCTURE)
+      .replace("{{FILE_CONTEXT}}", fileContext)
+      .replace(
+        "{{DESIGN_SYSTEM}}",
+        designSystem || "No design system yet. If generating style.css, define CSS custom properties."
+      )
+      .replace("{{FILE_EXT}}", fileExt.toUpperCase())
+      .replace("{{FILE_RULES}}", fileRules)
+      // Append RAG context after the main prompt
+      + "\n\n" + ragContext
+
+    // ── Build conversation history ──
+    const conversationHistory = (messages || []).map((msg: { role: string; content: string }) => ({
+      role: msg.role === "user" ? "user" : "assistant",
+      content: msg.content,
     }))
 
-    const payload = {
-      model: modelId === "gemini-3-flash" ? "gemini-2.0-flash" : modelId,
-      messages: [
-          { role: "system", content: systemPrompt },
-          ...conversationHistory,
-          { role: "user", content: `Generate the full content for ${currentTask.filename}.` }
-      ],
-      temperature: 0.2
-    }
+    // ── Call Gemini ──
+    const responseText = await generateCode(
+      systemPrompt,
+      conversationHistory,
+      `Generate the full, complete content for the file: ${currentTask.filename}. Purpose: ${currentTask.usedFor}. Output ONLY the code wrapped in [code]...[code] tags followed by [file] and [usedfor] metadata markers.`,
+      model || "gemini-2.5-pro"
+    )
 
-    const response = await fetch(config.url, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    })
-
-    if (!response.ok) throw new Error(`${config.provider} API error: ${response.status}`)
-    const data = await response.json()
-    const responseText = data.choices?.[0]?.message?.content || ""
-
-    // 4. Robust Parsing
+    // ── Robust code extraction ──
     let extractedCode = ""
+
+    // Try [code]...[code] format first
     const codeRegex = /\[code\]([\s\S]*?)(\[\/code\]|\[code\])/i
     const codeMatch = responseText.match(codeRegex)
 
     if (codeMatch) {
-        extractedCode = codeMatch[1].trim()
+      extractedCode = codeMatch[1].trim()
     } else {
-        const mdBlock = responseText.match(/```(?:typescript|ts|html|css|json|javascript|js)?\s*([\s\S]*?)```/)
-        if (mdBlock) {
-            extractedCode = mdBlock[1].trim()
-        } else {
-            extractedCode = responseText.trim()
-        }
+      // Fallback: markdown code blocks
+      const mdBlock = responseText.match(
+        /```(?:typescript|ts|html|css|json|javascript|js|gitignore|markdown|md)?\s*([\s\S]*?)```/
+      )
+      if (mdBlock) {
+        extractedCode = mdBlock[1].trim()
+      } else {
+        // Last resort: use the full response, cleaned
+        extractedCode = responseText.trim()
+      }
     }
 
-    extractedCode = extractedCode.replace(/\[file\].*?\[file\]/g, '').replace(/\[usedfor\].*?\[usedfor\]/g, '')
+    // Clean metadata markers from code
+    extractedCode = extractedCode
+      .replace(/\[file\].*?\[file\]/g, "")
+      .replace(/\[usedfor\].*?\[usedfor\]/g, "")
+      .trim()
 
-    // 5. Update Instruction (Mark as Done)
-    const updatedInstruction = instruction.replace(`[${currentTask.number}]`, `[Done]`)
+    // ── Mark task as done in instruction ──
+    const updatedInstruction = instruction.replace(`[${currentTask.number}]`, "[Done]")
 
     return NextResponse.json({
-        content: responseText,
-        code: extractedCode,
-        pageName: currentTask.filename,
-        usedFor: currentTask.usedFor,
-        updatedInstruction: updatedInstruction,
-        isComplete: false
+      content: responseText,
+      code: extractedCode,
+      pageName: currentTask.filename,
+      usedFor: currentTask.usedFor,
+      updatedInstruction,
+      isComplete: false,
     })
-
-  } catch (error: any) {
-    console.error("[v0] Generation error:", error)
-    return NextResponse.json({ message: error.message }, { status: 500 })
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Generation failed"
+    console.error("[AI] Generation error:", message)
+    return NextResponse.json({ message }, { status: 500 })
   }
 }

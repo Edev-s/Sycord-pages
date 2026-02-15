@@ -1,10 +1,16 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { GoogleGenerativeAI } from "@google/generative-ai"
 import { getSystemPrompts } from "@/lib/ai-prompts"
+import { generatePlan } from "@/lib/gemini"
 
-const PLAN_MODEL = "gemini-2.0-flash"
+// ──────────────────────────────────────────────────────
+// POST /api/ai/generate-plan
+// ──────────────────────────────────────────────────────
+// Generates the architectural file plan using Gemini Flash
+// for fast turnaround. The plan defines which files to
+// generate and in what dependency order.
+// ──────────────────────────────────────────────────────
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions)
@@ -15,42 +21,31 @@ export async function POST(request: Request) {
   try {
     const { messages } = await request.json()
 
-    // Use GOOGLE_AI_API by default, fallback to GOOGLE_API_KEY
-    const apiKey = process.env.GOOGLE_AI_API || process.env.GOOGLE_API_KEY
-    if (!apiKey) {
-      console.error("[v0] GOOGLE_AI_API (or GOOGLE_API_KEY) not configured")
-      return NextResponse.json({ message: "AI service not configured (Google)" }, { status: 500 })
-    }
-
-    const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({
-        model: PLAN_MODEL,
-    })
-
     const lastUserMessage = messages[messages.length - 1]
 
-    // Fetch Global Prompt
+    // Fetch the plan prompt template (may be customized in DB)
     const { builderPlan: systemContextTemplate } = await getSystemPrompts()
 
-    // Combine history for context
-    const historyText = messages.map((m: any) => `${m.role.toUpperCase()}: ${m.content}`).join("\n\n")
+    // Build conversation history for context
+    const historyText = messages
+      .map((m: { role: string; content: string }) => `${m.role.toUpperCase()}: ${m.content}`)
+      .join("\n\n")
 
     const finalPrompt = systemContextTemplate
-        .replace("{{HISTORY}}", historyText)
-        .replace("{{REQUEST}}", lastUserMessage.content)
+      .replace("{{HISTORY}}", historyText)
+      .replace("{{REQUEST}}", lastUserMessage.content)
 
-    console.log(`[v0] Generating plan with Google model: ${PLAN_MODEL}`)
+    console.log("[AI] Generating architectural plan with Gemini Flash")
 
-    const result = await model.generateContent(finalPrompt)
-    const response = await result.response
-    const responseText = response.text()
+    // Use Flash for fast planning
+    const responseText = await generatePlan(finalPrompt, lastUserMessage.content)
 
-    // Return the raw instruction text
     return NextResponse.json({
       instruction: responseText,
     })
-  } catch (error: any) {
-    console.error("[v0] Plan generation error:", error)
-    return NextResponse.json({ message: error.message || "Failed to generate plan" }, { status: 500 })
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to generate plan"
+    console.error("[AI] Plan generation error:", message)
+    return NextResponse.json({ message }, { status: 500 })
   }
 }
