@@ -6,9 +6,6 @@ import { getSystemPrompts, getProjectPrompts } from "@/lib/ai-prompts"
 // API Configurations
 const GOOGLE_API_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
 
-// Default model for planning - using 2.0 Flash as it's stable on the endpoint
-let PLAN_MODEL = "gemini-2.0-flash"
-
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) {
@@ -17,10 +14,17 @@ export async function POST(request: Request) {
 
   try {
     const { messages, projectId, model } = await request.json()
+
+    // Default model for planning
+    let PLAN_MODEL = "gemini-2.0-flash"
+
+    // Model selection logic
     if (model === "gemini-3-pro" || model === "gemini-3.0-pro" || model === "gemini-3-flash") {
        PLAN_MODEL = "gemini-2.0-flash";
-    } else if (model === "gemini-1.5-pro") { PLAN_MODEL = "gemini-1.5-pro-latest"; } else if (model === "gemini-1.5-flash") { PLAN_MODEL = "gemini-1.5-flash"; }
-       PLAN_MODEL = "gemini-1.5-pro";
+    } else if (model === "gemini-1.5-pro") {
+       PLAN_MODEL = "gemini-1.5-pro-latest";
+    } else if (model === "gemini-1.5-flash") {
+       PLAN_MODEL = "gemini-1.5-flash";
     } else if (model) {
        PLAN_MODEL = model;
     }
