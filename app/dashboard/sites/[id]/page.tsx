@@ -479,7 +479,10 @@ export default function SiteSettingsPage() {
             if (data.success && Array.isArray(data.logs)) {
                 setLogs(data.logs)
                 // Simple error detection in logs
-                const errorFound = data.logs.some((log: string) =>
+                const combined = data.logs.join(' ').toLowerCase()
+                const successFound = combined.includes('take a peek over at') || combined.includes('deployment complete')
+
+                const errorFound = !successFound && data.logs.some((log: string) =>
                     log.toLowerCase().includes('error') ||
                     log.toLowerCase().includes('fail') ||
                     log.toLowerCase().includes('exception')
