@@ -1018,7 +1018,7 @@ export default function SiteSettingsPage() {
         </header>
 
         <main className={cn("flex-1 relative", activeTab === "ai" ? "p-0 overflow-hidden" : "overflow-y-auto overflow-x-hidden p-4 md:p-6 lg:p-8 custom-scrollbar")}>
-          <div className="mx-auto max-w-6xl space-y-8 pb-10">
+          <div className={cn("mx-auto", activeTab === "ai" ? "h-full w-full max-w-none p-0 pb-0 space-y-0" : "max-w-6xl space-y-8 pb-10")}>
 
             <AnimatePresence>
               {isSidebarOpen && (
@@ -1364,7 +1364,7 @@ export default function SiteSettingsPage() {
               <div className="h-full w-full flex flex-col">
                 <div className="flex-1 bg-background overflow-hidden relative">
                   {id ? (
-                    <div className="absolute inset-0 overflow-y-auto custom-scrollbar">
+                    <div className="absolute inset-0 overflow-hidden custom-scrollbar">
                       <AIWebsiteBuilder
                         projectId={id}
                         generatedPages={generatedPages}
