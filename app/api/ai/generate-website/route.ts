@@ -16,10 +16,8 @@ const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions"
 
 // Map models to their specific endpoints and Env Vars
 const MODEL_CONFIGS: Record<string, { url: string, envVar: string, provider: string }> = {
-  "gemini-2.0-flash": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
-  "gemini-1.5-flash": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
-  "gemini-1.5-pro": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
-  "deepseek-v3.2-exp": { url: DEEPSEEK_API_URL, envVar: "DEEPSEEK_API", provider: "DeepSeek" }
+  "google": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
+  "deepseek": { url: DEEPSEEK_API_URL, envVar: "DEEPSEEK_API", provider: "DeepSeek" }
 }
 
 export async function POST(request: Request) {
@@ -31,7 +29,7 @@ export async function POST(request: Request) {
   try {
     const { messages, instruction, model, generatedPages, projectId } = await request.json()
 
-    // Parse generatedPages from frontend (array of { name, code })
+    // Parse generatedPages from frontend
     const previousFiles: GeneratedFile[] = Array.isArray(generatedPages)
       ? generatedPages.map((p: { name: string; code: string }) => ({
           name: p.name,
@@ -39,23 +37,32 @@ export async function POST(request: Request) {
         }))
       : []
 
-    // Default to Gemini 2.0 Flash
-    const modelId = model || "gemini-2.0-flash"
+    // Model Mapping Logic
+    let targetModel = "gemini-2.0-flash";
+    let providerKey = "google";
 
-    // Map "gemini-3-flash" or similar user requests to actual model
-    let configKey = modelId
-    if (modelId === "gemini-3-flash" || modelId === "gemini-3.0-flash") {
-       configKey = "gemini-2.0-flash"
+    const modelId = model || "gemini-2.0-flash";
+
+    if (modelId.includes("deepseek")) {
+        targetModel = "deepseek-chat"; // or specific deepseek model
+        providerKey = "deepseek";
+    } else {
+        // Google Models
+        if (modelId === "gemini-3-pro" || modelId === "gemini-3.0-pro" || modelId === "gemini-3-flash") {
+            targetModel = "gemini-2.0-flash";
+        } else if (modelId === "gemini-1.5-pro") {
+            targetModel = "gemini-1.5-pro-latest";
+        } else if (modelId === "gemini-1.5-flash") {
+            targetModel = "gemini-1.5-flash";
+        } else {
+            targetModel = modelId; // Default fallback
+        }
     }
-    if (modelId === "gemini-3-pro" || modelId === "gemini-3.0-pro") { configKey = "gemini-2.0-flash"; } if (modelId === "gemini-1.5-pro") {
-       configKey = "gemini-1.5-pro"
-    }
 
-    const config = MODEL_CONFIGS[configKey] || MODEL_CONFIGS["gemini-2.0-flash"]
-
-    let apiKey = process.env[config.envVar]
-    if (config.provider === "Google" && !apiKey) {
-        apiKey = process.env.GOOGLE_API_KEY
+    const config = MODEL_CONFIGS[providerKey];
+    let apiKey = process.env[config.envVar];
+    if (providerKey === "google" && !apiKey) {
+        apiKey = process.env.GOOGLE_API_KEY;
     }
 
     if (!apiKey) {
@@ -85,7 +92,7 @@ export async function POST(request: Request) {
         })
     }
 
-    console.log(`[v0] Generating file: ${currentTask.filename} (Task [${currentTask.number}])`)
+    console.log(`[v0] Generating file: ${currentTask.filename} (Task [${currentTask.number}]) using ${targetModel}`)
 
     // Determine file type
     const fileExt = currentTask.filename.split('.').pop() || ''
@@ -104,10 +111,8 @@ export async function POST(request: Request) {
     }
 
     // 2. Prepare System Prompt (Inject Variables)
-    // Build rich file context from previously generated files
     const fileContext = getFileContext(previousFiles)
     const designSystem = extractDesignSystem(previousFiles)
-    // Keep legacy memory as fallback / additional signal
     const shortTermMemory = getShortTermMemory(instruction)
     
     let fileRules = ""
@@ -124,7 +129,6 @@ export async function POST(request: Request) {
         .replace("{{DESIGN_SYSTEM}}", designSystem || "No design system established yet. If generating style.css, define CSS custom properties for the project.")
         .replace("{{FILE_EXT}}", fileExt.toUpperCase())
         .replace("{{FILE_RULES}}", fileRules)
-        // Legacy fallback -- if the prompt still has {{MEMORY}}, fill it
         .replace("{{MEMORY}}", shortTermMemory) + projectMemory
 
     // 3. Call AI
@@ -134,7 +138,7 @@ export async function POST(request: Request) {
     }))
 
     const payload = {
-      model: (modelId === "gemini-3-pro" || modelId === "gemini-3-flash") ? "gemini-2.0-flash" : modelId,
+      model: targetModel,
       messages: [
           { role: "system", content: systemPrompt },
           ...conversationHistory,
@@ -152,7 +156,12 @@ export async function POST(request: Request) {
       body: JSON.stringify(payload),
     })
 
-    if (!response.ok) throw new Error(`${config.provider} API error: ${response.status}`)
+    if (!response.ok) {
+        const errorText = await response.text()
+        console.error(`${config.provider} API error: ${response.status}`, errorText)
+        throw new Error(`${config.provider} API error: ${response.status}`)
+    }
+
     const data = await response.json()
     const responseText = data.choices?.[0]?.message?.content || ""
 
