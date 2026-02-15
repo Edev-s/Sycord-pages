@@ -9,6 +9,7 @@ import {
   type GeneratedFile,
 } from "@/lib/ai-memory"
 import { getSystemPrompts, getProjectPrompts } from "@/lib/ai-prompts"
+import { getRelevantContext } from "@/lib/ai-rag"
 
 // API Configurations
 const GOOGLE_API_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
@@ -19,6 +20,7 @@ const MODEL_CONFIGS: Record<string, { url: string, envVar: string, provider: str
   "gemini-2.0-flash": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
   "gemini-1.5-flash": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
   "gemini-1.5-pro": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
+  "gemini-3-pro-preview": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
   "deepseek-v3.2-exp": { url: DEEPSEEK_API_URL, envVar: "DEEPSEEK_API", provider: "DeepSeek" }
 }
 
@@ -29,9 +31,9 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { messages, instruction, model, generatedPages, projectId } = await request.json()
+    const { messages, instruction, generatedPages, projectId } = await request.json()
 
-    // Parse generatedPages from frontend (array of { name, code })
+    // Parse generatedPages from frontend
     const previousFiles: GeneratedFile[] = Array.isArray(generatedPages)
       ? generatedPages.map((p: { name: string; code: string }) => ({
           name: p.name,
@@ -39,19 +41,9 @@ export async function POST(request: Request) {
         }))
       : []
 
-    // Default to Gemini 2.0 Flash
-    const modelId = model || "gemini-2.0-flash"
-
-    // Map "gemini-3-flash" or similar user requests to actual model
-    let configKey = modelId
-    if (modelId === "gemini-3-flash" || modelId === "gemini-3.0-flash") {
-       configKey = "gemini-2.0-flash"
-    }
-    if (modelId === "gemini-3-pro" || modelId === "gemini-3.0-pro") {
-       configKey = "gemini-1.5-pro"
-    }
-
-    const config = MODEL_CONFIGS[configKey] || MODEL_CONFIGS["gemini-2.0-flash"]
+    // FORCE USE: gemini-3-pro-preview
+    const modelId = "gemini-3-pro-preview"
+    const config = MODEL_CONFIGS[modelId] || MODEL_CONFIGS["gemini-1.5-pro"] // Fallback config just in case
 
     let apiKey = process.env[config.envVar]
     if (config.provider === "Google" && !apiKey) {
@@ -63,12 +55,13 @@ export async function POST(request: Request) {
     }
 
     // 1. Parse Instruction to find next task
+    // Regex handles "[1] filename : [usedfor]...[usedfor]" format
     const taskRegex = /\[(\d+)\]\s*([^\s:]+)\s*:\s*(?:\[usedfor\](.*?)\[usedfor\])?/g
     let match
     let currentTask = null
 
     while ((match = taskRegex.exec(instruction)) !== null) {
-        if (match[1] === "0") continue;
+        if (match[1] === "0") continue; // Skip the [0] intro block
         currentTask = {
             fullMatch: match[0],
             number: match[1],
@@ -78,23 +71,36 @@ export async function POST(request: Request) {
         break;
     }
 
-    if (!currentTask) {
+    // If no numbered task found, check if instruction is just a direct request (fallback)
+    if (!currentTask && !instruction.includes("[Done]")) {
+        // Maybe simplistic fallback for single-file request?
+        // For now, return complete if no task pattern found
         return NextResponse.json({
             isComplete: true,
             updatedInstruction: instruction
         })
     }
 
-    console.log(`[v0] Generating file: ${currentTask.filename} (Task [${currentTask.number}])`)
+    if (!currentTask) {
+         return NextResponse.json({
+            isComplete: true,
+            updatedInstruction: instruction
+        })
+    }
+
+    console.log(`[v0] Generating file: ${currentTask.filename} (Task [${currentTask.number}]) using ${modelId}`)
 
     // Determine file type
     const fileExt = currentTask.filename.split('.').pop() || ''
     const isTS = fileExt === 'ts' || fileExt === 'tsx'
     const isHTML = fileExt === 'html'
     const isJSON = fileExt === 'json'
+    const isCSS = fileExt === 'css'
 
     // Fetch Prompts (Global)
     const { builderCode: promptTemplate } = await getSystemPrompts()
+
+    // Fetch Project Specific Memory
     let projectMemory = "";
     if (projectId) {
        const memory = await getProjectPrompts(projectId);
@@ -103,18 +109,21 @@ export async function POST(request: Request) {
        }
     }
 
+    // Fetch RAG Context
+    const ragQuery = `${currentTask.filename} ${currentTask.usedFor} ${instruction}`
+    const ragContext = await getRelevantContext(ragQuery)
+    const ragSection = ragContext ? `\n\n[RETRIEVED KNOWLEDGE]\n${ragContext}\n` : ""
+
     // 2. Prepare System Prompt (Inject Variables)
-    // Build rich file context from previously generated files
     const fileContext = getFileContext(previousFiles)
     const designSystem = extractDesignSystem(previousFiles)
-    // Keep legacy memory as fallback / additional signal
     const shortTermMemory = getShortTermMemory(instruction)
     
     let fileRules = ""
     if (isHTML) fileRules = `- Use <!DOCTYPE html>. Include <script src="https://cdn.tailwindcss.com"></script>. Include <script type="module" src="/src/main.ts"></script>.`
     if (isTS) fileRules = `- Write valid TypeScript. Use 'export' for modules. Import from relative paths (e.g. './utils'). DOM manipulation must be type-safe (use 'as HTMLElement' if needed). ALL functions must have explicit return types.`
     if (isJSON) fileRules = `- Return valid JSON only.`
-    if (fileExt === 'css') fileRules = `- Write valid CSS. Define CSS custom properties in :root for design tokens. Use @tailwind directives if applicable.`
+    if (isCSS) fileRules = `- Write valid CSS. Define CSS custom properties in :root for design tokens. Use @tailwind directives if applicable.`
 
     let systemPrompt = promptTemplate
         .replace("{{FILENAME}}", currentTask.filename)
@@ -124,8 +133,9 @@ export async function POST(request: Request) {
         .replace("{{DESIGN_SYSTEM}}", designSystem || "No design system established yet. If generating style.css, define CSS custom properties for the project.")
         .replace("{{FILE_EXT}}", fileExt.toUpperCase())
         .replace("{{FILE_RULES}}", fileRules)
-        // Legacy fallback -- if the prompt still has {{MEMORY}}, fill it
-        .replace("{{MEMORY}}", shortTermMemory) + projectMemory
+        .replace("{{MEMORY}}", shortTermMemory)
+        + projectMemory
+        + ragSection
 
     // 3. Call AI
     const conversationHistory = messages.map((msg: any) => ({
@@ -134,7 +144,7 @@ export async function POST(request: Request) {
     }))
 
     const payload = {
-      model: modelId === "gemini-3-flash" ? "gemini-2.0-flash" : modelId,
+      model: modelId,
       messages: [
           { role: "system", content: systemPrompt },
           ...conversationHistory,
@@ -152,7 +162,12 @@ export async function POST(request: Request) {
       body: JSON.stringify(payload),
     })
 
-    if (!response.ok) throw new Error(`${config.provider} API error: ${response.status}`)
+    if (!response.ok) {
+        const errorText = await response.text()
+        console.error(`${config.provider} API error: ${response.status}`, errorText)
+        throw new Error(`${config.provider} API error: ${response.status}`)
+    }
+
     const data = await response.json()
     const responseText = data.choices?.[0]?.message?.content || ""
 
@@ -164,6 +179,7 @@ export async function POST(request: Request) {
     if (codeMatch) {
         extractedCode = codeMatch[1].trim()
     } else {
+        // Fallback to markdown code blocks
         const mdBlock = responseText.match(/```(?:typescript|ts|html|css|json|javascript|js)?\s*([\s\S]*?)```/)
         if (mdBlock) {
             extractedCode = mdBlock[1].trim()
@@ -172,6 +188,7 @@ export async function POST(request: Request) {
         }
     }
 
+    // Clean up markers if any leak into the code block
     extractedCode = extractedCode.replace(/\[file\].*?\[file\]/g, '').replace(/\[usedfor\].*?\[usedfor\]/g, '')
 
     // 5. Update Instruction (Mark as Done)
