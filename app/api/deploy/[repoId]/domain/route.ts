@@ -51,7 +51,7 @@ export async function GET(
                         // Pattern: "Take a peek over at https://..."
                         const combinedLogs = logData.logs.join('\n')
                         // Regex to capture URL. Handles variations.
-                        const match = combinedLogs.match(/Take a peek over at[\s\S]*?(https:\/\/[a-zA-Z0-9-]+\.[a-zA-Z0-9-]+\.pages\.dev)/)
+                        const match = combinedLogs.match(/Take a peek over at[\s\S]*?(https:\/\/[a-zA-Z0-9.-]+\.pages\.dev)/)
                         if (match && match[1]) {
                             // Clean potential trailing characters (like colors codes if raw, though usually stripped)
                             // The provided log sample looks clean.

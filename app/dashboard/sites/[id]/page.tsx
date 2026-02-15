@@ -478,8 +478,20 @@ export default function SiteSettingsPage() {
             const data = await res.json()
             if (data.success && Array.isArray(data.logs)) {
                 setLogs(data.logs)
+                // Extract URL from logs if present
+                const combinedLogs = data.logs.join('\n')
+                const urlMatch = combinedLogs.match(/Take a peek over at[\s\S]*?(https:\/\/[a-zA-Z0-9.-]+\.pages\.dev)/)
+
+                if (urlMatch && urlMatch[1]) {
+                    const url = urlMatch[1].trim().replace(/\.$/, '')
+                    setProject((prev: any) => ({ ...prev, cloudflareUrl: url }))
+                    setDeployResult((prev: any) => ({ ...prev, url, message: "Deployed to Cloudflare Pages!" }))
+                    setDeploySuccess(true)
+                    setHasDeployError(false)
+                }
+
                 // Simple error detection in logs
-                const combined = data.logs.join(' ').toLowerCase()
+                const combined = combinedLogs.toLowerCase()
                 const successFound = combined.includes('take a peek over at') || combined.includes('deployment complete')
 
                 const errorFound = !successFound && data.logs.some((log: string) =>
@@ -487,7 +499,11 @@ export default function SiteSettingsPage() {
                     log.toLowerCase().includes('fail') ||
                     log.toLowerCase().includes('exception')
                 )
-                setHasDeployError(errorFound)
+
+                // Only set error if we haven't already found success (URL extraction above sets it to false)
+                if (!urlMatch) {
+                    setHasDeployError(errorFound)
+                }
             }
         }
     } catch (e) {
