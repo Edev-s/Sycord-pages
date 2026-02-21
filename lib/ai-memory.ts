@@ -232,3 +232,103 @@ IMPORTANT:
 - You MUST use the same CSS class names and design tokens already established.
 `;
 }
+
+// ──────── Smart Context (RAG-like) ────────
+
+/**
+ * Intelligent context builder that selects the most relevant files based on the current task.
+ * This acts as a semantic memory to ensure the AI has the right context.
+ */
+export function getSmartContext(files: GeneratedFile[], currentTask: string): string {
+  if (!files || files.length === 0) {
+    return 'No files generated yet. You are generating the first file.'
+  }
+
+  // If total file count is small, just dump everything full (simple RAG)
+  if (files.length < 12) {
+    return getFileContext(files)
+  }
+
+  const taskLower = currentTask.toLowerCase()
+
+  // Core files that are always useful in full (if they exist)
+  const CORE_FILES = ['src/types.ts', 'src/style.css', 'package.json']
+
+  // Identify file types
+  const isComponent = taskLower.includes('components/')
+  // const isMain = taskLower.includes('src/main.ts') // (unused for now)
+
+  const fullContentFiles: GeneratedFile[] = []
+  const summaryFiles: GeneratedFile[] = []
+
+  // Helper to add file if not already added
+  const addFull = (f: GeneratedFile) => {
+    if (!fullContentFiles.find(x => x.name === f.name)) {
+      fullContentFiles.push(f)
+    }
+  }
+
+  files.forEach(f => {
+    const name = f.name
+
+    // Always include core files fully
+    if (CORE_FILES.some(core => name.endsWith(core))) {
+      addFull(f)
+      return
+    }
+
+    // If building a component, include utils and recent components
+    if (isComponent) {
+      if (name.endsWith('src/utils.ts')) {
+        addFull(f)
+        return
+      }
+    }
+
+    // Default to summary if not added to full
+    if (!fullContentFiles.find(x => x.name === f.name)) {
+      summaryFiles.push(f)
+    }
+  })
+
+  // Ensure 3 most recent files are always full (recency bias)
+  const recentFiles = files.slice(-3)
+  recentFiles.forEach(f => {
+      // If it's in summary, remove it and add to full
+      const idx = summaryFiles.findIndex(s => s.name === f.name)
+      if (idx !== -1) {
+          summaryFiles.splice(idx, 1)
+          addFull(f)
+      } else if (!fullContentFiles.find(x => x.name === f.name)) {
+          addFull(f)
+      }
+  })
+
+  // Build the output
+  const fullBlocks = fullContentFiles.map(f => `
+--- FILE: ${f.name} (FULL CONTENT) ---
+\`\`\`${f.name.split('.').pop()}
+${f.code}
+\`\`\`
+`)
+
+  const summaryBlocks = summaryFiles.map(f => `
+--- FILE: ${f.name} (EXPORTS ONLY) ---
+${extractExportSummary(f.code)}
+`)
+
+  return `
+PREVIOUSLY GENERATED FILES (${files.length} total):
+
+== KEY CONTEXT FILES & RECENT (${fullBlocks.length} files) ==
+${fullBlocks.join('\n')}
+
+== OTHER FILES (Summaries - ${summaryBlocks.length} files) ==
+${summaryBlocks.join('\n')}
+
+IMPORTANT:
+- Use the exports shown in summaries.
+- Reuse types and styles from key context files.
+- You have the full content of the most relevant files above.
+`
+}

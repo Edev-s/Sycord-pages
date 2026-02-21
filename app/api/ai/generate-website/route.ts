@@ -5,6 +5,7 @@ import {
   FILE_STRUCTURE,
   getShortTermMemory,
   getFileContext,
+  getSmartContext,
   extractDesignSystem,
   type GeneratedFile,
 } from "@/lib/ai-memory"
@@ -63,7 +64,9 @@ export async function POST(request: Request) {
     }
 
     // 1. Parse Instruction to find next task
-    const taskRegex = /\[(\d+)\]\s*([^\s:]+)\s*:\s*(?:\[usedfor\](.*?)\[usedfor\])?/g
+    // Improved regex to be more permissive about the format
+    // Matches: [1] file.ts, [1] file.ts : [usedfor]..., [1] file.ts - [usedfor]...
+    const taskRegex = /\[(\d+)\]\s*([^\s:\]]+)(?:\s*[:\-]?\s*(?:\[usedfor\](.*?)\[usedfor\])?)?/g
     let match
     let currentTask = null
 
@@ -104,15 +107,15 @@ export async function POST(request: Request) {
     }
 
     // 2. Prepare System Prompt (Inject Variables)
-    // Build rich file context from previously generated files
-    const fileContext = getFileContext(previousFiles)
+    // Use Smart Context (RAG) to select most relevant file context
+    const fileContext = getSmartContext(previousFiles, currentTask.filename)
     const designSystem = extractDesignSystem(previousFiles)
     // Keep legacy memory as fallback / additional signal
     const shortTermMemory = getShortTermMemory(instruction)
     
     let fileRules = ""
     if (isHTML) fileRules = `- Use <!DOCTYPE html>. Include <script src="https://cdn.tailwindcss.com"></script>. Include <script type="module" src="/src/main.ts"></script>.`
-    if (isTS) fileRules = `- Write valid TypeScript. Use 'export' for modules. Import from relative paths (e.g. './utils'). DOM manipulation must be type-safe (use 'as HTMLElement' if needed). ALL functions must have explicit return types.`
+    if (isTS) fileRules = `- Write valid TypeScript. Use 'export' for modules. Import from relative paths (e.g. './utils'). DOM manipulation must be type-safe (use 'as HTMLElement' if needed). ALL functions must have explicit return types. IMPORTANT: Do NOT access DOM elements at the top level. Wrap all DOM access in exported functions (e.g. init() or render()).`
     if (isJSON) fileRules = `- Return valid JSON only.`
     if (fileExt === 'css') fileRules = `- Write valid CSS. Define CSS custom properties in :root for design tokens. Use @tailwind directives if applicable.`
 
@@ -168,7 +171,14 @@ export async function POST(request: Request) {
         if (mdBlock) {
             extractedCode = mdBlock[1].trim()
         } else {
-            extractedCode = responseText.trim()
+             // Fallback: simple heuristic to find code start
+             const content = responseText.trim()
+             const firstCodeIndex = content.search(/(?:^import|^export|^<|^\{|^\/\*)/m)
+             if (firstCodeIndex !== -1 && firstCodeIndex < 50) { // Only if found near start
+                 extractedCode = content.substring(firstCodeIndex)
+             } else {
+                 extractedCode = content
+             }
         }
     }
 

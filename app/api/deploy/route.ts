@@ -184,7 +184,9 @@ async function checkLogsForDomain(repoId: string | number): Promise<string | nul
             const logData = await logsRes.json()
             if (logData.success && Array.isArray(logData.logs)) {
                 const combinedLogs = logData.logs.join('\n')
-                const match = combinedLogs.match(/Take a peek over at\s+(https:\/\/[^\s]+)/)
+                // Matches: "Take a peek over at https://..." or "✨ Deployment complete! Take a peek over at https://..."
+                // The [\s\S]*? handles potential emoji or newlines before the URL
+                const match = combinedLogs.match(/Take a peek over at[\s\S]*?(https:\/\/[a-zA-Z0-9.-]+\.pages\.dev)/)
                 if (match && match[1]) {
                     let domain = match[1].trim()
                     if (domain.endsWith('.')) domain = domain.slice(0, -1)

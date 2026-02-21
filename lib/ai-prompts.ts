@@ -88,6 +88,11 @@ You must output a single text block strictly following this format:
 [N] .gitignore : [usedfor]ignored files[usedfor]
 [N+1] README.md : [usedfor]project documentation[usedfor]
 
+CRITICAL RULES:
+1. Do NOT use markdown lists (like "1. package.json"). You MUST use the bracket format "[1] package.json".
+2. Do NOT add extra commentary outside the [N] blocks.
+3. Ensure every file step has a [usedfor] description.
+
 DESIGN SYSTEM REQUIREMENT:
 - src/types.ts MUST define shared interfaces (e.g., NavItem, SiteConfig, ComponentProps).
 - src/style.css MUST define CSS custom properties for the design system:
@@ -160,6 +165,11 @@ Purpose: **{{USEDFOR}}**
 **RULES FOR {{FILE_EXT}} GENERATION:**
 {{FILE_RULES}}
 
+**RUNTIME SAFETY (MANDATORY):**
+1. **NO TOP-LEVEL DOM ACCESS:** Never try to select or modify DOM elements at the root level of a module. The DOM may not be ready.
+2. **WRAP IN FUNCTIONS:** Always wrap DOM manipulation in exported functions (e.g., \`export function init() { ... }\`) that \`main.ts\` will call.
+3. **NULL CHECKS:** Always check if elements exist before using them (e.g., \`if (!el) return;\`).
+
 **SPECIFIC RULES PER FILE:**
 - **package.json**:
     - Must include "scripts": { "dev": "vite", "build": "vite build", "preview": "vite preview", "check": "tsc --noEmit" }
@@ -205,8 +215,9 @@ Purpose: **{{USEDFOR}}**
     - Must include \`<script type="module" src="/src/main.ts"></script>\`.
 
 **OUTPUT FORMAT (STRICT):**
-You must wrap the code content in [code]...[code] blocks.
-You must add metadata markers AFTER the code block.
+1. You MUST wrap the code content in [code]...[/code] blocks.
+2. You MUST add metadata markers AFTER the code block.
+3. Do NOT wrap the [code] block in markdown backticks (\`\`\`).
 
 Example:
 [code]
