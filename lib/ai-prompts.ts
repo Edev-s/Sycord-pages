@@ -165,6 +165,11 @@ Purpose: **{{USEDFOR}}**
 **RULES FOR {{FILE_EXT}} GENERATION:**
 {{FILE_RULES}}
 
+**RUNTIME SAFETY (MANDATORY):**
+1. **NO TOP-LEVEL DOM ACCESS:** Never try to select or modify DOM elements at the root level of a module. The DOM may not be ready.
+2. **WRAP IN FUNCTIONS:** Always wrap DOM manipulation in exported functions (e.g., \`export function init() { ... }\`) that `main.ts` will call.
+3. **NULL CHECKS:** Always check if elements exist before using them (e.g., \`if (!el) return;\`).
+
 **SPECIFIC RULES PER FILE:**
 - **package.json**:
     - Must include "scripts": { "dev": "vite", "build": "vite build", "preview": "vite preview", "check": "tsc --noEmit" }
