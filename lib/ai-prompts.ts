@@ -169,6 +169,8 @@ Purpose: **{{USEDFOR}}**
 1. **NO TOP-LEVEL DOM ACCESS:** Never try to select or modify DOM elements at the root level of a module. The DOM may not be ready.
 2. **WRAP IN FUNCTIONS:** Always wrap DOM manipulation in exported functions (e.g., \`export function init() { ... }\`) that \`main.ts\` will call.
 3. **NULL CHECKS:** Always check if elements exist before using them (e.g., \`if (!el) return;\`).
+4. **ARRAY SAFETY:** Never assume a variable is an array. Use \`Array.isArray(x)\` before calling \`.map()\` or \`.forEach()\`.
+5. **OBJECT SAFETY:** Use optional chaining (\`obj?.prop\`) for deep property access to prevent undefined errors.
 
 **SPECIFIC RULES PER FILE:**
 - **package.json**:
