@@ -169,6 +169,9 @@ Purpose: **{{USEDFOR}}**
 1. **NO TOP-LEVEL DOM ACCESS:** Never try to select or modify DOM elements at the root level of a module. The DOM may not be ready.
 2. **WRAP IN FUNCTIONS:** Always wrap DOM manipulation in exported functions (e.g., \`export function init() { ... }\`) that \`main.ts\` will call.
 3. **NULL CHECKS:** Always check if elements exist before using them (e.g., \`if (!el) return;\`).
+4. **ARRAY SAFETY:** Never assume a variable is an array. Use \`Array.isArray(x)\` before calling \`.map()\` or \`.forEach()\`.
+5. **OBJECT SAFETY:** Use optional chaining (\`obj?.prop\`) for deep property access to prevent undefined errors.
+6. **ROOT ELEMENT SAFETY:** If mounting a framework (React/Preact/Vue), ensure the root element (e.g., \`#app\`) exists in \`index.html\`. Check for its existence in your script before mounting: \`const root = document.getElementById('app'); if (!root) throw new Error('Root element not found');\`.
 
 **SPECIFIC RULES PER FILE:**
 - **package.json**:
