@@ -245,14 +245,14 @@ export function getSmartContext(files: GeneratedFile[], currentTask: string): st
   }
 
   // If total file count is small, just dump everything full (simple RAG)
-  if (files.length < 12) {
+  if (files.length < 20) {
     return getFileContext(files)
   }
 
   const taskLower = currentTask.toLowerCase()
 
   // Core files that are always useful in full (if they exist)
-  const CORE_FILES = ['src/types.ts', 'src/style.css', 'package.json']
+  const CORE_FILES = ['src/types.ts', 'src/style.css', 'package.json', 'src/utils.ts']
 
   // Identify file types
   const isComponent = taskLower.includes('components/')
@@ -317,8 +317,13 @@ ${f.code}
 ${extractExportSummary(f.code)}
 `)
 
+  const allFilePaths = files.map(f => `- ${f.name}`).join('\n')
+
   return `
 PREVIOUSLY GENERATED FILES (${files.length} total):
+
+== FILE STRUCTURE (ALL FILES) ==
+${allFilePaths}
 
 == KEY CONTEXT FILES & RECENT (${fullBlocks.length} files) ==
 ${fullBlocks.join('\n')}

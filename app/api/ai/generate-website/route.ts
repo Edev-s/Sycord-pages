@@ -90,6 +90,15 @@ export async function POST(request: Request) {
 
     console.log(`[v0] Generating file: ${currentTask.filename} (Task [${currentTask.number}])`)
 
+    // Safety Check: If context is missing for non-initial files, abort.
+    const isInitialFile = ['package.json', 'tsconfig.json', 'vite.config.ts'].includes(currentTask.filename)
+    if (!isInitialFile && previousFiles.length === 0) {
+        console.error(`[v0] Critical Error: Context lost for ${currentTask.filename}`)
+        return NextResponse.json({
+            message: "Context Lost: The AI cannot see previous files. Please refresh the page and try again."
+        }, { status: 400 })
+    }
+
     // Determine file type
     const fileExt = currentTask.filename.split('.').pop() || ''
     const isTS = fileExt === 'ts' || fileExt === 'tsx'
