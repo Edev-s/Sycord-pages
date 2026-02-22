@@ -57,15 +57,15 @@ You MUST order files so that DEPENDENCIES are generated BEFORE dependents.
 The AI generates files one-by-one; each file can reference only previously generated files.
 Follow this order strictly:
 
-1. package.json         (config -- no deps)
-2. tsconfig.json        (config -- no deps)
-3. vite.config.ts       (config -- no deps)
-4. src/types.ts         (shared types -- imported by everything)
-5. src/style.css        (design tokens -- imported by main.ts)
-6. src/utils.ts         (helpers -- may import types.ts)
-7. src/components/*.ts  (components -- import types, utils; order simple to complex)
-8. src/main.ts          (entry -- imports everything above, MUST BE SECOND TO LAST src file)
-9. index.html           (shell -- references /src/main.ts)
+1. index.html           (shell -- MUST be generated FIRST to anchor the RAG context)
+2. package.json         (config)
+3. tsconfig.json        (config)
+4. vite.config.ts       (config)
+5. src/types.ts         (shared types)
+6. src/style.css        (design tokens)
+7. src/utils.ts         (helpers)
+8. src/components/*.ts  (components)
+9. src/main.ts          (entry -- imports everything above)
 10. .gitignore          (housekeeping)
 11. README.md           (docs)
 
@@ -74,19 +74,19 @@ You must output a single text block strictly following this format:
 
 [0] The user base plan is to create [Overview of the site]. As an AI web builder using Vite + TypeScript for Cloudflare Pages, I will generate the following files following proper project structure. Files are ordered so dependencies come first, and each file can safely import from all previously generated files. The backend will mark completed files by replacing [N] with [Done].
 
-[1] package.json : [usedfor]npm dependencies and scripts for Vite[usedfor]
-[2] tsconfig.json : [usedfor]TypeScript configuration for Vite[usedfor]
-[3] vite.config.ts : [usedfor]Vite configuration[usedfor]
-[4] src/types.ts : [usedfor]shared TypeScript interfaces and type definitions used across all files[usedfor]
-[5] src/style.css : [usedfor]design-system CSS custom properties and global Tailwind styles[usedfor]
-[6] src/utils.ts : [usedfor]shared utility functions[usedfor]
-[7] src/components/header.ts : [usedfor]reusable header/navigation component[usedfor]
-[8] src/components/footer.ts : [usedfor]reusable footer component[usedfor]
+[1] index.html : [usedfor]main HTML entry point that loads the Vite app (Generated FIRST to anchor context)[usedfor]
+[2] package.json : [usedfor]npm dependencies and scripts for Vite[usedfor]
+[3] tsconfig.json : [usedfor]TypeScript configuration for Vite[usedfor]
+[4] vite.config.ts : [usedfor]Vite configuration[usedfor]
+[5] src/types.ts : [usedfor]shared TypeScript interfaces and type definitions used across all files[usedfor]
+[6] src/style.css : [usedfor]design-system CSS custom properties and global Tailwind styles[usedfor]
+[7] src/utils.ts : [usedfor]shared utility functions[usedfor]
+[8] src/components/header.ts : [usedfor]reusable header/navigation component[usedfor]
+[9] src/components/footer.ts : [usedfor]reusable footer component[usedfor]
 ...additional components...
-[N-2] src/main.ts : [usedfor]TypeScript entry point that imports style.css and initializes all components[usedfor]
-[N-1] index.html : [usedfor]main HTML entry point that loads the Vite app[usedfor]
-[N] .gitignore : [usedfor]ignored files[usedfor]
-[N+1] README.md : [usedfor]project documentation[usedfor]
+[N] src/main.ts : [usedfor]TypeScript entry point that imports style.css and initializes all components[usedfor]
+[N+1] .gitignore : [usedfor]ignored files[usedfor]
+[N+2] README.md : [usedfor]project documentation[usedfor]
 
 CRITICAL RULES:
 1. Do NOT use markdown lists (like "1. package.json"). You MUST use the bracket format "[1] package.json".

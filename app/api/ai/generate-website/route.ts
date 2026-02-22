@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
+import clientPromise from "@/lib/mongodb"
+import { ObjectId } from "mongodb"
 import {
   FILE_STRUCTURE,
   getShortTermMemory,
@@ -33,12 +35,38 @@ export async function POST(request: Request) {
     const { messages, instruction, model, generatedPages, projectId } = await request.json()
 
     // Parse generatedPages from frontend (array of { name, code })
-    const previousFiles: GeneratedFile[] = Array.isArray(generatedPages)
+    // NOTE: We now primarily fetch from DB, but keep this as fallback or partial context if needed.
+    let previousFiles: GeneratedFile[] = Array.isArray(generatedPages)
       ? generatedPages.map((p: { name: string; code: string }) => ({
           name: p.name,
           code: p.code,
         }))
       : []
+
+    // Fetch latest project pages from MongoDB to ensure RAG accuracy
+    if (projectId) {
+      try {
+        const client = await clientPromise
+        const db = client.db()
+        const project = await db.collection("users").findOne(
+          { "projects._id": new ObjectId(projectId) },
+          { projection: { "projects.$": 1 } }
+        )
+
+        if (project && project.projects?.[0]?.pages) {
+            const dbPages = project.projects[0].pages
+            // Map DB pages to GeneratedFile format
+            previousFiles = dbPages.map((p: any) => ({
+                name: p.name,
+                code: p.content
+            }))
+            console.log(`[v0] Loaded ${previousFiles.length} files from MongoDB for context.`)
+        }
+      } catch (dbError) {
+        console.error("[v0] Failed to fetch project pages from DB:", dbError)
+        // Fallback to previousFiles from request body is already set
+      }
+    }
 
     // Default to Gemini 2.0 Flash
     const modelId = model || "gemini-2.0-flash"
@@ -91,12 +119,25 @@ export async function POST(request: Request) {
     console.log(`[v0] Generating file: ${currentTask.filename} (Task [${currentTask.number}])`)
 
     // Safety Check: If context is missing for non-initial files, abort.
-    const isInitialFile = ['package.json', 'tsconfig.json', 'vite.config.ts'].includes(currentTask.filename)
-    if (!isInitialFile && previousFiles.length === 0) {
-        console.error(`[v0] Critical Error: Context lost for ${currentTask.filename}`)
-        return NextResponse.json({
-            message: "Context Lost: The AI cannot see previous files. Please refresh the page and try again."
-        }, { status: 400 })
+    // MODIFIED: index.html is now the FIRST file (Step 1).
+    // If we are not generating index.html, we MUST have index.html in our context.
+
+    if (currentTask.filename !== 'index.html') {
+        const hasIndex = previousFiles.some(f => f.name === 'index.html')
+
+        if (!hasIndex) {
+            console.error(`[v0] RAG Error: index.html missing for ${currentTask.filename}`)
+            return NextResponse.json({
+                message: "RAG Error: index.html not found in database. Generation cannot proceed without the anchor file."
+            }, { status: 400 })
+        }
+
+        if (previousFiles.length === 0) {
+            console.error(`[v0] Critical Error: Context lost for ${currentTask.filename}`)
+            return NextResponse.json({
+                message: "Context Lost: The AI cannot see previous files. Please refresh the page and try again."
+            }, { status: 400 })
+        }
     }
 
     // Determine file type
