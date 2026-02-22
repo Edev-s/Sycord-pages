@@ -84,7 +84,7 @@ You must output a single text block strictly following this format:
 [8] src/components/footer.ts : [usedfor]reusable footer component[usedfor]
 ...additional components...
 [N-2] src/main.ts : [usedfor]TypeScript entry point that imports style.css and initializes all components[usedfor]
-[N-1] index.html : [usedfor]main HTML entry point that loads the Vite app[usedfor]
+[N-1] index.html : [usedfor]main HTML entry point that loads the Vite app. MUST contain <div id="app"></div>[usedfor]
 [N] .gitignore : [usedfor]ignored files[usedfor]
 [N+1] README.md : [usedfor]project documentation[usedfor]
 
@@ -103,8 +103,9 @@ DESIGN SYSTEM REQUIREMENT:
 
 REQUIREMENTS:
 1.  **Vite Structure**: Follow the exact Vite project structure above. **index.html MUST be in the ROOT directory**, not public.
-2.  **TypeScript**: All source files in src/ must use .ts extension and be properly typed. Export shared interfaces from src/types.ts.
-3.  **Components**: Create modular components in src/components/ directory. Each component MUST import its types from ../types.
+2.  **Root Element**: index.html MUST contain `<div id="app"></div>`. src/main.ts MUST mount to this element.
+3.  **TypeScript**: All source files in src/ must use .ts extension and be properly typed. Export shared interfaces from src/types.ts.
+4.  **Components**: Create modular components in src/components/ directory. Each component MUST import its types from ../types.
 4.  **Tailwind CSS**: Use Tailwind CSS classes. Include CDN in index.html for simplicity.
 5.  **Strict Syntax**: Use brackets [1], [2], etc. for file steps. Include [usedfor]...[usedfor] markers.
 6.  **Scale**: Plan for a COMPLETE experience (10-15 files typically).
@@ -213,8 +214,10 @@ Purpose: **{{USEDFOR}}**
     - MUST include \`import './style.css'\` at the top.
     - MUST import and call ALL component render functions from ./components/*.
     - MUST be the orchestrator that ties everything together.
+    - MUST select the root element using \`document.querySelector('#app')\` or \`document.getElementById('app')\`.
 - **index.html**:
     - Must be in the **ROOT** directory (not public/).
+    - Must include \`<div id="app"></div>\` as the mounting point.
     - Must include \`<script type="module" src="/src/main.ts"></script>\`.
 
 **OUTPUT FORMAT (STRICT):**
