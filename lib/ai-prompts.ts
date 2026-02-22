@@ -103,7 +103,7 @@ DESIGN SYSTEM REQUIREMENT:
 
 REQUIREMENTS:
 1.  **Vite Structure**: Follow the exact Vite project structure above. **index.html MUST be in the ROOT directory**, not public.
-2.  **Root Element**: index.html MUST contain `<div id="app"></div>`. src/main.ts MUST mount to this element.
+2.  **Root Element**: index.html MUST contain \`<div id="app"></div>\`. src/main.ts MUST mount to this element.
 3.  **TypeScript**: All source files in src/ must use .ts extension and be properly typed. Export shared interfaces from src/types.ts.
 4.  **Components**: Create modular components in src/components/ directory. Each component MUST import its types from ../types.
 4.  **Tailwind CSS**: Use Tailwind CSS classes. Include CDN in index.html for simplicity.
