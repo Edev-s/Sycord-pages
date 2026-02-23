@@ -240,12 +240,15 @@ IMPORTANT:
  * This acts as a semantic memory to ensure the AI has the right context.
  */
 export function getSmartContext(files: GeneratedFile[], currentTask: string): string {
+  console.log(`[v0-RAG-DEBUG] getSmartContext called for: ${currentTask} with ${files?.length || 0} files`)
+
   if (!files || files.length === 0) {
     return 'No files generated yet. You are generating the first file.'
   }
 
   // If total file count is small, just dump everything full (simple RAG)
   if (files.length < 20) {
+    console.log(`[v0-RAG-DEBUG] File count < 20, using full context for all.`)
     return getFileContext(files)
   }
 
@@ -305,6 +308,10 @@ export function getSmartContext(files: GeneratedFile[], currentTask: string): st
   })
 
   // Build the output
+  console.log(`[v0-RAG-DEBUG] RAG Selection Result:`)
+  console.log(`[v0-RAG-DEBUG] FULL CONTENT (${fullContentFiles.length}): ${fullContentFiles.map(f => f.name).join(', ')}`)
+  console.log(`[v0-RAG-DEBUG] SUMMARIES (${summaryFiles.length}): ${summaryFiles.map(f => f.name).join(', ')}`)
+
   const fullBlocks = fullContentFiles.map(f => `
 --- FILE: ${f.name} (FULL CONTENT) ---
 \`\`\`${f.name.split('.').pop()}
