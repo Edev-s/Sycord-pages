@@ -148,9 +148,11 @@ export async function POST(request: Request) {
     const shortTermMemory = getShortTermMemory(instruction)
     
     let fileRules = ""
-    if (isHTML) fileRules = `- Use <!DOCTYPE html>. Include <script src="https://cdn.tailwindcss.com"></script> in <head>. Include <script type="module" src="/src/main.ts"></script> before </body>. Include <div id="app"></div> in <body> as the mount point. Keep HTML minimal — components render dynamic content.`
+    if (isHTML) fileRules = `- Use <!DOCTYPE html>. Include <script src="https://cdn.tailwindcss.com"></script> in <head>. Include <script type="module" src="/src/main.ts"></script> before </body>. Include <div id="app"></div> in <body> as the mount point. Keep HTML minimal — components render dynamic content. Add <meta name="viewport" content="width=device-width, initial-scale=1.0"> for responsive viewport.`
     if (isTS && currentTask.filename === 'src/main.ts') {
       fileRules = `- This is the APPLICATION ENTRY POINT. Import './style.css' first. Import the render/init function from EVERY component file. Use DOMContentLoaded listener. Target document.getElementById('app'). Call each component render function in order. If you miss any component import, the site breaks.`
+    } else if (isTS && currentTask.filename.includes('components/')) {
+      fileRules = `- Write valid TypeScript. Use 'export' for modules. Import from relative paths (e.g. '../utils', '../types'). DOM manipulation must be type-safe. ALL functions must have explicit return types. Do NOT access DOM at top level — wrap in exported functions. Export a render function taking container: HTMLElement. Use Tailwind responsive classes: grid-cols-1 md:grid-cols-2 lg:grid-cols-3, p-4 md:p-6 lg:p-8, text-sm md:text-base lg:text-lg. EVERY <button> MUST have addEventListener('click', handler). EVERY <a> link MUST have href or click handler. Navigation components MUST include mobile hamburger menu toggle (md:hidden button + hidden md:flex nav).`
     } else if (isTS) {
       fileRules = `- Write valid TypeScript. Use 'export' for modules. Import from relative paths (e.g. './utils'). DOM manipulation must be type-safe (use 'as HTMLElement' if needed). ALL functions must have explicit return types. IMPORTANT: Do NOT access DOM elements at the top level. Wrap all DOM access in exported functions (e.g. init() or render()). Each component MUST export a render function that takes a container: HTMLElement parameter.`
     }

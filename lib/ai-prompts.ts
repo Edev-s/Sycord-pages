@@ -101,11 +101,25 @@ DESIGN SYSTEM REQUIREMENT:
 - ALL components MUST reference these tokens rather than hardcoding colors/fonts.
 - src/utils.ts MUST export reusable helper functions other files will need.
 
+RESPONSIVE LAYOUT REQUIREMENT:
+- EVERY page/section MUST be fully responsive across mobile (320px), tablet (768px), and desktop (1280px+).
+- Plan components with responsive grids: single-column on mobile, multi-column on desktop.
+- Navigation MUST include a mobile hamburger menu pattern (hidden on desktop, visible on mobile).
+- Images and media MUST use responsive sizing (max-w-full, aspect ratios).
+- Typography MUST scale: smaller on mobile, larger on desktop (text-sm → text-base → text-lg).
+
+FUNCTIONAL COMPLETENESS REQUIREMENT:
+- EVERY button in the design MUST have a corresponding click handler that performs a real action (navigate, toggle, submit, open modal, etc.).
+- EVERY navigation link MUST scroll to or render the corresponding section/page.
+- If the user requests multiple pages, plan a client-side router component (src/components/router.ts) that shows/hides page sections based on URL hash or navigation state.
+- Interactive elements (forms, dropdowns, modals, tabs) MUST be fully functional — no dead buttons or placeholder-only links.
+- Plan a dedicated component file for EACH distinct page or major section (e.g., src/components/hero.ts, src/components/about.ts, src/components/contact.ts).
+
 REQUIREMENTS:
 1.  **Vite Structure**: Follow the exact Vite project structure above. **index.html MUST be in the ROOT directory**, not public.
 2.  **TypeScript**: All source files in src/ must use .ts extension and be properly typed. Export shared interfaces from src/types.ts.
 3.  **Components**: Create modular components in src/components/ directory. Each component MUST import its types from ../types.
-4.  **Tailwind CSS**: Use Tailwind CSS classes. Include CDN in index.html for simplicity.
+4.  **Tailwind CSS**: Use Tailwind CSS utility classes for ALL styling. Include CDN in index.html. Use responsive prefixes (sm:, md:, lg:, xl:) for breakpoints. Use flex/grid utilities for layouts.
 5.  **Strict Syntax**: Use brackets [1], [2], etc. for file steps. Include [usedfor]...[usedfor] markers.
 6.  **Scale**: Plan for a COMPLETE experience (10-15 files typically).
 7.  **Cloudflare Pages Ready**: Structure must be deployable to Cloudflare Pages with Vite.
@@ -114,6 +128,7 @@ REQUIREMENTS:
     - tsconfig.json MUST use "target": "ES2020", "lib": ["ES2020", "DOM", "DOM.Iterable"], "moduleResolution": "Bundler", "noEmit": true
     - vite.config.ts MUST set build.outDir = 'dist'
 9.  **Connected Files**: Every component must properly import from types.ts and utils.ts. The entry point main.ts must import from all components.
+10. **Functional Interactivity**: Every button, link, and form MUST have working event handlers. No dead UI elements.
 
 CONVERSATION HISTORY:
 {{HISTORY}}
@@ -139,6 +154,23 @@ You generate ONE file at a time. Each file MUST properly connect to previously g
 *   **Color Palette:** Professional, cohesive, accessible (WCAG AA). Dark mode first.
 *   **Tailwind:** Use ONLY Tailwind utility classes. No custom CSS files unless absolutely necessary for complex animations.
 *   **Responsiveness:** Mobile-first approach. Grid/Flexbox for layouts.
+
+**RESPONSIVE LAYOUT RULES (MANDATORY — ALL COMPONENTS):**
+*   Write mobile-first HTML: default styles target small screens, then use Tailwind responsive prefixes (sm:, md:, lg:, xl:) to adjust for larger screens.
+*   **Grid layouts:** Use \`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3\` patterns. Never use fixed widths that break on mobile.
+*   **Navigation:** On mobile, navigation MUST collapse to a hamburger/toggle menu. Use a button with click handler to show/hide the nav links. Pattern: \`<nav class="hidden md:flex">\` for desktop links + a toggle button \`<button class="md:hidden">\` for mobile.
+*   **Typography:** Scale text responsively: \`text-sm md:text-base lg:text-lg\`. Headings: \`text-2xl md:text-3xl lg:text-4xl\`.
+*   **Spacing:** Use responsive padding/margin: \`p-4 md:p-6 lg:p-8\`, \`max-w-7xl mx-auto px-4\`.
+*   **Images/media:** Always use \`max-w-full h-auto\` or aspect-ratio utilities. Never use fixed pixel dimensions.
+*   **Containers:** Wrap page content in \`<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">\`.
+
+**INTERACTIVE ELEMENTS RULES (MANDATORY — ALL COMPONENTS):**
+*   **EVERY button** MUST have a working addEventListener click handler. No decorative-only buttons.
+*   **EVERY navigation link** MUST either scroll to a section (\`element.scrollIntoView({ behavior: 'smooth' })\`) or trigger a page/section change.
+*   **Forms** MUST have submit handlers that prevent default and process the form data (at minimum show a confirmation message).
+*   **Modals/dropdowns** MUST have open/close toggle functionality with proper event handlers.
+*   **Navigation between sections:** If the site has multiple pages/sections, use hash-based routing. Components should listen for \`hashchange\` events or accept a navigation callback. Pattern: \`window.location.hash = '#about'\` and \`window.addEventListener('hashchange', handler)\`.
+*   **Never generate a button or link without a functional handler.** If the action is cosmetic, use a \`<span>\` instead of \`<button>\`.
 
 **TECH STACK:**
 *   **Framework:** Vite (Vanilla TS or React-based if specified, but assume Vanilla TS + DOM manipulation for "simple" requests unless React is explicitly requested). Standardize on Vanilla TypeScript for maximum performance and simplicity unless otherwise specified.
@@ -212,10 +244,17 @@ Purpose: **{{USEDFOR}}**
 - **src/utils.ts**:
     - MUST import types from './types' if it uses any shared types.
     - MUST export pure, reusable helper functions.
+    - SHOULD include a navigate helper: \`export function navigateTo(hash: string): void { window.location.hash = hash; }\`
+    - SHOULD include a DOM helper: \`export function createElement(tag: string, classes: string, html?: string): HTMLElement\`
 - **src/components/*.ts**:
     - MUST import types from '../types'.
     - MUST export a named render/init function (e.g., \`export function renderHeader(container: HTMLElement): void\`).
     - The function MUST create DOM elements and append them to the container parameter.
+    - MUST use Tailwind responsive classes (sm:, md:, lg:) for ALL layout elements.
+    - MUST use \`container.innerHTML\` or \`document.createElement\` with responsive Tailwind classes.
+    - EVERY \`<button>\` element MUST have an \`addEventListener('click', handler)\` attached.
+    - EVERY \`<a>\` link MUST either navigate (\`href="#section"\`) or have a click handler.
+    - Navigation components MUST include a mobile hamburger toggle (visible on mobile, hidden on md+).
     - SHOULD import helpers from '../utils' when relevant.
 - **src/main.ts** (APPLICATION ENTRY POINT — CRITICAL):
     - MUST include \`import './style.css'\` as the FIRST import.
