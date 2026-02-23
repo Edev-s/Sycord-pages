@@ -6,7 +6,11 @@
 // ──────────────────────────────────────────────────────
 
 // ─────────── Configuration Constants ───────────
-// Tune these values to control memory/context behavior
+// Tune these values to control memory/context behavior:
+// - FULL_CONTENT_THRESHOLD: When to switch from full to hybrid mode
+// - SMART_CONTEXT_THRESHOLD: When to enable smart context selection
+// - RECENT_FILES_COUNT: Number of recent files to always include with full content
+// - CORE_FILES: Files that are always included with full content in smart context mode
 
 /** Threshold for switching from full content to hybrid (full + summary) mode */
 export const FULL_CONTENT_THRESHOLD = 10;
@@ -152,9 +156,12 @@ export function extractExportSummary(code: string): string {
 
 /**
  * Formats a file with its full content for context.
+ * @param file - The generated file to format
+ * @param includeLangHint - Whether to include language hint in code fence (extracts file extension)
  */
 function formatFullFileBlock(file: GeneratedFile, includeLangHint = false): string {
-  const langHint = includeLangHint ? file.name.split('.').pop() || '' : '';
+  // Extract file extension for syntax highlighting (e.g., 'ts' from 'src/utils.ts')
+  const langHint = includeLangHint ? (file.name.split('.').pop() || '') : '';
   return `
 --- FILE: ${file.name} (FULL) ---
 \`\`\`${langHint}
