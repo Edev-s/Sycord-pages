@@ -135,10 +135,12 @@ export async function POST(request: Request) {
     ]
 
     const isIndependent = INDEPENDENT_FILES.includes(currentTask.filename)
+    console.log(`[v0-API-DEBUG] Generating ${currentTask.filename} | Independent: ${isIndependent} | Context Files Available: ${previousFiles.length}`)
 
     if (!isIndependent) {
         // Files that strictly REQUIRE the app shell context (e.g. main.ts, components)
         const hasIndex = previousFiles.some(f => f.name === 'index.html')
+        console.log(`[v0-API-DEBUG] Dependency Check: index.html found? ${hasIndex}`)
 
         if (!hasIndex) {
             console.error(`[v0] RAG Error: index.html missing for ${currentTask.filename}`)
