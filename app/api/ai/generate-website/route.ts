@@ -10,6 +10,7 @@ import {
   type GeneratedFile,
 } from "@/lib/ai-memory"
 import { getSystemPrompts, getProjectPrompts } from "@/lib/ai-prompts"
+import { retrieveProjectFiles, mergeFileSources } from "@/lib/ai-rag"
 
 // API Configurations
 const GOOGLE_API_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
@@ -33,12 +34,45 @@ export async function POST(request: Request) {
     const { messages, instruction, model, generatedPages, projectId } = await request.json()
 
     // Parse generatedPages from frontend (array of { name, code })
-    const previousFiles: GeneratedFile[] = Array.isArray(generatedPages)
+    const frontendFiles: GeneratedFile[] = Array.isArray(generatedPages)
       ? generatedPages.map((p: { name: string; code: string }) => ({
           name: p.name,
           code: p.code,
         }))
       : []
+
+    // ── RAG Memory Retrieval ──────────────────────────────
+    // Pull all previously generated files from MongoDB.
+    // This ensures the AI always has full cross-file context,
+    // even if the frontend state was lost or incomplete.
+    // If retrieval fails, abort code generation.
+    let previousFiles: GeneratedFile[] = frontendFiles
+
+    if (projectId) {
+      console.log("[RAG] Initiating memory retrieval before code generation...")
+      const ragResult = await retrieveProjectFiles(projectId)
+
+      if (!ragResult.success) {
+        console.error("[RAG] ABORT - Memory retrieval failed:", ragResult.error)
+        console.error("[RAG] Debug info:", JSON.stringify(ragResult.debugInfo))
+        return NextResponse.json(
+          {
+            message: "Code generation aborted: failed to retrieve previously generated files from memory.",
+            ragError: ragResult.error,
+            ragDebug: ragResult.debugInfo,
+          },
+          { status: 500 }
+        )
+      }
+
+      // Merge RAG files with frontend files (frontend takes priority for recent edits)
+      previousFiles = mergeFileSources(ragResult.files, frontendFiles)
+
+      console.log(`[RAG] Context ready: ${previousFiles.length} files available for generation`)
+      console.log(`[RAG] Debug: retrieved=${ragResult.debugInfo.filesRetrieved}, hasIndex=${ragResult.debugInfo.hasIndexHtml}, time=${ragResult.debugInfo.retrievalTimeMs}ms`)
+    } else {
+      console.warn("[RAG] No projectId provided - skipping memory retrieval, using frontend files only")
+    }
 
     // Default to Gemini 2.0 Flash
     const modelId = model || "gemini-2.0-flash"
