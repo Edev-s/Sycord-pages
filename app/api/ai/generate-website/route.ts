@@ -119,10 +119,25 @@ export async function POST(request: Request) {
     console.log(`[v0] Generating file: ${currentTask.filename} (Task [${currentTask.number}])`)
 
     // Safety Check: If context is missing for non-initial files, abort.
-    // MODIFIED: index.html is now the FIRST file (Step 1).
-    // If we are not generating index.html, we MUST have index.html in our context.
+    // MODIFIED: index.html is the anchor, but we whitelist config/style/types files to allow order variations.
 
-    if (currentTask.filename !== 'index.html') {
+    // Files that can be generated WITHOUT context (no dependencies)
+    const INDEPENDENT_FILES = [
+        'index.html',
+        'package.json',
+        'tsconfig.json',
+        'vite.config.ts',
+        'src/types.ts',
+        'src/style.css',
+        'src/utils.ts',
+        '.gitignore',
+        'README.md'
+    ]
+
+    const isIndependent = INDEPENDENT_FILES.includes(currentTask.filename)
+
+    if (!isIndependent) {
+        // Files that strictly REQUIRE the app shell context (e.g. main.ts, components)
         const hasIndex = previousFiles.some(f => f.name === 'index.html')
 
         if (!hasIndex) {
