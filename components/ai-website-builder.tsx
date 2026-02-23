@@ -523,7 +523,11 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
         }),
       })
 
-      if (!response.ok) throw new Error("Generation failed")
+      if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ message: "Unknown API error" }))
+          throw new Error(errorData.message || `API Error: ${response.status}`)
+      }
+
       const data = await response.json()
 
       if (data.isComplete) {

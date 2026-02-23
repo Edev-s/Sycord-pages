@@ -62,9 +62,11 @@ export async function POST(request: Request) {
             }))
             console.log(`[v0] Loaded ${previousFiles.length} files from MongoDB for context.`)
         }
-      } catch (dbError) {
+      } catch (dbError: any) {
         console.error("[v0] Failed to fetch project pages from DB:", dbError)
-        // Fallback to previousFiles from request body is already set
+        return NextResponse.json({
+            message: `Context Retrieval Failed: Could not fetch project data from MongoDB. ${dbError.message}`
+        }, { status: 500 })
       }
     }
 
