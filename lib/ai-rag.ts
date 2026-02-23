@@ -65,6 +65,7 @@ export async function retrieveProjectFiles(projectId: string): Promise<RAGRetrie
     const project = user.projects[0]
     const pages = project.pages || []
 
+    // Map DB schema (name, content) → GeneratedFile (name, code)
     const files: GeneratedFile[] = pages.map((page: { name: string; content: string }) => ({
       name: page.name,
       code: page.content,
