@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
+import clientPromise from "@/lib/mongodb"
+import { ObjectId } from "mongodb"
 import {
   FILE_STRUCTURE,
   getShortTermMemory,
@@ -33,12 +35,40 @@ export async function POST(request: Request) {
     const { messages, instruction, model, generatedPages, projectId } = await request.json()
 
     // Parse generatedPages from frontend (array of { name, code })
-    const previousFiles: GeneratedFile[] = Array.isArray(generatedPages)
+    // NOTE: We now primarily fetch from DB, but keep this as fallback or partial context if needed.
+    let previousFiles: GeneratedFile[] = Array.isArray(generatedPages)
       ? generatedPages.map((p: { name: string; code: string }) => ({
           name: p.name,
           code: p.code,
         }))
       : []
+
+    // Fetch latest project pages from MongoDB to ensure RAG accuracy
+    if (projectId) {
+      try {
+        const client = await clientPromise
+        const db = client.db()
+        const project = await db.collection("users").findOne(
+          { "projects._id": new ObjectId(projectId) },
+          { projection: { "projects.$": 1 } }
+        )
+
+        if (project && project.projects?.[0]?.pages) {
+            const dbPages = project.projects[0].pages
+            // Map DB pages to GeneratedFile format
+            previousFiles = dbPages.map((p: any) => ({
+                name: p.name,
+                code: p.content
+            }))
+            console.log(`[v0] Loaded ${previousFiles.length} files from MongoDB for context.`)
+        }
+      } catch (dbError: any) {
+        console.error("[v0] Failed to fetch project pages from DB:", dbError)
+        return NextResponse.json({
+            message: `Context Retrieval Failed: Could not fetch project data from MongoDB. ${dbError.message}`
+        }, { status: 500 })
+      }
+    }
 
     // Default to Gemini 2.0 Flash
     const modelId = model || "gemini-2.0-flash"
@@ -89,6 +119,45 @@ export async function POST(request: Request) {
     }
 
     console.log(`[v0] Generating file: ${currentTask.filename} (Task [${currentTask.number}])`)
+
+    // Safety Check: If context is missing for non-initial files, abort.
+    // MODIFIED: index.html is the anchor, but we whitelist config/style/types files to allow order variations.
+
+    // Files that can be generated WITHOUT context (no dependencies)
+    const INDEPENDENT_FILES = [
+        'index.html',
+        'package.json',
+        'tsconfig.json',
+        'vite.config.ts',
+        'src/types.ts',
+        'src/style.css',
+        'src/utils.ts',
+        '.gitignore',
+        'README.md'
+    ]
+
+    const isIndependent = INDEPENDENT_FILES.includes(currentTask.filename)
+    console.log(`[v0-API-DEBUG] Generating ${currentTask.filename} | Independent: ${isIndependent} | Context Files Available: ${previousFiles.length}`)
+
+    if (!isIndependent) {
+        // Files that strictly REQUIRE the app shell context (e.g. main.ts, components)
+        const hasIndex = previousFiles.some(f => f.name === 'index.html')
+        console.log(`[v0-API-DEBUG] Dependency Check: index.html found? ${hasIndex}`)
+
+        if (!hasIndex) {
+            console.error(`[v0] RAG Error: index.html missing for ${currentTask.filename}`)
+            return NextResponse.json({
+                message: "RAG Error: index.html not found in database. Generation cannot proceed without the anchor file."
+            }, { status: 400 })
+        }
+
+        if (previousFiles.length === 0) {
+            console.error(`[v0] Critical Error: Context lost for ${currentTask.filename}`)
+            return NextResponse.json({
+                message: "Context Lost: The AI cannot see previous files. Please refresh the page and try again."
+            }, { status: 400 })
+        }
+    }
 
     // Determine file type
     const fileExt = currentTask.filename.split('.').pop() || ''

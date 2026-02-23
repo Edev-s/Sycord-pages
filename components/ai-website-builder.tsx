@@ -477,10 +477,37 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
 
   const processNextStep = async (currentInstruction: string, currentHistory: Message[]) => {
     setStep("coding")
-    setCurrentPlan("Generating next file...")
 
+    // 1. Identify Next File
     const nextFileMatch = /\[\d+\]\s*([^\s:]+)/.exec(currentInstruction)
-    if (nextFileMatch) setActiveFile(nextFileMatch[1])
+    let filename = "next file"
+    if (nextFileMatch) {
+        filename = nextFileMatch[1]
+        setActiveFile(filename)
+    }
+
+    // 2. Visible "Reading Context" Step
+    setCurrentPlan(`Reading project context for ${filename}...`)
+
+    // Artificial delay to make the step visible to the user
+    await new Promise(r => setTimeout(r, 800))
+
+    // 3. Safety Check: Context Verification (Abort if lost)
+    // If we are not generating the first few files (package.json, tsconfig, etc.), we MUST have context.
+    const isInitialFile = ['package.json', 'tsconfig.json', 'vite.config.ts'].includes(filename)
+    if (!isInitialFile && generatedPages.length === 0) {
+        setStep("idle")
+        setError("Generation Aborted: Project context lost. The AI cannot see previous files.")
+        setMessages(prev => [...prev, {
+            id: Date.now().toString(),
+            role: "system",
+            content: "CRITICAL ERROR: Memory context was lost. Generation aborted to prevent corrupted files."
+        }])
+        return
+    }
+
+    // 4. Update Status to Generating
+    setCurrentPlan(`Generating ${filename}...`)
 
     try {
       const response = await fetch("/api/ai/generate-website", {
@@ -496,7 +523,11 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
         }),
       })
 
-      if (!response.ok) throw new Error("Generation failed")
+      if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ message: "Unknown API error" }))
+          throw new Error(errorData.message || `API Error: ${response.status}`)
+      }
+
       const data = await response.json()
 
       if (data.isComplete) {

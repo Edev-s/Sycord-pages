@@ -35,9 +35,13 @@ export async function POST(request: Request) {
     // Combine history for context
     const historyText = messages.map((m: any) => `${m.role.toUpperCase()}: ${m.content}`).join("\n\n")
 
-    const finalPrompt = systemContextTemplate
+    let finalPrompt = systemContextTemplate
         .replace("{{HISTORY}}", historyText)
         .replace("{{REQUEST}}", lastUserMessage.content)
+
+    // FORCE INDEX.HTML FIRST: Inject a critical override to ensure the planner respects the order
+    // This is necessary because older database-stored prompts might not have this rule.
+    finalPrompt += `\n\nCRITICAL SYSTEM OVERRIDE:\n1. You MUST generate 'index.html' as the very first file [1]. This is required for RAG context.\n2. DO NOT GENERATE CODE CONTENT. Only output the list of files in the [N] format.\n3. If you generate code in this step, the system will crash.`
 
     console.log(`[v0] Generating plan with Google model: ${PLAN_MODEL}`)
 
