@@ -18,7 +18,7 @@ export const SMART_CONTEXT_THRESHOLD = 12;
 export const RECENT_FILES_COUNT = 3;
 
 /** Core files that are always included with full content in smart context mode */
-export const CORE_FILES = ['src/types.ts', 'src/style.css', 'package.json'] as const;
+export const CORE_FILES = ['src/types.ts', 'src/style.css', 'src/utils.ts', 'src/main.ts', 'package.json'] as const;
 
 // ─────────── Types & Interfaces ───────────
 
@@ -275,13 +275,23 @@ function isRelevantForTask(fileName: string, currentTask: string): boolean {
   const taskLower = currentTask.toLowerCase();
   const nameLower = fileName.toLowerCase();
 
-  // When building components, include utils
-  if (taskLower.includes('components/') && nameLower.endsWith('utils.ts')) {
+  // When building components, include utils and types
+  if (taskLower.includes('components/') && (nameLower.endsWith('utils.ts') || nameLower.endsWith('types.ts'))) {
     return true;
   }
 
-  // When building main.ts, all components are relevant
-  if (taskLower.includes('main.ts') && nameLower.includes('components/')) {
+  // When building main.ts, ALL src/ files are relevant (it orchestrates everything)
+  if (taskLower.includes('main.ts') && nameLower.startsWith('src/')) {
+    return true;
+  }
+
+  // When building index.html, main.ts is relevant (to know the entry point)
+  if (taskLower.includes('index.html') && nameLower.includes('main.ts')) {
+    return true;
+  }
+
+  // When building utils, types is relevant
+  if (taskLower.includes('utils.ts') && nameLower.endsWith('types.ts')) {
     return true;
   }
 
