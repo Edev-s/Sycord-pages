@@ -159,7 +159,7 @@ export async function POST(request: Request) {
     } else if (isTS) {
       fileRules = `- Write valid TypeScript. Use 'export' for modules. Import from relative paths. ALL functions must have explicit return types.`
     }
-    if (isJSON) fileRules = `- Return valid JSON only. package.json MUST include @heroui/react, framer-motion, react, react-dom in dependencies.`
+    if (isJSON) fileRules = `- Return valid JSON only. package.json MUST include "@heroui/react": "^2" (NOT ^1), "framer-motion": "^11", "react": "^18", "react-dom": "^18" in dependencies. CRITICAL: @heroui/react version 1.x does NOT exist — always use "^2".`
     if (fileExt === 'css') fileRules = `- Write valid CSS. Start with @tailwind base; @tailwind components; @tailwind utilities; directives. Include html { scroll-behavior: smooth; }. Can include additional global styles.`
     if (fileExt === 'js' && currentTask.filename.includes('tailwind.config')) {
       fileRules = `- MUST import { heroui } from "@heroui/react". MUST include content paths for HeroUI theme: "./node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}". MUST include heroui() in plugins array. Use darkMode: "class".`

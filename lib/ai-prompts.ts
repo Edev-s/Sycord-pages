@@ -61,7 +61,7 @@ You MUST order files so that DEPENDENCIES are generated BEFORE dependents.
 The AI generates files one-by-one; each file can reference only previously generated files.
 Follow this order strictly:
 
-1. package.json         (config -- MUST include @heroui/react, react, react-dom, tailwindcss)
+1. package.json         (config -- MUST include "@heroui/react": "^2", react, react-dom, tailwindcss)
 2. tsconfig.json        (config -- no deps)
 3. vite.config.ts       (config -- with @vitejs/plugin-react)
 4. tailwind.config.js   (config -- MUST include heroui plugin)
@@ -115,7 +115,7 @@ HEROUI COMPONENT LIBRARY REQUIREMENT (MANDATORY):
 - Feedback: Use \`<Spinner>\`, \`<Progress>\`, \`<Skeleton>\`, \`<Tooltip>\`
 - Tabs/Accordion: Use \`<Tabs>\`, \`<Tab>\`, \`<Accordion>\`, \`<AccordionItem>\`
 - App wrapper: src/App.tsx MUST wrap everything in \`<HeroUIProvider>\`
-- package.json MUST include: "@heroui/react", "framer-motion" (HeroUI peer dependency)
+- package.json MUST include: "@heroui/react": "^2" (version 2.x — NOT 1.x), "framer-motion": "^11" (HeroUI peer dependency)
 
 DESIGN SYSTEM REQUIREMENT:
 - src/types.ts MUST define shared interfaces (e.g., NavItem, SiteConfig, ComponentProps).
@@ -155,7 +155,7 @@ REQUIREMENTS:
 6.  **Scale**: Plan for a COMPLETE experience (12-18 files typically).
 7.  **Cloudflare Pages Ready**: Structure must be deployable to Cloudflare Pages with Vite.
 8.  **Configuration**:
-    - package.json MUST include "build": "vite build" and dependencies: @heroui/react, framer-motion, react, react-dom, tailwindcss, @vitejs/plugin-react, vite, typescript
+    - package.json MUST include "build": "vite build" and dependencies: "@heroui/react": "^2", "framer-motion": "^11", react, react-dom, tailwindcss, @vitejs/plugin-react, vite, typescript
     - tailwind.config.js MUST include: content paths and heroui() plugin from @heroui/react
     - vite.config.ts MUST use @vitejs/plugin-react and set build.outDir = 'dist'
 9.  **Connected Files**: Every component must properly import from types.ts and utils.ts. App.tsx must import all components.
@@ -267,7 +267,8 @@ Purpose: **{{USEDFOR}}**
 **SPECIFIC RULES PER FILE:**
 - **package.json**:
     - Must include "scripts": { "dev": "vite", "build": "vite build", "preview": "vite preview", "check": "tsc --noEmit" }
-    - Must include dependencies: "@heroui/react", "framer-motion", "react", "react-dom", "tailwindcss", "autoprefixer", "postcss"
+    - Must include dependencies: "@heroui/react": "^2", "framer-motion": "^11", "react": "^18", "react-dom": "^18", "tailwindcss": "^3", "autoprefixer": "^10", "postcss": "^8"
+    - CRITICAL: @heroui/react version MUST be "^2" (2.x). Version 1.x does NOT exist. Do NOT use "^1.0.0" or "latest".
     - Must include devDependencies: "vite", "typescript", "@vitejs/plugin-react", "@types/react", "@types/react-dom"
 - **tsconfig.json**:
     - Must include "compilerOptions": {
