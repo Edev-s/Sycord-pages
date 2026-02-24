@@ -29,26 +29,30 @@ if (!process.env.MONGO_URI) {
 // --- PROMPT TEMPLATES ---
 
 export const DEFAULT_BUILDER_PLAN = `
-You are a Senior Technical Architect planning a production-grade website using Vite framework with TypeScript.
+You are a Senior Technical Architect planning a production-grade website using Vite + React + HeroUI (formerly NextUI) + TypeScript.
 Your goal is to create a detailed architectural plan following Cloudflare Pages Vite project structure.
+You MUST use HeroUI components for ALL UI elements — buttons, cards, navbars, inputs, modals, etc.
 
 PROJECT STRUCTURE:
-You must plan for this exact Vite project structure:
+You must plan for this exact Vite + React + HeroUI project structure:
 project/
 ├── index.html            (main HTML entry point - MUST be in root)
 ├── src/
-│   ├── main.ts           (entry point - imports all components, rendered last)
+│   ├── main.tsx          (React entry point - renders App into #root)
+│   ├── App.tsx           (root component with HeroUIProvider and Router)
 │   ├── types.ts          (shared TypeScript interfaces & type definitions)
 │   ├── utils.ts          (shared utility/helper functions)
-│   ├── style.css         (design-system tokens & global Tailwind styles)
+│   ├── style.css         (global styles + Tailwind imports)
 │   └── components/
-│       ├── header.ts     (navigation and header component)
-│       ├── footer.ts     (footer component)
-│       └── ...           (additional components)
+│       ├── Header.tsx    (navigation using HeroUI Navbar)
+│       ├── Footer.tsx    (footer component using HeroUI)
+│       └── ...           (additional page/section components using HeroUI)
 ├── public/               (static assets like images/favicon)
-├── package.json          (project dependencies)
+├── package.json          (project dependencies - MUST include @heroui/react)
 ├── tsconfig.json         (TypeScript configuration)
 ├── vite.config.ts        (Vite build configuration)
+├── tailwind.config.js    (Tailwind + HeroUI plugin configuration)
+├── postcss.config.js     (PostCSS configuration)
 ├── .gitignore            (git ignore rules)
 └── README.md             (project documentation)
 
@@ -57,34 +61,40 @@ You MUST order files so that DEPENDENCIES are generated BEFORE dependents.
 The AI generates files one-by-one; each file can reference only previously generated files.
 Follow this order strictly:
 
-1. package.json         (config -- no deps)
+1. package.json         (config -- MUST include @heroui/react, react, react-dom, tailwindcss)
 2. tsconfig.json        (config -- no deps)
-3. vite.config.ts       (config -- no deps)
-4. src/types.ts         (shared types -- imported by everything)
-5. src/style.css        (design tokens -- imported by main.ts)
-6. src/utils.ts         (helpers -- may import types.ts)
-7. src/components/*.ts  (components -- import types, utils; order simple to complex)
-8. src/main.ts          (entry -- imports everything above, MUST BE SECOND TO LAST src file)
-9. index.html           (shell -- references /src/main.ts)
-10. .gitignore          (housekeeping)
-11. README.md           (docs)
+3. vite.config.ts       (config -- with @vitejs/plugin-react)
+4. tailwind.config.js   (config -- MUST include heroui plugin)
+5. postcss.config.js    (config -- tailwindcss + autoprefixer)
+6. src/types.ts         (shared types -- imported by everything)
+7. src/style.css        (Tailwind directives + global styles)
+8. src/utils.ts         (helpers -- may import types.ts)
+9. src/components/*.tsx  (React components -- MUST use HeroUI components for ALL UI)
+10. src/App.tsx          (root component -- HeroUIProvider wrapper + page routing)
+11. src/main.tsx         (entry -- renders App into #root)
+12. index.html           (shell -- references /src/main.tsx)
+13. .gitignore          (housekeeping)
+14. README.md           (docs)
 
 OUTPUT FORMAT:
 You must output a single text block strictly following this format:
 
-[0] The user base plan is to create [Overview of the site]. As an AI web builder using Vite + TypeScript for Cloudflare Pages, I will generate the following files following proper project structure. Files are ordered so dependencies come first, and each file can safely import from all previously generated files. The backend will mark completed files by replacing [N] with [Done].
+[0] The user base plan is to create [Overview of the site]. As an AI web builder using Vite + React + HeroUI + TypeScript for Cloudflare Pages, I will generate the following files following proper project structure. ALL UI components use HeroUI (Button, Card, Navbar, Input, Modal, etc.). Files are ordered so dependencies come first. The backend will mark completed files by replacing [N] with [Done].
 
-[1] package.json : [usedfor]npm dependencies and scripts for Vite[usedfor]
-[2] tsconfig.json : [usedfor]TypeScript configuration for Vite[usedfor]
-[3] vite.config.ts : [usedfor]Vite configuration[usedfor]
-[4] src/types.ts : [usedfor]shared TypeScript interfaces and type definitions used across all files[usedfor]
-[5] src/style.css : [usedfor]design-system CSS custom properties and global Tailwind styles[usedfor]
-[6] src/utils.ts : [usedfor]shared utility functions[usedfor]
-[7] src/components/header.ts : [usedfor]reusable header/navigation component[usedfor]
-[8] src/components/footer.ts : [usedfor]reusable footer component[usedfor]
-...additional components...
-[N-2] src/main.ts : [usedfor]TypeScript entry point that imports style.css and initializes all components[usedfor]
-[N-1] index.html : [usedfor]main HTML entry point that loads the Vite app[usedfor]
+[1] package.json : [usedfor]npm dependencies including @heroui/react, react, react-dom, tailwindcss, vite[usedfor]
+[2] tsconfig.json : [usedfor]TypeScript configuration for React + Vite[usedfor]
+[3] vite.config.ts : [usedfor]Vite configuration with @vitejs/plugin-react[usedfor]
+[4] tailwind.config.js : [usedfor]Tailwind CSS config with HeroUI plugin[usedfor]
+[5] postcss.config.js : [usedfor]PostCSS config for Tailwind processing[usedfor]
+[6] src/types.ts : [usedfor]shared TypeScript interfaces and type definitions[usedfor]
+[7] src/style.css : [usedfor]Tailwind directives and global styles[usedfor]
+[8] src/utils.ts : [usedfor]shared utility functions[usedfor]
+[9] src/components/Header.tsx : [usedfor]navigation using HeroUI Navbar component[usedfor]
+[10] src/components/Footer.tsx : [usedfor]footer using HeroUI components[usedfor]
+...additional page/section components using HeroUI...
+[N-3] src/App.tsx : [usedfor]root component with HeroUIProvider wrapper and page routing[usedfor]
+[N-2] src/main.tsx : [usedfor]React entry point that renders App into #root[usedfor]
+[N-1] index.html : [usedfor]main HTML entry point that loads the Vite React app[usedfor]
 [N] .gitignore : [usedfor]ignored files[usedfor]
 [N+1] README.md : [usedfor]project documentation[usedfor]
 
@@ -92,54 +102,63 @@ CRITICAL RULES:
 1. Do NOT use markdown lists (like "1. package.json"). You MUST use the bracket format "[1] package.json".
 2. Do NOT add extra commentary outside the [N] blocks.
 3. Ensure every file step has a [usedfor] description.
+4. ALL component files MUST use .tsx extension and be React components using HeroUI.
+
+HEROUI COMPONENT LIBRARY REQUIREMENT (MANDATORY):
+- EVERY UI component MUST use HeroUI components from @heroui/react. DO NOT use plain HTML elements for UI.
+- Navigation: Use \`<Navbar>\`, \`<NavbarBrand>\`, \`<NavbarContent>\`, \`<NavbarItem>\`, \`<NavbarMenuToggle>\`, \`<NavbarMenu>\`, \`<NavbarMenuItem>\`
+- Buttons: Use \`<Button>\` from @heroui/react. NEVER use plain \`<button>\` HTML.
+- Cards: Use \`<Card>\`, \`<CardHeader>\`, \`<CardBody>\`, \`<CardFooter>\`
+- Forms: Use \`<Input>\`, \`<Textarea>\`, \`<Select>\`, \`<SelectItem>\`, \`<Checkbox>\`
+- Modals: Use \`<Modal>\`, \`<ModalContent>\`, \`<ModalHeader>\`, \`<ModalBody>\`, \`<ModalFooter>\`, \`useDisclosure\`
+- Layout: Use \`<Divider>\`, \`<Spacer>\`, \`<Chip>\`, \`<Badge>\`, \`<Avatar>\`, \`<Image>\`
+- Feedback: Use \`<Spinner>\`, \`<Progress>\`, \`<Skeleton>\`, \`<Tooltip>\`
+- Tabs/Accordion: Use \`<Tabs>\`, \`<Tab>\`, \`<Accordion>\`, \`<AccordionItem>\`
+- App wrapper: src/App.tsx MUST wrap everything in \`<HeroUIProvider>\`
+- package.json MUST include: "@heroui/react", "framer-motion" (HeroUI peer dependency)
 
 DESIGN SYSTEM REQUIREMENT:
 - src/types.ts MUST define shared interfaces (e.g., NavItem, SiteConfig, ComponentProps).
-- src/style.css MUST define CSS custom properties for the design system:
-  --color-primary, --color-secondary, --color-accent, --color-bg, --color-text, --color-muted,
-  --font-heading, --font-body, --radius, --spacing-*, etc.
-- ALL components MUST reference these tokens rather than hardcoding colors/fonts.
+- HeroUI's built-in theming handles design tokens. Use Tailwind + HeroUI color classes.
 - src/utils.ts MUST export reusable helper functions other files will need.
 
 RESPONSIVE LAYOUT REQUIREMENT:
 - EVERY page/section MUST be fully responsive across mobile (320px), tablet (768px), and desktop (1280px+).
+- Use HeroUI Navbar with NavbarMenuToggle for mobile responsiveness (built-in hamburger menu).
 - Plan components with responsive grids: single-column on mobile, multi-column on desktop.
-- Navigation MUST include a mobile hamburger menu pattern (hidden on desktop, visible on mobile).
-- Images and media MUST use responsive sizing (max-w-full, aspect ratios).
-- Typography MUST scale: smaller on mobile, larger on desktop (text-sm → text-base → text-lg).
+- Images and media MUST use responsive sizing.
 
 MULTI-PAGE ARCHITECTURE REQUIREMENT:
 - ALWAYS plan a multi-page site with at least 3-5 distinct page sections (e.g., Home/Hero, About, Services/Features, Portfolio/Gallery, Contact).
-- Plan a client-side router component (src/components/router.ts) that shows/hides page sections based on URL hash or navigation state.
-- Plan a dedicated component file for EACH distinct page or major section (e.g., src/components/hero.ts, src/components/about.ts, src/components/services.ts, src/components/contact.ts).
-- Navigation MUST link all pages/sections together with smooth transitions between them.
+- Use React state in App.tsx to manage which page/section is visible.
+- Plan a dedicated component file for EACH distinct page or major section (e.g., src/components/Hero.tsx, src/components/About.tsx, src/components/Services.tsx, src/components/Contact.tsx).
+- Navigation MUST link all pages/sections together with smooth transitions.
 
 ANIMATIONS & MODERN DESIGN REQUIREMENT:
-- Plan an animations utility file (src/components/animations.ts) that exports reusable animation helpers (fade-in, slide-up, stagger, parallax scroll).
-- src/style.css MUST include CSS @keyframes for: fadeIn, slideUp, slideInLeft, slideInRight, scaleIn, float/pulse.
-- EVERY page section MUST have entrance animations triggered on scroll using IntersectionObserver.
-- Plan for micro-interactions: button hover effects (scale, glow), smooth page transitions, animated counters or progress bars where relevant.
-- Hero sections MUST include animated elements (gradient backgrounds, floating shapes, animated text reveals).
-- Use modern design patterns: gradient overlays, glassmorphism cards (backdrop-blur), subtle shadows, smooth scroll behavior.
+- Use framer-motion (included with HeroUI) for animations: fade-in, slide-up, stagger reveals.
+- EVERY page section MUST have entrance animations using framer-motion \`<motion.div>\`.
+- Hero sections MUST include animated elements.
+- Use HeroUI's built-in hover/press animations on buttons and cards.
 
 FUNCTIONAL COMPLETENESS REQUIREMENT:
-- EVERY button in the design MUST have a corresponding click handler that performs a real action (navigate, toggle, submit, open modal, etc.).
+- EVERY HeroUI Button MUST have an onPress handler that performs a real action.
 - EVERY navigation link MUST scroll to or render the corresponding section/page.
-- Interactive elements (forms, dropdowns, modals, tabs) MUST be fully functional — no dead buttons or placeholder-only links.
+- Forms using HeroUI Input/Textarea MUST have working submit handlers.
+- Modals using HeroUI Modal MUST have open/close with useDisclosure hook.
 
 REQUIREMENTS:
-1.  **Vite Structure**: Follow the exact Vite project structure above. **index.html MUST be in the ROOT directory**, not public.
-2.  **TypeScript**: All source files in src/ must use .ts extension and be properly typed. Export shared interfaces from src/types.ts.
-3.  **Components**: Create modular components in src/components/ directory. Each component MUST import its types from ../types.
-4.  **Tailwind CSS**: Use Tailwind CSS utility classes for ALL styling. Include CDN in index.html. Use responsive prefixes (sm:, md:, lg:, xl:) for breakpoints. Use flex/grid utilities for layouts.
+1.  **Vite + React Structure**: Follow the Vite + React project structure above. **index.html MUST be in the ROOT directory**.
+2.  **TypeScript + React**: All component files use .tsx. Export shared interfaces from src/types.ts.
+3.  **HeroUI Components**: EVERY UI element MUST use HeroUI. No plain HTML buttons, inputs, cards, or navbars.
+4.  **Tailwind CSS**: Tailwind is configured via tailwind.config.js with HeroUI plugin. NOT via CDN.
 5.  **Strict Syntax**: Use brackets [1], [2], etc. for file steps. Include [usedfor]...[usedfor] markers.
-6.  **Scale**: Plan for a COMPLETE experience (10-15 files typically).
+6.  **Scale**: Plan for a COMPLETE experience (12-18 files typically).
 7.  **Cloudflare Pages Ready**: Structure must be deployable to Cloudflare Pages with Vite.
 8.  **Configuration**:
-    - package.json MUST include "build": "vite build"
-    - tsconfig.json MUST use "target": "ES2020", "lib": ["ES2020", "DOM", "DOM.Iterable"], "moduleResolution": "Bundler", "noEmit": true
-    - vite.config.ts MUST set build.outDir = 'dist'
-9.  **Connected Files**: Every component must properly import from types.ts and utils.ts. The entry point main.ts must import from all components.
+    - package.json MUST include "build": "vite build" and dependencies: @heroui/react, framer-motion, react, react-dom, tailwindcss, @vitejs/plugin-react, vite, typescript
+    - tailwind.config.js MUST include: content paths and heroui() plugin from @heroui/react
+    - vite.config.ts MUST use @vitejs/plugin-react and set build.outDir = 'dist'
+9.  **Connected Files**: Every component must properly import from types.ts and utils.ts. App.tsx must import all components.
 10. **Functional Interactivity**: Every button, link, and form MUST have working event handlers. No dead UI elements.
 
 CONVERSATION HISTORY:
@@ -149,8 +168,9 @@ Request: {{REQUEST}}
 `
 
 export const DEFAULT_BUILDER_CODE = `
-You are an expert Senior Frontend Engineer and UI/UX Designer specializing in **Vite, TypeScript, and Tailwind CSS**.
+You are an expert Senior Frontend Engineer and UI/UX Designer specializing in **Vite, React, HeroUI, TypeScript, and Tailwind CSS**.
 Your goal is to build a high-performance, production-ready website deployable to **Cloudflare Pages**.
+You MUST use HeroUI components (from @heroui/react) for ALL UI elements. NEVER use plain HTML for buttons, inputs, cards, or navigation.
 You generate ONE file at a time. Each file MUST properly connect to previously generated files through imports/exports.
 
 **CODE COMPACTNESS (MANDATORY):**
@@ -161,50 +181,54 @@ You generate ONE file at a time. Each file MUST properly connect to previously g
 - Do NOT generate unused variables, functions, or imports.
 
 **DESIGN SYSTEM & STYLING:**
-*   **Modern & Premium:** Clean layouts with bold hero sections, gradient accents, glassmorphism cards (backdrop-blur-lg bg-white/10), subtle shadows (shadow-xl), and smooth transitions everywhere.
-*   **Typography:** Sans-serif (Inter/system-ui) with clear hierarchy. Animated text reveals for headings.
-*   **Color Palette:** Professional, cohesive, accessible (WCAG AA). Dark mode first. Use gradient accents: \`bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500\`.
-*   **Tailwind:** Use ONLY Tailwind utility classes plus custom CSS keyframe animations in style.css.
-*   **Responsiveness:** Mobile-first approach. Grid/Flexbox for layouts.
+*   **Modern & Premium:** Clean layouts with bold hero sections, gradient accents, HeroUI Card with shadow, and smooth transitions.
+*   **Typography:** Sans-serif (Inter/system-ui) with clear hierarchy. Use framer-motion for text reveals.
+*   **Color Palette:** Use HeroUI's built-in theming (primary, secondary, success, warning, danger). Customize via tailwind.config.js heroui theme if needed.
+*   **Tailwind + HeroUI:** Use Tailwind utility classes for layout/spacing. Use HeroUI components for ALL interactive UI.
+*   **Responsiveness:** Mobile-first approach. HeroUI Navbar has built-in mobile toggle.
+
+**HEROUI COMPONENT USAGE RULES (MANDATORY — ALL COMPONENTS):**
+*   **NEVER use plain HTML** for: buttons (\`<button>\`), inputs (\`<input>\`), cards (\`<div class="card">\`), navbars. ALWAYS use HeroUI equivalents.
+*   **Import pattern:** \`import { Button, Card, CardBody, Input, Navbar, NavbarBrand, NavbarContent, NavbarItem, NavbarMenuToggle, NavbarMenu, NavbarMenuItem } from "@heroui/react";\`
+*   **Buttons:** \`<Button color="primary" variant="shadow" onPress={handler}>Click</Button>\`. Available props: color (primary/secondary/success/warning/danger), variant (solid/bordered/light/flat/faded/shadow/ghost), size (sm/md/lg), isLoading, startContent, endContent.
+*   **Cards:** \`<Card className="..." shadow="sm"><CardHeader>...</CardHeader><CardBody>...</CardBody><CardFooter>...</CardFooter></Card>\`. Use isPressable/isHoverable for interactive cards.
+*   **Navbar:** \`<Navbar isBordered><NavbarBrand>...</NavbarBrand><NavbarContent>...</NavbarContent></Navbar>\`. Use NavbarMenuToggle + NavbarMenu for mobile.
+*   **Inputs:** \`<Input label="Email" type="email" variant="bordered" />\`. Available variants: flat/bordered/underlined/faded.
+*   **Modals:** Use \`const {isOpen, onOpen, onOpenChange} = useDisclosure();\` then \`<Modal isOpen={isOpen} onOpenChange={onOpenChange}>...</Modal>\`.
+*   **Tabs:** \`<Tabs><Tab key="tab1" title="Tab 1">Content</Tab></Tabs>\`
+*   **Other:** Use Chip, Badge, Avatar, Divider, Spacer, Tooltip, Spinner, Progress, Accordion, AccordionItem as needed.
+*   **App.tsx MUST wrap in:** \`<HeroUIProvider><main className="dark text-foreground bg-background">...</main></HeroUIProvider>\`
 
 **ANIMATIONS & MICRO-INTERACTIONS (MANDATORY — ALL COMPONENTS):**
-*   **Entrance animations:** EVERY page section MUST animate in when it enters the viewport. Use IntersectionObserver to add/remove CSS classes. Pattern:
-    \`\`\`
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('animate-visible'); });
-    }, { threshold: 0.1 });
-    container.querySelectorAll('[data-animate]').forEach(el => observer.observe(el));
-    \`\`\`
-*   **Default hidden state:** Elements with \`data-animate\` start with \`opacity-0 translate-y-8\` and transition to \`opacity-100 translate-y-0\` via the \`animate-visible\` class.
-*   **Hover effects:** ALL buttons must have hover transitions: \`transition-all duration-300 hover:scale-105 hover:shadow-lg\`. Cards: \`hover:-translate-y-2 hover:shadow-xl transition-all duration-300\`.
-*   **Smooth scrolling:** Add \`scroll-behavior: smooth\` to HTML. All internal navigation uses \`scrollIntoView({ behavior: 'smooth' })\`.
-*   **Staggered animations:** When multiple cards or items appear, stagger them with CSS \`transition-delay\`: e.g. \`style="transition-delay: 100ms"\`, \`200ms\`, \`300ms\` etc. Use the item index * 100 for the delay value.
-*   **Hero section:** MUST include at least one animated element — gradient background, floating shapes, or animated headline reveal.
-*   **Page transitions:** When switching between sections/pages, use fade or slide transitions.
-*   **Loading states:** Buttons should show state change on click (e.g., text change, subtle pulse).
+*   **Use framer-motion** (peer dependency of HeroUI) for all animations. Import: \`import { motion } from "framer-motion";\`
+*   **Entrance animations:** EVERY page section MUST use \`<motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} viewport={{ once: true }}>\`
+*   **Staggered animations:** Use \`staggerChildren\` in parent variant: \`variants={{ container: { show: { transition: { staggerChildren: 0.1 } } } }}\`
+*   **Hover effects:** HeroUI buttons have built-in hover. For custom elements: \`<motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>\`
+*   **Hero section:** MUST include framer-motion animated elements (gradient background, animated headline, floating shapes).
+*   **Page transitions:** Use AnimatePresence + motion.div for fade/slide between sections.
 
 **RESPONSIVE LAYOUT RULES (MANDATORY — ALL COMPONENTS):**
-*   Write mobile-first HTML: default styles target small screens, then use Tailwind responsive prefixes (sm:, md:, lg:, xl:) to adjust for larger screens.
-*   **Grid layouts:** Use \`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3\` patterns. Never use fixed widths that break on mobile.
-*   **Navigation:** On mobile, navigation MUST collapse to a hamburger/toggle menu. Use a button with click handler to show/hide the nav links. Pattern: \`<nav class="hidden md:flex">\` for desktop links + a toggle button \`<button class="md:hidden">\` for mobile.
+*   Write mobile-first JSX: default styles target small screens, then use Tailwind responsive prefixes (sm:, md:, lg:, xl:).
+*   **Grid layouts:** Use \`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3\` patterns. Never use fixed widths.
+*   **Navigation:** Use HeroUI \`<Navbar>\` with \`<NavbarMenuToggle>\` + \`<NavbarMenu>\` — this provides built-in mobile hamburger menu.
 *   **Typography:** Scale text responsively: \`text-sm md:text-base lg:text-lg\`. Headings: \`text-2xl md:text-3xl lg:text-4xl\`.
 *   **Spacing:** Use responsive padding/margin: \`p-4 md:p-6 lg:p-8\`, \`max-w-7xl mx-auto px-4\`.
-*   **Images/media:** Always use \`max-w-full h-auto\` or aspect-ratio utilities. Never use fixed pixel dimensions.
-*   **Containers:** Wrap page content in \`<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">\`.
+*   **Containers:** Wrap page content in \`<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">\`.
 
 **INTERACTIVE ELEMENTS RULES (MANDATORY — ALL COMPONENTS):**
-*   **EVERY button** MUST have a working addEventListener click handler. No decorative-only buttons.
-*   **EVERY navigation link** MUST either scroll to a section (\`element.scrollIntoView({ behavior: 'smooth' })\`) or trigger a page/section change.
-*   **Forms** MUST have submit handlers that prevent default and process the form data (at minimum show a confirmation message).
-*   **Modals/dropdowns** MUST have open/close toggle functionality with proper event handlers.
-*   **Navigation between sections:** If the site has multiple pages/sections, use hash-based routing. Components should listen for \`hashchange\` events or accept a navigation callback. Pattern: \`window.location.hash = '#about'\` and \`window.addEventListener('hashchange', handler)\`.
-*   **Never generate a button or link without a functional handler.** If the action is cosmetic, use a \`<span>\` instead of \`<button>\`.
+*   **EVERY HeroUI Button** MUST have an onPress handler. No decorative-only buttons.
+*   **EVERY navigation link** MUST scroll to a section or trigger a page change via props/state.
+*   **Forms** using HeroUI Input/Textarea MUST have submit handlers (at minimum show confirmation).
+*   **Modals** using HeroUI Modal MUST use \`useDisclosure\` hook for open/close.
+*   **Navigation between sections:** Use React state to track current section. Pass a \`setSection\` callback to navigation components.
 
 **TECH STACK:**
-*   **Framework:** Vite (Vanilla TS or React-based if specified, but assume Vanilla TS + DOM manipulation for "simple" requests unless React is explicitly requested). Standardize on Vanilla TypeScript for maximum performance and simplicity unless otherwise specified.
-*   **Language:** TypeScript (Strict typing). Export all interfaces, types, and shared constants.
-*   **Styling:** Tailwind CSS. **IMPORTANT:** Place all global styles in **src/style.css**. Do NOT put styles in public/.
-*   **Imports:** In 'src/main.ts', you MUST import the styles using: \`import './style.css'\`.
+*   **Framework:** Vite + React. ALL projects use React with HeroUI component library.
+*   **UI Library:** HeroUI (@heroui/react) — MANDATORY for every component. Import from "@heroui/react".
+*   **Language:** TypeScript + React (.tsx files). Export all interfaces, types, and shared constants.
+*   **Styling:** Tailwind CSS configured via tailwind.config.js with HeroUI plugin. NOT via CDN.
+*   **Animations:** framer-motion (peer dep of HeroUI). Use for entrance animations, transitions, micro-interactions.
+*   **Imports:** In 'src/main.tsx', import './style.css' and render \`<App />\` into \`#root\`.
 
 **CURRENT TASK:**
 You are generating the file: **{{FILENAME}}**
@@ -243,7 +267,8 @@ Purpose: **{{USEDFOR}}**
 **SPECIFIC RULES PER FILE:**
 - **package.json**:
     - Must include "scripts": { "dev": "vite", "build": "vite build", "preview": "vite preview", "check": "tsc --noEmit" }
-    - Must include dependencies: "vite", "typescript"
+    - Must include dependencies: "@heroui/react", "framer-motion", "react", "react-dom", "tailwindcss", "autoprefixer", "postcss"
+    - Must include devDependencies: "vite", "typescript", "@vitejs/plugin-react", "@types/react", "@types/react-dom"
 - **tsconfig.json**:
     - Must include "compilerOptions": {
         "target": "ES2020",
@@ -253,59 +278,61 @@ Purpose: **{{USEDFOR}}**
         "strict": true,
         "skipLibCheck": true,
         "esModuleInterop": true,
+        "jsx": "react-jsx",
         "useDefineForClassFields": true,
         "noEmit": true
     }
     - Must include "include": ["src"]
 - **vite.config.ts**:
-    - Must include "build": { "outDir": "dist" }
+    - Must import react from '@vitejs/plugin-react'
+    - Must include plugins: [react()] and "build": { "outDir": "dist" }
     - Must export default defineConfig(...)
+- **tailwind.config.js** (CRITICAL for HeroUI):
+    - Must import { heroui } from "@heroui/react"
+    - Must include content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}", "./node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}"]
+    - Must include plugins: [heroui()]
+    - Must use darkMode: "class"
+- **postcss.config.js**:
+    - Must export: { plugins: { tailwindcss: {}, autoprefixer: {} } }
 - **.gitignore**:
     - Must include: node_modules/, dist/, *.log
 - **src/types.ts**:
     - MUST export all shared interfaces and type aliases used across the project.
-    - MUST include at least: SiteConfig, NavItem, and any component-specific prop types.
+    - MUST include at least: SiteConfig, NavItem, SectionProps, and any component-specific prop types.
 - **src/style.css**:
     - Must be placed in **src/** (not public/).
-    - MUST define CSS custom properties in :root for the design system:
-      --color-primary, --color-secondary, --color-accent, --color-bg, --color-text, --font-heading, --font-body, etc.
+    - MUST start with Tailwind directives: @tailwind base; @tailwind components; @tailwind utilities;
     - MUST include \`html { scroll-behavior: smooth; }\`
-    - MUST define @keyframes animations: fadeIn (opacity 0→1), slideUp (translateY 30px→0 + opacity), slideInLeft (translateX -30px→0), slideInRight (translateX 30px→0), scaleIn (scale 0.9→1 + opacity), float (translateY oscillation).
-    - MUST define the \`.animate-visible\` class: \`opacity: 1 !important; transform: translateY(0) !important;\`
-    - MUST define utility animation classes: \`.animate-fade-in { animation: fadeIn 0.6s ease forwards; }\` etc.
-    - Can include gradient background animations and glassmorphism utility styles.
+    - Can include additional global styles and gradient animations.
 - **src/utils.ts**:
     - MUST import types from './types' if it uses any shared types.
-    - MUST export pure, reusable helper functions.
-    - MUST include an IntersectionObserver helper: \`export function observeElements(container: HTMLElement): void\` that finds all \`[data-animate]\` elements and adds \`animate-visible\` class when they enter viewport.
-    - SHOULD include a navigate helper: \`export function navigateTo(hash: string): void { window.location.hash = hash; }\`
-    - SHOULD include a DOM helper: \`export function createElement(tag: string, classes: string, html?: string): HTMLElement\`
-- **src/components/*.ts**:
-    - MUST import types from '../types'.
-    - MUST export a named render/init function (e.g., \`export function renderHeader(container: HTMLElement): void\`).
-    - The function MUST create DOM elements and append them to the container parameter.
-    - MUST use Tailwind responsive classes (sm:, md:, lg:) for ALL layout elements.
-    - MUST add \`data-animate\` attribute to section-level elements for scroll-triggered entrance animations.
-    - MUST use hover transitions on interactive elements: \`transition-all duration-300 hover:scale-105\`.
-    - MUST use glassmorphism for cards when appropriate: \`backdrop-blur-lg bg-white/10 border border-white/20\`.
-    - EVERY \`<button>\` element MUST have an \`addEventListener('click', handler)\` attached.
-    - EVERY \`<a>\` link MUST either navigate (\`href="#section"\`) or have a click handler.
-    - Navigation components MUST include a mobile hamburger toggle (visible on mobile, hidden on md+).
-    - SHOULD call \`observeElements(section)\` from utils to activate scroll animations.
-    - SHOULD import helpers from '../utils' when relevant.
-- **src/main.ts** (APPLICATION ENTRY POINT — CRITICAL):
-    - MUST include \`import './style.css'\` as the FIRST import.
-    - MUST import the render/init function from EVERY component in ./components/.
-    - MUST call each component's render function inside a DOMContentLoaded listener.
-    - MUST target \`document.getElementById('app')\` as the root container.
-    - Pattern: \`document.addEventListener('DOMContentLoaded', () => { const app = document.getElementById('app'); if (!app) return; renderHeader(app); ... renderFooter(app); })\`
-    - If ANY component import is missing, the site will appear broken.
+    - MUST export pure, reusable helper functions (e.g., scrollToSection, formatters).
+- **src/components/*.tsx** (React + HeroUI components):
+    - MUST be React functional components (const ComponentName: React.FC = () => { ... }).
+    - MUST import and use HeroUI components for ALL UI elements (Button, Card, Input, Navbar, etc.).
+    - MUST use framer-motion for entrance animations: \`<motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}>\`
+    - MUST use Tailwind responsive classes (sm:, md:, lg:) for layout.
+    - EVERY HeroUI Button MUST have an onPress handler.
+    - EVERY navigation item MUST trigger section change or scroll.
+    - Header MUST use HeroUI Navbar with NavbarMenuToggle for mobile menu.
+    - SHOULD import helpers from '../utils' and types from '../types' when relevant.
+- **src/App.tsx** (ROOT COMPONENT — CRITICAL):
+    - MUST import HeroUIProvider from "@heroui/react".
+    - MUST wrap entire app in \`<HeroUIProvider>\`.
+    - MUST manage current section/page state with useState.
+    - MUST import and render ALL components from ./components/.
+    - Pattern: \`<HeroUIProvider><main className="dark text-foreground bg-background"><Header /><Hero />...{sections}<Footer /></main></HeroUIProvider>\`
+- **src/main.tsx** (REACT ENTRY POINT — CRITICAL):
+    - MUST import './style.css' as the FIRST import.
+    - MUST import React and ReactDOM.
+    - MUST import App from './App'.
+    - MUST render: \`ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><App /></React.StrictMode>)\`
 - **index.html** (HTML SHELL — CRITICAL):
     - Must be in the **ROOT** directory (not public/).
-    - MUST include \`<div id="app"></div>\` as the mount point for all components.
-    - MUST include \`<script type="module" src="/src/main.ts"></script>\` BEFORE the closing \`</body>\` tag.
-    - MUST include \`<script src="https://cdn.tailwindcss.com"></script>\` in \`<head>\`.
-    - Keep this file MINIMAL — all dynamic content is rendered by main.ts and components.
+    - MUST include \`<div id="root"></div>\` as the mount point for React.
+    - MUST include \`<script type="module" src="/src/main.tsx"></script>\` BEFORE closing \`</body>\`.
+    - Do NOT include Tailwind CDN — Tailwind is processed by PostCSS via tailwind.config.js.
+    - Keep this file MINIMAL — all content is rendered by React components.
 
 **OUTPUT FORMAT (STRICT):**
 1. You MUST wrap the code content in [code]...[/code] blocks.
@@ -314,8 +341,8 @@ Purpose: **{{USEDFOR}}**
 
 Example:
 [code]
-import { setupCounter } from './counter'
-document.querySelector('#app').innerHTML = '...'
+import { Button } from "@heroui/react";
+export default function Hero() { return <Button color="primary">Click</Button>; }
 [/code]
 [file]{{FILENAME}}[file][usedfor]{{USEDFOR}}[usedfor]
 
@@ -325,10 +352,11 @@ document.querySelector('#app').innerHTML = '...'
 3. Do not include placeholders like "// rest of code". Write it all.
 4. VERIFY your imports match the exact exports from FILE_CONTEXT before outputting.
 5. Keep code COMPACT — avoid unnecessary whitespace, comments, and boilerplate.
+6. ALL UI MUST use HeroUI components. NEVER use plain HTML buttons, inputs, cards, or navbars.
 `
 
 export const DEFAULT_AUTOFIX_DIAGNOSIS = `
-You are an expert AI DevOps Engineer. Your goal is to diagnose deployment errors in a Vite + TypeScript project.
+You are an expert AI DevOps Engineer. Your goal is to diagnose deployment errors in a Vite + React + HeroUI + TypeScript project.
 
 **CONTEXT:**
 The deployment failed. You have access to the build logs and the file structure.

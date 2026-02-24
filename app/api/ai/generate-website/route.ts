@@ -11,6 +11,7 @@ import {
 } from "@/lib/ai-memory"
 import { getSystemPrompts, getProjectPrompts } from "@/lib/ai-prompts"
 import { retrieveProjectFiles, mergeFileSources } from "@/lib/ai-rag"
+import { generateWithCache } from "@/lib/gemini-cache"
 
 // API Configurations
 const GOOGLE_API_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
@@ -148,46 +149,68 @@ export async function POST(request: Request) {
     const shortTermMemory = getShortTermMemory(instruction)
     
     let fileRules = ""
-    if (isHTML) fileRules = `- Use <!DOCTYPE html>. Include <script src="https://cdn.tailwindcss.com"></script> in <head>. Include <script type="module" src="/src/main.ts"></script> before </body>. Include <div id="app"></div> in <body> as the mount point. Keep HTML minimal — components render dynamic content. Add <meta name="viewport" content="width=device-width, initial-scale=1.0"> for responsive viewport.`
-    if (isTS && currentTask.filename === 'src/main.ts') {
-      fileRules = `- This is the APPLICATION ENTRY POINT. Import './style.css' first. Import the render/init function from EVERY component file. Use DOMContentLoaded listener. Target document.getElementById('app'). Call each component render function in order. If you miss any component import, the site breaks.`
+    if (isHTML) fileRules = `- Use <!DOCTYPE html>. Include <div id="root"></div> in <body>. Include <script type="module" src="/src/main.tsx"></script> before </body>. Do NOT include Tailwind CDN — Tailwind is processed via PostCSS. Add <meta name="viewport" content="width=device-width, initial-scale=1.0"> for responsive viewport. Keep HTML minimal — React renders all content.`
+    if (isTS && currentTask.filename === 'src/main.tsx') {
+      fileRules = `- This is the REACT ENTRY POINT. Import './style.css' first. Import React, ReactDOM, and App. Render App into #root with ReactDOM.createRoot.`
+    } else if (isTS && currentTask.filename === 'src/App.tsx') {
+      fileRules = `- This is the ROOT COMPONENT. Import HeroUIProvider from @heroui/react. Wrap entire app in <HeroUIProvider>. Import and render ALL components from ./components/. Manage current section state with useState. Use dark mode: <main className="dark text-foreground bg-background">.`
     } else if (isTS && currentTask.filename.includes('components/')) {
-      fileRules = `- Write valid TypeScript. Use 'export' for modules. Import from relative paths (e.g. '../utils', '../types'). DOM manipulation must be type-safe. ALL functions must have explicit return types. Do NOT access DOM at top level — wrap in exported functions. Export a render function taking container: HTMLElement. Use Tailwind responsive classes: grid-cols-1 md:grid-cols-2 lg:grid-cols-3, p-4 md:p-6 lg:p-8, text-sm md:text-base lg:text-lg. EVERY <button> MUST have addEventListener('click', handler) with transition-all duration-300 hover:scale-105. EVERY <a> link MUST have href or click handler. Navigation components MUST include mobile hamburger menu toggle (md:hidden button + hidden md:flex nav). Add data-animate attribute to section wrappers for scroll-triggered entrance animations. Use glassmorphism for cards: backdrop-blur-lg bg-white/10. Call observeElements() from utils to activate scroll animations.`
+      fileRules = `- Write React functional component (.tsx). MUST import and use HeroUI components from @heroui/react for ALL UI (Button, Card, Input, Navbar, etc.). NEVER use plain HTML <button>, <input>, <nav>. Use framer-motion for entrance animations: <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}>. Use Tailwind responsive classes: grid-cols-1 md:grid-cols-2 lg:grid-cols-3. EVERY HeroUI Button MUST have onPress handler. Header MUST use HeroUI Navbar with NavbarMenuToggle for mobile.`
     } else if (isTS) {
-      fileRules = `- Write valid TypeScript. Use 'export' for modules. Import from relative paths (e.g. './utils'). DOM manipulation must be type-safe (use 'as HTMLElement' if needed). ALL functions must have explicit return types. IMPORTANT: Do NOT access DOM elements at the top level. Wrap all DOM access in exported functions (e.g. init() or render()). Each component MUST export a render function that takes a container: HTMLElement parameter.`
+      fileRules = `- Write valid TypeScript. Use 'export' for modules. Import from relative paths. ALL functions must have explicit return types.`
     }
-    if (isJSON) fileRules = `- Return valid JSON only.`
-    if (fileExt === 'css') fileRules = `- Write valid CSS. Define CSS custom properties in :root for design tokens. MUST include html { scroll-behavior: smooth; }. MUST define @keyframes: fadeIn, slideUp, slideInLeft, slideInRight, scaleIn, float. MUST define .animate-visible class (opacity:1, transform:translateY(0)). Define utility animation classes (.animate-fade-in, .animate-slide-up etc). Include gradient and glassmorphism utility styles.`
+    if (isJSON) fileRules = `- Return valid JSON only. package.json MUST include @heroui/react, framer-motion, react, react-dom in dependencies.`
+    if (fileExt === 'css') fileRules = `- Write valid CSS. Start with @tailwind base; @tailwind components; @tailwind utilities; directives. Include html { scroll-behavior: smooth; }. Can include additional global styles.`
+    if (fileExt === 'js' && currentTask.filename.includes('tailwind.config')) {
+      fileRules = `- MUST import { heroui } from "@heroui/react". MUST include content paths for HeroUI theme: "./node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}". MUST include heroui() in plugins array. Use darkMode: "class".`
+    }
+    if (fileExt === 'js' && currentTask.filename.includes('postcss.config')) {
+      fileRules = `- Export PostCSS config with tailwindcss and autoprefixer plugins.`
+    }
 
     // Build special orchestration hint for critical connector files
     let orchestrationHint = ""
-    if (currentTask.filename === 'src/main.ts') {
-      const componentFiles = previousFiles
-        .filter(f => f.name.includes('components/') && f.name.endsWith('.ts'))
-        .map(f => f.name)
-      orchestrationHint = `\n\n**CRITICAL — YOU ARE GENERATING THE APPLICATION ENTRY POINT (main.ts):**
-You MUST import and initialize EVERY component. The components to import are: [${componentFiles.join(', ')}].
+    if (currentTask.filename === 'src/main.tsx') {
+      orchestrationHint = `\n\n**CRITICAL — YOU ARE GENERATING THE REACT ENTRY POINT (main.tsx):**
 Pattern:
 \`\`\`
 import './style.css'
-import { renderHeader } from './components/header'
-import { renderFooter } from './components/footer'
-// ... import ALL components
-document.addEventListener('DOMContentLoaded', () => {
-  const app = document.getElementById('app')
-  if (!app) return
-  // call each component's render/init function
-})
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import App from './App'
+ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><App /></React.StrictMode>)
+\`\`\`\n`
+    }
+    if (currentTask.filename === 'src/App.tsx') {
+      const componentFiles = previousFiles
+        .filter(f => f.name.includes('components/') && (f.name.endsWith('.tsx') || f.name.endsWith('.ts')))
+        .map(f => f.name)
+      orchestrationHint = `\n\n**CRITICAL — YOU ARE GENERATING THE ROOT COMPONENT (App.tsx):**
+You MUST import and render EVERY component. Components: [${componentFiles.join(', ')}].
+MUST wrap in HeroUIProvider. MUST use dark mode. Pattern:
 \`\`\`
-If you skip any component import, the site will be broken.\n`
+import { HeroUIProvider } from "@heroui/react"
+import Header from './components/Header'
+// import ALL components
+export default function App() {
+  return (
+    <HeroUIProvider>
+      <main className="dark text-foreground bg-background min-h-screen">
+        <Header />
+        {/* all section components */}
+      </main>
+    </HeroUIProvider>
+  )
+}
+\`\`\`\n`
     }
     if (currentTask.filename === 'index.html') {
       orchestrationHint = `\n\n**CRITICAL — YOU ARE GENERATING THE HTML SHELL (index.html):**
 This file MUST include:
-1. \`<script type="module" src="/src/main.ts"></script>\` — this loads the entire app
-2. A \`<div id="app"></div>\` container where components render
-3. \`<script src="https://cdn.tailwindcss.com"></script>\` for Tailwind
-Keep this file MINIMAL. All dynamic content is rendered by TypeScript components via main.ts.\n`
+1. \`<script type="module" src="/src/main.tsx"></script>\` — this loads the React app
+2. A \`<div id="root"></div>\` container where React mounts
+Do NOT include Tailwind CDN. Tailwind is processed via PostCSS + tailwind.config.js.
+Keep this file MINIMAL.\n`
     }
 
     let systemPrompt = promptTemplate
@@ -207,28 +230,46 @@ Keep this file MINIMAL. All dynamic content is rendered by TypeScript components
         content: msg.content
     }))
 
-    const payload = {
-      model: modelId === "gemini-3-flash" ? "gemini-2.0-flash" : modelId,
-      messages: [
-          { role: "system", content: systemPrompt },
-          ...conversationHistory,
-          { role: "user", content: `Generate the full content for ${currentTask.filename}.` }
-      ],
-      temperature: 0.2
+    let responseText = ""
+
+    // Try Gemini content cache for Google models (reduces latency and token cost)
+    if (config.provider === "Google") {
+      const cacheMessages = [
+        ...conversationHistory,
+        { role: "user", content: `Generate the full content for ${currentTask.filename}.` }
+      ]
+      const cachedResult = await generateWithCache(systemPrompt, cacheMessages, modelId)
+      if (cachedResult) {
+        responseText = cachedResult.text
+        console.log(`[v0] Generation via Gemini cache (usedCache=${cachedResult.usedCache})`)
+      }
     }
 
-    const response = await fetch(config.url, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    })
+    // Fallback: standard OpenAI-compatible API call (or if cache miss)
+    if (!responseText) {
+      const payload = {
+        model: modelId === "gemini-3-flash" ? "gemini-2.0-flash" : modelId,
+        messages: [
+            { role: "system", content: systemPrompt },
+            ...conversationHistory,
+            { role: "user", content: `Generate the full content for ${currentTask.filename}.` }
+        ],
+        temperature: 0.2
+      }
 
-    if (!response.ok) throw new Error(`${config.provider} API error: ${response.status}`)
-    const data = await response.json()
-    const responseText = data.choices?.[0]?.message?.content || ""
+      const response = await fetch(config.url, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      })
+
+      if (!response.ok) throw new Error(`${config.provider} API error: ${response.status}`)
+      const data = await response.json()
+      responseText = data.choices?.[0]?.message?.content || ""
+    }
 
     // 4. Robust Parsing
     let extractedCode = ""
@@ -238,7 +279,7 @@ Keep this file MINIMAL. All dynamic content is rendered by TypeScript components
     if (codeMatch) {
         extractedCode = codeMatch[1].trim()
     } else {
-        const mdBlock = responseText.match(/```(?:typescript|ts|html|css|json|javascript|js)?\s*([\s\S]*?)```/)
+        const mdBlock = responseText.match(/```(?:typescript|tsx|ts|html|css|json|javascript|js|jsx)?\s*([\s\S]*?)```/)
         if (mdBlock) {
             extractedCode = mdBlock[1].trim()
         } else {

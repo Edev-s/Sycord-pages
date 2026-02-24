@@ -18,7 +18,7 @@ export const SMART_CONTEXT_THRESHOLD = 12;
 export const RECENT_FILES_COUNT = 3;
 
 /** Core files that are always included with full content in smart context mode */
-export const CORE_FILES = ['src/types.ts', 'src/style.css', 'src/utils.ts', 'src/main.ts', 'package.json'] as const;
+export const CORE_FILES = ['src/types.ts', 'src/style.css', 'src/utils.ts', 'src/App.tsx', 'src/main.tsx', 'package.json', 'tailwind.config.js'] as const;
 
 // ─────────── Types & Interfaces ───────────
 
@@ -41,18 +41,21 @@ export const FILE_STRUCTURE = `
 project/
 ├── index.html
 ├── src/
-│   ├── main.ts          (entry point - imports all components)
+│   ├── main.tsx          (React entry point - renders App)
+│   ├── App.tsx           (root component with HeroUIProvider)
 │   ├── types.ts          (shared TypeScript interfaces & types)
 │   ├── utils.ts          (shared helper functions)
-│   ├── style.css         (design-system tokens & global styles)
+│   ├── style.css         (Tailwind directives & global styles)
 │   └── components/
-│       ├── header.ts
-│       ├── footer.ts
-│       └── ...
+│       ├── Header.tsx    (HeroUI Navbar component)
+│       ├── Footer.tsx    (HeroUI footer component)
+│       └── ...           (page/section components using HeroUI)
 ├── public/
 ├── package.json
 ├── tsconfig.json
 ├── vite.config.ts
+├── tailwind.config.js
+├── postcss.config.js
 ├── .gitignore
 └── README.md
 `;
@@ -66,12 +69,15 @@ export const GENERATION_ORDER = [
   'package.json',
   'tsconfig.json',
   'vite.config.ts',
+  'tailwind.config.js',
+  'postcss.config.js',
   'src/types.ts',
   'src/style.css',
   'src/utils.ts',
-  // components in simple → complex order
+  // React components using HeroUI in simple → complex order
   'src/components/',
-  'src/main.ts',
+  'src/App.tsx',
+  'src/main.tsx',
   'index.html',
   '.gitignore',
   'README.md',
@@ -280,18 +286,28 @@ function isRelevantForTask(fileName: string, currentTask: string): boolean {
     return true;
   }
 
-  // When building main.ts, ALL src/ files are relevant (it orchestrates everything)
-  if (taskLower.includes('main.ts') && nameLower.startsWith('src/')) {
+  // When building App.tsx, ALL src/ files are relevant (it orchestrates everything)
+  if (taskLower.includes('app.tsx') && nameLower.startsWith('src/')) {
     return true;
   }
 
-  // When building index.html, main.ts is relevant (to know the entry point)
-  if (taskLower.includes('index.html') && nameLower.includes('main.ts')) {
+  // When building main.tsx, App.tsx and style.css are relevant
+  if (taskLower.includes('main.tsx') && (nameLower.includes('app.tsx') || nameLower.includes('style.css'))) {
+    return true;
+  }
+
+  // When building index.html, main.tsx is relevant
+  if (taskLower.includes('index.html') && nameLower.includes('main.tsx')) {
     return true;
   }
 
   // When building utils, types is relevant
   if (taskLower.includes('utils.ts') && nameLower.endsWith('types.ts')) {
+    return true;
+  }
+
+  // When building tailwind.config, package.json is relevant
+  if (taskLower.includes('tailwind.config') && nameLower.includes('package.json')) {
     return true;
   }
 
