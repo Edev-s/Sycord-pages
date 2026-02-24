@@ -108,6 +108,9 @@ export function AutoFixModal({ isOpen, onClose, projectId, logs, pages, setPages
         // Prepare context using local state
         const fileStructure = currentPages.map(p => p.name).join('\n')
 
+        // Send all file contents for full project context
+        const allFiles = currentPages.map(p => ({ name: p.name, code: p.code }))
+
         // Call AI
         const response = await fetch('/api/ai/auto-fix', {
           method: 'POST',
@@ -116,7 +119,8 @@ export function AutoFixModal({ isOpen, onClose, projectId, logs, pages, setPages
             logs: currentLogs,
             fileStructure,
             fileContent: fileContentToAnalyze,
-            lastAction
+            lastAction,
+            allFiles
           })
         })
 

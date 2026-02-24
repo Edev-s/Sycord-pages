@@ -294,6 +294,9 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
           .map(h => h.target)
           .filter((v, i, a) => a.indexOf(v) === i) // Unique
 
+       // Send all file contents for full project context
+       const allFiles = generatedPages.map(p => ({ name: p.name, code: p.code }))
+
        const response = await fetch('/api/ai/auto-fix', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -308,7 +311,8 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                 result: h.action === 'read' ? 'read_success' : (h.result.status || 'done'),
                 summary: h.summary
             })),
-            fixedFiles
+            fixedFiles,
+            allFiles
           })
        })
 
