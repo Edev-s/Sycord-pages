@@ -5,6 +5,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai"
 import { getSystemPrompts } from "@/lib/ai-prompts"
 
 const FIX_MODEL = "gemini-2.0-flash"
+const MAX_FILE_CHARS_FOR_CONTEXT = 3000
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions)
@@ -54,8 +55,7 @@ Use this history to avoid loops.
         allFilesSection = `
 **ALL PROJECT FILES (FULL CONTENT — use this to understand the complete codebase):**
 ${allFiles.map((f: { name: string; code: string }) => {
-  // Truncate very large files to keep prompt manageable
-  const code = f.code.length > 3000 ? f.code.substring(0, 3000) + "\n// ... [truncated]" : f.code
+  const code = f.code.length > MAX_FILE_CHARS_FOR_CONTEXT ? f.code.substring(0, MAX_FILE_CHARS_FOR_CONTEXT) + "\n// ... [truncated]" : f.code
   return `--- ${f.name} ---\n${code}\n`
 }).join('\n')}
 `
