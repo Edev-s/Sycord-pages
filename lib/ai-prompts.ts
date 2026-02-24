@@ -108,12 +108,24 @@ RESPONSIVE LAYOUT REQUIREMENT:
 - Images and media MUST use responsive sizing (max-w-full, aspect ratios).
 - Typography MUST scale: smaller on mobile, larger on desktop (text-sm → text-base → text-lg).
 
+MULTI-PAGE ARCHITECTURE REQUIREMENT:
+- ALWAYS plan a multi-page site with at least 3-5 distinct page sections (e.g., Home/Hero, About, Services/Features, Portfolio/Gallery, Contact).
+- Plan a client-side router component (src/components/router.ts) that shows/hides page sections based on URL hash or navigation state.
+- Plan a dedicated component file for EACH distinct page or major section (e.g., src/components/hero.ts, src/components/about.ts, src/components/services.ts, src/components/contact.ts).
+- Navigation MUST link all pages/sections together with smooth transitions between them.
+
+ANIMATIONS & MODERN DESIGN REQUIREMENT:
+- Plan an animations utility file (src/components/animations.ts) that exports reusable animation helpers (fade-in, slide-up, stagger, parallax scroll).
+- src/style.css MUST include CSS @keyframes for: fadeIn, slideUp, slideInLeft, slideInRight, scaleIn, float/pulse.
+- EVERY page section MUST have entrance animations triggered on scroll using IntersectionObserver.
+- Plan for micro-interactions: button hover effects (scale, glow), smooth page transitions, animated counters or progress bars where relevant.
+- Hero sections MUST include animated elements (gradient backgrounds, floating shapes, animated text reveals).
+- Use modern design patterns: gradient overlays, glassmorphism cards (backdrop-blur), subtle shadows, smooth scroll behavior.
+
 FUNCTIONAL COMPLETENESS REQUIREMENT:
 - EVERY button in the design MUST have a corresponding click handler that performs a real action (navigate, toggle, submit, open modal, etc.).
 - EVERY navigation link MUST scroll to or render the corresponding section/page.
-- If the user requests multiple pages, plan a client-side router component (src/components/router.ts) that shows/hides page sections based on URL hash or navigation state.
 - Interactive elements (forms, dropdowns, modals, tabs) MUST be fully functional — no dead buttons or placeholder-only links.
-- Plan a dedicated component file for EACH distinct page or major section (e.g., src/components/hero.ts, src/components/about.ts, src/components/contact.ts).
 
 REQUIREMENTS:
 1.  **Vite Structure**: Follow the exact Vite project structure above. **index.html MUST be in the ROOT directory**, not public.
@@ -143,17 +155,33 @@ You generate ONE file at a time. Each file MUST properly connect to previously g
 
 **CODE COMPACTNESS (MANDATORY):**
 - Write CONCISE, production-quality code. Avoid verbose comments or documentation blocks.
-- Each component file should be under 60 lines. Keep functions small and focused.
+- Each component file should be under 80 lines. Keep functions small and focused.
 - Prefer Tailwind utility classes over custom CSS. Keep HTML structure minimal.
 - Use realistic but BRIEF placeholder text (not "Lorem ipsum" paragraphs).
 - Do NOT generate unused variables, functions, or imports.
 
 **DESIGN SYSTEM & STYLING:**
-*   **Modern Minimalist:** Clean, breathable layouts. fast, professional feel.
-*   **Typography:** Sans-serif (Inter/system-ui) with clear hierarchy.
-*   **Color Palette:** Professional, cohesive, accessible (WCAG AA). Dark mode first.
-*   **Tailwind:** Use ONLY Tailwind utility classes. No custom CSS files unless absolutely necessary for complex animations.
+*   **Modern & Premium:** Clean layouts with bold hero sections, gradient accents, glassmorphism cards (backdrop-blur-lg bg-white/10), subtle shadows (shadow-xl), and smooth transitions everywhere.
+*   **Typography:** Sans-serif (Inter/system-ui) with clear hierarchy. Animated text reveals for headings.
+*   **Color Palette:** Professional, cohesive, accessible (WCAG AA). Dark mode first. Use gradient accents: \`bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500\`.
+*   **Tailwind:** Use ONLY Tailwind utility classes plus custom CSS keyframe animations in style.css.
 *   **Responsiveness:** Mobile-first approach. Grid/Flexbox for layouts.
+
+**ANIMATIONS & MICRO-INTERACTIONS (MANDATORY — ALL COMPONENTS):**
+*   **Entrance animations:** EVERY page section MUST animate in when it enters the viewport. Use IntersectionObserver to add/remove CSS classes. Pattern:
+    \`\`\`
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('animate-visible'); });
+    }, { threshold: 0.1 });
+    container.querySelectorAll('[data-animate]').forEach(el => observer.observe(el));
+    \`\`\`
+*   **Default hidden state:** Elements with \`data-animate\` start with \`opacity-0 translate-y-8\` and transition to \`opacity-100 translate-y-0\` via the \`animate-visible\` class.
+*   **Hover effects:** ALL buttons must have hover transitions: \`transition-all duration-300 hover:scale-105 hover:shadow-lg\`. Cards: \`hover:-translate-y-2 hover:shadow-xl transition-all duration-300\`.
+*   **Smooth scrolling:** Add \`scroll-behavior: smooth\` to HTML. All internal navigation uses \`scrollIntoView({ behavior: 'smooth' })\`.
+*   **Staggered animations:** When multiple cards or items appear, stagger them with CSS \`transition-delay\`: e.g. \`style="transition-delay: 100ms"\`, \`200ms\`, \`300ms\` etc. Use the item index * 100 for the delay value.
+*   **Hero section:** MUST include at least one animated element — gradient background, floating shapes, or animated headline reveal.
+*   **Page transitions:** When switching between sections/pages, use fade or slide transitions.
+*   **Loading states:** Buttons should show state change on click (e.g., text change, subtle pulse).
 
 **RESPONSIVE LAYOUT RULES (MANDATORY — ALL COMPONENTS):**
 *   Write mobile-first HTML: default styles target small screens, then use Tailwind responsive prefixes (sm:, md:, lg:, xl:) to adjust for larger screens.
@@ -241,9 +269,15 @@ Purpose: **{{USEDFOR}}**
     - Must be placed in **src/** (not public/).
     - MUST define CSS custom properties in :root for the design system:
       --color-primary, --color-secondary, --color-accent, --color-bg, --color-text, --font-heading, --font-body, etc.
+    - MUST include \`html { scroll-behavior: smooth; }\`
+    - MUST define @keyframes animations: fadeIn (opacity 0→1), slideUp (translateY 30px→0 + opacity), slideInLeft (translateX -30px→0), slideInRight (translateX 30px→0), scaleIn (scale 0.9→1 + opacity), float (translateY oscillation).
+    - MUST define the \`.animate-visible\` class: \`opacity: 1 !important; transform: translateY(0) !important;\`
+    - MUST define utility animation classes: \`.animate-fade-in { animation: fadeIn 0.6s ease forwards; }\` etc.
+    - Can include gradient background animations and glassmorphism utility styles.
 - **src/utils.ts**:
     - MUST import types from './types' if it uses any shared types.
     - MUST export pure, reusable helper functions.
+    - MUST include an IntersectionObserver helper: \`export function observeElements(container: HTMLElement): void\` that finds all \`[data-animate]\` elements and adds \`animate-visible\` class when they enter viewport.
     - SHOULD include a navigate helper: \`export function navigateTo(hash: string): void { window.location.hash = hash; }\`
     - SHOULD include a DOM helper: \`export function createElement(tag: string, classes: string, html?: string): HTMLElement\`
 - **src/components/*.ts**:
@@ -251,10 +285,13 @@ Purpose: **{{USEDFOR}}**
     - MUST export a named render/init function (e.g., \`export function renderHeader(container: HTMLElement): void\`).
     - The function MUST create DOM elements and append them to the container parameter.
     - MUST use Tailwind responsive classes (sm:, md:, lg:) for ALL layout elements.
-    - MUST use \`container.innerHTML\` or \`document.createElement\` with responsive Tailwind classes.
+    - MUST add \`data-animate\` attribute to section-level elements for scroll-triggered entrance animations.
+    - MUST use hover transitions on interactive elements: \`transition-all duration-300 hover:scale-105\`.
+    - MUST use glassmorphism for cards when appropriate: \`backdrop-blur-lg bg-white/10 border border-white/20\`.
     - EVERY \`<button>\` element MUST have an \`addEventListener('click', handler)\` attached.
     - EVERY \`<a>\` link MUST either navigate (\`href="#section"\`) or have a click handler.
     - Navigation components MUST include a mobile hamburger toggle (visible on mobile, hidden on md+).
+    - SHOULD call \`observeElements(section)\` from utils to activate scroll animations.
     - SHOULD import helpers from '../utils' when relevant.
 - **src/main.ts** (APPLICATION ENTRY POINT — CRITICAL):
     - MUST include \`import './style.css'\` as the FIRST import.
