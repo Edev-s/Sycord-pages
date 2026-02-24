@@ -65,7 +65,7 @@ export async function getOrCreateSystemPromptCache(
       // Extend TTL on reuse
       try {
         await cacheManager.update(existingCache.name, {
-          cachedContent: { ttlSeconds: CACHE_TTL_SECONDS } as any,
+          cachedContent: { ttlSeconds: CACHE_TTL_SECONDS },
         })
       } catch {
         // TTL update failed — non-critical
