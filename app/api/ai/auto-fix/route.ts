@@ -5,6 +5,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai"
 import { getSystemPrompts } from "@/lib/ai-prompts"
 
 const FIX_MODEL = "gemini-2.0-flash"
+const MAX_FILE_CHARS_FOR_CONTEXT = 3000
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions)
@@ -13,7 +14,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { logs, fileStructure, fileContent, lastAction, history, fixedFiles } = await request.json()
+    const { logs, fileStructure, fileContent, lastAction, history, fixedFiles, allFiles } = await request.json()
 
     // Use GOOGLE_AI_API by default, fallback to GOOGLE_API_KEY
     const apiKey = process.env.GOOGLE_AI_API || process.env.GOOGLE_API_KEY
@@ -27,37 +28,48 @@ export async function POST(request: Request) {
     const genAI = new GoogleGenerativeAI(apiKey)
     const model = genAI.getGenerativeModel({ model: FIX_MODEL })
 
+    // Build memory section from fix history and fixed files
     let memorySection = ""
     if (fixedFiles && fixedFiles.length > 0) {
         memorySection += `
-        **CRITICAL MEMORY (ALREADY FIXED FILES):**
-        You have already modified the following files in this session:
-        ${fixedFiles.join(', ')}
-        WARNING: If you see errors persisting in these files, your previous fix was incorrect.
-        DO NOT apply the exact same fix again. Try a different approach.
-        `
+**CRITICAL MEMORY (ALREADY FIXED FILES):**
+You have already modified the following files in this session:
+${fixedFiles.join(', ')}
+WARNING: If you see errors persisting in these files, your previous fix was incorrect.
+DO NOT apply the exact same fix again. Try a different approach.
+`
     }
 
     if (history && Array.isArray(history) && history.length > 0) {
         memorySection += `
-        **SESSION HISTORY (ACTIONS TAKEN):**
-        The following actions have already been attempted:
-        ${history.map((h: any) => `- ${h.action.toUpperCase()}: ${h.target} -> ${h.summary || h.result}`).join('\n')}
-        Use this history to avoid loops.
-        `
+**SESSION HISTORY (ACTIONS TAKEN):**
+The following actions have already been attempted:
+${history.map((h: any) => `- ${h.action.toUpperCase()}: ${h.target} -> ${h.summary || h.result}`).join('\n')}
+Use this history to avoid loops.
+`
+    }
+
+    // Build all-files section for full project context
+    let allFilesSection = ""
+    if (allFiles && Array.isArray(allFiles) && allFiles.length > 0) {
+        allFilesSection = `
+**ALL PROJECT FILES (FULL CONTENT — use this to understand the complete codebase):**
+${allFiles.map((f: { name: string; code: string }) => {
+  const code = f.code.length > MAX_FILE_CHARS_FOR_CONTEXT ? f.code.substring(0, MAX_FILE_CHARS_FOR_CONTEXT) + "\n// ... [truncated]" : f.code
+  return `--- ${f.name} ---\n${code}\n`
+}).join('\n')}
+`
     }
 
     // Determine Logic State
     let systemPrompt = ""
 
-    // If last action was 'read', we are in RESOLUTION phase (we have file content)
-    // Or if last action was 'take a look' (frontend maps this to read)
-    // Actually, logic is: if we HAVE fileContent, we are fixing it.
     if (lastAction === 'take a look' && fileContent) {
         systemPrompt = autoFixResolution
             .replace("{{LOGS}}", logs.join('\n'))
             .replace("{{FILE_STRUCTURE}}", fileStructure)
             .replace("{{MEMORY_SECTION}}", memorySection)
+            .replace("{{ALL_FILES_SECTION}}", allFilesSection)
             .replace("{{FILENAME}}", fileContent.filename)
             .replace("{{FILE_CONTENT}}", fileContent.code)
     } else {
@@ -66,6 +78,7 @@ export async function POST(request: Request) {
             .replace("{{LOGS}}", logs.join('\n'))
             .replace("{{FILE_STRUCTURE}}", fileStructure)
             .replace("{{MEMORY_SECTION}}", memorySection)
+            .replace("{{ALL_FILES_SECTION}}", allFilesSection)
     }
 
     const result = await model.generateContent(systemPrompt)
