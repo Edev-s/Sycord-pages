@@ -47,7 +47,8 @@ project/
 │       └── ...           (additional components)
 ├── public/               (static assets like images/favicon)
 ├── package.json          (project dependencies)
-├── tsconfig.json         (TypeScript configuration)
+├── tsconfig.json         (TypeScript configuration with references to tsconfig.node.json)
+├── tsconfig.node.json    (TypeScript configuration for Vite config files)
 ├── vite.config.ts        (Vite build configuration)
 ├── .gitignore            (git ignore rules)
 └── README.md             (project documentation)
@@ -58,16 +59,17 @@ The AI generates files one-by-one; each file can reference only previously gener
 Follow this order strictly:
 
 1. package.json         (config -- no deps)
-2. tsconfig.json        (config -- no deps)
-3. vite.config.ts       (config -- no deps)
-4. src/types.ts         (shared types -- imported by everything)
-5. src/style.css        (design tokens -- imported by main.ts)
-6. src/utils.ts         (helpers -- may import types.ts)
-7. src/components/*.ts  (components -- import types, utils; order simple to complex)
-8. src/main.ts          (entry -- imports everything above, MUST BE SECOND TO LAST src file)
-9. index.html           (shell -- references /src/main.ts)
-10. .gitignore          (housekeeping)
-11. README.md           (docs)
+2. tsconfig.json        (config -- no deps, may include references to tsconfig.node.json)
+3. tsconfig.node.json   (config -- TypeScript config for Vite build tools)
+4. vite.config.ts       (config -- no deps)
+5. src/types.ts         (shared types -- imported by everything)
+6. src/style.css        (design tokens -- imported by main.ts)
+7. src/utils.ts         (helpers -- may import types.ts)
+8. src/components/*.ts  (components -- import types, utils; order simple to complex)
+9. src/main.ts          (entry -- imports everything above, MUST BE SECOND TO LAST src file)
+10. index.html          (shell -- references /src/main.ts)
+11. .gitignore          (housekeeping)
+12. README.md           (docs)
 
 OUTPUT FORMAT:
 You must output a single text block strictly following this format:
@@ -75,13 +77,14 @@ You must output a single text block strictly following this format:
 [0] The user base plan is to create [Overview of the site]. As an AI web builder using Vite + TypeScript for Cloudflare Pages, I will generate the following files following proper project structure. Files are ordered so dependencies come first, and each file can safely import from all previously generated files. The backend will mark completed files by replacing [N] with [Done].
 
 [1] package.json : [usedfor]npm dependencies and scripts for Vite[usedfor]
-[2] tsconfig.json : [usedfor]TypeScript configuration for Vite[usedfor]
-[3] vite.config.ts : [usedfor]Vite configuration[usedfor]
-[4] src/types.ts : [usedfor]shared TypeScript interfaces and type definitions used across all files[usedfor]
-[5] src/style.css : [usedfor]design-system CSS custom properties and global Tailwind styles[usedfor]
-[6] src/utils.ts : [usedfor]shared utility functions[usedfor]
-[7] src/components/header.ts : [usedfor]reusable header/navigation component[usedfor]
-[8] src/components/footer.ts : [usedfor]reusable footer component[usedfor]
+[2] tsconfig.json : [usedfor]TypeScript configuration for Vite with references to tsconfig.node.json[usedfor]
+[3] tsconfig.node.json : [usedfor]TypeScript configuration for Vite config and build tools[usedfor]
+[4] vite.config.ts : [usedfor]Vite configuration[usedfor]
+[5] src/types.ts : [usedfor]shared TypeScript interfaces and type definitions used across all files[usedfor]
+[6] src/style.css : [usedfor]design-system CSS custom properties and global Tailwind styles[usedfor]
+[7] src/utils.ts : [usedfor]shared utility functions[usedfor]
+[8] src/components/header.ts : [usedfor]reusable header/navigation component[usedfor]
+[9] src/components/footer.ts : [usedfor]reusable footer component[usedfor]
 ...additional components...
 [N-2] src/main.ts : [usedfor]TypeScript entry point that imports style.css and initializes all components[usedfor]
 [N-1] index.html : [usedfor]main HTML entry point that loads the Vite app[usedfor]
@@ -112,6 +115,8 @@ REQUIREMENTS:
 8.  **Configuration**:
     - package.json MUST include "build": "vite build"
     - tsconfig.json MUST use "target": "ES2020", "lib": ["ES2020", "DOM", "DOM.Iterable"], "moduleResolution": "Bundler", "noEmit": true
+    - tsconfig.json MUST include "references": [{ "path": "./tsconfig.node.json" }] to properly configure the build tools
+    - tsconfig.node.json MUST be generated with "compilerOptions" targeting Node.js environment for Vite config files
     - vite.config.ts MUST set build.outDir = 'dist'
 9.  **Connected Files**: Every component must properly import from types.ts and utils.ts. The entry point main.ts must import from all components.
 
@@ -189,7 +194,19 @@ Purpose: **{{USEDFOR}}**
         "useDefineForClassFields": true,
         "noEmit": true
     }
+    - Must include "references": [{ "path": "./tsconfig.node.json" }]
     - Must include "include": ["src"]
+- **tsconfig.node.json**:
+    - Must include "compilerOptions": {
+        "target": "ES2020",
+        "lib": ["ES2020"],
+        "module": "ESNext",
+        "moduleResolution": "Bundler",
+        "strict": true,
+        "skipLibCheck": true,
+        "allowSyntheticDefaultImports": true
+    }
+    - Must include "include": ["vite.config.ts"]
 - **vite.config.ts**:
     - Must include "build": { "outDir": "dist" }
     - Must export default defineConfig(...)

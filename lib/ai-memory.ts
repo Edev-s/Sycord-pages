@@ -18,7 +18,7 @@ export const SMART_CONTEXT_THRESHOLD = 12;
 export const RECENT_FILES_COUNT = 3;
 
 /** Core files that are always included with full content in smart context mode */
-export const CORE_FILES = ['src/types.ts', 'src/style.css', 'package.json'] as const;
+export const CORE_FILES = ['src/types.ts', 'src/style.css', 'package.json', 'tsconfig.json', 'tsconfig.node.json'] as const;
 
 // ─────────── Types & Interfaces ───────────
 
@@ -52,6 +52,7 @@ project/
 ├── public/
 ├── package.json
 ├── tsconfig.json
+├── tsconfig.node.json
 ├── vite.config.ts
 ├── .gitignore
 └── README.md
@@ -65,6 +66,7 @@ project/
 export const GENERATION_ORDER = [
   'package.json',
   'tsconfig.json',
+  'tsconfig.node.json',
   'vite.config.ts',
   'src/types.ts',
   'src/style.css',
