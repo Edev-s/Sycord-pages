@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
+import { useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -26,7 +27,10 @@ import {
   AlertCircle,
   Bug,
   Layout,
-  Menu
+  Menu,
+  Info,
+  Paperclip,
+  Send
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -48,6 +52,34 @@ const MODELS = [
   { id: "gemini-3-flash", name: "Gemini 3 Flash (Preview)", provider: "Google" },
   { id: "deepseek-v3.2-exp", name: "DeepSeek V3", provider: "DeepSeek" },
 ]
+
+// Gemini Icon Component
+const GeminiIcon = ({ className }: { className?: string }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+  >
+    <path
+      d="M12 2C12.5 7.5 16.5 11.5 22 12C16.5 12.5 12.5 16.5 12 22C11.5 16.5 7.5 12.5 2 12C7.5 11.5 11.5 7.5 12 2Z"
+      fill="url(#gemini-gradient)"
+    />
+    <defs>
+      <linearGradient
+        id="gemini-gradient"
+        x1="2"
+        y1="2"
+        x2="22"
+        y2="22"
+        gradientUnits="userSpaceOnUse"
+      >
+        <stop stopColor="#4facfe" />
+        <stop offset="1" stopColor="#00f2fe" />
+      </linearGradient>
+    </defs>
+  </svg>
+)
 
 type Step = "idle" | "planning" | "coding" | "fixing" | "done"
 
@@ -193,6 +225,7 @@ interface AIWebsiteBuilderProps {
 }
 
 const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFixLogs }: AIWebsiteBuilderProps) => {
+  const { data: session } = useSession()
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [step, setStep] = useState<Step>("idle")
@@ -572,29 +605,27 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       }
   }
 
+  const { done, total, percent } = getProgress()
+
   return (
     <div className="flex flex-col h-full bg-zinc-950 text-zinc-100 font-sans relative overflow-hidden">
 
-      {/* HEADER */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-20">
+      {/* MOBILE HEADER (Gemini Style) */}
+      <div className="md:hidden flex items-center justify-center pt-8 pb-4 relative z-20">
+         <div className="flex items-center gap-2 bg-zinc-800/50 border border-zinc-700/50 rounded-full px-4 py-1.5 backdrop-blur-md shadow-lg">
+            <GeminiIcon className="h-4 w-4" />
+            <span className="text-xs font-medium text-zinc-200">State of the Art</span>
+            <Info className="h-3 w-3 text-zinc-500" />
+         </div>
+      </div>
+
+      {/* DESKTOP HEADER */}
+      <div className="hidden md:flex items-center justify-between px-4 py-3 border-b border-white/5 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-20">
         <div className="flex items-center gap-3">
             <div className="h-8 w-8 rounded-lg bg-white/5 flex items-center justify-center border border-white/10">
                 <Bot className="h-4 w-4 text-white" />
             </div>
             <span className="font-semibold text-sm hidden md:inline-block tracking-tight">AI Editor</span>
-
-            {/* Mobile Menu Trigger for File Tree */}
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="md:hidden h-8 w-8 text-zinc-400">
-                  <Layout className="h-4 w-4" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="bg-zinc-950 border-r-white/10 w-3/4 max-w-sm pt-10">
-                 <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-4">Project Structure</h3>
-                 <FileTreeVisualizer pages={generatedPages} currentFile={activeFile} />
-              </SheetContent>
-            </Sheet>
         </div>
 
         <div className="flex items-center gap-2">
@@ -630,6 +661,102 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       </div>
 
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+
+          {/* MOBILE CONTENT AREA */}
+          <div className="md:hidden flex-1 flex flex-col relative z-10 px-6">
+
+              {/* IDLE STATE */}
+              {step === 'idle' && (
+                <div className="flex-1 flex flex-col justify-center items-center text-center pb-20">
+                   <h1 className="text-3xl font-medium tracking-tight text-white leading-tight max-w-xs mx-auto">
+                     Hi <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent font-semibold">{session?.user?.name?.split(' ')[0] || 'User'}</span>, What are we building?
+                   </h1>
+                </div>
+              )}
+
+              {/* ACTIVE STATE (Thinking/Building/Done) */}
+              {step !== 'idle' && (
+                 <div className="flex-1 flex flex-col justify-center pb-20 max-w-sm mx-auto w-full">
+                    <div className="space-y-6">
+                       {/* Thinking Step */}
+                       <div className="flex items-center gap-4">
+                          <div className={cn("transition-opacity duration-300", step === 'planning' ? "opacity-100" : "opacity-50")}>
+                             {step === 'planning' ? <Loader2 className="h-5 w-5 animate-spin text-zinc-300" /> : <Brain className="h-5 w-5 text-zinc-500" />}
+                          </div>
+                          <span className={cn("text-lg font-medium", step === 'planning' ? "text-white" : "text-zinc-500")}>
+                             Thinking...
+                          </span>
+                       </div>
+
+                       {/* Building Step */}
+                       <div className="space-y-3">
+                          <div className="flex items-center gap-4">
+                              <div className={cn("transition-opacity duration-300", step === 'coding' ? "opacity-100" : "opacity-50")}>
+                                 {step === 'coding' ? <Loader2 className="h-5 w-5 animate-spin text-zinc-300" /> : <Hammer className="h-5 w-5 text-zinc-500" />}
+                              </div>
+                              <span className={cn("text-lg font-medium", step === 'coding' ? "text-white" : "text-zinc-500")}>
+                                 Building
+                              </span>
+                          </div>
+                          {/* Progress Bar for Building */}
+                          {(step === 'coding' || step === 'planning' || step === 'fixing') && (
+                             <div className="h-2 bg-zinc-800 rounded-full overflow-hidden ml-9">
+                                <div
+                                  className="h-full bg-zinc-300 rounded-full transition-all duration-300 ease-out"
+                                  style={{ width: `${percent}%` }}
+                                />
+                             </div>
+                          )}
+                       </div>
+
+                       {/* Done Step */}
+                       <div className="flex items-center gap-4">
+                          <div className={cn("transition-opacity duration-300", step === 'done' ? "opacity-100" : "opacity-50")}>
+                             {step === 'done' ? (
+                               <div className="h-5 w-5 bg-green-500 rounded-full flex items-center justify-center">
+                                  <Check className="h-3 w-3 text-black" />
+                               </div>
+                             ) : (
+                               <div className="h-5 w-5 rounded-full border-2 border-zinc-700" />
+                             )}
+                          </div>
+                          <span className={cn("text-lg font-medium", step === 'done' ? "text-white" : "text-zinc-500")}>
+                             Done
+                          </span>
+                       </div>
+                    </div>
+                 </div>
+              )}
+
+              {/* FLOATING INPUT CARD */}
+              <div className="absolute bottom-6 left-0 right-0 px-4">
+                 <div className="bg-zinc-800/80 backdrop-blur-xl border border-white/5 rounded-[2rem] p-4 shadow-2xl mx-auto max-w-md">
+                    <p className="text-xs text-zinc-400 ml-2 mb-2">what to build?</p>
+                    <div className="flex items-center gap-2">
+                       <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full bg-zinc-700/50 text-zinc-400 hover:text-white hover:bg-zinc-600">
+                          <Paperclip className="h-5 w-5" />
+                       </Button>
+                       <Input
+                          value={input}
+                          onChange={e => setInput(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && !e.shiftKey && startGeneration()}
+                          placeholder=""
+                          className="flex-1 bg-zinc-900/50 border-none h-10 rounded-full px-4 focus-visible:ring-0 text-white placeholder-zinc-500"
+                          disabled={step === 'planning' || step === 'coding' || step === 'fixing'}
+                       />
+                       <Button
+                          size="icon"
+                          className={cn("h-10 w-10 rounded-xl transition-all", input.trim() ? "bg-white text-black" : "bg-zinc-700 text-zinc-500")}
+                          onClick={startGeneration}
+                          disabled={!input.trim() || step === 'planning' || step === 'coding' || step === 'fixing'}
+                       >
+                          {step === 'planning' || step === 'coding' || step === 'fixing' ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                       </Button>
+                    </div>
+                 </div>
+              </div>
+
+          </div>
 
           {/* LEFT: VISUALIZATION & STATUS (Desktop Only, or hidden) */}
           <div className="hidden md:flex md:w-80 lg:w-96 border-r border-white/5 bg-black/20 p-4 flex-col gap-4 overflow-y-auto">
@@ -687,8 +814,8 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
               )}
           </div>
 
-          {/* RIGHT: CHAT & INPUT */}
-          <div className="flex-1 flex flex-col h-full bg-zinc-950 relative z-10">
+          {/* RIGHT: CHAT & INPUT (Desktop Only - hidden on mobile) */}
+          <div className="hidden md:flex flex-1 flex-col h-full bg-zinc-950 relative z-10">
 
               {/* Progress Bar */}
               {(step === 'coding' || step === 'planning') && (() => {
