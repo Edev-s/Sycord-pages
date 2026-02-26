@@ -667,8 +667,8 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
 
               {/* IDLE STATE */}
               {step === 'idle' && (
-                <div className="flex-1 flex flex-col justify-center items-center text-center pb-20">
-                   <h1 className="text-3xl font-medium tracking-tight text-white leading-tight max-w-xs mx-auto">
+                <div className="flex-1 flex flex-col justify-center items-center text-center pb-32">
+                   <h1 className="text-3xl font-medium tracking-tight text-white leading-tight max-w-xs mx-auto animate-in fade-in zoom-in duration-700">
                      Hi <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent font-semibold">{session?.user?.name?.split(' ')[0] || 'User'}</span>, What are we building?
                    </h1>
                 </div>
@@ -676,33 +676,33 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
 
               {/* ACTIVE STATE (Thinking/Building/Done) */}
               {step !== 'idle' && (
-                 <div className="flex-1 flex flex-col justify-center pb-20 max-w-sm mx-auto w-full">
-                    <div className="space-y-6">
+                 <div className="flex-1 flex flex-col justify-center pb-32 max-w-sm mx-auto w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="space-y-6 pl-4">
                        {/* Thinking Step */}
-                       <div className="flex items-center gap-4">
-                          <div className={cn("transition-opacity duration-300", step === 'planning' ? "opacity-100" : "opacity-50")}>
-                             {step === 'planning' ? <Loader2 className="h-5 w-5 animate-spin text-zinc-300" /> : <Brain className="h-5 w-5 text-zinc-500" />}
+                       <div className="flex items-center gap-4 group">
+                          <div className={cn("transition-all duration-500 flex items-center justify-center", step === 'planning' ? "opacity-100 scale-110" : "opacity-30 scale-100")}>
+                             {step === 'planning' ? <Loader2 className="h-4 w-4 animate-spin text-blue-400" /> : <Brain className="h-4 w-4 text-zinc-500" />}
                           </div>
-                          <span className={cn("text-lg font-medium", step === 'planning' ? "text-white" : "text-zinc-500")}>
+                          <span className={cn("text-lg font-medium transition-colors duration-300", step === 'planning' ? "text-blue-100 animate-pulse" : "text-zinc-600")}>
                              Thinking...
                           </span>
                        </div>
 
                        {/* Building Step */}
-                       <div className="space-y-3">
+                       <div className="space-y-3 group">
                           <div className="flex items-center gap-4">
-                              <div className={cn("transition-opacity duration-300", step === 'coding' ? "opacity-100" : "opacity-50")}>
-                                 {step === 'coding' ? <Loader2 className="h-5 w-5 animate-spin text-zinc-300" /> : <Hammer className="h-5 w-5 text-zinc-500" />}
+                              <div className={cn("transition-all duration-500 flex items-center justify-center", step === 'coding' ? "opacity-100 scale-110" : "opacity-30 scale-100")}>
+                                 {step === 'coding' ? <Loader2 className="h-4 w-4 animate-spin text-purple-400" /> : <Hammer className="h-4 w-4 text-zinc-500" />}
                               </div>
-                              <span className={cn("text-lg font-medium", step === 'coding' ? "text-white" : "text-zinc-500")}>
+                              <span className={cn("text-lg font-medium transition-colors duration-300", step === 'coding' ? "text-purple-100 animate-pulse" : "text-zinc-600")}>
                                  Building
                               </span>
                           </div>
                           {/* Progress Bar for Building */}
                           {(step === 'coding' || step === 'planning' || step === 'fixing') && (
-                             <div className="h-2 bg-zinc-800 rounded-full overflow-hidden ml-9">
+                             <div className="h-1 bg-white/10 rounded-full overflow-hidden ml-8 mr-4 backdrop-blur-sm">
                                 <div
-                                  className="h-full bg-zinc-300 rounded-full transition-all duration-300 ease-out"
+                                  className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-300 ease-out shadow-[0_0_12px_rgba(168,85,247,0.5)]"
                                   style={{ width: `${percent}%` }}
                                 />
                              </div>
@@ -710,17 +710,17 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                        </div>
 
                        {/* Done Step */}
-                       <div className="flex items-center gap-4">
-                          <div className={cn("transition-opacity duration-300", step === 'done' ? "opacity-100" : "opacity-50")}>
+                       <div className="flex items-center gap-4 group">
+                          <div className={cn("transition-all duration-500 flex items-center justify-center", step === 'done' ? "opacity-100 scale-110" : "opacity-30 scale-100")}>
                              {step === 'done' ? (
-                               <div className="h-5 w-5 bg-green-500 rounded-full flex items-center justify-center">
-                                  <Check className="h-3 w-3 text-black" />
+                               <div className="h-5 w-5 bg-green-500/20 border border-green-500 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(34,197,94,0.4)]">
+                                  <Check className="h-3 w-3 text-green-400" />
                                </div>
                              ) : (
-                               <div className="h-5 w-5 rounded-full border-2 border-zinc-700" />
+                               <div className="h-4 w-4 rounded-full border border-zinc-800 bg-zinc-900" />
                              )}
                           </div>
-                          <span className={cn("text-lg font-medium", step === 'done' ? "text-white" : "text-zinc-500")}>
+                          <span className={cn("text-lg font-medium transition-colors duration-300", step === 'done' ? "text-green-100" : "text-zinc-600")}>
                              Done
                           </span>
                        </div>
@@ -729,28 +729,28 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
               )}
 
               {/* FLOATING INPUT CARD */}
-              <div className="absolute bottom-6 left-0 right-0 px-4">
-                 <div className="bg-zinc-800/80 backdrop-blur-xl border border-white/5 rounded-[2rem] p-4 shadow-2xl mx-auto max-w-md">
-                    <p className="text-xs text-zinc-400 ml-2 mb-2">what to build?</p>
+              <div className="absolute bottom-12 left-0 right-0 px-4 transition-all duration-700 ease-out translate-y-0 opacity-100">
+                 <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-[2rem] p-4 shadow-2xl mx-auto max-w-md ring-1 ring-white/5 hover:ring-white/10 transition-all">
+                    <p className="text-[10px] text-zinc-500 ml-4 mb-2 font-medium tracking-widest uppercase opacity-70">what to build?</p>
                     <div className="flex items-center gap-2">
-                       <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full bg-zinc-700/50 text-zinc-400 hover:text-white hover:bg-zinc-600">
-                          <Paperclip className="h-5 w-5" />
+                       <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10 transition-colors border border-white/5">
+                          <Paperclip className="h-4 w-4" />
                        </Button>
                        <Input
                           value={input}
                           onChange={e => setInput(e.target.value)}
                           onKeyDown={e => e.key === 'Enter' && !e.shiftKey && startGeneration()}
                           placeholder=""
-                          className="flex-1 bg-zinc-900/50 border-none h-10 rounded-full px-4 focus-visible:ring-0 text-white placeholder-zinc-500"
+                          className="flex-1 bg-transparent border-none h-10 px-2 focus-visible:ring-0 text-white placeholder-zinc-600 text-base font-medium"
                           disabled={step === 'planning' || step === 'coding' || step === 'fixing'}
                        />
                        <Button
                           size="icon"
-                          className={cn("h-10 w-10 rounded-xl transition-all", input.trim() ? "bg-white text-black" : "bg-zinc-700 text-zinc-500")}
+                          className={cn("h-10 w-10 rounded-full transition-all shadow-lg duration-300", input.trim() ? "bg-white text-black hover:bg-zinc-200 scale-100" : "bg-white/5 text-zinc-600 scale-95 opacity-50")}
                           onClick={startGeneration}
                           disabled={!input.trim() || step === 'planning' || step === 'coding' || step === 'fixing'}
                        >
-                          {step === 'planning' || step === 'coding' || step === 'fixing' ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                          {step === 'planning' || step === 'coding' || step === 'fixing' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4 ml-0.5" />}
                        </Button>
                     </div>
                  </div>
