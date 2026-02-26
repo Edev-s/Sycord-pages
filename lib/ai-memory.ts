@@ -1,24 +1,14 @@
 // ──────────────────────────────────────────────────────
-// AI Memory & File-Context System
+// AI File-Context System (Simplified)
 // ──────────────────────────────────────────────────────
-// Provides rich cross-file context so the AI can generate
-// connected, type-safe, properly-importing code.
+// Provides basic file context for AI generation.
+// Main architectural guidance now comes from Gemini API cache.
 // ──────────────────────────────────────────────────────
 
 // ─────────── Configuration Constants ───────────
-// Tune these values to control memory/context behavior
 
-/** Threshold for switching from full content to hybrid (full + summary) mode */
-export const FULL_CONTENT_THRESHOLD = 10;
-
-/** Threshold for enabling smart context selection (RAG-like behavior) */
-export const SMART_CONTEXT_THRESHOLD = 12;
-
-/** Number of most recent files to always include with full content */
-export const RECENT_FILES_COUNT = 3;
-
-/** Core files that are always included with full content in smart context mode */
-export const CORE_FILES = ['src/types.ts', 'src/style.css', 'package.json'] as const;
+/** Number of recent files to include with full content */
+export const RECENT_FILES_COUNT = 5;
 
 // ─────────── Types & Interfaces ───────────
 
@@ -36,57 +26,25 @@ export interface ContextOptions {
 
 // ─────────── Project Structure Constants ───────────
 
-/** Canonical dependency-ordered structure the planner should follow. */
-export const FILE_STRUCTURE = `
-project/
-├── index.html
-├── src/
-│   ├── main.ts          (entry point - imports all components)
-│   ├── types.ts          (shared TypeScript interfaces & types)
-│   ├── utils.ts          (shared helper functions)
-│   ├── style.css         (design-system tokens & global styles)
-│   └── components/
-│       ├── header.ts
-│       ├── footer.ts
-│       └── ...
-├── public/
-├── package.json
-├── tsconfig.json
-├── vite.config.ts
-├── .gitignore
-└── README.md
-`;
-
-/**
- * PREFERRED FILE GENERATION ORDER
- * The planner must generate files in this order so each file
- * can reference the exports of all previously generated files.
+/** 
+ * Basic file structure reference (detailed structure is in Gemini cache)
+ * This is kept for backward compatibility.
  */
-export const GENERATION_ORDER = [
-  'package.json',
-  'tsconfig.json',
-  'vite.config.ts',
-  'src/types.ts',
-  'src/style.css',
-  'src/utils.ts',
-  // components in simple → complex order
-  'src/components/',
-  'src/main.ts',
-  'index.html',
-  '.gitignore',
-  'README.md',
-];
+export const FILE_STRUCTURE = `
+Multi-Page Project Structure (NOT Single Page App):
+- Multiple HTML files (index.html, about.html, services.html, contact.html, etc.)
+- Shared src/ directory with TypeScript modules
+- Each page imports the same main.ts for shared components
+- See cached context for detailed structure
+`;
 
 // ─────────── Instruction Parsing ───────────
 
 /**
- * Parses the instruction string to extract completed tasks.
- * Used as fallback context when file content is not available.
- *
- * @deprecated Use `getFileContext` or `getSmartContext` instead for richer context.
- * This function is kept for backward compatibility with older prompt templates.
+ * Parses the instruction string to extract information about completed files.
+ * Used for basic context when full file content is not available.
  */
-export function getShortTermMemory(instruction: string): string {
+export function getCompletedFilesList(instruction: string): string {
   const completedTasks: { filename: string; description: string }[] = [];
   const taskRegex = /\[Done\]\s*([^\s:]+)\s*:\s*(?:\[usedfor\](.*?)\[usedfor\])?/g;
   let match;
@@ -98,7 +56,7 @@ export function getShortTermMemory(instruction: string): string {
   }
   if (completedTasks.length === 0) return 'No files generated yet.';
   return `
-ALREADY GENERATED FILES:
+Already Generated Files:
 ${completedTasks.map((t) => `- ${t.filename}: ${t.description}`).join('\n')}
 `;
 }
@@ -178,9 +136,10 @@ ${extractExportSummary(file.code)}
  */
 const CONTEXT_FOOTER = `
 IMPORTANT:
-- You MUST import from these files using the exact export names shown above.
-- You MUST NOT redefine types, interfaces, or constants that are already exported.
-- You MUST use the same CSS class names and design tokens already established.
+- Import from these files using the exact export names shown above.
+- Do NOT redefine types, interfaces, or constants that are already exported.
+- Reuse CSS class names and design tokens already established.
+- All pages must be separate HTML files (NOT a Single Page App).
 `;
 
 // ──────── Design System Extraction ────────
@@ -220,146 +179,32 @@ Do NOT invent new values -- reference these CSS custom properties.
 `;
 }
 
-// ──────── Full File Context Builder ────────
+// ──────── Simple File Context Builder ────────
 
 /**
- * Builds a rich context block from all previously generated files.
- *
- * Strategy:
- * - < FULL_CONTENT_THRESHOLD files  --> full source code of EVERY file
- * - >= FULL_CONTENT_THRESHOLD files --> full code of recent files + export summary of the rest
- *
- * This gives the AI model enough context to generate properly
- * importing, type-safe, design-consistent code.
+ * Builds a basic context block from previously generated files.
+ * Provides recent files with full content for the AI to reference.
+ * Main architectural guidance comes from Gemini cache.
  */
 export function getFileContext(files: GeneratedFile[]): string {
   if (!files || files.length === 0) {
-    return 'No files generated yet. You are generating the first file.';
+    return 'No files generated yet. Reference the cached project structure.';
   }
 
-  const useFullForAll = files.length < FULL_CONTENT_THRESHOLD;
+  // Show recent files with full content
+  const recentFiles = files.slice(-RECENT_FILES_COUNT);
+  const blocks = recentFiles.map((f) => formatFullFileBlock(f));
 
-  if (useFullForAll) {
-    const blocks = files.map((f) => formatFullFileBlock(f));
-    return `
-PREVIOUSLY GENERATED FILES (${files.length} files -- FULL CONTENT):
+  return `
+RECENTLY GENERATED FILES (${recentFiles.length} files):
 ${blocks.join('\n')}
 ${CONTEXT_FOOTER}`;
-  }
-
-  // Hybrid: full content for recent files, summary for the rest
-  const recentFiles = files.slice(-RECENT_FILES_COUNT);
-  const olderFiles = files.slice(0, -RECENT_FILES_COUNT);
-
-  const summaryBlocks = olderFiles.map((f) => formatSummaryFileBlock(f));
-  const fullBlocks = recentFiles.map((f) => formatFullFileBlock(f));
-
-  return `
-PREVIOUSLY GENERATED FILES (${files.length} total):
-
-== EXPORT SUMMARIES (${olderFiles.length} older files) ==
-${summaryBlocks.join('\n')}
-
-== FULL CONTENT (${recentFiles.length} most recent) ==
-${fullBlocks.join('\n')}
-${CONTEXT_FOOTER}`;
-}
-
-// ──────── Smart Context (RAG-like) ────────
-
-/**
- * Determines if a file should be included with full content based on the current task.
- * This provides task-aware relevance scoring for context selection.
- */
-function isRelevantForTask(fileName: string, currentTask: string): boolean {
-  const taskLower = currentTask.toLowerCase();
-  const nameLower = fileName.toLowerCase();
-
-  // When building components, include utils
-  if (taskLower.includes('components/') && nameLower.endsWith('utils.ts')) {
-    return true;
-  }
-
-  // When building main.ts, all components are relevant
-  if (taskLower.includes('main.ts') && nameLower.includes('components/')) {
-    return true;
-  }
-
-  return false;
 }
 
 /**
- * Intelligent context builder that selects the most relevant files based on the current task.
- * This acts as a semantic memory to ensure the AI has the right context.
- *
- * Strategy:
- * - < SMART_CONTEXT_THRESHOLD files --> delegate to getFileContext (full/hybrid)
- * - >= SMART_CONTEXT_THRESHOLD files --> smart selection:
- *   1. Core files (types, styles, package.json) always included fully
- *   2. Task-relevant files included fully
- *   3. Most recent files included fully (recency bias)
- *   4. Everything else gets export summaries only
+ * Simplified context function that returns recent file context.
+ * Kept for backward compatibility.
  */
 export function getSmartContext(files: GeneratedFile[], currentTask: string): string {
-  if (!files || files.length === 0) {
-    return 'No files generated yet. You are generating the first file.';
-  }
-
-  // For smaller projects, use standard file context
-  if (files.length < SMART_CONTEXT_THRESHOLD) {
-    return getFileContext(files);
-  }
-
-  const fullContentFiles: GeneratedFile[] = [];
-  const summaryFiles: GeneratedFile[] = [];
-
-  // Helper to add file to full content list (avoiding duplicates)
-  const addToFull = (file: GeneratedFile): void => {
-    if (!fullContentFiles.some((f) => f.name === file.name)) {
-      fullContentFiles.push(file);
-    }
-  };
-
-  // Categorize files
-  for (const file of files) {
-    const isCoreFile = CORE_FILES.some((core) => file.name.endsWith(core));
-    const isTaskRelevant = isRelevantForTask(file.name, currentTask);
-
-    if (isCoreFile || isTaskRelevant) {
-      addToFull(file);
-    } else {
-      summaryFiles.push(file);
-    }
-  }
-
-  // Apply recency bias: ensure most recent files are always in full content
-  const recentFiles = files.slice(-RECENT_FILES_COUNT);
-  for (const recentFile of recentFiles) {
-    const summaryIndex = summaryFiles.findIndex((f) => f.name === recentFile.name);
-    if (summaryIndex !== -1) {
-      summaryFiles.splice(summaryIndex, 1);
-      addToFull(recentFile);
-    } else if (!fullContentFiles.some((f) => f.name === recentFile.name)) {
-      addToFull(recentFile);
-    }
-  }
-
-  // Build formatted output
-  const fullBlocks = fullContentFiles.map((f) => formatFullFileBlock(f, true));
-  const summaryBlocks = summaryFiles.map((f) => formatSummaryFileBlock(f));
-
-  return `
-PREVIOUSLY GENERATED FILES (${files.length} total):
-
-== KEY CONTEXT FILES & RECENT (${fullContentFiles.length} files) ==
-${fullBlocks.join('\n')}
-
-== OTHER FILES (Summaries - ${summaryFiles.length} files) ==
-${summaryBlocks.join('\n')}
-
-IMPORTANT:
-- Use the exports shown in summaries.
-- Reuse types and styles from key context files.
-- You have the full content of the most relevant files above.
-`;
+  return getFileContext(files);
 }

@@ -302,6 +302,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
             fileStructure,
             fileContent,
             lastAction,
+            projectId, // Pass projectId for cache
             history: history.map(h => ({
                 action: h.action,
                 target: h.target,
@@ -451,7 +452,10 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       const planResponse = await fetch("/api/ai/generate-plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: [...messages, userMessage] }),
+        body: JSON.stringify({ 
+          messages: [...messages, userMessage],
+          projectId // Pass projectId for cache
+        }),
       })
 
       if (!planResponse.ok) throw new Error("Failed to generate plan")
