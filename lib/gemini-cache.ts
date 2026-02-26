@@ -324,7 +324,7 @@ export default defineConfig({
 // ─────────── Cache Management Functions ───────────
 
 /**
- * Creates a new cached content for a project using Gemini API.
+ * Creates a new cached content for a project using Gemini REST API.
  * This cache will be used by the AI during generation to understand
  * the project structure, dependencies, and requirements.
  */
@@ -333,8 +333,6 @@ export async function createProjectCache(
   projectId: string,
   projectType: string = "multi-page"
 ): Promise<CachedContent> {
-  const genAI = new GoogleGenerativeAI(apiKey)
-
   // Combine all documentation into a single cached content
   const systemInstructions = `
 You are an expert web developer building multi-page websites with Vite and TypeScript.
@@ -358,10 +356,13 @@ ${generateDependencyDoc()}
 8. **ALWAYS reference this cached documentation for structure**
 `;
 
-  const cacheContent: CachedContent = {
-    model: CACHE_MODEL,
+  // Create cache using REST API
+  const cachePayload = {
+    model: `models/${CACHE_MODEL}`,
     displayName: `project-${projectId}-cache`,
-    systemInstruction: systemInstructions,
+    systemInstruction: {
+      parts: [{ text: systemInstructions }]
+    },
     contents: [
       {
         role: "user",
@@ -380,13 +381,26 @@ ${generateDependencyDoc()}
         ]
       }
     ],
-    ttlSeconds: CACHE_TTL
+    ttl: `${CACHE_TTL}s`
   }
 
-  // Create the cache using the Gemini API
-  const cacheManager = genAI.cacheManager
-  const cachedContent = await cacheManager.create(cacheContent)
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/cachedContents?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(cachePayload),
+    }
+  )
 
+  if (!response.ok) {
+    const error = await response.text()
+    throw new Error(`Failed to create cache: ${response.status} ${error}`)
+  }
+
+  const cachedContent = await response.json()
   console.log(`[Cache] Created cache for project ${projectId}: ${cachedContent.name}`)
   
   return cachedContent
@@ -400,10 +414,24 @@ export async function getCachedContent(
   cacheName: string
 ): Promise<CachedContent | null> {
   try {
-    const genAI = new GoogleGenerativeAI(apiKey)
-    const cacheManager = genAI.cacheManager
-    const cachedContent = await cacheManager.get(cacheName)
-    
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/${cacheName}?key=${apiKey}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    )
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        return null
+      }
+      throw new Error(`Failed to get cache: ${response.status}`)
+    }
+
+    const cachedContent = await response.json()
     return cachedContent
   } catch (error) {
     console.error(`[Cache] Failed to retrieve cache ${cacheName}:`, error)
@@ -416,11 +444,22 @@ export async function getCachedContent(
  */
 export async function listCachedContents(apiKey: string): Promise<CachedContent[]> {
   try {
-    const genAI = new GoogleGenerativeAI(apiKey)
-    const cacheManager = genAI.cacheManager
-    const { cachedContents } = await cacheManager.list()
-    
-    return cachedContents || []
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/cachedContents?key=${apiKey}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    )
+
+    if (!response.ok) {
+      throw new Error(`Failed to list caches: ${response.status}`)
+    }
+
+    const data = await response.json()
+    return data.cachedContents || []
   } catch (error) {
     console.error(`[Cache] Failed to list caches:`, error)
     return []
@@ -435,10 +474,20 @@ export async function deleteCachedContent(
   cacheName: string
 ): Promise<boolean> {
   try {
-    const genAI = new GoogleGenerativeAI(apiKey)
-    const cacheManager = genAI.cacheManager
-    await cacheManager.delete(cacheName)
-    
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/${cacheName}?key=${apiKey}`,
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    )
+
+    if (!response.ok) {
+      throw new Error(`Failed to delete cache: ${response.status}`)
+    }
+
     console.log(`[Cache] Deleted cache ${cacheName}`)
     return true
   } catch (error) {
@@ -455,12 +504,11 @@ export async function getOrCreateProjectCache(
   projectId: string,
   projectType: string = "multi-page"
 ): Promise<CachedContent> {
-  const cacheName = `projects/${projectId}/cachedContents/project-${projectId}-cache`
+  // Try to find existing cache by listing all caches and matching displayName
+  const allCaches = await listCachedContents(apiKey)
+  const existingCache = allCaches.find(c => c.displayName === `project-${projectId}-cache`)
   
-  // Try to get existing cache
-  const existingCache = await getCachedContent(apiKey, cacheName)
-  
-  if (existingCache) {
+  if (existingCache && existingCache.name) {
     // Check if cache is still valid (not expired)
     const expiresAt = new Date(existingCache.expireTime || '')
     const now = new Date()
@@ -471,7 +519,7 @@ export async function getOrCreateProjectCache(
     } else {
       console.log(`[Cache] Cache expired for project ${projectId}, creating new one`)
       // Delete expired cache
-      await deleteCachedContent(apiKey, cacheName)
+      await deleteCachedContent(apiKey, existingCache.name)
     }
   }
   
@@ -481,6 +529,7 @@ export async function getOrCreateProjectCache(
 
 /**
  * Creates a generative model that uses cached content.
+ * This is a helper function to use with getGenerativeModelFromCachedContent.
  */
 export async function getModelWithCache(
   apiKey: string,

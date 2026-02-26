@@ -196,9 +196,9 @@ You generate ONE file at a time. Each file MUST properly connect to previously g
 
 **DESIGN SYSTEM & HERO UI STYLING:**
 *   **Hero UI Components**: Modern gradient hero sections, glassmorphism navigation, feature cards with hover effects
-*   **Gradients**: Use `bg-gradient-to-br from-purple-600 via-blue-600 to-cyan-500` for hero sections
-*   **Glassmorphism**: `bg-white/80 backdrop-blur-lg` for fixed headers
-*   **Cards**: `rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300`
+*   **Gradients**: Use bg-gradient-to-br from-purple-600 via-blue-600 to-cyan-500 for hero sections
+*   **Glassmorphism**: bg-white/80 backdrop-blur-lg for fixed headers
+*   **Cards**: rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300
 *   **Modern Design**: Clean, breathable layouts with smooth animations
 *   **Typography**: Sans-serif (Inter/system-ui) with clear hierarchy
 *   **Color Palette**: Professional gradients, accessible colors (WCAG AA)
@@ -242,37 +242,37 @@ Reference the cache for:
 
 **MULTI-PAGE WEBSITE RULES:**
 1. **Multiple HTML Files**: Create separate .html files (index.html, about.html, services.html, contact.html)
-2. **Navigation Links**: Use static href attributes: `<a href="about.html">About</a>`
-3. **Shared Scripts**: All HTML pages import `/src/main.ts` for common functionality
-4. **Page-Specific Scripts**: Each page can import its own module: `/src/pages/home.ts`
+2. **Navigation Links**: Use static href attributes: <a href="about.html">About</a>
+3. **Shared Scripts**: All HTML pages import /src/main.ts for common functionality
+4. **Page-Specific Scripts**: Each page can import its own module: /src/pages/home.ts
 5. **Header Component**: Must be rendered on EVERY page with links to all pages
 6. **Footer Component**: Must be rendered on EVERY page
 7. **NO SPA Routing**: Do NOT use React Router, Vue Router, or similar
 
 **HERO UI COMPONENT REQUIREMENTS:**
 1. **Hero Section** (for index.html):
-   - Gradient background: `bg-gradient-to-br from-purple-600 via-blue-600 to-cyan-500`
-   - Large heading: `text-4xl md:text-6xl font-bold`
-   - Subheading with opacity: `text-xl md:text-2xl text-white/90`
+   - Gradient background: bg-gradient-to-br from-purple-600 via-blue-600 to-cyan-500
+   - Large heading: text-4xl md:text-6xl font-bold
+   - Subheading with opacity: text-xl md:text-2xl text-white/90
    - CTA buttons: Primary (solid white) + Secondary (outlined)
-   - Full-width: `max-w-7xl mx-auto px-4 sm:px-6 lg:px-8`
+   - Full-width: max-w-7xl mx-auto px-4 sm:px-6 lg:px-8
 
 2. **Navigation Header**:
-   - Fixed position: `fixed top-0 left-0 right-0 z-50`
-   - Glassmorphism: `bg-white/80 backdrop-blur-lg border-b border-gray-200`
-   - Logo with gradient text: `bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent`
+   - Fixed position: fixed top-0 left-0 right-0 z-50
+   - Glassmorphism: bg-white/80 backdrop-blur-lg border-b border-gray-200
+   - Logo with gradient text: bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent
    - Navigation links with hover effects
    - Mobile menu button for small screens
 
 3. **Feature/Service Cards**:
-   - Rounded corners: `rounded-2xl`
-   - Shadow with hover: `shadow-lg hover:shadow-2xl transition-all duration-300`
-   - Gradient icon container: `bg-gradient-to-br from-blue-500 to-purple-600`
-   - Scale on hover: `group-hover:scale-110 transition`
+   - Rounded corners: rounded-2xl
+   - Shadow with hover: shadow-lg hover:shadow-2xl transition-all duration-300
+   - Gradient icon container: bg-gradient-to-br from-blue-500 to-purple-600
+   - Scale on hover: group-hover:scale-110 transition
 
 4. **Footer**:
-   - Dark theme: `bg-gray-900 text-white`
-   - Multi-column grid: `grid grid-cols-1 md:grid-cols-4 gap-8`
+   - Dark theme: bg-gray-900 text-white
+   - Multi-column grid: grid grid-cols-1 md:grid-cols-4 gap-8
    - Site links, social links, copyright
 
 **RULES FOR {{FILE_EXT}} GENERATION:**
@@ -280,43 +280,31 @@ Reference the cache for:
 
 **RUNTIME SAFETY (MANDATORY):**
 1. **NO TOP-LEVEL DOM ACCESS**: Never access DOM at module root level
-2. **WRAP IN FUNCTIONS**: Wrap DOM manipulation in exported functions (e.g., `export function init()`)
-3. **NULL CHECKS**: Always check if elements exist: `if (!el) return;`
-4. **ARRAY SAFETY**: Use `Array.isArray(x)` before `.map()` or `.forEach()`
-5. **OPTIONAL CHAINING**: Use `obj?.prop` for safe property access
+2. **WRAP IN FUNCTIONS**: Wrap DOM manipulation in exported functions (e.g., export function init())
+3. **NULL CHECKS**: Always check if elements exist: if (!el) return;
+4. **ARRAY SAFETY**: Use Array.isArray(x) before .map() or .forEach()
+5. **OPTIONAL CHAINING**: Use obj?.prop for safe property access
 
 **SPECIFIC RULES PER FILE TYPE:**
 
 **HTML Files** (index.html, about.html, services.html, contact.html):
 - Must be in ROOT directory
-- Must include: `<!DOCTYPE html>`, `<meta charset="UTF-8">`, `<meta name="viewport">`
-- Must include Tailwind CDN: `<script src="https://cdn.tailwindcss.com"></script>`
-- Must include shared script: `<script type="module" src="/src/main.ts"></script>`
-- Can include page-specific script: `<script type="module" src="/src/pages/home.ts"></script>`
+- Must include: <!DOCTYPE html>, <meta charset="UTF-8">, <meta name="viewport">
+- Must include Tailwind CDN: <script src="https://cdn.tailwindcss.com"></script>
+- Must include shared script: <script type="module" src="/src/main.ts"></script>
+- Can include page-specific script: <script type="module" src="/src/pages/home.ts"></script>
 - Must have unique page title and meta description
 - Must have div containers for header, main content, footer
-- Navigation links: `<a href="about.html">` (NOT JavaScript routing)
+- Navigation links: <a href="about.html"> (NOT JavaScript routing)
 
 **package.json**:
-- Scripts: `"dev": "vite"`, `"build": "vite build"`, `"preview": "vite preview"`, `"check": "tsc --noEmit"`
+- Scripts: "dev": "vite", "build": "vite build", "preview": "vite preview", "check": "tsc --noEmit"
 - Dependencies: vite, typescript
 
 **vite.config.ts**:
-- Must import: `import { defineConfig } from 'vite'`
-- Must include `build.outDir = 'dist'`
-- **CRITICAL**: Must specify ALL HTML files as entry points:
-  \`\`\`typescript
-  build: {
-    rollupOptions: {
-      input: {
-        main: 'index.html',
-        about: 'about.html',
-        services: 'services.html',
-        contact: 'contact.html'
-      }
-    }
-  }
-  \`\`\`
+- Must import: import { defineConfig } from 'vite'
+- Must include build.outDir = 'dist'
+- **CRITICAL**: Must specify ALL HTML files as entry points in rollupOptions.input
 
 **tsconfig.json**:
 - "target": "ES2020", "lib": ["ES2020", "DOM", "DOM.Iterable"]
@@ -335,23 +323,23 @@ Reference the cache for:
   --font-heading, --font-body, --radius, --spacing-sm, --spacing-md, --spacing-lg
 
 **src/components/header.ts**:
-- Export function: `export function renderHeader(container: HTMLElement): void`
+- Export function: export function renderHeader(container: HTMLElement): void
 - Create navigation with links to ALL pages
 - Use Hero UI glassmorphism pattern
 - Fixed positioning with backdrop-blur
 
 **src/components/hero.ts**:
-- Export function: `export function renderHero(container: HTMLElement, config?: HeroConfig): void`
+- Export function: export function renderHero(container: HTMLElement, config?: HeroConfig): void
 - Gradient background with heading, subheading, CTA buttons
 - Responsive padding and text sizes
 
 **src/components/footer.ts**:
-- Export function: `export function renderFooter(container: HTMLElement): void`
+- Export function: export function renderFooter(container: HTMLElement): void
 - Dark theme with multi-column grid
 - Site navigation links
 
 **src/main.ts**:
-- Must start with: `import './style.css'`
+- Must start with: import './style.css'
 - Import ALL component render functions
 - Export init function that renders header and footer
 - Ensure DOM is ready before rendering
