@@ -608,7 +608,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
   const { done, total, percent } = getProgress()
 
   return (
-    <div className="flex flex-col h-full bg-zinc-950 text-zinc-100 font-sans relative overflow-hidden">
+    <div className="flex flex-col h-full bg-background text-foreground font-sans relative overflow-hidden">
 
       {/* MOBILE HEADER (Gemini Style) */}
       <div className="md:hidden flex items-center justify-center pt-8 pb-4 relative z-20">
@@ -620,7 +620,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       </div>
 
       {/* DESKTOP HEADER */}
-      <div className="hidden md:flex items-center justify-between px-4 py-3 border-b border-white/5 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-20">
+      <div className="hidden md:flex items-center justify-between px-4 py-3 border-b border-white/5 bg-background/80 backdrop-blur-md sticky top-0 z-20">
         <div className="flex items-center gap-3">
             <div className="h-8 w-8 rounded-lg bg-white/5 flex items-center justify-center border border-white/10">
                 <Bot className="h-4 w-4 text-white" />
@@ -668,7 +668,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
               {/* IDLE STATE */}
               {step === 'idle' && (
                 <div className="flex-1 flex flex-col justify-center items-center text-center pb-32">
-                   <h1 className="text-3xl font-medium tracking-tight text-white leading-tight max-w-xs mx-auto animate-in fade-in zoom-in duration-700">
+                   <h1 className="text-3xl font-medium tracking-tight text-foreground leading-tight max-w-xs mx-auto animate-in fade-in duration-500">
                      Hi <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent font-semibold">{session?.user?.name?.split(' ')[0] || 'User'}</span>, What are we building?
                    </h1>
                 </div>
@@ -815,13 +815,13 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
           </div>
 
           {/* RIGHT: CHAT & INPUT (Desktop Only - hidden on mobile) */}
-          <div className="hidden md:flex flex-1 flex-col h-full bg-zinc-950 relative z-10">
+          <div className="hidden md:flex flex-1 flex-col h-full bg-background relative z-10">
 
               {/* Progress Bar */}
               {(step === 'coding' || step === 'planning') && (() => {
                 const { done, total, percent } = getProgress()
                 return (
-                  <div className="px-4 py-2 border-b border-white/5 bg-zinc-950/80 flex items-center gap-3">
+                  <div className="px-4 py-2 border-b border-white/5 bg-background/80 flex items-center gap-3">
                     <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-white/80 rounded-full transition-all duration-700 ease-out"
