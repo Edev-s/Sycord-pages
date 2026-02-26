@@ -14,8 +14,8 @@ import { GoogleGenerativeAI, CachedContent } from "@google/generative-ai"
 /** Cache time-to-live: 1 hour (in seconds) */
 export const CACHE_TTL = 3600
 
-/** Model to use for cached content */
-export const CACHE_MODEL = "gemini-1.5-pro-002"
+/** Model to use for cached content - using latest preview model */
+export const CACHE_MODEL = "gemini-3.1-pro-preview"
 
 // ─────────── Types ───────────
 

@@ -43,6 +43,7 @@ import { cn } from "@/lib/utils"
 
 // Updated Models List
 const MODELS = [
+  { id: "gemini-3.1-pro-preview", name: "Gemini 3.1 Pro Preview", provider: "Google" },
   { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", provider: "Google" },
   { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", provider: "Google" },
   { id: "gemini-3-flash", name: "Gemini 3 Flash (Preview)", provider: "Google" },
