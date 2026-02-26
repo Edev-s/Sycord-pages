@@ -171,13 +171,13 @@ WHAT TO INCLUDE IN YOUR RESPONSE:
 ✓ Summary statement at [0] position
 ✓ Nothing else - no explanations, no code, no examples
 
-EXAMPLE OF CORRECT OUTPUT (THIS IS PLANNING ONLY - NO CODE):
+EXAMPLE OF CORRECT OUTPUT:
 [0] The user wants to create a portfolio website. I will generate a MULTI-PAGE website using Vite + TypeScript with Hero UI components. Files are ordered so dependencies come first.
 
 [1] package.json : [usedfor]npm dependencies and build scripts[usedfor]
 [2] tsconfig.json : [usedfor]TypeScript configuration[usedfor]
 [3] vite.config.ts : [usedfor]Vite build configuration with multi-page setup[usedfor]
-...and so on (NO CODE, just the list)
+...and so on
 
 DESIGN REQUIREMENTS:
 - src/types.ts: Define NavItem, SiteConfig, Feature, Service, TeamMember interfaces
