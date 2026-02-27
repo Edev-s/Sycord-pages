@@ -401,7 +401,7 @@ const ProgressCard = ({ isActive, isDone, progress, activeFile }: { isActive: bo
             
             setBuildLogs(prev => {
                 const newLogs = [...prev, logs[0]]
-                return newLogs.slice(-MAX_VISIBLE_LOGS) // Keep last N logs
+                return newLogs.slice(-MAX_VISIBLE_LOGS) // Keep last MAX_VISIBLE_LOGS logs
             })
         }
     }, [activeFile, isActive])
@@ -465,7 +465,7 @@ const ProgressCard = ({ isActive, isDone, progress, activeFile }: { isActive: bo
                                             key={i} 
                                             className="flex items-center gap-2 text-[10px] font-mono text-[#64748B] animate-in fade-in slide-in-from-left-2 duration-300"
                                         >
-                                            <Circle className="h-1.5 w-1.5 fill-[#64748B] stroke-[#64748B]" />
+                                            <Circle className="h-2 w-2 fill-[#64748B] stroke-[#64748B]" />
                                             <span className="truncate">{log}</span>
                                         </div>
                                     ))}
@@ -527,7 +527,7 @@ const SavingCard = ({ isActive, isDone }: { isActive: boolean, isDone: boolean }
                                 key={i} 
                                 className="flex items-center gap-2 text-[10px] font-mono text-[#64748B] animate-in fade-in slide-in-from-left-2 duration-300"
                             >
-                                <Circle className="h-1 w-1 fill-[#64748B] stroke-[#64748B]" />
+                                <Circle className="h-2 w-2 fill-[#64748B] stroke-[#64748B]" />
                                 <span>{log}</span>
                             </div>
                         ))}
