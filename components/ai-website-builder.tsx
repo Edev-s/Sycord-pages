@@ -214,50 +214,99 @@ const GeminiIcon = ({ className }: { className?: string }) => (
 
 const GeminiBadge = () => (
     <div className="flex items-center justify-center mb-12 animate-in fade-in zoom-in duration-700 delay-100">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-zinc-900 border border-zinc-800 shadow-sm transition-all hover:bg-zinc-800/80 cursor-default">
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#F8F9FA] border border-[#E2E8F0] shadow-sm transition-all hover:bg-[#F8F9FA]/80 cursor-default">
             <GeminiIcon className="h-4 w-4" />
-            <span className="text-xs font-medium text-zinc-300">State of the Art</span>
-            <Info className="h-3 w-3 text-zinc-600 ml-1" />
+            <span className="text-xs font-medium text-[#64748B]">State of the Art</span>
         </div>
     </div>
 )
 
-const InputBar = ({ input, setInput, onSend, disabled }: { input: string, setInput: (v: string) => void, onSend: () => void, disabled: boolean }) => (
-    <div className="w-full max-w-2xl mx-auto px-4 pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 z-50">
-        <div className={cn(
-            "rounded-3xl p-2 relative shadow-lg transition-all duration-300 border border-white/10 bg-white/5 backdrop-blur-xl",
-            disabled ? "opacity-80 pointer-events-none" : "focus-within:border-white/20 focus-within:bg-white/10"
-        )}>
-            <div className="absolute -top-3 left-6 px-2 text-[10px] font-bold text-zinc-500 uppercase tracking-widest pointer-events-none transition-colors group-focus-within:text-zinc-400">
-                What to build?
-            </div>
-            <div className="flex items-center gap-2 pl-3 pr-2">
-                <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full text-zinc-500 hover:text-zinc-300 hover:bg-white/10 transition-all" disabled={disabled}>
-                    <Paperclip className="h-5 w-5" />
-                </Button>
-                <Input
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && onSend()}
-                    placeholder=""
-                    className="flex-1 border-none bg-transparent h-12 text-base text-zinc-200 placeholder:text-zinc-600 focus-visible:ring-0 px-2 shadow-none"
-                    disabled={disabled}
-                    autoFocus
-                />
-                <Button
-                    size="icon"
-                    className="h-10 w-10 rounded-full bg-white/10 text-zinc-400 hover:bg-white/20 hover:text-zinc-200 transition-all active:scale-95 border border-white/5"
-                    onClick={onSend}
-                    disabled={!input.trim() || disabled}
-                >
-                   {disabled ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-4 w-4 ml-0.5" />}
-                </Button>
+const InputBar = ({ input, setInput, onSend, disabled }: { input: string, setInput: (v: string) => void, onSend: () => void, disabled: boolean }) => {
+    const [isExpanded, setIsExpanded] = useState(false)
+    
+    return (
+        <div className="w-full max-w-2xl mx-auto px-4 pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 z-50">
+            <div className={cn(
+                "rounded-2xl p-1 relative transition-all duration-300 backdrop-blur-md",
+                "border border-[#E2E8F0]/20",
+                "shadow-[0_2px_8px_rgba(0,0,0,0.02)]",
+                "bg-white/[0.02]",
+                disabled ? "opacity-70 pointer-events-none" : "focus-within:border-[#E2E8F0]/30 focus-within:shadow-[0_4px_12px_rgba(0,0,0,0.04)]",
+                isExpanded && "min-h-[120px]"
+            )}>
+                <div className="flex items-start gap-2 p-2">
+                    <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-9 w-9 rounded-lg text-[#64748B] hover:text-[#0F172A] hover:bg-[#F8F9FA]/10 transition-all shrink-0 mt-0.5" 
+                        disabled={disabled}
+                        title="Attach files"
+                    >
+                        <Paperclip className="h-4 w-4 stroke-[1.5]" />
+                    </Button>
+                    <textarea
+                        value={input}
+                        onChange={(e) => {
+                            setInput(e.target.value)
+                            setIsExpanded(e.target.value.length > 100 || e.target.value.includes('\n'))
+                        }}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault()
+                                onSend()
+                            }
+                        }}
+                        placeholder="Describe what you want to build..."
+                        className={cn(
+                            "flex-1 border-none bg-transparent text-sm text-[#0F172A] placeholder:text-[#64748B]/50",
+                            "focus-visible:outline-none resize-none",
+                            "font-normal leading-relaxed",
+                            isExpanded ? "min-h-[80px]" : "h-9"
+                        )}
+                        disabled={disabled}
+                        autoFocus
+                        rows={1}
+                    />
+                    <Button
+                        size="icon"
+                        className={cn(
+                            "h-9 w-9 rounded-lg shrink-0 mt-0.5",
+                            "bg-[#0F172A] text-white",
+                            "hover:bg-[#0F172A]/90",
+                            "transition-all active:scale-95",
+                            "disabled:opacity-40 disabled:pointer-events-none"
+                        )}
+                        onClick={onSend}
+                        disabled={!input.trim() || disabled}
+                    >
+                       {disabled ? <Loader2 className="h-4 w-4 animate-spin stroke-[1.5]" /> : <Send className="h-4 w-4 stroke-[1.5]" />}
+                    </Button>
+                </div>
             </div>
         </div>
-    </div>
-)
+    )
+}
 
 const ThinkingCard = ({ planContent, isActive, isDone }: { planContent: string, isActive: boolean, isDone: boolean }) => {
+    const [thinkingLogs, setThinkingLogs] = useState<string[]>([])
+    
+    useEffect(() => {
+        if (isActive) {
+            const logs = [
+                "> Analyzing requirements...",
+                "> Structuring project architecture...",
+                "> Optimizing component tree...",
+                "> Planning design system..."
+            ]
+            
+            logs.forEach((log, i) => {
+                setTimeout(() => {
+                    setThinkingLogs(prev => [...prev, log])
+                }, i * 800)
+            })
+        }
+    }, [isActive])
+    
     const getSection = (title: string) => {
         const regex = new RegExp(`## \\d+\\. ${title}[\\s\\S]*?(?=##|$)`, 'i')
         const match = planContent.match(regex)
@@ -268,44 +317,64 @@ const ThinkingCard = ({ planContent, isActive, isDone }: { planContent: string, 
     const rawSnippet = !businessGoal ? planContent.slice(0, 150) + "..." : null
 
     return (
-        <div className={cn("flex gap-4 group transition-all duration-500", (isActive || isDone) ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none")}>
-            <div className="flex flex-col items-center gap-2 pt-1">
+        <div className={cn("flex gap-3 group transition-all duration-500", (isActive || isDone) ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none")}>
+            <div className="flex flex-col items-center gap-1.5 pt-1">
                 <div className={cn(
-                    "h-8 w-8 rounded-full flex items-center justify-center transition-all duration-500 shadow-sm backdrop-blur-md",
-                    isDone ? "bg-white/5 text-zinc-500 border border-white/10" : isActive ? "bg-blue-500/10 text-blue-400 border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.15)]" : "bg-white/5 text-zinc-700 border border-white/10"
+                    "h-7 w-7 rounded-lg flex items-center justify-center transition-all duration-500 border",
+                    isDone 
+                        ? "bg-[#F8F9FA] text-[#64748B] border-[#E2E8F0]" 
+                        : isActive 
+                        ? "bg-[#F8F9FA] text-[#0F172A] border-[#E2E8F0] shadow-sm" 
+                        : "bg-[#F8F9FA] text-[#64748B] border-[#E2E8F0]"
                 )}>
-                    {isActive ? <Sparkles className="h-4 w-4 animate-pulse" /> : <Sparkles className="h-4 w-4" />}
+                    {isActive ? (
+                        <div className="relative">
+                            <Sparkles className="h-3.5 w-3.5 stroke-[1.5]" />
+                            <span className="absolute inset-0 h-3.5 w-3.5">
+                                <Sparkles className="h-3.5 w-3.5 stroke-[1.5] animate-pulse opacity-40" />
+                            </span>
+                        </div>
+                    ) : (
+                        <Sparkles className="h-3.5 w-3.5 stroke-[1.5]" />
+                    )}
                 </div>
-                {(isActive || !isDone) && <div className={cn("w-0.5 flex-1 my-1 rounded-full transition-colors duration-500", isActive ? "bg-blue-500/20" : "bg-white/5")} />}
+                {(isActive || !isDone) && (
+                    <div className={cn(
+                        "w-px flex-1 my-1 transition-all duration-500",
+                        isActive ? "bg-[#64748B]/30" : "bg-[#E2E8F0]"
+                    )} />
+                )}
             </div>
-            <div className="flex-1 pb-8 min-w-0">
-                <h3 className={cn("text-sm font-medium mb-3 transition-colors duration-300", isActive ? "text-blue-400" : "text-zinc-400")}>
+            <div className="flex-1 pb-6 min-w-0">
+                <h3 className={cn(
+                    "text-xs font-medium mb-2.5 transition-colors duration-300 tracking-wide",
+                    isActive ? "text-[#0F172A]" : "text-[#64748B]"
+                )}>
                     {isActive ? "Thinking..." : "Thinking"}
                 </h3>
 
                 {(isActive || isDone) && (
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-700 shadow-sm backdrop-blur-xl">
+                    <div className="bg-[#F8F9FA]/50 border border-[#E2E8F0] rounded-xl p-4 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-700 backdrop-blur-sm">
+                        {isActive && thinkingLogs.length > 0 && (
+                            <div className="space-y-1 mb-3 pb-3 border-b border-[#E2E8F0]">
+                                {thinkingLogs.map((log, i) => (
+                                    <div key={i} className="flex items-center gap-2 text-[10px] font-mono text-[#64748B] animate-in fade-in slide-in-from-left-2 duration-300">
+                                        <span className="text-[#64748B]/60">{log}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        
                         {businessGoal ? (
-                            <div className="space-y-5">
+                            <div className="space-y-3">
                                 <div className="space-y-1.5">
-                                    <h4 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-2">
-                                        <Sparkles className="h-3 w-3" /> The Plan
-                                    </h4>
-                                    <p className="text-sm text-zinc-300 leading-relaxed font-light">{businessGoal}</p>
+                                    <p className="text-xs text-[#0F172A] leading-relaxed">{businessGoal}</p>
                                 </div>
-                                {getSection("Design System") && (
-                                     <div className="pt-4 border-t border-white/5 space-y-1.5">
-                                        <h4 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-2">
-                                            <Layout className="h-3 w-3" /> Design System
-                                        </h4>
-                                        <p className="text-xs text-zinc-400 leading-relaxed line-clamp-2">{getSection("Design System")}</p>
-                                     </div>
-                                )}
                             </div>
                         ) : (
-                            <div className="flex items-center gap-3 text-zinc-400 italic text-sm">
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                <span>{rawSnippet ? "Finalizing architecture..." : "Analyzing request..."}</span>
+                            <div className="flex items-center gap-2 text-[#64748B] text-xs">
+                                <Loader2 className="h-3.5 w-3.5 animate-spin stroke-[1.5]" />
+                                <span>Analyzing request...</span>
                             </div>
                         )}
                     </div>
@@ -316,39 +385,86 @@ const ThinkingCard = ({ planContent, isActive, isDone }: { planContent: string, 
 }
 
 const ProgressCard = ({ isActive, isDone, progress, activeFile }: { isActive: boolean, isDone: boolean, progress: { done: number, total: number, percent: number }, activeFile?: string }) => {
+    const [buildLogs, setBuildLogs] = useState<string[]>([])
+    
+    useEffect(() => {
+        if (isActive && activeFile) {
+            const logs = [
+                `> Generating ${activeFile}...`,
+                "> Optimizing asset manifests...",
+                "> Bundling components...",
+            ]
+            
+            setBuildLogs(prev => {
+                const newLogs = [...prev, logs[0]]
+                return newLogs.slice(-3) // Keep last 3 logs
+            })
+        }
+    }, [activeFile, isActive])
+    
     return (
-        <div className={cn("flex gap-4 group transition-all duration-500 delay-100", (isActive || isDone) ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none")}>
-             <div className="flex flex-col items-center gap-2 pt-1">
+        <div className={cn("flex gap-3 group transition-all duration-500 delay-100", (isActive || isDone) ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none")}>
+             <div className="flex flex-col items-center gap-1.5 pt-1">
                 <div className={cn(
-                    "h-8 w-8 rounded-full flex items-center justify-center transition-all duration-500 shadow-sm backdrop-blur-md",
-                    isDone ? "bg-white/5 text-zinc-500 border border-white/10" : isActive ? "bg-blue-500/10 text-blue-400 border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.15)]" : "bg-white/5 text-zinc-700 border border-white/10"
+                    "h-7 w-7 rounded-lg flex items-center justify-center transition-all duration-500 border",
+                    isDone 
+                        ? "bg-[#F8F9FA] text-[#64748B] border-[#E2E8F0]" 
+                        : isActive 
+                        ? "bg-[#F8F9FA] text-[#0F172A] border-[#E2E8F0] shadow-sm" 
+                        : "bg-[#F8F9FA] text-[#64748B] border-[#E2E8F0]"
                 )}>
-                   {isActive ? <Zap className="h-4 w-4 animate-pulse" /> : <Zap className="h-4 w-4" />}
+                   {isActive ? (
+                       <div className="relative">
+                           <Code className="h-3.5 w-3.5 stroke-[1.5]" />
+                           <span className="absolute inset-0 h-3.5 w-3.5">
+                               <Code className="h-3.5 w-3.5 stroke-[1.5] animate-pulse opacity-40" />
+                           </span>
+                       </div>
+                   ) : (
+                       <Code className="h-3.5 w-3.5 stroke-[1.5]" />
+                   )}
                 </div>
-                 {(isActive || !isDone) && <div className={cn("w-0.5 flex-1 my-1 rounded-full transition-colors duration-500", isActive ? "bg-blue-500/20" : "bg-white/5")} />}
+                 {(isActive || !isDone) && (
+                     <div className={cn(
+                         "w-px flex-1 my-1 transition-all duration-500",
+                         isActive ? "bg-[#64748B]/30" : "bg-[#E2E8F0]"
+                     )} />
+                 )}
             </div>
-            <div className="flex-1 pb-8 min-w-0">
-                 <h3 className={cn("text-sm font-medium mb-3 transition-colors duration-300", isActive ? "text-blue-400" : "text-zinc-400")}>
-                    {isActive ? "Building your plan" : "Building your plan"}
+            <div className="flex-1 pb-6 min-w-0">
+                 <h3 className={cn(
+                     "text-xs font-medium mb-2.5 transition-colors duration-300 tracking-wide",
+                     isActive ? "text-[#0F172A]" : "text-[#64748B]"
+                 )}>
+                    {isActive ? "Building..." : "Building"}
                 </h3>
 
                 {(isActive || isDone) && (
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-700 shadow-sm backdrop-blur-xl">
-                         <div className="space-y-3">
-                            <div className="flex items-center justify-between text-xs text-zinc-400 font-medium">
-                                <span>{isDone ? "Generation complete" : `Generating files... (${progress.done}/${progress.total})`}</span>
+                    <div className="bg-[#F8F9FA]/50 border border-[#E2E8F0] rounded-xl p-4 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-700 backdrop-blur-sm">
+                         <div className="space-y-2">
+                            <div className="flex items-center justify-between text-[10px] text-[#64748B] font-medium">
+                                <span>{isDone ? "Complete" : `${progress.done}/${progress.total} files`}</span>
                                 <span>{progress.percent}%</span>
                             </div>
-                            <div className="h-1.5 bg-zinc-800/50 rounded-full overflow-hidden">
+                            <div className="h-1 bg-[#E2E8F0] rounded-full overflow-hidden">
                                 <div
-                                    className="h-full bg-blue-500 rounded-full transition-all duration-500 ease-out shadow-[0_0_10px_rgba(59,130,246,0.5)]"
+                                    className="h-full bg-[#0F172A] rounded-full transition-all duration-500 ease-out"
                                     style={{ width: `${progress.percent}%` }}
                                 />
                             </div>
-                            {activeFile && !isDone && (
-                                <div className="flex items-center gap-2 text-[10px] text-zinc-500 font-mono bg-black/20 py-1.5 px-3 rounded-lg border border-white/5">
-                                    <Loader2 className="h-3 w-3 animate-spin text-blue-400" />
-                                    <span className="truncate">Writing {activeFile}...</span>
+                            
+                            {/* Technical Logs Stream */}
+                            {isActive && buildLogs.length > 0 && (
+                                <div className="mt-3 pt-3 border-t border-[#E2E8F0] space-y-1">
+                                    {buildLogs.map((log, i) => (
+                                        <div 
+                                            key={i} 
+                                            className="flex items-center gap-2 text-[10px] font-mono text-[#64748B] animate-in fade-in slide-in-from-left-2 duration-300"
+                                        >
+                                            <Circle className="h-1 w-1 fill-[#64748B] stroke-[#64748B]" />
+                                            <span className="truncate">{log}</span>
+                                        </div>
+                                    ))}
                                 </div>
                             )}
                          </div>
@@ -360,24 +476,66 @@ const ProgressCard = ({ isActive, isDone, progress, activeFile }: { isActive: bo
 }
 
 const SavingCard = ({ isActive, isDone }: { isActive: boolean, isDone: boolean }) => {
+    const [deployLogs, setDeployLogs] = useState<string[]>([])
+    
+    useEffect(() => {
+        if (isActive) {
+            const logs = [
+                "> Verifying SSL certificates...",
+                "> Syncing to cloud storage...",
+                "> Finalizing deployment..."
+            ]
+            
+            logs.forEach((log, i) => {
+                setTimeout(() => {
+                    setDeployLogs(prev => [...prev, log])
+                }, i * 600)
+            })
+        }
+    }, [isActive])
+    
     return (
-        <div className={cn("flex gap-4 group transition-all duration-500 delay-200", (isActive || isDone) ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none")}>
-             <div className="flex flex-col items-center gap-2 pt-1">
+        <div className={cn("flex gap-3 group transition-all duration-500 delay-200", (isActive || isDone) ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none")}>
+             <div className="flex flex-col items-center gap-1.5 pt-1">
                 <div className={cn(
-                    "h-8 w-8 rounded-full flex items-center justify-center transition-all duration-500 shadow-sm backdrop-blur-md",
-                    isDone ? "bg-white/5 text-zinc-500 border border-white/10" : isActive ? "bg-blue-500/10 text-blue-400 border border-blue-500/20" : "bg-white/5 text-zinc-700 border border-white/10"
+                    "h-7 w-7 rounded-lg flex items-center justify-center transition-all duration-500 border",
+                    isDone 
+                        ? "bg-[#F8F9FA] text-[#64748B] border-[#E2E8F0]" 
+                        : isActive 
+                        ? "bg-[#F8F9FA] text-[#0F172A] border-[#E2E8F0] shadow-sm" 
+                        : "bg-[#F8F9FA] text-[#64748B] border-[#E2E8F0]"
                 )}>
-                   {isDone ? <Check className="h-4 w-4" /> : <Cloud className="h-4 w-4" />}
+                   {isDone ? <CheckCircle2 className="h-3.5 w-3.5 stroke-[1.5]" /> : <Cloud className="h-3.5 w-3.5 stroke-[1.5]" />}
                 </div>
             </div>
             <div className="flex-1 pb-4 min-w-0">
-                 <h3 className={cn("text-sm font-medium mb-1 transition-colors duration-300", isActive ? "text-blue-400" : "text-zinc-400")}>
+                 <h3 className={cn(
+                     "text-xs font-medium mb-2.5 transition-colors duration-300 tracking-wide",
+                     isActive ? "text-[#0F172A]" : isDone ? "text-[#64748B]" : "text-[#64748B]"
+                 )}>
                     {isDone ? "Saved" : "Saving"}
                 </h3>
-                 <div className="flex items-center gap-2">
-                     <div className={cn("h-1.5 w-1.5 rounded-full transition-colors", isDone ? "bg-green-500" : "bg-blue-500 animate-pulse")} />
-                     <span className="text-xs text-zinc-500">{isDone ? "All changes saved to cloud" : "Syncing changes..."}</span>
-                 </div>
+                 
+                {isActive && deployLogs.length > 0 && (
+                    <div className="space-y-1">
+                        {deployLogs.map((log, i) => (
+                            <div 
+                                key={i} 
+                                className="flex items-center gap-2 text-[10px] font-mono text-[#64748B] animate-in fade-in slide-in-from-left-2 duration-300"
+                            >
+                                <Circle className="h-1 w-1 fill-[#64748B] stroke-[#64748B]" />
+                                <span>{log}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
+                 
+                {isDone && (
+                    <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-3 w-3 stroke-[1.5] text-[#64748B]" />
+                        <span className="text-xs text-[#64748B]">All changes saved</span>
+                    </div>
+                )}
             </div>
         </div>
     )
@@ -772,23 +930,19 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
   const planContent = planMessage?.content || ""
 
   return (
-    <div className="flex flex-col h-full bg-transparent text-zinc-100 font-sans relative overflow-hidden">
+    <div className="flex flex-col h-full bg-white text-[#0F172A] font-sans relative overflow-hidden">
         {/* Main Content */}
         <div className="flex-1 flex flex-col relative overflow-hidden">
-             {/* Background Accents - Blue only, as requested */}
-             <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
-             <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
-
             <div className="flex-1 overflow-y-auto p-6 md:p-12 custom-scrollbar relative z-10 flex flex-col">
                  {/* IDLE STATE */}
                 {step === 'idle' && (
                     <div className="flex flex-col items-center justify-start pt-20 text-center max-w-2xl w-full mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700 delay-150 h-full">
                         <GeminiBadge />
                         <div className="flex-1 flex flex-col items-center justify-center -mt-20">
-                            <h1 className="text-4xl md:text-5xl font-medium tracking-tight mb-2 text-white">
+                            <h1 className="text-4xl md:text-5xl font-medium tracking-tight mb-2 text-[#0F172A]">
                                 Hi {userName},
                             </h1>
-                            <h2 className="text-4xl md:text-5xl font-medium tracking-tight text-zinc-500 mb-12">
+                            <h2 className="text-4xl md:text-5xl font-normal tracking-tight text-[#64748B] mb-12">
                                 What are we building?
                             </h2>
                         </div>
@@ -826,25 +980,25 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                          {/* Done Actions */}
                         {step === 'done' && (
                             <div className="mt-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                                 <div className="flex items-center gap-4 p-4 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 mb-6 backdrop-blur-md">
-                                    <CheckCircle2 className="h-5 w-5" />
-                                    <span className="font-medium">Website generation complete!</span>
+                                 <div className="flex items-center gap-3 p-4 rounded-xl bg-[#F8F9FA] border border-[#E2E8F0] text-[#0F172A] mb-6">
+                                    <CheckCircle2 className="h-4 w-4 stroke-[1.5]" />
+                                    <span className="text-sm font-medium">Website generation complete</span>
                                  </div>
 
                                  <div className="grid grid-cols-2 gap-4">
                                     <Button
                                         size="lg"
-                                        className="w-full h-14 text-base font-semibold bg-white text-black hover:bg-zinc-200 rounded-xl"
+                                        className="w-full h-12 text-sm font-semibold bg-[#0F172A] text-white hover:bg-[#0F172A]/90 rounded-xl"
                                         onClick={handleDeploy}
                                         disabled={isDeploying}
                                     >
-                                        {isDeploying ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Rocket className="h-5 w-5 mr-2" />}
-                                        {deploySuccess ? "Deployed!" : "Deploy to Cloudflare"}
+                                        {isDeploying ? <Loader2 className="h-4 w-4 animate-spin mr-2 stroke-[1.5]" /> : <Rocket className="h-4 w-4 mr-2 stroke-[1.5]" />}
+                                        {deploySuccess ? "Deployed" : "Deploy"}
                                     </Button>
                                      <Button
                                         size="lg"
                                         variant="outline"
-                                        className="w-full h-14 text-base font-medium bg-zinc-900/50 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white rounded-xl backdrop-blur-sm"
+                                        className="w-full h-12 text-sm font-medium bg-white border-[#E2E8F0] text-[#64748B] hover:bg-[#F8F9FA] hover:text-[#0F172A] rounded-xl"
                                         onClick={() => {
                                             setStep('idle')
                                             setInput("")
@@ -859,14 +1013,14 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
 
                          {/* Error Display */}
                         {error && (
-                             <div className="mt-8 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 flex items-start gap-3 backdrop-blur-md">
-                                <Bug className="h-5 w-5 shrink-0" />
+                             <div className="mt-8 p-4 bg-[#F8F9FA] border border-[#E2E8F0] rounded-xl text-[#64748B] flex items-start gap-3">
+                                <Bug className="h-4 w-4 shrink-0 stroke-[1.5]" />
                                 <div className="space-y-1">
-                                    <h4 className="font-medium text-sm">Error</h4>
-                                    <p className="text-xs opacity-90">{error}</p>
+                                    <h4 className="font-medium text-sm text-[#0F172A]">Error</h4>
+                                    <p className="text-xs">{error}</p>
                                     <Button
                                         variant="link"
-                                        className="text-red-400 p-0 h-auto text-xs mt-2"
+                                        className="text-[#64748B] p-0 h-auto text-xs mt-2 hover:text-[#0F172A]"
                                         onClick={() => setStep('idle')}
                                     >
                                         Reset
