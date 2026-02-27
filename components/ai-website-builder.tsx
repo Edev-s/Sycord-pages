@@ -40,6 +40,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
+import { PlanDisplay } from "@/components/plan-display"
 
 // Updated Models List
 const MODELS = [
@@ -78,13 +79,13 @@ interface FileNode {
   status: 'pending' | 'generating' | 'done'
 }
 
-const FileTreeVisualizer = ({ pages, currentFile }: { pages: GeneratedPage[], currentFile?: string }) => {
+const FileTreeVisualizer = ({ pages, currentFile, plannedFiles = [] }: { pages: GeneratedPage[], currentFile?: string, plannedFiles?: string[] }) => {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({ 'root': true, 'src': true })
 
   // Build tree from pages
   const buildTree = () => {
     const root: FileNode[] = []
-    const addNode = (path: string, status: 'done' | 'generating') => {
+    const addNode = (path: string, status: 'done' | 'generating' | 'pending') => {
       const parts = path.split('/')
       let current = root
       let currentPath = ''
@@ -113,7 +114,13 @@ const FileTreeVisualizer = ({ pages, currentFile }: { pages: GeneratedPage[], cu
       })
     }
 
+    // First add planned files as pending
+    plannedFiles.forEach(f => addNode(f, 'pending'))
+
+    // Then overwrite with actual pages (done)
     pages.forEach(p => addNode(p.name, 'done'))
+
+    // Then mark current as generating
     if (currentFile) addNode(currentFile, 'generating')
 
     const sortNodes = (nodes: FileNode[]) => {
@@ -133,6 +140,7 @@ const FileTreeVisualizer = ({ pages, currentFile }: { pages: GeneratedPage[], cu
     const isExp = expanded[node.path] ?? true
     const Icon = node.type === 'folder' ? (isExp ? FolderOpen : Folder) : FileCode
     const isGenerating = node.status === 'generating'
+    const isPending = node.status === 'pending'
 
     return (
       <div key={node.path}>
@@ -140,7 +148,8 @@ const FileTreeVisualizer = ({ pages, currentFile }: { pages: GeneratedPage[], cu
           className={cn(
             "flex items-center gap-2 py-1.5 px-2 text-xs rounded-md hover:bg-white/5 cursor-pointer select-none transition-colors",
             isGenerating && "bg-white/5 animate-pulse",
-            node.status === 'done' && node.type === 'file' && "text-zinc-400"
+            node.status === 'done' && node.type === 'file' && "text-zinc-400",
+            isPending && "opacity-50"
           )}
           style={{ paddingLeft: `${depth * 16 + 8}px` }}
           onClick={() => {
@@ -157,10 +166,15 @@ const FileTreeVisualizer = ({ pages, currentFile }: { pages: GeneratedPage[], cu
           <Icon className={cn(
               "h-3.5 w-3.5",
               node.type === 'folder' ? "text-zinc-500" : "text-zinc-400",
-              isGenerating && "text-white"
+              isGenerating && "text-white",
+              isPending && "text-zinc-600"
           )} />
 
-          <span className={cn("truncate flex-1 font-mono", isGenerating ? "text-white" : "text-zinc-400")}>{node.name}</span>
+          <span className={cn(
+            "truncate flex-1 font-mono",
+            isGenerating ? "text-white" : "text-zinc-400",
+            isPending && "text-zinc-600"
+          )}>{node.name}</span>
 
           {isGenerating && <Loader2 className="h-3 w-3 animate-spin text-white" />}
         </div>
@@ -200,6 +214,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
   const [error, setError] = useState<string | null>(null)
 
   const [activeFile, setActiveFile] = useState<string | undefined>(undefined)
+  const [plannedFiles, setPlannedFiles] = useState<string[]>([])
 
   const [isDeploying, setIsDeploying] = useState(false)
   const [deploySuccess, setDeploySuccess] = useState(false)
@@ -458,6 +473,11 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       const planData = await planResponse.json()
       const generatedInstruction = planData.instruction
 
+      // Parse planned files immediately
+      const extractedFiles = (generatedInstruction.match(/\[\d+\]\s*([^\s:\]]+)/g) || [])
+        .map((f: string) => f.replace(/\[\d+\]\s*/, '').trim())
+
+      setPlannedFiles(extractedFiles)
       setInstruction(generatedInstruction)
 
       const planMessage: Message = {
@@ -592,7 +612,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
               </SheetTrigger>
               <SheetContent side="left" className="bg-zinc-950 border-r-white/10 w-3/4 max-w-sm pt-10">
                  <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-4">Project Structure</h3>
-                 <FileTreeVisualizer pages={generatedPages} currentFile={activeFile} />
+                 <FileTreeVisualizer pages={generatedPages} currentFile={activeFile} plannedFiles={plannedFiles} />
               </SheetContent>
             </Sheet>
         </div>
@@ -639,7 +659,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                       {(step !== 'idle' && step !== 'done') && <Loader2 className="h-3 w-3 animate-spin text-zinc-400" />}
                   </div>
 
-                  <FileTreeVisualizer pages={generatedPages} currentFile={activeFile} />
+                  <FileTreeVisualizer pages={generatedPages} currentFile={activeFile} plannedFiles={plannedFiles} />
 
                   <div className={cn(
                       "rounded-xl p-4 space-y-2 transition-all duration-500 border",
@@ -721,16 +741,19 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                           </div>
                           <h3 className="text-base font-medium text-zinc-300 mb-1">What shall we build?</h3>
                           <p className="text-xs text-zinc-600 mb-6 max-w-xs">Describe your website and the AI will plan the architecture, generate connected TypeScript files, and deploy it.</p>
-                          <div className="flex flex-wrap gap-2 justify-center max-w-md">
+                          <div className="flex flex-col gap-2 justify-center max-w-md w-full px-4">
                             {[
+                              "Using the Main Plan and Page Structure defined above, generate a functional sitemap and a component list for the Reservation page. Ensure the UI remains consistent with a Modern Dark Luxe aesthetic.",
                               "A modern portfolio site with dark theme",
                               "SaaS landing page with pricing section",
-                              "Restaurant site with menu and reservations",
-                            ].map((suggestion) => (
+                            ].map((suggestion, i) => (
                               <button
                                 key={suggestion}
                                 onClick={() => setInput(suggestion)}
-                                className="text-[11px] text-zinc-500 hover:text-zinc-200 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 rounded-lg px-3 py-1.5 transition-all"
+                                className={cn(
+                                  "text-[11px] text-left hover:text-zinc-200 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 rounded-lg px-3 py-2 transition-all truncate",
+                                  i === 0 ? "text-emerald-400/80 hover:text-emerald-400 font-medium border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10" : "text-zinc-500"
+                                )}
                               >
                                 {suggestion}
                               </button>
@@ -755,23 +778,8 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                                 "bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-tl-sm backdrop-blur-sm"
                             )}>
                                 {msg.role === 'assistant' && msg.plan ? (
-                                    <div>
-                                      <button
-                                        onClick={() => setPlanExpanded(p => !p)}
-                                        className="flex items-center gap-2 text-[10px] font-bold text-zinc-500 uppercase tracking-wider hover:text-zinc-300 transition-colors w-full"
-                                      >
-                                        <BrainCircuit className="h-3 w-3" />
-                                        <span>Architecture Plan</span>
-                                        <span className="text-zinc-600 font-normal normal-case">
-                                          ({(msg.content.match(/\[\d+\]/g) || []).length} files)
-                                        </span>
-                                        <ChevronRight className={cn("h-3 w-3 ml-auto transition-transform", planExpanded && "rotate-90")} />
-                                      </button>
-                                      {planExpanded && (
-                                        <div className="mt-2 text-xs text-zinc-500 whitespace-pre-wrap border-t border-white/5 pt-2 max-h-[300px] overflow-y-auto custom-scrollbar">
-                                          {msg.content}
-                                        </div>
-                                      )}
+                                    <div className="w-full">
+                                      <PlanDisplay plan={msg.content} />
                                     </div>
                                 ) : null}
 
