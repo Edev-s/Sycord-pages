@@ -72,6 +72,26 @@ Follow this order strictly:
 OUTPUT FORMAT:
 You must output a single text block strictly following this format:
 
+## 1. Business Goal
+[Description of the goal]
+
+## 2. Design System
+[Description of the design]
+
+## 3. User Flow
+[Description of the flow]
+
+## 4. Page Structure
+(Expand on these examples or adapt to the user's request)
+- **Main/**: Focus on the value proposition, high-quality gallery, and primary Call to Action (CTA).
+- **Pricing/**: List tiered services or menu price ranges. Include a FAQ section to reduce support tickets.
+- **Login/**: Specify if this is for customers or staff. Mention social login options (Google/Apple).
+- **Tos/**: Legal boilerplate regarding cancellation policies and data privacy.
+- **Reservation/**: Conversion page. Define date picker, time slot selection, and confirmation logic.
+
+## 5. Implementation Strategy
+[Summary]
+
 [0] The user base plan is to create [Overview of the site]. As an AI web builder using Vite + TypeScript for Cloudflare Pages, I will generate the following files following proper project structure. Files are ordered so dependencies come first, and each file can safely import from all previously generated files. The backend will mark completed files by replacing [N] with [Done].
 
 [1] package.json : [usedfor]npm dependencies and scripts for Vite[usedfor]
