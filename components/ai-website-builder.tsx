@@ -43,6 +43,7 @@ import { cn } from "@/lib/utils"
 
 // Updated Models List
 const MODELS = [
+  { id: "gemini-3.1-pro-preview", name: "Gemini 3.1 Pro Preview", provider: "Google" },
   { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", provider: "Google" },
   { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", provider: "Google" },
   { id: "gemini-3-flash", name: "Gemini 3 Flash (Preview)", provider: "Google" },
@@ -302,6 +303,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
             fileStructure,
             fileContent,
             lastAction,
+            projectId, // Pass projectId for cache
             history: history.map(h => ({
                 action: h.action,
                 target: h.target,
@@ -451,7 +453,10 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       const planResponse = await fetch("/api/ai/generate-plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: [...messages, userMessage] }),
+        body: JSON.stringify({ 
+          messages: [...messages, userMessage],
+          projectId // Pass projectId for cache
+        }),
       })
 
       if (!planResponse.ok) throw new Error("Failed to generate plan")
