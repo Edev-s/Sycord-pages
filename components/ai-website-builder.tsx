@@ -576,7 +576,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
     <div className="flex flex-col h-full bg-zinc-950 text-zinc-100 font-sans relative overflow-hidden">
 
       {/* HEADER */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-20">
+      <div className="hidden md:flex items-center justify-between px-4 py-3 border-b border-white/5 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-20">
         <div className="flex items-center gap-3">
             <div className="h-8 w-8 rounded-lg bg-white/5 flex items-center justify-center border border-white/10">
                 <Bot className="h-4 w-4 text-white" />
