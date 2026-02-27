@@ -191,10 +191,31 @@ const FileTreeVisualizer = ({ pages, currentFile }: { pages: GeneratedPage[], cu
 
 // --- NEW UI COMPONENTS ---
 
+const GeminiIcon = ({ className }: { className?: string }) => (
+    <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className={className}
+    >
+        <path
+            d="M12 2C13.5 6.5 17.5 10.5 22 12C17.5 13.5 13.5 17.5 12 22C10.5 17.5 6.5 13.5 2 12C6.5 10.5 10.5 6.5 12 2Z"
+            fill="url(#gemini-gradient)"
+        />
+        <defs>
+            <linearGradient id="gemini-gradient" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#4facfe" />
+                <stop offset="50%" stopColor="#00f2fe" />
+                <stop offset="100%" stopColor="#4facfe" />
+            </linearGradient>
+        </defs>
+    </svg>
+)
+
 const GeminiBadge = () => (
     <div className="flex items-center justify-center mb-12 animate-in fade-in zoom-in duration-700 delay-100">
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-zinc-900 border border-zinc-800 shadow-sm transition-all hover:bg-zinc-800/80 cursor-default">
-            <Sparkles className="h-3.5 w-3.5 text-blue-400 fill-blue-400/20" />
+            <GeminiIcon className="h-4 w-4" />
             <span className="text-xs font-medium text-zinc-300">State of the Art</span>
             <Info className="h-3 w-3 text-zinc-600 ml-1" />
         </div>
@@ -202,7 +223,7 @@ const GeminiBadge = () => (
 )
 
 const InputBar = ({ input, setInput, onSend, disabled }: { input: string, setInput: (v: string) => void, onSend: () => void, disabled: boolean }) => (
-    <div className="w-full max-w-2xl mx-auto px-4 pb-8 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 z-50">
+    <div className="w-full max-w-2xl mx-auto px-4 pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 z-50">
         <div className={cn(
             "rounded-3xl p-2 relative shadow-lg transition-all duration-300 border border-white/10 bg-white/5 backdrop-blur-xl",
             disabled ? "opacity-80 pointer-events-none" : "focus-within:border-white/20 focus-within:bg-white/10"
@@ -237,7 +258,6 @@ const InputBar = ({ input, setInput, onSend, disabled }: { input: string, setInp
 )
 
 const ThinkingCard = ({ planContent, isActive, isDone }: { planContent: string, isActive: boolean, isDone: boolean }) => {
-    // Basic parsing for "Thinking Logic" sections
     const getSection = (title: string) => {
         const regex = new RegExp(`## \\d+\\. ${title}[\\s\\S]*?(?=##|$)`, 'i')
         const match = planContent.match(regex)
@@ -245,7 +265,6 @@ const ThinkingCard = ({ planContent, isActive, isDone }: { planContent: string, 
     }
 
     const businessGoal = getSection("Business Goal") || getSection("Goal")
-    // If no structured sections found, fallback to displaying a snippet of the raw content
     const rawSnippet = !businessGoal ? planContent.slice(0, 150) + "..." : null
 
     return (
@@ -617,14 +636,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
     }
 
     setMessages(prev => [...prev, userMessage])
-    // setInput("") // Don't clear input to simulate "copy also in generating UI" via input bar persistence
-    // But we should probably disable it.
-    // Actually, typical chat UX clears the input. But the user asked to "copy also in generating UI".
-    // Maybe they mean the prompt is visible.
-    // I'll keep the input filled but disabled?
-    // "copy inpur bar" -> means the input bar component should be there.
-    // "use moderner icon while generating and copy also in generating UI" -> maybe copy the Prompt into the UI?
-    // Let's keep the input bar visible and show the text inside it, but disabled.
+    // setInput("")
 
     setError(null)
     setStep("planning")
@@ -763,27 +775,29 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
     <div className="flex flex-col h-full bg-transparent text-zinc-100 font-sans relative overflow-hidden">
         {/* Main Content */}
         <div className="flex-1 flex flex-col relative overflow-hidden">
-             {/* Background Accents (only visible if global bg is dark enough or transparent) */}
+             {/* Background Accents - Blue only, as requested */}
              <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
-             <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl pointer-events-none" />
+             <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
 
-            <div className="flex-1 overflow-y-auto p-6 md:p-12 custom-scrollbar relative z-10 flex flex-col justify-center">
+            <div className="flex-1 overflow-y-auto p-6 md:p-12 custom-scrollbar relative z-10 flex flex-col">
                  {/* IDLE STATE */}
                 {step === 'idle' && (
-                    <div className="flex flex-col items-center justify-center text-center max-w-2xl w-full mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700 delay-150">
+                    <div className="flex flex-col items-center justify-start pt-20 text-center max-w-2xl w-full mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700 delay-150 h-full">
                         <GeminiBadge />
-                        <h1 className="text-4xl md:text-5xl font-medium tracking-tight mb-2 text-white">
-                            Hi {userName},
-                        </h1>
-                        <h2 className="text-4xl md:text-5xl font-medium tracking-tight text-zinc-500 mb-12">
-                            What are we building?
-                        </h2>
+                        <div className="flex-1 flex flex-col items-center justify-center -mt-20">
+                            <h1 className="text-4xl md:text-5xl font-medium tracking-tight mb-2 text-white">
+                                Hi {userName},
+                            </h1>
+                            <h2 className="text-4xl md:text-5xl font-medium tracking-tight text-zinc-500 mb-12">
+                                What are we building?
+                            </h2>
+                        </div>
                     </div>
                 )}
 
                 {/* GENERATING/DONE STATE */}
                 {(step !== 'idle') && (
-                    <div className="max-w-2xl mx-auto space-y-2 w-full">
+                    <div className="max-w-2xl mx-auto space-y-2 w-full flex-1 flex flex-col justify-center">
                          {/* 1. Thinking */}
                         <ThinkingCard
                             planContent={planContent}
