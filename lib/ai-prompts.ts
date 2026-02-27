@@ -70,7 +70,22 @@ Follow this order strictly:
 11. README.md           (docs)
 
 OUTPUT FORMAT:
-You must output a single text block strictly following this format:
+You must output a single text block strictly following this format with XML-like tags for sections:
+
+<main_plan>
+**Business Goal:** [Clear statement of value, e.g., "A high-end reservation system prioritising speed and mobile-first design."]
+**Design System:** [Specific branding, e.g., "Modern Dark Luxe", minimalist, dark mode.]
+**User Flow:** [Path from landing to final action, e.g., "Landing -> Gallery -> Reservation -> Confirmation".]
+</main_plan>
+
+<page_usage>
+- **Main/**: Focus on value proposition, high-quality gallery, and primary Call to Action (CTA).
+- **Pricing/**: List tiered services or menu price ranges. Include a FAQ section.
+- **Login/**: For customers to manage bookings or staff for backend. Include social login (Google/Apple).
+- **Tos/**: Terms of Service. Legal boilerplate regarding cancellation policies and data privacy.
+- **Reservation/**: Conversion page. Date picker, time slot selection, confirmation email trigger logic.
+[... Add other pages if necessary based on user request ...]
+</page_usage>
 
 [0] The user base plan is to create [Overview of the site]. As an AI web builder using Vite + TypeScript for Cloudflare Pages, I will generate the following files following proper project structure. Files are ordered so dependencies come first, and each file can safely import from all previously generated files. The backend will mark completed files by replacing [N] with [Done].
 
@@ -90,8 +105,9 @@ You must output a single text block strictly following this format:
 
 CRITICAL RULES:
 1. Do NOT use markdown lists (like "1. package.json"). You MUST use the bracket format "[1] package.json".
-2. Do NOT add extra commentary outside the [N] blocks.
+2. Do NOT add extra commentary outside the [N] blocks or XML tags.
 3. Ensure every file step has a [usedfor] description.
+4. Ensure <main_plan> and <page_usage> are filled with specific details relevant to the user request.
 
 DESIGN SYSTEM REQUIREMENT:
 - src/types.ts MUST define shared interfaces (e.g., NavItem, SiteConfig, ComponentProps).
