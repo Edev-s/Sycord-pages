@@ -214,12 +214,16 @@ const GeminiIcon = ({ className }: { className?: string }) => (
 
 const GeminiBadge = () => (
     <div className="flex items-center justify-center mb-12 animate-in fade-in zoom-in duration-700 delay-100">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#F8F9FA] border border-[#E2E8F0] shadow-sm transition-all hover:bg-[#F8F9FA]/80 cursor-default">
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#F8F9FA] border border-[#E2E8F0] shadow-sm transition-all hover:bg-[#E2E8F0]/80 cursor-default">
             <GeminiIcon className="h-4 w-4" />
             <span className="text-xs font-medium text-[#64748B]">State of the Art</span>
         </div>
     </div>
 )
+
+// Constants for input expansion and log display
+const INPUT_EXPANSION_THRESHOLD = 100
+const MAX_VISIBLE_LOGS = 3
 
 const InputBar = ({ input, setInput, onSend, disabled }: { input: string, setInput: (v: string) => void, onSend: () => void, disabled: boolean }) => {
     const [isExpanded, setIsExpanded] = useState(false)
@@ -248,7 +252,7 @@ const InputBar = ({ input, setInput, onSend, disabled }: { input: string, setInp
                         value={input}
                         onChange={(e) => {
                             setInput(e.target.value)
-                            setIsExpanded(e.target.value.length > 100 || e.target.value.includes('\n'))
+                            setIsExpanded(e.target.value.length > INPUT_EXPANSION_THRESHOLD || e.target.value.includes('\n'))
                         }}
                         onKeyDown={(e) => {
                             if (e.key === 'Enter' && !e.shiftKey) {
@@ -397,7 +401,7 @@ const ProgressCard = ({ isActive, isDone, progress, activeFile }: { isActive: bo
             
             setBuildLogs(prev => {
                 const newLogs = [...prev, logs[0]]
-                return newLogs.slice(-3) // Keep last 3 logs
+                return newLogs.slice(-MAX_VISIBLE_LOGS) // Keep last N logs
             })
         }
     }, [activeFile, isActive])
@@ -461,7 +465,7 @@ const ProgressCard = ({ isActive, isDone, progress, activeFile }: { isActive: bo
                                             key={i} 
                                             className="flex items-center gap-2 text-[10px] font-mono text-[#64748B] animate-in fade-in slide-in-from-left-2 duration-300"
                                         >
-                                            <Circle className="h-1 w-1 fill-[#64748B] stroke-[#64748B]" />
+                                            <Circle className="h-1.5 w-1.5 fill-[#64748B] stroke-[#64748B]" />
                                             <span className="truncate">{log}</span>
                                         </div>
                                     ))}

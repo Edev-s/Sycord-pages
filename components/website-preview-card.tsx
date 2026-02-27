@@ -27,6 +27,13 @@ interface WebsitePreviewCardProps {
   style?: string
 }
 
+// Preview iframe dimensions and scale
+// 1440x810 = 16:9 aspect ratio
+// Scale 0.28 fits the preview into typical card sizes
+const PREVIEW_IFRAME_WIDTH = 1440
+const PREVIEW_IFRAME_HEIGHT = 810
+const PREVIEW_SCALE = 0.28
+
 export function WebsitePreviewCard({
   domain,
   isLive,
