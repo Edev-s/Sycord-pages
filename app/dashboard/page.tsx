@@ -274,14 +274,14 @@ function DashboardContent() {
               ))}
             </div>
           ) : projects.length === 0 ? (
-            <div className="border border-dashed border-border rounded-lg p-12 text-center">
+            <div className="border border-dashed border-[#E2E8F0] rounded-xl p-12 text-center bg-white">
               <div className="max-w-md mx-auto">
-                <h3 className="text-lg font-semibold text-foreground mb-2">Még nincsenek projektek</h3>
-                <p className="text-sm text-muted-foreground mb-6">
+                <h3 className="text-lg font-semibold text-[#0F172A] mb-2">Még nincsenek projektek</h3>
+                <p className="text-sm text-[#64748B] mb-6">
                   Kezdje el első projektjét, és indítsa el weboldalát {"{"}name{"}"}.ltpd.xyz címen
                 </p>
-                <Button onClick={() => setIsModalOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
+                <Button onClick={() => setIsModalOpen(true)} className="bg-[#0F172A] text-white hover:bg-[#0F172A]/90">
+                  <Plus className="h-4 w-4 mr-2 stroke-[1.5]" />
                   Első Projekt Létrehozása
                 </Button>
               </div>
@@ -291,7 +291,7 @@ function DashboardContent() {
               {projects.map((project: any) => (
                 <div
                   key={project._id}
-                  className="group relative border border-border/50 bg-card/30 backdrop-blur-sm rounded-xl overflow-hidden flex flex-col hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300"
+                  className="group relative"
                 >
                   {project.domain && project.deploymentId ? (
                     <WebsitePreviewCard
@@ -305,15 +305,17 @@ function DashboardContent() {
                       onDelete={() => handleDeleteProject(project._id)}
                     />
                   ) : (
-                    <div className="w-full h-64 sm:h-80 md:h-96 bg-gradient-to-br from-muted/50 to-muted/10 flex flex-col items-center justify-center p-6 text-center group-hover:bg-muted/30 transition-colors">
-                      <div className="h-16 w-16 rounded-full bg-background/50 flex items-center justify-center mb-4 shadow-sm border border-border/50">
-                        <LayoutTemplate className="h-8 w-8 text-muted-foreground/50" />
+                    <div className="border border-[#E2E8F0] bg-white rounded-xl overflow-hidden flex flex-col hover:border-[#64748B]/30 hover:shadow-sm transition-all">
+                      <div className="w-full aspect-video bg-[#F8F9FA] flex flex-col items-center justify-center group-hover:bg-[#F8F9FA]/70 transition-colors">
+                        <div className="h-12 w-12 rounded-lg bg-white border border-[#E2E8F0] flex items-center justify-center mb-3 shadow-sm">
+                          <LayoutTemplate className="h-6 w-6 text-[#64748B]" />
+                        </div>
+                        <h3 className="font-medium text-[#0F172A] mb-1 text-sm">{project.businessName}</h3>
+                        <p className="text-xs text-[#64748B] mb-4">Not published yet</p>
+                        <Button variant="outline" size="sm" className="border-[#E2E8F0] text-[#64748B] hover:text-[#0F172A] hover:bg-[#F8F9FA]" onClick={() => router.push(`/dashboard/sites/${project._id}`)}>
+                          Edit Project
+                        </Button>
                       </div>
-                      <h3 className="font-medium text-foreground mb-1">{project.businessName}</h3>
-                      <p className="text-xs text-muted-foreground mb-4">Még nincs publikálva</p>
-                      <Button variant="outline" size="sm" onClick={() => router.push(`/dashboard/sites/${project._id}`)}>
-                        Szerkesztés
-                      </Button>
                     </div>
                   )}
                 </div>
