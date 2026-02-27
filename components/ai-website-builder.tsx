@@ -27,7 +27,10 @@ import {
   Paperclip,
   Send,
   Info,
-  Circle
+  Circle,
+  Zap,
+  Cloud,
+  Globe
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -173,7 +176,7 @@ const FileTreeVisualizer = ({ pages, currentFile }: { pages: GeneratedPage[], cu
   }
 
   return (
-    <div className="font-mono bg-black/20 rounded-xl border border-white/5 p-3 min-h-[200px] max-h-[400px] overflow-y-auto custom-scrollbar">
+    <div className="font-mono bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-3 min-h-[200px] max-h-[400px] overflow-y-auto custom-scrollbar">
       <div className="text-[10px] text-zinc-500 mb-3 flex items-center gap-2 uppercase tracking-wider font-semibold px-2">
          <Folder className="h-3 w-3" /> Project Structure
       </div>
@@ -199,13 +202,16 @@ const GeminiBadge = () => (
 )
 
 const InputBar = ({ input, setInput, onSend, disabled }: { input: string, setInput: (v: string) => void, onSend: () => void, disabled: boolean }) => (
-    <div className="w-full max-w-2xl mx-auto px-4 pb-8 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
-        <div className="bg-zinc-900/50 border border-zinc-800/60 rounded-3xl p-2 relative shadow-lg backdrop-blur-sm group focus-within:border-zinc-700/80 focus-within:bg-zinc-900/80 transition-all duration-300">
-            <div className="absolute -top-3 left-6 px-2 bg-zinc-950 text-[10px] font-bold text-zinc-500 uppercase tracking-widest pointer-events-none transition-colors group-focus-within:text-zinc-400">
+    <div className="w-full max-w-2xl mx-auto px-4 pb-8 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 z-50">
+        <div className={cn(
+            "rounded-3xl p-2 relative shadow-lg transition-all duration-300 border border-white/10 bg-white/5 backdrop-blur-xl",
+            disabled ? "opacity-80 pointer-events-none" : "focus-within:border-white/20 focus-within:bg-white/10"
+        )}>
+            <div className="absolute -top-3 left-6 px-2 text-[10px] font-bold text-zinc-500 uppercase tracking-widest pointer-events-none transition-colors group-focus-within:text-zinc-400">
                 What to build?
             </div>
             <div className="flex items-center gap-2 pl-3 pr-2">
-                <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 transition-all" disabled={disabled}>
+                <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full text-zinc-500 hover:text-zinc-300 hover:bg-white/10 transition-all" disabled={disabled}>
                     <Paperclip className="h-5 w-5" />
                 </Button>
                 <Input
@@ -213,13 +219,13 @@ const InputBar = ({ input, setInput, onSend, disabled }: { input: string, setInp
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && onSend()}
                     placeholder=""
-                    className="flex-1 border-none bg-transparent h-12 text-base text-zinc-200 placeholder:text-zinc-600 focus-visible:ring-0 px-2"
+                    className="flex-1 border-none bg-transparent h-12 text-base text-zinc-200 placeholder:text-zinc-600 focus-visible:ring-0 px-2 shadow-none"
                     disabled={disabled}
                     autoFocus
                 />
                 <Button
                     size="icon"
-                    className="h-10 w-10 rounded-full bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 transition-all active:scale-95"
+                    className="h-10 w-10 rounded-full bg-white/10 text-zinc-400 hover:bg-white/20 hover:text-zinc-200 transition-all active:scale-95 border border-white/5"
                     onClick={onSend}
                     disabled={!input.trim() || disabled}
                 >
@@ -246,12 +252,12 @@ const ThinkingCard = ({ planContent, isActive, isDone }: { planContent: string, 
         <div className={cn("flex gap-4 group transition-all duration-500", (isActive || isDone) ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none")}>
             <div className="flex flex-col items-center gap-2 pt-1">
                 <div className={cn(
-                    "h-8 w-8 rounded-full flex items-center justify-center transition-all duration-500 shadow-sm",
-                    isDone ? "bg-zinc-900 text-zinc-500 border border-zinc-800" : isActive ? "bg-blue-500/10 text-blue-400 border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.15)]" : "bg-zinc-900 text-zinc-700 border border-zinc-800"
+                    "h-8 w-8 rounded-full flex items-center justify-center transition-all duration-500 shadow-sm backdrop-blur-md",
+                    isDone ? "bg-white/5 text-zinc-500 border border-white/10" : isActive ? "bg-blue-500/10 text-blue-400 border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.15)]" : "bg-white/5 text-zinc-700 border border-white/10"
                 )}>
-                    {isActive ? <Brain className="h-4 w-4 animate-pulse" /> : <Brain className="h-4 w-4" />}
+                    {isActive ? <Sparkles className="h-4 w-4 animate-pulse" /> : <Sparkles className="h-4 w-4" />}
                 </div>
-                {(isActive || !isDone) && <div className={cn("w-0.5 flex-1 my-1 rounded-full transition-colors duration-500", isActive ? "bg-blue-500/20" : "bg-zinc-800/50")} />}
+                {(isActive || !isDone) && <div className={cn("w-0.5 flex-1 my-1 rounded-full transition-colors duration-500", isActive ? "bg-blue-500/20" : "bg-white/5")} />}
             </div>
             <div className="flex-1 pb-8 min-w-0">
                 <h3 className={cn("text-sm font-medium mb-3 transition-colors duration-300", isActive ? "text-blue-400" : "text-zinc-400")}>
@@ -259,7 +265,7 @@ const ThinkingCard = ({ planContent, isActive, isDone }: { planContent: string, 
                 </h3>
 
                 {(isActive || isDone) && (
-                    <div className="bg-zinc-900/40 border border-white/5 rounded-2xl p-5 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-700 shadow-sm backdrop-blur-sm">
+                    <div className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-700 shadow-sm backdrop-blur-xl">
                         {businessGoal ? (
                             <div className="space-y-5">
                                 <div className="space-y-1.5">
@@ -295,12 +301,12 @@ const ProgressCard = ({ isActive, isDone, progress, activeFile }: { isActive: bo
         <div className={cn("flex gap-4 group transition-all duration-500 delay-100", (isActive || isDone) ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none")}>
              <div className="flex flex-col items-center gap-2 pt-1">
                 <div className={cn(
-                    "h-8 w-8 rounded-full flex items-center justify-center transition-all duration-500 shadow-sm",
-                    isDone ? "bg-zinc-900 text-zinc-500 border border-zinc-800" : isActive ? "bg-blue-500/10 text-blue-400 border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.15)]" : "bg-zinc-900 text-zinc-700 border border-zinc-800"
+                    "h-8 w-8 rounded-full flex items-center justify-center transition-all duration-500 shadow-sm backdrop-blur-md",
+                    isDone ? "bg-white/5 text-zinc-500 border border-white/10" : isActive ? "bg-blue-500/10 text-blue-400 border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.15)]" : "bg-white/5 text-zinc-700 border border-white/10"
                 )}>
-                   {isActive ? <Wrench className="h-4 w-4 animate-pulse" /> : <Wrench className="h-4 w-4" />}
+                   {isActive ? <Zap className="h-4 w-4 animate-pulse" /> : <Zap className="h-4 w-4" />}
                 </div>
-                 {(isActive || !isDone) && <div className={cn("w-0.5 flex-1 my-1 rounded-full transition-colors duration-500", isActive ? "bg-blue-500/20" : "bg-zinc-800/50")} />}
+                 {(isActive || !isDone) && <div className={cn("w-0.5 flex-1 my-1 rounded-full transition-colors duration-500", isActive ? "bg-blue-500/20" : "bg-white/5")} />}
             </div>
             <div className="flex-1 pb-8 min-w-0">
                  <h3 className={cn("text-sm font-medium mb-3 transition-colors duration-300", isActive ? "text-blue-400" : "text-zinc-400")}>
@@ -308,13 +314,13 @@ const ProgressCard = ({ isActive, isDone, progress, activeFile }: { isActive: bo
                 </h3>
 
                 {(isActive || isDone) && (
-                    <div className="bg-zinc-900/40 border border-white/5 rounded-2xl p-5 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-700 shadow-sm backdrop-blur-sm">
+                    <div className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-700 shadow-sm backdrop-blur-xl">
                          <div className="space-y-3">
                             <div className="flex items-center justify-between text-xs text-zinc-400 font-medium">
                                 <span>{isDone ? "Generation complete" : `Generating files... (${progress.done}/${progress.total})`}</span>
                                 <span>{progress.percent}%</span>
                             </div>
-                            <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                            <div className="h-1.5 bg-zinc-800/50 rounded-full overflow-hidden">
                                 <div
                                     className="h-full bg-blue-500 rounded-full transition-all duration-500 ease-out shadow-[0_0_10px_rgba(59,130,246,0.5)]"
                                     style={{ width: `${progress.percent}%` }}
@@ -339,10 +345,10 @@ const SavingCard = ({ isActive, isDone }: { isActive: boolean, isDone: boolean }
         <div className={cn("flex gap-4 group transition-all duration-500 delay-200", (isActive || isDone) ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none")}>
              <div className="flex flex-col items-center gap-2 pt-1">
                 <div className={cn(
-                    "h-8 w-8 rounded-full flex items-center justify-center transition-all duration-500 shadow-sm",
-                    isDone ? "bg-zinc-900 text-zinc-500 border border-zinc-800" : isActive ? "bg-blue-500/10 text-blue-400 border border-blue-500/20" : "bg-zinc-900 text-zinc-700 border border-zinc-800"
+                    "h-8 w-8 rounded-full flex items-center justify-center transition-all duration-500 shadow-sm backdrop-blur-md",
+                    isDone ? "bg-white/5 text-zinc-500 border border-white/10" : isActive ? "bg-blue-500/10 text-blue-400 border border-blue-500/20" : "bg-white/5 text-zinc-700 border border-white/10"
                 )}>
-                   {isDone ? <Check className="h-4 w-4" /> : <Folder className="h-4 w-4" />}
+                   {isDone ? <Check className="h-4 w-4" /> : <Cloud className="h-4 w-4" />}
                 </div>
             </div>
             <div className="flex-1 pb-4 min-w-0">
@@ -611,7 +617,15 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
     }
 
     setMessages(prev => [...prev, userMessage])
-    setInput("")
+    // setInput("") // Don't clear input to simulate "copy also in generating UI" via input bar persistence
+    // But we should probably disable it.
+    // Actually, typical chat UX clears the input. But the user asked to "copy also in generating UI".
+    // Maybe they mean the prompt is visible.
+    // I'll keep the input filled but disabled?
+    // "copy inpur bar" -> means the input bar component should be there.
+    // "use moderner icon while generating and copy also in generating UI" -> maybe copy the Prompt into the UI?
+    // Let's keep the input bar visible and show the text inside it, but disabled.
+
     setError(null)
     setStep("planning")
     setCurrentPlan("Architecting solution...")
@@ -741,142 +755,124 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       }
   }
 
-  // --- RENDER LOGIC SWITCH ---
-
-  if (step === 'idle') {
-    return (
-        <div className="flex flex-col h-full bg-zinc-950 text-zinc-100 font-sans relative overflow-hidden items-center justify-center p-4">
-            <GeminiBadge />
-            <div className="flex-1 flex flex-col items-center justify-center text-center max-w-2xl w-full z-10 -mt-20 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-150">
-                <h1 className="text-4xl md:text-5xl font-medium tracking-tight mb-2 text-white">
-                    Hi {userName},
-                </h1>
-                <h2 className="text-4xl md:text-5xl font-medium tracking-tight text-zinc-500">
-                    What are we building?
-                </h2>
-            </div>
-            <InputBar input={input} setInput={setInput} onSend={startGeneration} disabled={false} />
-
-            {/* Background Accents (optional) */}
-            <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl pointer-events-none" />
-        </div>
-    )
-  }
-
   // Plan content extraction
   const planMessage = messages.find(m => m.role === 'assistant' && m.plan)
   const planContent = planMessage?.content || ""
 
   return (
-    <div className="flex flex-col h-full bg-zinc-950 text-zinc-100 font-sans relative overflow-hidden">
-        {/* Header - Minimal */}
-         <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-20">
-            <div className="flex items-center gap-3">
-                 <div className={cn("h-8 w-8 rounded-lg bg-zinc-900 flex items-center justify-center border border-zinc-800", step === 'done' ? "text-green-400" : "text-zinc-400")}>
-                    {step === 'done' ? <CheckCircle2 className="h-4 w-4" /> : <Loader2 className="h-4 w-4 animate-spin" />}
-                </div>
-                <span className="font-semibold text-sm">
-                    {step === 'done' ? 'Generation Complete' : 'Generating Website...'}
-                </span>
-            </div>
-             <div className="flex items-center gap-2">
-                 <Sheet>
-                    <SheetTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400">
-                        <Layout className="h-4 w-4" />
-                        </Button>
-                    </SheetTrigger>
-                    <SheetContent side="right" className="bg-zinc-950 border-l-white/10 w-3/4 max-w-sm pt-10">
-                        <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-4">Project Structure</h3>
-                        <FileTreeVisualizer pages={generatedPages} currentFile={activeFile} />
-                    </SheetContent>
-                </Sheet>
-            </div>
-         </div>
+    <div className="flex flex-col h-full bg-transparent text-zinc-100 font-sans relative overflow-hidden">
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col relative overflow-hidden">
+             {/* Background Accents (only visible if global bg is dark enough or transparent) */}
+             <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+             <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl pointer-events-none" />
 
-        {/* Main Content - Card Stack */}
-        <div className="flex-1 overflow-y-auto p-6 md:p-12 custom-scrollbar">
-            <div className="max-w-2xl mx-auto space-y-2">
-
-                {/* 1. Thinking */}
-                <ThinkingCard
-                    planContent={planContent}
-                    isActive={step === 'planning'}
-                    isDone={step === 'coding' || step === 'done' || step === 'fixing'}
-                />
-
-                {/* 2. Building */}
-                {(step === 'coding' || step === 'fixing' || step === 'done') && (
-                    <ProgressCard
-                        isActive={step === 'coding' || step === 'fixing'}
-                        isDone={step === 'done'}
-                        progress={progress}
-                        activeFile={activeFile}
-                    />
+            <div className="flex-1 overflow-y-auto p-6 md:p-12 custom-scrollbar relative z-10 flex flex-col justify-center">
+                 {/* IDLE STATE */}
+                {step === 'idle' && (
+                    <div className="flex flex-col items-center justify-center text-center max-w-2xl w-full mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700 delay-150">
+                        <GeminiBadge />
+                        <h1 className="text-4xl md:text-5xl font-medium tracking-tight mb-2 text-white">
+                            Hi {userName},
+                        </h1>
+                        <h2 className="text-4xl md:text-5xl font-medium tracking-tight text-zinc-500 mb-12">
+                            What are we building?
+                        </h2>
+                    </div>
                 )}
 
-                {/* 3. Saving */}
-                 {(step === 'coding' || step === 'done') && (
-                    <SavingCard
-                        isActive={step === 'coding'}
-                        isDone={step === 'done'}
-                    />
-                 )}
+                {/* GENERATING/DONE STATE */}
+                {(step !== 'idle') && (
+                    <div className="max-w-2xl mx-auto space-y-2 w-full">
+                         {/* 1. Thinking */}
+                        <ThinkingCard
+                            planContent={planContent}
+                            isActive={step === 'planning'}
+                            isDone={step === 'coding' || step === 'done' || step === 'fixing'}
+                        />
+
+                        {/* 2. Building */}
+                        {(step === 'coding' || step === 'fixing' || step === 'done') && (
+                            <ProgressCard
+                                isActive={step === 'coding' || step === 'fixing'}
+                                isDone={step === 'done'}
+                                progress={progress}
+                                activeFile={activeFile}
+                            />
+                        )}
+
+                        {/* 3. Saving */}
+                         {(step === 'coding' || step === 'done') && (
+                            <SavingCard
+                                isActive={step === 'coding'}
+                                isDone={step === 'done'}
+                            />
+                         )}
+
+                         {/* Done Actions */}
+                        {step === 'done' && (
+                            <div className="mt-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                                 <div className="flex items-center gap-4 p-4 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 mb-6 backdrop-blur-md">
+                                    <CheckCircle2 className="h-5 w-5" />
+                                    <span className="font-medium">Website generation complete!</span>
+                                 </div>
+
+                                 <div className="grid grid-cols-2 gap-4">
+                                    <Button
+                                        size="lg"
+                                        className="w-full h-14 text-base font-semibold bg-white text-black hover:bg-zinc-200 rounded-xl"
+                                        onClick={handleDeploy}
+                                        disabled={isDeploying}
+                                    >
+                                        {isDeploying ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Rocket className="h-5 w-5 mr-2" />}
+                                        {deploySuccess ? "Deployed!" : "Deploy to Cloudflare"}
+                                    </Button>
+                                     <Button
+                                        size="lg"
+                                        variant="outline"
+                                        className="w-full h-14 text-base font-medium bg-zinc-900/50 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white rounded-xl backdrop-blur-sm"
+                                        onClick={() => {
+                                            setStep('idle')
+                                            setInput("")
+                                            setMessages([])
+                                        }}
+                                    >
+                                        Create Another
+                                    </Button>
+                                 </div>
+                            </div>
+                        )}
+
+                         {/* Error Display */}
+                        {error && (
+                             <div className="mt-8 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 flex items-start gap-3 backdrop-blur-md">
+                                <Bug className="h-5 w-5 shrink-0" />
+                                <div className="space-y-1">
+                                    <h4 className="font-medium text-sm">Error</h4>
+                                    <p className="text-xs opacity-90">{error}</p>
+                                    <Button
+                                        variant="link"
+                                        className="text-red-400 p-0 h-auto text-xs mt-2"
+                                        onClick={() => setStep('idle')}
+                                    >
+                                        Reset
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
-            {/* Done Actions */}
-            {step === 'done' && (
-                <div className="max-w-2xl mx-auto mt-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                     <div className="flex items-center gap-4 p-4 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 mb-6">
-                        <CheckCircle2 className="h-5 w-5" />
-                        <span className="font-medium">Website generation complete!</span>
-                     </div>
-
-                     <div className="grid grid-cols-2 gap-4">
-                        <Button
-                            size="lg"
-                            className="w-full h-14 text-base font-semibold bg-white text-black hover:bg-zinc-200 rounded-xl"
-                            onClick={handleDeploy}
-                            disabled={isDeploying}
-                        >
-                            {isDeploying ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Rocket className="h-5 w-5 mr-2" />}
-                            {deploySuccess ? "Deployed!" : "Deploy to Cloudflare"}
-                        </Button>
-                         <Button
-                            size="lg"
-                            variant="outline"
-                            className="w-full h-14 text-base font-medium bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white rounded-xl"
-                            onClick={() => {
-                                setStep('idle')
-                                setInput("")
-                                setMessages([])
-                            }}
-                        >
-                            Create Another
-                        </Button>
-                     </div>
-                </div>
-            )}
-
-            {/* Error Display */}
-            {error && (
-                 <div className="max-w-2xl mx-auto mt-8 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 flex items-start gap-3">
-                    <Bug className="h-5 w-5 shrink-0" />
-                    <div className="space-y-1">
-                        <h4 className="font-medium text-sm">Error</h4>
-                        <p className="text-xs opacity-90">{error}</p>
-                        <Button
-                            variant="link"
-                            className="text-red-400 p-0 h-auto text-xs mt-2"
-                            onClick={() => setStep('idle')}
-                        >
-                            Reset
-                        </Button>
-                    </div>
-                </div>
-            )}
-
+            {/* Input Bar - Always visible, fixed at bottom */}
+            <div className="w-full relative z-20">
+                <InputBar
+                    input={input}
+                    setInput={setInput}
+                    onSend={startGeneration}
+                    disabled={step !== 'idle'}
+                />
+            </div>
         </div>
     </div>
   )
