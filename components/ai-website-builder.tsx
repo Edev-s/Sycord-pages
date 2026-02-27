@@ -573,10 +573,10 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
   }
 
   return (
-    <div className="flex flex-col h-full bg-zinc-950 text-zinc-100 font-sans relative overflow-hidden">
+    <div className="flex flex-col h-full bg-background text-foreground font-sans relative overflow-hidden">
 
       {/* HEADER */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-20">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-background/80 backdrop-blur-md sticky top-0 z-20">
         <div className="flex items-center gap-3">
             <div className="h-8 w-8 rounded-lg bg-white/5 flex items-center justify-center border border-white/10">
                 <Bot className="h-4 w-4 text-white" />
@@ -688,13 +688,13 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
           </div>
 
           {/* RIGHT: CHAT & INPUT */}
-          <div className="flex-1 flex flex-col h-full bg-zinc-950 relative z-10">
+          <div className="flex-1 flex flex-col h-full bg-background relative z-10">
 
               {/* Progress Bar */}
               {(step === 'coding' || step === 'planning') && (() => {
                 const { done, total, percent } = getProgress()
                 return (
-                  <div className="px-4 py-2 border-b border-white/5 bg-zinc-950/80 flex items-center gap-3">
+                  <div className="px-4 py-2 border-b border-white/5 bg-background/80 flex items-center gap-3">
                     <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-white/80 rounded-full transition-all duration-700 ease-out"
