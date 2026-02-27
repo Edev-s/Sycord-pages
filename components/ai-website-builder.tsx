@@ -1,32 +1,32 @@
 "use client"
 
-import { useState, useRef, useEffect, useMemo } from "react"
-import { useSession } from "next-auth/react"
+import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Progress } from "@/components/ui/progress"
 import {
   Loader2,
   Bot,
   Check,
   ChevronDown,
+  Terminal,
   Sparkles,
   FileCode,
   ArrowRight,
   Rocket,
-  Brain,
-  Hammer,
-  Wrench,
+  ListTodo,
+  BrainCircuit, Brain, Hammer, Wrench, Database,
   CheckCircle2,
+  File,
   Folder,
   FolderOpen,
   ChevronRight,
+  Code,
+  AlertCircle,
   Bug,
-  Menu,
-  Info,
-  Paperclip,
-  Send,
-  Save,
-  BrainCircuit
+  Layout,
+  Menu
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -34,6 +34,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+} from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
 
 // Updated Models List
@@ -43,34 +48,6 @@ const MODELS = [
   { id: "gemini-3-flash", name: "Gemini 3 Flash (Preview)", provider: "Google" },
   { id: "deepseek-v3.2-exp", name: "DeepSeek V3", provider: "DeepSeek" },
 ]
-
-// Gemini Icon Component
-const GeminiIcon = ({ className }: { className?: string }) => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    className={className}
-  >
-    <path
-      d="M12 2C12.5 7.5 16.5 11.5 22 12C16.5 12.5 12.5 16.5 12 22C11.5 16.5 7.5 12.5 2 12C7.5 11.5 11.5 7.5 12 2Z"
-      fill="url(#gemini-gradient)"
-    />
-    <defs>
-      <linearGradient
-        id="gemini-gradient"
-        x1="2"
-        y1="2"
-        x2="22"
-        y2="22"
-        gradientUnits="userSpaceOnUse"
-      >
-        <stop stopColor="#4facfe" />
-        <stop offset="1" stopColor="#00f2fe" />
-      </linearGradient>
-    </defs>
-  </svg>
-)
 
 type Step = "idle" | "planning" | "coding" | "fixing" | "done"
 
@@ -208,157 +185,6 @@ const FileTreeVisualizer = ({ pages, currentFile }: { pages: GeneratedPage[], cu
   )
 }
 
-// --- NEW PLAN DISPLAY COMPONENT ---
-const PlanDisplay = ({ instruction, step, currentFile }: { instruction: string, step: Step, currentFile?: string }) => {
-    const { mainPlan, files, pages } = useMemo(() => {
-        const mainPlanMatch = instruction.match(/\[0\]\s*([\s\S]*?)(?=\[\d+\]|$)/);
-        const mainPlan = mainPlanMatch ? mainPlanMatch[1].trim() : "";
-
-        const files: { number: string, name: string, usage: string, isDone: boolean }[] = [];
-        const pages: { name: string, usage: string }[] = [];
-
-        const fileRegex = /\[(\d+|Done)\]\s*([^\s:\]]+)(?:\s*[:\-]?\s*(?:\[usedfor\](.*?)\[usedfor\])?)?/g;
-        let match;
-        while ((match = fileRegex.exec(instruction)) !== null) {
-            if (match[1] === "0") continue;
-
-            const isDone = match[1].toLowerCase() === "done";
-            const name = match[2];
-            const usage = match[3] || "";
-
-            files.push({
-                number: match[1],
-                name,
-                usage,
-                isDone
-            });
-
-            // Extract "pages" for the "How pages is used" section
-            // Heuristic: If it's in src/components or src/pages, consider it a "page" concept
-            if (name.includes('src/components/') && !name.includes('ui/') && !name.includes('layout')) {
-                const shortName = name.split('/').pop()?.replace('.tsx', '').replace('.ts', '') || name;
-                // Capitalize first letter
-                const formattedName = shortName.charAt(0).toUpperCase() + shortName.slice(1);
-                pages.push({ name: formattedName, usage: usage });
-            }
-        }
-        return { mainPlan, files, pages };
-    }, [instruction]);
-
-    // Show skeleton if planning and no instruction yet
-    if (step === 'planning' && !instruction) {
-        return (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-                <div className="flex items-center gap-3 mb-6">
-                    <Brain className="h-5 w-5 text-blue-400 animate-pulse" />
-                    <span className="text-zinc-400 text-sm font-medium">Thinking</span>
-                </div>
-                <div className="pl-6 border-l-2 border-zinc-800 space-y-8 opacity-50">
-                     <div className="space-y-3">
-                        <div className="h-4 w-32 bg-zinc-800 rounded animate-pulse" />
-                        <div className="h-16 w-full bg-zinc-900 rounded animate-pulse" />
-                     </div>
-                     <div className="space-y-3">
-                        <div className="h-4 w-24 bg-zinc-800 rounded animate-pulse" />
-                        <div className="space-y-2">
-                            <div className="h-3 w-3/4 bg-zinc-900 rounded animate-pulse" />
-                            <div className="h-3 w-1/2 bg-zinc-900 rounded animate-pulse" />
-                        </div>
-                     </div>
-                </div>
-            </div>
-        )
-    }
-
-    return (
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-            {/* Thinking Header */}
-            <div className="flex items-center gap-3 mb-6">
-                <Brain className={cn("h-5 w-5", step === 'planning' ? "text-blue-400 animate-pulse" : "text-zinc-600")} />
-                <span className="text-zinc-400 text-sm font-medium">Thinking</span>
-            </div>
-
-            {/* Plan Card */}
-            <div className="relative pl-6 border-l-2 border-zinc-800 space-y-8">
-
-                {/* 1. Main Plan */}
-                <div className="relative group">
-                    <div className="absolute -left-[31px] top-0 bg-zinc-900 rounded-full p-1 border border-zinc-800">
-                        {mainPlan ? <CheckCircle2 className="h-4 w-4 text-blue-500" /> : <div className="h-4 w-4 rounded-full bg-zinc-800" />}
-                    </div>
-                    <h3 className="text-zinc-300 text-sm font-medium mb-2 flex items-center gap-2">
-                        <Check className={cn("h-3 w-3", mainPlan ? "text-blue-500" : "text-zinc-600")} />
-                        What is the main plan?
-                    </h3>
-                    <div className="text-zinc-500 text-xs leading-relaxed max-h-32 overflow-y-auto custom-scrollbar">
-                        {mainPlan || "Analyzing request..."}
-                    </div>
-                </div>
-
-                {/* 2. Page Usage */}
-                {pages.length > 0 && (
-                    <div className="relative group">
-                         <div className="absolute -left-[31px] top-0 bg-zinc-900 rounded-full p-1 border border-zinc-800">
-                            <CheckCircle2 className="h-4 w-4 text-purple-500" />
-                        </div>
-                        <h3 className="text-zinc-300 text-sm font-medium mb-3 flex items-center gap-2">
-                             <Check className="h-3 w-3 text-purple-500" />
-                             How pages are used?
-                        </h3>
-                        <div className="space-y-2">
-                            {pages.map((page, idx) => (
-                                <div key={idx} className="flex items-start gap-2 text-xs">
-                                    <span className="bg-zinc-800 text-zinc-300 px-1.5 py-0.5 rounded text-[10px] font-mono shrink-0 mt-0.5">
-                                        {page.name}/
-                                    </span>
-                                    <span className="text-zinc-500 line-clamp-2">
-                                        {page.usage}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* 3. Build List */}
-                <div className="relative group">
-                     <div className="absolute -left-[31px] top-0 bg-zinc-900 rounded-full p-1 border border-zinc-800">
-                        {step === 'done' ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <div className="h-4 w-4 rounded-full bg-zinc-800 animate-pulse" />}
-                    </div>
-                    <h3 className="text-zinc-300 text-sm font-medium mb-3 flex items-center gap-2">
-                        <Check className={cn("h-3 w-3", step === 'done' ? "text-green-500" : "text-zinc-600")} />
-                        What to build?
-                    </h3>
-                    <div className="space-y-1.5">
-                        {files.map((file, idx) => (
-                             <div key={idx} className="flex items-center gap-2 text-xs group/file">
-                                 {file.isDone ? (
-                                     <Check className="h-3 w-3 text-green-500 shrink-0" />
-                                 ) : file.name === currentFile ? (
-                                     <Loader2 className="h-3 w-3 text-blue-400 animate-spin shrink-0" />
-                                 ) : (
-                                     <div className="h-1.5 w-1.5 rounded-full bg-zinc-800 shrink-0" />
-                                 )}
-                                 <span className={cn(
-                                     "font-mono transition-colors",
-                                     file.isDone ? "text-zinc-500 line-through" :
-                                     file.name === currentFile ? "text-blue-300" : "text-zinc-500 group-hover/file:text-zinc-400"
-                                 )}>
-                                     {file.name}
-                                 </span>
-                             </div>
-                        ))}
-                        {files.length === 0 && (
-                            <span className="text-zinc-600 text-xs italic">Waiting for plan...</span>
-                        )}
-                    </div>
-                </div>
-            </div>
-        </div>
-    )
-}
-
-
 interface AIWebsiteBuilderProps {
   projectId: string
   generatedPages: GeneratedPage[]
@@ -367,7 +193,6 @@ interface AIWebsiteBuilderProps {
 }
 
 const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFixLogs }: AIWebsiteBuilderProps) => {
-  const { data: session } = useSession()
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [step, setStep] = useState<Step>("idle")
@@ -747,45 +572,29 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       }
   }
 
-  const { done, total, percent } = getProgress()
-
   return (
-    <div className="flex flex-col h-full bg-background text-foreground font-sans relative overflow-hidden">
+    <div className="flex flex-col h-full bg-zinc-950 text-zinc-100 font-sans relative overflow-hidden">
 
-      {/* MOBILE HEADER (Gemini Style) */}
-      <div className="md:hidden flex items-center justify-between px-4 pt-6 pb-2 relative z-20">
-         <div className="flex items-center gap-3">
-             <Button variant="ghost" size="icon" className="text-zinc-400">
-                 <Menu className="h-5 w-5" />
-             </Button>
-             <span className="text-lg font-medium text-white">Ok</span>
-         </div>
-         <div className="flex items-center gap-2">
-             <Button variant="ghost" size="icon" className="text-zinc-400">
-                 <Save className="h-5 w-5" />
-             </Button>
-             <div className="h-8 w-8 rounded-full bg-orange-600 flex items-center justify-center text-white font-medium">
-                 {session?.user?.name?.[0] || 'D'}
-             </div>
-         </div>
-      </div>
-
-      {/* State of Art Badge */}
-      <div className="md:hidden flex justify-center pb-4 relative z-20">
-         <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-full px-4 py-1.5 shadow-lg">
-            <Sparkles className="h-3 w-3 text-blue-400 fill-blue-400" />
-            <span className="text-xs font-medium text-zinc-300">State of the Art</span>
-            <Info className="h-3 w-3 text-zinc-600" />
-         </div>
-      </div>
-
-      {/* DESKTOP HEADER */}
-      <div className="hidden md:flex items-center justify-between px-4 py-3 border-b border-white/5 bg-background/80 backdrop-blur-md sticky top-0 z-20">
+      {/* HEADER */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-20">
         <div className="flex items-center gap-3">
             <div className="h-8 w-8 rounded-lg bg-white/5 flex items-center justify-center border border-white/10">
                 <Bot className="h-4 w-4 text-white" />
             </div>
             <span className="font-semibold text-sm hidden md:inline-block tracking-tight">AI Editor</span>
+
+            {/* Mobile Menu Trigger for File Tree */}
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="md:hidden h-8 w-8 text-zinc-400">
+                  <Layout className="h-4 w-4" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="bg-zinc-950 border-r-white/10 w-3/4 max-w-sm pt-10">
+                 <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-4">Project Structure</h3>
+                 <FileTreeVisualizer pages={generatedPages} currentFile={activeFile} />
+              </SheetContent>
+            </Sheet>
         </div>
 
         <div className="flex items-center gap-2">
@@ -822,55 +631,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
 
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
 
-          {/* MOBILE CONTENT AREA */}
-          <div className="md:hidden flex-1 flex flex-col relative z-10 px-6 overflow-y-auto pb-32">
-
-              {/* IDLE STATE */}
-              {step === 'idle' && (
-                <div className="flex-1 flex flex-col justify-center items-center text-center mt-20">
-                   <h1 className="text-3xl font-medium tracking-tight text-foreground leading-tight max-w-xs mx-auto animate-in fade-in duration-500">
-                     Hi <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent font-semibold">{session?.user?.name?.split(' ')[0] || 'User'}</span>, What are we building?
-                   </h1>
-                </div>
-              )}
-
-              {/* ACTIVE STATE (Thinking/Building/Done) */}
-              {(step === 'planning' || step === 'coding' || step === 'fixing' || step === 'done') && (
-                 <div className="flex-1 mt-4">
-                     <PlanDisplay instruction={instruction} step={step} currentFile={activeFile} />
-                 </div>
-              )}
-          </div>
-
-          {/* FLOATING INPUT CARD (Mobile) */}
-          <div className="md:hidden absolute bottom-6 left-0 right-0 px-4 transition-all duration-700 ease-out z-30">
-             <div className="bg-zinc-900/90 backdrop-blur-xl border border-zinc-800 rounded-[2rem] p-3 shadow-2xl mx-auto max-w-md">
-                <p className="text-[10px] text-zinc-500 ml-4 mb-2 font-bold tracking-widest uppercase opacity-80">WHAT TO BUILD?</p>
-                <div className="flex items-center gap-2">
-                   <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full bg-zinc-800 text-zinc-400 hover:text-white transition-colors">
-                      <Paperclip className="h-5 w-5" />
-                   </Button>
-                   <Input
-                      value={input}
-                      onChange={e => setInput(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && !e.shiftKey && startGeneration()}
-                      placeholder=""
-                      className="flex-1 bg-transparent border-none h-10 px-2 focus-visible:ring-0 text-white placeholder-zinc-600 text-base font-medium"
-                      disabled={step === 'planning' || step === 'coding' || step === 'fixing'}
-                   />
-                   <Button
-                      size="icon"
-                      className={cn("h-10 w-10 rounded-full transition-all duration-300", input.trim() ? "bg-zinc-200 text-black hover:bg-white" : "bg-zinc-800 text-zinc-500")}
-                      onClick={startGeneration}
-                      disabled={!input.trim() || step === 'planning' || step === 'coding' || step === 'fixing'}
-                   >
-                      {step === 'planning' || step === 'coding' || step === 'fixing' ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5 ml-0.5" />}
-                   </Button>
-                </div>
-             </div>
-          </div>
-
-          {/* LEFT: VISUALIZATION & STATUS (Desktop Only) */}
+          {/* LEFT: VISUALIZATION & STATUS (Desktop Only, or hidden) */}
           <div className="hidden md:flex md:w-80 lg:w-96 border-r border-white/5 bg-black/20 p-4 flex-col gap-4 overflow-y-auto">
               <div className="space-y-4">
                   <div className="flex items-center justify-between">
@@ -926,14 +687,14 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
               )}
           </div>
 
-          {/* RIGHT: CHAT & INPUT (Desktop Only) */}
-          <div className="hidden md:flex flex-1 flex-col h-full bg-background relative z-10">
+          {/* RIGHT: CHAT & INPUT */}
+          <div className="flex-1 flex flex-col h-full bg-zinc-950 relative z-10">
 
               {/* Progress Bar */}
               {(step === 'coding' || step === 'planning') && (() => {
                 const { done, total, percent } = getProgress()
                 return (
-                  <div className="px-4 py-2 border-b border-white/5 bg-background/80 flex items-center gap-3">
+                  <div className="px-4 py-2 border-b border-white/5 bg-zinc-950/80 flex items-center gap-3">
                     <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-white/80 rounded-full transition-all duration-700 ease-out"
@@ -1035,7 +796,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                   <div ref={messagesEndRef} />
               </div>
 
-              {/* INPUT AREA (Desktop) */}
+              {/* INPUT AREA */}
               <div className="p-4 border-t border-white/5 bg-zinc-950/80 backdrop-blur-xl">
                   <div className="relative max-w-4xl mx-auto">
                       <Input
