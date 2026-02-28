@@ -30,7 +30,8 @@ import {
   Circle,
   Zap,
   Cloud,
-  Globe
+  Globe,
+  Database
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -53,7 +54,7 @@ const MODELS = [
   { id: "deepseek-v3.2-exp", name: "DeepSeek V3", provider: "DeepSeek" },
 ]
 
-type Step = "idle" | "planning" | "coding" | "fixing" | "done"
+type Step = "idle" | "planning" | "needs_info" | "firebase_auth" | "coding" | "fixing" | "done"
 
 interface Message {
   id: string
@@ -384,6 +385,51 @@ const SavingCard = ({ isActive, isDone }: { isActive: boolean, isDone: boolean }
 }
 
 
+const WebsitePreviewCardSkeleton = () => {
+    return (
+        <div className="w-full aspect-video rounded-2xl bg-zinc-900/50 border border-white/5 shadow-2xl overflow-hidden relative animate-in fade-in slide-in-from-bottom-4 duration-700 backdrop-blur-xl flex items-center justify-center">
+            {/* Inner rounded rectangle similar to the image */}
+            <div className="w-[85%] h-[75%] rounded-xl bg-zinc-800/50 border border-white/5 animate-pulse flex items-center justify-center relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/[0.02] to-transparent shimmer-effect" />
+            </div>
+        </div>
+    )
+}
+
+const FirebaseConnectionCard = ({ onConnect }: { onConnect: () => void }) => {
+    return (
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-700 shadow-sm backdrop-blur-xl">
+            <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-500">
+                    <Database className="h-5 w-5" />
+                </div>
+                <div>
+                    <h3 className="text-base font-medium text-zinc-200">Let's connect you to a database</h3>
+                    <p className="text-sm text-zinc-500">This website requires a database to store data.</p>
+                </div>
+            </div>
+
+            <div className="flex items-center justify-between p-4 rounded-xl bg-zinc-900/50 border border-white/5">
+                <div className="flex items-center gap-3">
+                    <svg viewBox="0 0 24 24" className="w-8 h-8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M11.603 21.056c.23.125.503.125.732 0l8.913-4.838a.333.333 0 0 0 .15-.357L17.765 2.112a.333.333 0 0 0-.585-.145l-4.717 6.945-2.03-3.61a.333.333 0 0 0-.585.003L2.618 15.86a.333.333 0 0 0 .154.357l8.831 4.839Z" fill="#FFCA28"/>
+                        <path d="m11.969 21.056 8.913-4.838a.333.333 0 0 0 .15-.357L17.765 2.112a.333.333 0 0 0-.585-.145L11.969 21.056Z" fill="#FFA000"/>
+                        <path d="M11.969 21.056 2.618 15.86a.333.333 0 0 1-.154-.357L8.985 3.033a.333.333 0 0 1 .585-.003L11.969 21.056Z" fill="#F57C00"/>
+                        <path d="M11.969 21.056 12.463 8.91l-2.03-3.61a.333.333 0 0 0-.585.003l-7.23 10.558 8.831 4.839a.5.5 0 0 0 .52 0Z" fill="#FF8A65"/>
+                    </svg>
+                    <span className="font-medium text-zinc-300">Firebase</span>
+                </div>
+                <Button
+                    onClick={onConnect}
+                    className="bg-white text-black hover:bg-zinc-200 rounded-full px-6 font-medium"
+                >
+                    Connect
+                </Button>
+            </div>
+        </div>
+    )
+}
+
 interface AIWebsiteBuilderProps {
   projectId: string
   generatedPages: GeneratedPage[]
@@ -412,6 +458,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
   const [selectedModel, setSelectedModel] = useState(MODELS[0])
 
   const [fixHistory, setFixHistory] = useState<any[]>([])
+  const [requiresDatabase, setRequiresDatabase] = useState(false)
 
   // Compute file-level progress from instruction
   const getProgress = () => {
@@ -654,6 +701,29 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       const planData = await planResponse.json()
       const generatedInstruction = planData.instruction
 
+      // Check if AI needs more info
+      const questionMatch = generatedInstruction.match(/\[QUESTION\]\s*(.*)/i)
+      if (questionMatch) {
+          const questionText = questionMatch[1].trim()
+          setMessages(prev => [...prev, {
+              id: (Date.now() + 1).toString(),
+              role: "assistant",
+              content: questionText
+          }])
+          setStep("needs_info")
+          setInput("")
+          return
+      }
+
+      // Check if database is required
+      if (generatedInstruction.includes("## REQUIRES_DATABASE: true")) {
+          setRequiresDatabase(true)
+          setStep("firebase_auth")
+          // We will wait for user to authenticate
+      } else {
+          setRequiresDatabase(false)
+      }
+
       setInstruction(generatedInstruction)
 
       const planMessage: Message = {
@@ -664,7 +734,9 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       }
       setMessages(prev => [...prev, planMessage])
 
-      processNextStep(generatedInstruction, [...messages, userMessage, planMessage])
+      if (!generatedInstruction.includes("## REQUIRES_DATABASE: true")) {
+          processNextStep(generatedInstruction, [...messages, userMessage, planMessage])
+      }
     } catch (err: any) {
       setError(err.message || "Planning failed")
       setStep("idle")
@@ -801,13 +873,20 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
 
                 {/* GENERATING/DONE STATE */}
                 {(step !== 'idle') && (
-                    <div className="max-w-2xl mx-auto space-y-2 w-full flex-1 flex flex-col justify-center">
-                         {/* 1. Thinking */}
-                        <ThinkingCard
-                            planContent={planContent}
-                            isActive={step === 'planning'}
-                            isDone={step === 'coding' || step === 'done' || step === 'fixing'}
-                        />
+                    <div className="max-w-2xl mx-auto space-y-6 w-full flex-1 flex flex-col justify-start pb-20 pt-6">
+
+                         {/* Preview Box Skeleton */}
+                         {(step === 'coding' || step === 'fixing' || step === 'planning' || step === 'needs_info' || step === 'firebase_auth' || step === 'done') && (
+                             <WebsitePreviewCardSkeleton />
+                         )}
+
+                         <div className="space-y-2">
+                             {/* 1. Thinking */}
+                            <ThinkingCard
+                                planContent={planContent}
+                                isActive={step === 'planning'}
+                                isDone={step === 'coding' || step === 'done' || step === 'fixing' || step === 'firebase_auth' || step === 'needs_info'}
+                            />
 
                         {/* 2. Building */}
                         {(step === 'coding' || step === 'fixing' || step === 'done') && (
@@ -819,12 +898,46 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                             />
                         )}
 
+                        {/* Database Auth */}
+                        {step === 'firebase_auth' && (
+                            <FirebaseConnectionCard onConnect={() => {
+                                // Simulate connection for now and continue
+                                setStep("planning")
+                                if (instruction) {
+                                    const planMessage = messages.find(m => m.role === 'assistant' && m.plan)
+                                    const userMessage = messages.find(m => m.role === 'user')
+                                    if (planMessage && userMessage) {
+                                        processNextStep(instruction, [...messages]) // Keep logic simple for flow
+                                    }
+                                }
+                            }} />
+                        )}
+
                         {/* 3. Saving */}
                          {(step === 'coding' || step === 'done') && (
                             <SavingCard
                                 isActive={step === 'coding'}
                                 isDone={step === 'done'}
                             />
+                         )}
+                         </div>
+
+                         {/* Chat History View */}
+                         {(step === 'coding' || step === 'done' || step === 'fixing' || step === 'needs_info' || step === 'firebase_auth') && (
+                             <div className="mt-8 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                                 {messages.filter(m => m.role === 'user' || (m.role === 'assistant' && !m.plan && !m.isIntermediate)).map((msg, i) => (
+                                     <div key={i} className={cn("flex flex-col", msg.role === 'user' ? "items-end" : "items-start")}>
+                                         <div className={cn(
+                                             "px-4 py-3 rounded-2xl max-w-[85%] text-sm",
+                                             msg.role === 'user'
+                                                ? "bg-white/10 text-white rounded-br-sm"
+                                                : "bg-zinc-900/50 border border-white/5 text-zinc-300 rounded-bl-sm"
+                                         )}>
+                                             {msg.content}
+                                         </div>
+                                     </div>
+                                 ))}
+                             </div>
                          )}
 
                          {/* Done Actions */}
@@ -888,7 +1001,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                     input={input}
                     setInput={setInput}
                     onSend={startGeneration}
-                    disabled={step !== 'idle'}
+                    disabled={step !== 'idle' && step !== 'needs_info'}
                 />
             </div>
         </div>
