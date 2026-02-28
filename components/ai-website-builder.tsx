@@ -53,7 +53,7 @@ const MODELS = [
   { id: "deepseek-v3.2-exp", name: "DeepSeek V3", provider: "DeepSeek" },
 ]
 
-type Step = "idle" | "planning" | "coding" | "fixing" | "done"
+type Step = "idle" | "planning" | "requires_db" | "needs_info" | "coding" | "fixing" | "done"
 
 interface Message {
   id: string
@@ -315,46 +315,99 @@ const ThinkingCard = ({ planContent, isActive, isDone }: { planContent: string, 
     )
 }
 
+const FirebaseConnectionCard = ({ onConnect }: { onConnect: () => void }) => {
+    return (
+        <div className="flex flex-col gap-6 group transition-all duration-500 delay-100 w-full animate-in fade-in slide-in-from-bottom-2">
+            <div className="flex items-center gap-2 text-zinc-300">
+                <div className="h-8 w-8 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20 flex items-center justify-center">
+                    <Cloud className="h-4 w-4" />
+                </div>
+                <span className="text-sm font-medium">Let's connect you to a database</span>
+            </div>
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-5 shadow-sm backdrop-blur-xl flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center">
+                        <Flame className="w-5 h-5 text-orange-500" />
+                    </div>
+                    <span className="text-sm font-medium text-white">Firebase</span>
+                </div>
+                <Button
+                    variant="outline"
+                    className="bg-white/10 text-white border-white/20 hover:bg-white/20 rounded-xl"
+                    onClick={onConnect}
+                >
+                    Connect
+                </Button>
+            </div>
+        </div>
+    )
+}
+
+const Flame = ({ className }: { className?: string }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
+        <path fillRule="evenodd" d="M12.963 2.286a.75.75 0 00-1.071-.136 9.742 9.742 0 00-3.539 6.177A7.547 7.547 0 016.648 6.61a.75.75 0 00-1.152-.082A9 9 0 1015.68 4.534a7.46 7.46 0 01-2.717-2.248z" clipRule="evenodd" />
+    </svg>
+)
+
 const ProgressCard = ({ isActive, isDone, progress, activeFile }: { isActive: boolean, isDone: boolean, progress: { done: number, total: number, percent: number }, activeFile?: string }) => {
     return (
-        <div className={cn("flex gap-4 group transition-all duration-500 delay-100", (isActive || isDone) ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none")}>
-             <div className="flex flex-col items-center gap-2 pt-1">
-                <div className={cn(
-                    "h-8 w-8 rounded-full flex items-center justify-center transition-all duration-500 shadow-sm backdrop-blur-md",
-                    isDone ? "bg-white/5 text-zinc-500 border border-white/10" : isActive ? "bg-blue-500/10 text-blue-400 border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.15)]" : "bg-white/5 text-zinc-700 border border-white/10"
-                )}>
-                   {isActive ? <Zap className="h-4 w-4 animate-pulse" /> : <Zap className="h-4 w-4" />}
+        <div className={cn("flex flex-col gap-6 group transition-all duration-500 delay-100 w-full items-center", (isActive || isDone) ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none")}>
+
+            {/* Animated Skeleton Browser Preview */}
+            {(isActive || isDone) && (
+                <div className="w-full max-w-lg aspect-[16/10] bg-[#1c1c1c] rounded-2xl border border-white/5 overflow-hidden shadow-2xl relative">
+                    <div className="h-8 bg-white/5 border-b border-white/5 flex items-center px-4 gap-2">
+                        <div className="w-2.5 h-2.5 rounded-full bg-red-500/20" />
+                        <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/20" />
+                        <div className="w-2.5 h-2.5 rounded-full bg-green-500/20" />
+                    </div>
+                    <div className="p-6 h-full w-full">
+                        <div className={cn("w-full h-full rounded-lg bg-white/5 transition-opacity duration-1000", isActive ? "animate-pulse" : "opacity-50")} />
+                    </div>
+                    {isActive && (
+                        <div className="absolute inset-0 bg-gradient-to-t from-[#1c1c1c] via-transparent to-transparent opacity-50" />
+                    )}
                 </div>
-                 {(isActive || !isDone) && <div className={cn("w-0.5 flex-1 my-1 rounded-full transition-colors duration-500", isActive ? "bg-blue-500/20" : "bg-white/5")} />}
-            </div>
-            <div className="flex-1 pb-8 min-w-0">
-                 <h3 className={cn("text-sm font-medium mb-3 transition-colors duration-300", isActive ? "text-blue-400" : "text-zinc-400")}>
-                    {isActive ? "Building your plan" : "Building your plan"}
-                </h3>
+            )}
+
+            {/* Status Information */}
+            <div className="flex flex-col items-center justify-center text-center space-y-4 w-full max-w-sm mx-auto">
+                <div className="flex items-center justify-center gap-2 text-zinc-400">
+                    {isActive ? (
+                        <>
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                            <span className="text-sm font-medium">The AI is currently building your site</span>
+                        </>
+                    ) : (
+                        <>
+                            <Hammer className="h-5 w-5" />
+                            <span className="text-sm font-medium">Building</span>
+                        </>
+                    )}
+                </div>
 
                 {(isActive || isDone) && (
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-700 shadow-sm backdrop-blur-xl">
-                         <div className="space-y-3">
-                            <div className="flex items-center justify-between text-xs text-zinc-400 font-medium">
-                                <span>{isDone ? "Generation complete" : `Generating files... (${progress.done}/${progress.total})`}</span>
-                                <span>{progress.percent}%</span>
+                    <div className="w-3/4 mx-auto mt-4 space-y-3">
+                        <div className="flex items-center justify-between text-xs text-zinc-400 font-medium">
+                            <span>{isDone ? "Generation complete" : `Generating files... (${progress.done}/${progress.total})`}</span>
+                            <span>{progress.percent}%</span>
+                        </div>
+                        <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                            <div
+                                className="h-full bg-zinc-500 rounded-full transition-all duration-500 ease-out shadow-[0_0_10px_rgba(255,255,255,0.1)]"
+                                style={{ width: `${progress.percent}%` }}
+                            />
+                        </div>
+                        {activeFile && !isDone && (
+                            <div className="flex items-center justify-center gap-2 text-[10px] text-zinc-500 font-mono py-1.5 px-3 rounded-lg border border-white/5 mx-auto w-fit">
+                                <Loader2 className="h-3 w-3 animate-spin text-zinc-400" />
+                                <span className="truncate">Writing {activeFile}...</span>
                             </div>
-                            <div className="h-1.5 bg-zinc-800/50 rounded-full overflow-hidden">
-                                <div
-                                    className="h-full bg-blue-500 rounded-full transition-all duration-500 ease-out shadow-[0_0_10px_rgba(59,130,246,0.5)]"
-                                    style={{ width: `${progress.percent}%` }}
-                                />
-                            </div>
-                            {activeFile && !isDone && (
-                                <div className="flex items-center gap-2 text-[10px] text-zinc-500 font-mono bg-black/20 py-1.5 px-3 rounded-lg border border-white/5">
-                                    <Loader2 className="h-3 w-3 animate-spin text-blue-400" />
-                                    <span className="truncate">Writing {activeFile}...</span>
-                                </div>
-                            )}
-                         </div>
+                        )}
                     </div>
                 )}
             </div>
+
         </div>
     )
 }
@@ -627,16 +680,25 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
   }
 
   const startGeneration = async () => {
-    if (!input.trim()) return
+    // If we're not waiting for info, the initial prompt handles the userMessage creation.
+    // However, if we're coming from needs_info, we just created userReply above and updated messages.
+    // Wait, the state might not be fully updated when startGeneration runs.
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: "user",
-      content: input,
+    // Better logic: Always construct the latest array of messages to send.
+    if (!input.trim() && step !== 'needs_info') return
+
+    let currentHistory = [...messages]
+
+    if (input.trim()) {
+        const userMessage: Message = {
+          id: Date.now().toString(),
+          role: "user",
+          content: input,
+        }
+        currentHistory = [...currentHistory, userMessage]
+        setMessages(currentHistory)
+        // setInput("")
     }
-
-    setMessages(prev => [...prev, userMessage])
-    // setInput("")
 
     setError(null)
     setStep("planning")
@@ -647,7 +709,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       const planResponse = await fetch("/api/ai/generate-plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: [...messages, userMessage] }),
+        body: JSON.stringify({ messages: currentHistory }),
       })
 
       if (!planResponse.ok) throw new Error("Failed to generate plan")
@@ -656,15 +718,42 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
 
       setInstruction(generatedInstruction)
 
+      // Check for Question or Database needs before proceeding
+      if (generatedInstruction.includes("[QUESTION]")) {
+         const questionMatch = generatedInstruction.match(/\[QUESTION\](.*)/)
+         const questionText = questionMatch ? questionMatch[1].trim() : "I need more information to continue."
+
+         const questionMessage: Message = {
+             id: (Date.now() + 1).toString(),
+             role: "assistant",
+             content: questionText
+         }
+         setMessages(prev => [...prev, questionMessage])
+         setStep("needs_info")
+         return
+      }
+
+      // If no question, then it's a plan
       const planMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
         content: generatedInstruction,
         plan: "Architectural Strategy",
       }
+
       setMessages(prev => [...prev, planMessage])
 
-      processNextStep(generatedInstruction, [...messages, userMessage, planMessage])
+
+      if (generatedInstruction.includes("## REQUIRES_DATABASE: true")) {
+         setStep("requires_db")
+         // Save the instruction and history so the Connect button can resume
+         setInstruction(generatedInstruction)
+         // Note: setMessages was called above with currentHistory, but we also want to add planMessage
+         setMessages([...currentHistory, planMessage])
+         return
+      }
+
+      processNextStep(generatedInstruction, [...currentHistory, planMessage])
     } catch (err: any) {
       setError(err.message || "Planning failed")
       setStep("idle")
@@ -799,11 +888,46 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                 {(step !== 'idle') && (
                     <div className="max-w-2xl mx-auto space-y-2 w-full flex-1 flex flex-col justify-center">
                          {/* 1. Thinking */}
-                        <ThinkingCard
-                            planContent={planContent}
-                            isActive={step === 'planning'}
-                            isDone={step === 'coding' || step === 'done' || step === 'fixing'}
-                        />
+                        {(step === 'planning' || step === 'requires_db') && (
+                            <>
+                                <ThinkingCard
+                                    planContent={planContent}
+                                    isActive={step === 'planning'}
+                                    isDone={false}
+                                />
+                                {step === 'requires_db' && (
+                                    <div className="mt-8">
+                                        <FirebaseConnectionCard onConnect={() => {
+                                            // Handle Firebase connection logic, for now proceed
+                                            alert("Connect to Firebase configuration modal would open here.")
+                                            setStep("planning")
+                                            processNextStep(instruction, messages)
+                                        }} />
+                                    </div>
+                                )}
+                            </>
+                        )}
+
+                        {/* Continuous Chat View */}
+                        {messages.length > 0 && (
+                             <div className="flex flex-col gap-6 w-full animate-in fade-in slide-in-from-bottom-4 mt-8">
+                                  {messages.filter(m => !m.isIntermediate && !m.isErrorLog).map(msg => (
+                                      <div key={msg.id} className={cn("flex gap-4 max-w-[85%]", msg.role === 'user' ? "ml-auto" : "")}>
+                                          {msg.role === 'assistant' && (
+                                              <div className="h-8 w-8 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 flex items-center justify-center shrink-0">
+                                                  <Bot className="h-4 w-4" />
+                                              </div>
+                                          )}
+                                          <div className={cn(
+                                              "px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap",
+                                              msg.role === 'user' ? "bg-white text-black rounded-tr-sm" : "bg-white/5 border border-white/10 text-zinc-300 rounded-tl-sm"
+                                          )}>
+                                              {msg.content}
+                                          </div>
+                                      </div>
+                                  ))}
+                             </div>
+                        )}
 
                         {/* 2. Building */}
                         {(step === 'coding' || step === 'fixing' || step === 'done') && (
@@ -814,14 +938,6 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                                 activeFile={activeFile}
                             />
                         )}
-
-                        {/* 3. Saving */}
-                         {(step === 'coding' || step === 'done') && (
-                            <SavingCard
-                                isActive={step === 'coding'}
-                                isDone={step === 'done'}
-                            />
-                         )}
 
                          {/* Done Actions */}
                         {step === 'done' && (
@@ -883,8 +999,11 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                 <InputBar
                     input={input}
                     setInput={setInput}
-                    onSend={startGeneration}
-                    disabled={step !== 'idle'}
+                    onSend={() => {
+                        startGeneration()
+                        setInput("")
+                    }}
+                    disabled={step !== 'idle' && step !== 'needs_info'}
                 />
             </div>
         </div>

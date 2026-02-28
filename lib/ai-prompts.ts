@@ -70,7 +70,9 @@ Follow this order strictly:
 11. README.md           (docs)
 
 OUTPUT FORMAT:
-You must output a single text block strictly following this format:
+You must output a single text block strictly following this format.
+If the requested website requires storing or managing dynamic data (e.g. user authentication, database, e-commerce products, comments), you MUST include ## REQUIRES_DATABASE: true in the plan.
+If you need more information to generate the plan or if the prompt is too short/vague, output [QUESTION] followed by your question. DO NOT OUTPUT THE PLAN.
 
 ## 1. Business Goal
 [Description of the goal]
