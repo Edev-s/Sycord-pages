@@ -81,7 +81,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.9",
     "@types/node": "^22",
-    "@types/react": "^19.2.14",
+    "@types/react": "^19",
     "@types/react-dom": "^19",
     "framer-motion": "^12.23.26",
     "playwright": "^1.57.0",
