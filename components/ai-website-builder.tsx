@@ -225,11 +225,11 @@ const GeminiBadge = () => (
 const InputBar = ({ input, setInput, onSend, disabled }: { input: string, setInput: (v: string) => void, onSend: () => void, disabled: boolean }) => (
     <div className="w-full max-w-2xl mx-auto px-4 pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 z-50">
         <div className={cn(
-            "rounded-3xl p-2 relative shadow-lg transition-all duration-300 border border-white/5 bg-black/20 backdrop-blur-2xl",
-            disabled ? "opacity-80 pointer-events-none" : "focus-within:border-white/20 focus-within:bg-black/30"
+            "rounded-3xl p-2 relative shadow-lg transition-all duration-300 border border-white/5 bg-zinc-950",
+            disabled ? "opacity-80 pointer-events-none" : "focus-within:border-white/20"
         )}>
             <div className="flex items-center gap-2 pl-3 pr-2">
-                <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full text-zinc-500 hover:text-zinc-300 hover:bg-white/10 transition-all" disabled={disabled}>
+                <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full text-zinc-500 hover:text-zinc-300 hover:bg-white/10 transition-all shrink-0" disabled={disabled}>
                     <Paperclip className="h-5 w-5" />
                 </Button>
                 <Input
@@ -237,17 +237,17 @@ const InputBar = ({ input, setInput, onSend, disabled }: { input: string, setInp
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && onSend()}
                     placeholder="Describe the website you want to build..."
-                    className="flex-1 border-none bg-transparent h-12 text-base text-zinc-200 placeholder:text-zinc-600 focus-visible:ring-0 px-2 shadow-none"
+                    className="flex-1 border-none bg-transparent h-12 text-base text-zinc-200 placeholder:text-zinc-600 focus-visible:ring-0 px-0 shadow-none"
                     disabled={disabled}
                     autoFocus
                 />
                 <Button
                     size="icon"
-                    className={cn("h-10 w-10 rounded-full transition-all active:scale-95 border flex items-center justify-center", input.trim() && !disabled ? "bg-blue-600 hover:bg-blue-700 text-white border-blue-500/50 shadow-[0_0_15px_rgba(37,99,235,0.3)]" : "bg-white/5 text-zinc-500 border-white/5 hover:bg-white/10 hover:text-zinc-300")}
+                    className={cn("h-10 w-10 rounded-full transition-all active:scale-95 shrink-0 flex items-center justify-center bg-transparent border-none", input.trim() && !disabled ? "text-zinc-300 hover:text-white" : "text-zinc-600")}
                     onClick={onSend}
                     disabled={!input.trim() || disabled}
                 >
-                   {disabled ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-4 w-4 ml-0.5" />}
+                   {disabled ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
                 </Button>
             </div>
         </div>
@@ -269,42 +269,42 @@ const ThinkingCard = ({ planContent, isActive, isDone }: { planContent: string, 
             <div className="flex flex-col items-center gap-2 pt-1">
                 <div className={cn(
                     "h-8 w-8 rounded-full flex items-center justify-center transition-all duration-500 shadow-sm backdrop-blur-md",
-                    isDone ? "bg-white/5 text-zinc-500 border border-white/10" : isActive ? "bg-blue-500/10 text-blue-400 border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.15)]" : "bg-white/5 text-zinc-700 border border-white/10"
+                    isDone ? "bg-white/5 text-zinc-500 border border-white/10" : isActive ? "bg-white/10 text-zinc-300 border border-white/20" : "bg-white/5 text-zinc-700 border border-white/10"
                 )}>
                     {isActive ? <Sparkles className="h-4 w-4 animate-pulse" /> : <Sparkles className="h-4 w-4" />}
                 </div>
-                {(isActive || !isDone) && <div className={cn("w-0.5 flex-1 my-1 rounded-full transition-colors duration-500", isActive ? "bg-blue-500/20" : "bg-white/5")} />}
+                {(isActive || !isDone) && <div className={cn("w-0.5 flex-1 my-1 rounded-full transition-colors duration-500", isActive ? "bg-white/10" : "bg-white/5")} />}
             </div>
             <div className="flex-1 pb-8 min-w-0">
-                <h3 className={cn("text-sm font-medium mb-3 transition-colors duration-300", isActive ? "text-blue-400" : "text-zinc-400")}>
+                <h3 className={cn("text-sm font-medium mb-3 transition-colors duration-300", isActive ? "text-zinc-300" : "text-zinc-400")}>
                     {isActive ? "Thinking..." : "Thinking"}
                 </h3>
 
                 {(isActive || isDone) && (
                     <div className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-700 shadow-sm backdrop-blur-xl">
-                        {businessGoal ? (
-                            <div className="space-y-5">
-                                <div className="space-y-1.5">
-                                    <h4 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-2">
-                                        <Sparkles className="h-3 w-3" /> The Plan
-                                    </h4>
+                        <div className="space-y-5">
+                            <div className="space-y-1.5">
+                                <h4 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+                                    <Sparkles className="h-3 w-3" /> The Plan
+                                </h4>
+                                {businessGoal ? (
                                     <p className="text-sm text-zinc-300 leading-relaxed font-light">{businessGoal}</p>
-                                </div>
-                                {getSection("Design System") && (
-                                     <div className="pt-4 border-t border-white/5 space-y-1.5">
-                                        <h4 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-2">
-                                            <Layout className="h-3 w-3" /> Design System
-                                        </h4>
-                                        <p className="text-xs text-zinc-400 leading-relaxed line-clamp-2">{getSection("Design System")}</p>
-                                     </div>
+                                ) : (
+                                    <div className="text-sm text-zinc-300 leading-relaxed font-light flex items-center gap-2 opacity-70">
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                        <span>{rawSnippet ? rawSnippet : "Analyzing request..."}</span>
+                                    </div>
                                 )}
                             </div>
-                        ) : (
-                            <div className="flex items-center gap-3 text-zinc-400 italic text-sm">
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                <span>{rawSnippet ? "Finalizing architecture..." : "Analyzing request..."}</span>
-                            </div>
-                        )}
+                            {getSection("Design System") && (
+                                 <div className="pt-4 border-t border-white/5 space-y-1.5">
+                                    <h4 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+                                        <Layout className="h-3 w-3" /> Design System
+                                    </h4>
+                                    <p className="text-xs text-zinc-400 leading-relaxed line-clamp-2">{getSection("Design System")}</p>
+                                 </div>
+                            )}
+                        </div>
                     </div>
                 )}
             </div>
@@ -318,14 +318,14 @@ const ProgressCard = ({ isActive, isDone, progress, activeFile }: { isActive: bo
              <div className="flex flex-col items-center gap-2 pt-1">
                 <div className={cn(
                     "h-8 w-8 rounded-full flex items-center justify-center transition-all duration-500 shadow-sm backdrop-blur-md",
-                    isDone ? "bg-white/5 text-zinc-500 border border-white/10" : isActive ? "bg-blue-500/10 text-blue-400 border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.15)]" : "bg-white/5 text-zinc-700 border border-white/10"
+                    isDone ? "bg-white/5 text-zinc-500 border border-white/10" : isActive ? "bg-white/10 text-zinc-300 border border-white/20" : "bg-white/5 text-zinc-700 border border-white/10"
                 )}>
                    {isActive ? <Zap className="h-4 w-4 animate-pulse" /> : <Zap className="h-4 w-4" />}
                 </div>
-                 {(isActive || !isDone) && <div className={cn("w-0.5 flex-1 my-1 rounded-full transition-colors duration-500", isActive ? "bg-blue-500/20" : "bg-white/5")} />}
+                 {(isActive || !isDone) && <div className={cn("w-0.5 flex-1 my-1 rounded-full transition-colors duration-500", isActive ? "bg-white/10" : "bg-white/5")} />}
             </div>
             <div className="flex-1 pb-8 min-w-0">
-                 <h3 className={cn("text-sm font-medium mb-3 transition-colors duration-300", isActive ? "text-blue-400" : "text-zinc-400")}>
+                 <h3 className={cn("text-sm font-medium mb-3 transition-colors duration-300", isActive ? "text-zinc-300" : "text-zinc-400")}>
                     {isActive ? "Building your plan" : "Building your plan"}
                 </h3>
 
@@ -362,13 +362,13 @@ const SavingCard = ({ isActive, isDone }: { isActive: boolean, isDone: boolean }
              <div className="flex flex-col items-center gap-2 pt-1">
                 <div className={cn(
                     "h-8 w-8 rounded-full flex items-center justify-center transition-all duration-500 shadow-sm backdrop-blur-md",
-                    isDone ? "bg-white/5 text-zinc-500 border border-white/10" : isActive ? "bg-blue-500/10 text-blue-400 border border-blue-500/20" : "bg-white/5 text-zinc-700 border border-white/10"
+                    isDone ? "bg-white/5 text-zinc-500 border border-white/10" : isActive ? "bg-white/10 text-zinc-300 border border-white/20" : "bg-white/5 text-zinc-700 border border-white/10"
                 )}>
                    {isDone ? <Check className="h-4 w-4" /> : <Cloud className="h-4 w-4" />}
                 </div>
             </div>
             <div className="flex-1 pb-4 min-w-0">
-                 <h3 className={cn("text-sm font-medium mb-1 transition-colors duration-300", isActive ? "text-blue-400" : "text-zinc-400")}>
+                 <h3 className={cn("text-sm font-medium mb-1 transition-colors duration-300", isActive ? "text-zinc-300" : "text-zinc-400")}>
                     {isDone ? "Saved" : "Saving"}
                 </h3>
                  <div className="flex items-center gap-2">
@@ -773,8 +773,12 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
         {/* Main Content */}
         <div className="flex-1 flex flex-col relative overflow-hidden">
              {/* Background Accents - Blue only, as requested */}
-             <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
-             <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+             {step === 'idle' && (
+                 <>
+                     <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+                     <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+                 </>
+             )}
 
             <div className="flex-1 overflow-y-auto p-6 md:p-12 custom-scrollbar relative z-10 flex flex-col">
                  {/* IDLE STATE */}
