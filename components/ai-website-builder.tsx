@@ -225,31 +225,36 @@ const GeminiBadge = () => (
 const InputBar = ({ input, setInput, onSend, disabled }: { input: string, setInput: (v: string) => void, onSend: () => void, disabled: boolean }) => (
     <div className="w-full max-w-2xl mx-auto px-4 pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 z-50">
         <div className={cn(
-            "rounded-3xl p-2 relative shadow-lg transition-all duration-300 border border-white/5 bg-zinc-950",
-            disabled ? "opacity-80 pointer-events-none" : "focus-within:border-white/20"
+            "rounded-[2rem] p-2 relative shadow-lg transition-all duration-300 border border-white/5 bg-zinc-950/80 backdrop-blur-xl flex items-center gap-2",
+            disabled ? "opacity-80 pointer-events-none" : "focus-within:border-white/20 focus-within:bg-zinc-950/90"
         )}>
-            <div className="flex items-center gap-2 pl-3 pr-2">
-                <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full text-zinc-500 hover:text-zinc-300 hover:bg-white/10 transition-all shrink-0" disabled={disabled}>
-                    <Paperclip className="h-5 w-5" />
-                </Button>
+            <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full text-zinc-500 hover:text-zinc-300 hover:bg-white/5 transition-all shrink-0 ml-1" disabled={disabled}>
+                <Paperclip className="h-5 w-5" />
+            </Button>
+
+            <div className="flex-1 bg-white/5 rounded-[1.25rem] border border-white/5 flex items-center px-4 h-12 transition-colors focus-within:bg-white/10 focus-within:border-white/10">
                 <Input
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && onSend()}
                     placeholder="Describe the website you want to build..."
-                    className="flex-1 border-none bg-transparent h-12 text-base text-zinc-200 placeholder:text-zinc-600 focus-visible:ring-0 px-0 shadow-none"
+                    className="flex-1 border-none bg-transparent h-full text-base text-zinc-200 placeholder:text-zinc-600 focus-visible:ring-0 px-0 shadow-none"
                     disabled={disabled}
                     autoFocus
                 />
-                <Button
-                    size="icon"
-                    className={cn("h-10 w-10 rounded-full transition-all active:scale-95 shrink-0 flex items-center justify-center bg-transparent border-none", input.trim() && !disabled ? "text-zinc-300 hover:text-white" : "text-zinc-600")}
-                    onClick={onSend}
-                    disabled={!input.trim() || disabled}
-                >
-                   {disabled ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-                </Button>
             </div>
+
+            <Button
+                size="icon"
+                className={cn(
+                    "h-10 w-10 rounded-full transition-all active:scale-95 shrink-0 flex items-center justify-center bg-transparent border-none mr-1",
+                    input.trim() && !disabled ? "text-zinc-300 hover:text-white hover:bg-white/5" : "text-zinc-600"
+                )}
+                onClick={onSend}
+                disabled={!input.trim() || disabled}
+            >
+               {disabled ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+            </Button>
         </div>
     </div>
 )
