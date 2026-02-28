@@ -213,7 +213,7 @@ const GeminiIcon = ({ className }: { className?: string }) => (
 )
 
 const GeminiBadge = () => (
-    <div className="flex items-center justify-center mt-6 animate-in fade-in zoom-in duration-700 delay-100">
+    <div className="absolute top-0 left-0 right-0 flex items-center justify-center animate-in fade-in zoom-in duration-700 delay-100 z-50 pt-6">
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-zinc-900 border border-zinc-800 shadow-sm transition-all hover:bg-zinc-800/80 cursor-default">
             <GeminiIcon className="h-4 w-4" />
             <span className="text-xs font-medium text-zinc-300">State of the Art</span>
@@ -225,10 +225,10 @@ const GeminiBadge = () => (
 const InputBar = ({ input, setInput, onSend, disabled }: { input: string, setInput: (v: string) => void, onSend: () => void, disabled: boolean }) => (
     <div className="w-full max-w-2xl mx-auto px-4 pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 z-50">
         <div className={cn(
-            "rounded-[2rem] p-3 relative shadow-lg transition-all duration-300 border border-white/10 bg-white/5 backdrop-blur-xl flex items-center gap-3",
-            disabled ? "opacity-80 pointer-events-none" : "focus-within:border-white/20 focus-within:bg-white/10"
+            "rounded-[2rem] p-2 relative shadow-2xl transition-all duration-300 border border-white/5 bg-zinc-900/40 backdrop-blur-xl flex items-center gap-3",
+            disabled ? "opacity-80 pointer-events-none" : "focus-within:border-white/10 focus-within:bg-zinc-900/60"
         )}>
-            <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full text-zinc-400 hover:text-zinc-200 hover:bg-white/10 transition-all shrink-0" disabled={disabled}>
+            <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full text-zinc-500 hover:text-zinc-300 hover:bg-white/5 transition-all shrink-0 ml-1" disabled={disabled}>
                 <Paperclip className="h-5 w-5" />
             </Button>
 
@@ -236,7 +236,7 @@ const InputBar = ({ input, setInput, onSend, disabled }: { input: string, setInp
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && onSend()}
-                placeholder="Describe the website you want to build..."
+                placeholder="Describe the website you want"
                 className="flex-1 border-none bg-transparent h-12 text-base text-zinc-200 placeholder:text-zinc-600 focus-visible:ring-0 px-0 shadow-none"
                 disabled={disabled}
                 autoFocus
@@ -245,13 +245,13 @@ const InputBar = ({ input, setInput, onSend, disabled }: { input: string, setInp
             <Button
                 size="icon"
                 className={cn(
-                    "h-10 w-10 rounded-full transition-all active:scale-95 shrink-0 flex items-center justify-center bg-transparent border-none",
-                    input.trim() && !disabled ? "text-zinc-300 hover:text-white hover:bg-white/10" : "text-zinc-600"
+                    "h-10 w-10 rounded-full transition-all active:scale-95 shrink-0 flex items-center justify-center bg-transparent border-none mr-1 shadow-none",
+                    input.trim() && !disabled ? "text-zinc-400 hover:text-white hover:bg-white/10" : "text-zinc-700 hover:bg-transparent"
                 )}
                 onClick={onSend}
                 disabled={!input.trim() || disabled}
             >
-               {disabled ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+               {disabled ? <Loader2 className="h-5 w-5 animate-spin text-zinc-700" /> : <Send className="h-5 w-5" />}
             </Button>
         </div>
     </div>
@@ -787,14 +787,14 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                  {/* IDLE STATE */}
                 {step === 'idle' && (
                     <div className="flex flex-col items-center justify-start pt-20 text-center max-w-2xl w-full mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700 delay-150 h-full">
-                        <div className="flex-1 flex flex-col items-center justify-center -mt-20">
+                        <GeminiBadge />
+                        <div className="flex-1 flex flex-col items-center justify-center">
                             <h1 className="text-4xl md:text-5xl font-medium tracking-tight mb-2 text-white">
                                 Hi {userName},
                             </h1>
                             <h2 className="text-4xl md:text-5xl font-medium tracking-tight text-zinc-500 mb-6">
                                 What are we building?
                             </h2>
-                            <GeminiBadge />
                         </div>
                     </div>
                 )}
