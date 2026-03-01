@@ -225,8 +225,8 @@ const GeminiBadge = () => (
 const InputBar = ({ input, setInput, onSend, disabled }: { input: string, setInput: (v: string) => void, onSend: () => void, disabled: boolean }) => (
     <div className="w-full max-w-2xl mx-auto px-4 pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 z-50">
         <div className={cn(
-            "rounded-[2rem] p-2 relative shadow-2xl transition-all duration-300 border border-white/5 bg-zinc-900/40 backdrop-blur-xl flex items-center gap-3",
-            disabled ? "opacity-80 pointer-events-none" : "focus-within:border-white/10 focus-within:bg-zinc-900/60"
+            "rounded-[2rem] p-2 relative shadow-2xl transition-all duration-300 border border-white/10 bg-zinc-900/30 backdrop-blur-[20px] flex items-center gap-3",
+            disabled ? "opacity-80 pointer-events-none" : "focus-within:border-white/20 focus-within:bg-zinc-900/40"
         )}>
             <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full text-zinc-500 hover:text-zinc-300 hover:bg-white/5 transition-all shrink-0 ml-1" disabled={disabled}>
                 <Paperclip className="h-5 w-5" />
