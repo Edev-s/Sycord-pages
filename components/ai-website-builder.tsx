@@ -224,10 +224,10 @@ const GeminiBadge = () => (
 )
 
 const InputBar = ({ input, setInput, onSend, disabled }: { input: string, setInput: (v: string) => void, onSend: () => void, disabled: boolean }) => (
-    <div className="w-full max-w-2xl mx-auto px-4 pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 z-50">
+    <div className="w-full max-w-2xl mx-auto px-4 pb-6 md:pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 z-50 fixed bottom-0 left-0 right-0 md:static">
         <div className={cn(
-            "rounded-[2rem] p-2 relative shadow-2xl transition-all duration-300 border border-white/5 bg-zinc-900/40 backdrop-blur-xl flex items-center gap-3",
-            disabled ? "opacity-80 pointer-events-none" : "focus-within:border-white/10 focus-within:bg-zinc-900/60"
+            "rounded-[2rem] p-1.5 relative shadow-lg transition-all duration-300 border border-white/5 bg-[#1c1c1c] flex items-center gap-2",
+            disabled ? "opacity-80 pointer-events-none" : "focus-within:border-white/10"
         )}>
             <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full text-zinc-500 hover:text-zinc-300 hover:bg-white/5 transition-all shrink-0 ml-1" disabled={disabled}>
                 <Paperclip className="h-5 w-5" />
@@ -240,7 +240,7 @@ const InputBar = ({ input, setInput, onSend, disabled }: { input: string, setInp
                 placeholder="Describe the website you want"
                 className="flex-1 border-none bg-transparent h-12 text-base text-zinc-200 placeholder:text-zinc-600 focus-visible:ring-0 px-0 shadow-none"
                 disabled={disabled}
-                autoFocus
+                autoFocus={!disabled}
             />
 
             <Button
@@ -264,10 +264,10 @@ const ThinkingCard = ({ isActive, isDone }: { isActive: boolean, isDone: boolean
     return (
         <div className="flex flex-col items-center justify-center py-6 gap-3 group transition-all duration-500 animate-in fade-in slide-in-from-bottom-2">
             <div className="flex items-center justify-center text-zinc-500">
-                <Brain className="h-6 w-6" />
+                <Brain className="h-6 w-6 animate-pulse" />
             </div>
             <h3 className={cn("text-sm font-medium transition-colors duration-300", isActive ? "text-zinc-400" : "text-zinc-500")}>
-                {isActive ? "Thinking" : "Thinking completed"}
+                Thinking
             </h3>
         </div>
     )
@@ -400,6 +400,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
 
   const [fixHistory, setFixHistory] = useState<any[]>([])
   const [requiresDatabase, setRequiresDatabase] = useState(false)
+
 
   // Compute file-level progress from instruction
   const getProgress = () => {
@@ -821,44 +822,27 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                              <WebsitePreviewCardSkeleton />
                          )}
 
-                         <div className="space-y-2">
-                             {/* 1. Thinking */}
-                            <ThinkingCard
-                                isActive={step === 'planning'}
-                                isDone={step === 'coding' || step === 'done' || step === 'fixing' || step === 'firebase_auth' || step === 'needs_info'}
-                            />
+                         <div className="flex flex-col items-center justify-center w-full">
+                            {step === 'planning' && (
+                                <ThinkingCard isActive={true} isDone={false} />
+                            )}
 
-                        {/* 2. Building */}
-                        {(step === 'coding' || step === 'fixing' || step === 'done') && (
-                            <ProgressCard
-                                isActive={step === 'coding' || step === 'fixing'}
-                                isDone={step === 'done'}
-                                progress={progress}
-                            />
-                        )}
+                            {(step === 'coding' || step === 'fixing') && (
+                                <ProgressCard isActive={true} isDone={false} progress={progress} />
+                            )}
 
-                        {/* Database Auth */}
-                        {step === 'firebase_auth' && (
-                            <FirebaseConnectionCard onConnect={() => {
-                                // Simulate connection for now and continue
-                                setStep("planning")
-                                if (instruction) {
-                                    const planMessage = messages.find(m => m.role === 'assistant' && m.plan)
-                                    const userMessage = messages.find(m => m.role === 'user')
-                                    if (planMessage && userMessage) {
-                                        processNextStep(instruction, [...messages]) // Keep logic simple for flow
+                            {step === 'firebase_auth' && (
+                                <FirebaseConnectionCard onConnect={() => {
+                                    setStep("planning")
+                                    if (instruction) {
+                                        processNextStep(instruction, [...messages])
                                     }
-                                }
-                            }} />
-                        )}
+                                }} />
+                            )}
 
-                        {/* 3. Saving */}
-                         {(step === 'coding' || step === 'done') && (
-                            <SavingCard
-                                isActive={step === 'coding'}
-                                isDone={step === 'done'}
-                            />
-                         )}
+                            {step === 'done' && (
+                                <SavingCard isActive={false} isDone={true} />
+                            )}
                          </div>
 
                          {/* Chat History View */}
