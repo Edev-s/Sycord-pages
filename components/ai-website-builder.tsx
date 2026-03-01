@@ -238,7 +238,7 @@ const InputBar = ({ input, setInput, onSend, disabled }: { input: string, setInp
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && onSend()}
                 placeholder="Describe the website you want"
-                className="flex-1 border-none bg-transparent h-12 text-base text-zinc-200 placeholder:text-zinc-600 focus-visible:ring-0 px-0 shadow-none"
+                className="flex-1 border-none bg-zinc-900/30 h-12 text-base text-zinc-200 placeholder:text-zinc-600 focus-visible:ring-0 px-0 shadow-none rounded-xl"
                 disabled={disabled}
                 autoFocus={!disabled}
             />
