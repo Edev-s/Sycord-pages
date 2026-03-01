@@ -226,7 +226,7 @@ const GeminiBadge = () => (
 const InputBar = ({ input, setInput, onSend, disabled }: { input: string, setInput: (v: string) => void, onSend: () => void, disabled: boolean }) => (
     <div className="w-full max-w-2xl mx-auto px-4 pb-6 md:pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 z-50 fixed bottom-0 left-0 right-0 md:static">
         <div className={cn(
-            "rounded-[2rem] p-1.5 relative shadow-lg transition-all duration-300 border border-white/5 bg-[#1c1c1c] flex items-center gap-2",
+            "rounded-[2rem] p-1.5 relative shadow-lg transition-all duration-300 border border-white/10 bg-zinc-900/30 backdrop-blur-[20px] flex items-center gap-2",
             disabled ? "opacity-80 pointer-events-none" : "focus-within:border-white/10"
         )}>
             <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full text-zinc-500 hover:text-zinc-300 hover:bg-white/5 transition-all shrink-0 ml-1" disabled={disabled}>
