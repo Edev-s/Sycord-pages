@@ -1259,9 +1259,9 @@ export default function SiteSettingsPage() {
 
             {/* TAB CONTENT: STYLES */}
             {activeTab === "styles" && (
-              <div className="max-w-[400px] mx-auto w-full space-y-6 animate-in fade-in duration-500 pt-4 pb-12">
+              <div className="max-w-[400px] mx-auto w-full space-y-6 animate-in fade-in duration-500 pt-6 pb-12">
                 {/* Preview Area */}
-                <div className="aspect-[4/3] w-full bg-[#1e1f22] rounded-[24px] relative overflow-hidden">
+                <div className="aspect-[1.3] w-full bg-[#232428] rounded-[24px] relative border border-white/5 shadow-md">
                   {previewUrl ? (
                     <iframe
                       src={previewUrl}
@@ -1270,87 +1270,64 @@ export default function SiteSettingsPage() {
                       sandbox="allow-scripts allow-forms"
                     />
                   ) : (
-                    <div className="flex flex-col items-center justify-center w-full h-full bg-[#1e1f22]">
+                    <div className="flex flex-col items-center justify-center w-full h-full bg-[#232428]">
                       <AlertCircle className="h-10 w-10 mb-3 text-white/10" />
                     </div>
                   )}
 
                   {/* Green Badge */}
-                  <div className="absolute bottom-6 left-0 flex items-center shadow-lg">
-                    <div className="bg-[#12a150] h-10 w-10 rotate-45 -ml-5 flex items-center justify-center rounded-sm z-10 shadow-[2px_2px_10px_rgba(0,0,0,0.2)]">
+                  <div className="absolute bottom-8 left-0 flex items-center">
+                    <div className="bg-[#1fb355] h-11 w-11 rotate-45 -ml-5 flex items-center justify-center rounded-[3px] z-10 shadow-[0_4px_12px_rgba(31,179,85,0.4)]">
                       <div className="-rotate-45">
-                        <div className="w-3.5 h-3.5 bg-transparent border-2 border-white rotate-45"></div>
+                        <div className="w-[18px] h-[18px] bg-transparent border-2 border-white rotate-45 rounded-[2px]"></div>
                       </div>
                     </div>
-                    <div className="bg-[#12a150] text-white text-[15px] font-semibold px-5 py-2.5 -ml-5 rounded-r-md z-0 shadow-[0_2px_10px_rgba(18,161,80,0.3)]">
+                    <div className="bg-[#1fb355] text-white text-[16px] font-medium pl-6 pr-5 py-[11px] -ml-5 rounded-r-[6px] z-0 shadow-[0_4px_12px_rgba(31,179,85,0.4)]">
                       Your site is now live!
                     </div>
                   </div>
                 </div>
 
                 {/* Domain Row */}
-                <div className="flex items-center justify-between px-1">
+                <div className="flex items-center justify-between px-3 mt-8">
                   <div className="flex items-center gap-4">
-                    <div className="w-[30px] h-[30px] bg-[#313338] rounded-[6px] flex items-center justify-center shadow-sm">
-                      <Globe className="h-4 w-4 text-white/50" />
+                    <div className="w-[28px] h-[28px] bg-[#313338] rounded-[6px] flex items-center justify-center shadow-sm cursor-pointer hover:bg-[#3f4147] transition-colors border border-white/5">
+                      {/* Checkbox proxy */}
                     </div>
-                    <span className="text-white font-semibold text-[15px] tracking-wide">
+                    <span className="text-white font-medium text-[16px]">
                       {displayUrl || "Domain.com"}
                     </span>
                   </div>
-                  {previewUrl ? (
-                    <Button
-                      variant="ghost"
-                      className="h-[34px] w-[110px] bg-[#313338] hover:bg-[#3f4147] text-white/50 hover:text-white rounded-[6px] transition-colors px-0 group relative overflow-hidden flex items-center justify-center"
-                      onClick={() => window.open(previewUrl, "_blank")}
-                    >
-                      <span className="text-xs font-semibold mr-2 opacity-100 group-hover:opacity-0 transition-opacity">
-                        VISIT
-                      </span>
-                      <ExternalLink className="h-4 w-4 absolute opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="ghost"
-                      className={cn(
-                        "h-[34px] w-[110px] rounded-[6px] transition-colors px-0 group relative overflow-hidden flex items-center justify-center",
-                        hasDeployError && !isDeploying && !deploySuccess
-                          ? "bg-red-500/20 hover:bg-red-500/30 text-red-400"
-                          : "bg-[#313338] hover:bg-[#3f4147] text-white/50 hover:text-white",
-                      )}
-                      onClick={hasDeployError ? startAutoFix : handleDeploy}
-                      disabled={isDeploying}
-                    >
-                      {isDeploying ? (
-                        <Loader2 className="h-4 w-4 animate-spin text-white/50 absolute" />
-                      ) : deploySuccess ? (
-                        <CheckCircle2 className="h-4 w-4 text-emerald-500 absolute" />
-                      ) : hasDeployError ? (
-                        <>
-                          <span className="text-xs font-semibold opacity-100 group-hover:opacity-0 transition-opacity">
-                            FIX AI
-                          </span>
-                          <Sparkles className="h-4 w-4 absolute opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </>
-                      ) : (
-                        <>
-                          <span className="text-xs font-semibold opacity-100 group-hover:opacity-0 transition-opacity">
-                            DEPLOY
-                          </span>
-                          <Rocket className="h-4 w-4 absolute opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </>
-                      )}
-                    </Button>
-                  )}
+                  <div
+                    className={cn(
+                      "h-[28px] w-[120px] rounded-[6px] transition-colors cursor-pointer border border-white/5 flex items-center justify-center text-xs font-semibold text-white/50 hover:text-white group",
+                      hasDeployError && !isDeploying && !deploySuccess
+                        ? "bg-red-500/20 hover:bg-red-500/30 text-red-400"
+                        : "bg-[#2b2d31] hover:bg-[#3f4147]"
+                    )}
+                    onClick={hasDeployError ? startAutoFix : (previewUrl ? () => window.open(previewUrl, "_blank") : handleDeploy)}
+                  >
+                    {isDeploying ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-white/50" />
+                    ) : deploySuccess ? (
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                    ) : hasDeployError ? (
+                      "FIX AI"
+                    ) : previewUrl ? (
+                      <span className="opacity-0 group-hover:opacity-100 transition-opacity">VISIT</span>
+                    ) : (
+                      <span className="opacity-0 group-hover:opacity-100 transition-opacity">DEPLOY</span>
+                    )}
+                  </div>
                 </div>
 
                 {(isDeploying || deploySuccess) && (
                   <Progress
                     value={deployProgress}
                     className={cn(
-                      "h-1 rounded-full bg-[#313338] overflow-hidden",
+                      "h-[2px] rounded-full bg-[#313338] overflow-hidden mt-2 mx-3",
                       deploySuccess
-                        ? "[&>div]:bg-emerald-500"
+                        ? "[&>div]:bg-[#1fb355]"
                         : "[&>div]:bg-white/50",
                     )}
                   />
@@ -1359,42 +1336,24 @@ export default function SiteSettingsPage() {
                 {/* Reference Box */}
                 <div
                   onClick={() => setActiveTab("ai")}
-                  className="h-[100px] w-full bg-[#111214] rounded-[16px] cursor-pointer hover:bg-[#1a1b1e] transition-colors relative flex items-center justify-center"
+                  className="h-[110px] w-full bg-[#111214] border border-[#1e1f22] rounded-[12px] cursor-pointer hover:bg-[#1a1b1e] transition-colors relative flex flex-col items-center justify-center mt-10 shadow-sm"
                 >
-                  <div className="flex flex-col items-center gap-2 text-white/60 group-hover:text-white transition-colors">
-                    <Bot className="h-6 w-6" />
-                    <span className="font-semibold text-[15px]">
-                      Edit styles and AI chat
-                    </span>
-                  </div>
+                  <div className="text-white/40 group-hover:text-white/60 transition-colors text-[13px] font-medium mt-1 tracking-wide">edit style of the web (styles and ai chat)</div>
                 </div>
 
                 {/* Three Details Boxes */}
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="aspect-[1.1] bg-[#111214] rounded-[16px] relative flex flex-col items-center justify-center gap-1.5 p-2 text-center">
-                    <Eye className="h-5 w-5 text-white/40 mb-1" />
-                    <span className="font-bold text-white text-[15px]">
-                      {stats.visitors || "1.2k"}
-                    </span>
-                    <span className="text-[10px] text-white/40 uppercase tracking-widest font-semibold">
-                      Webview
-                    </span>
+                <div className="flex justify-between gap-[22px] px-1 mt-10">
+                  <div className="w-[85px] h-[65px] bg-[#111214] border border-[#1e1f22] rounded-[12px] relative flex flex-col items-center justify-center shadow-sm">
+                    <span className="font-bold text-white text-[17px] mt-1">{stats.visitors || "1.2k"}</span>
+                    <span className="text-[9px] text-white/40 font-medium tracking-wide mt-0.5">webview</span>
                   </div>
-                  <div className="aspect-[1.1] bg-[#111214] rounded-[16px] relative flex flex-col items-center justify-center gap-1.5 p-2 text-center">
-                    <CreditCard className="h-5 w-5 text-white/40 mb-1" />
-                    <span className="font-bold text-white text-[15px]">
-                      $0.00
-                    </span>
-                    <span className="text-[10px] text-white/40 uppercase tracking-widest font-semibold">
-                      Revenue
-                    </span>
+                  <div className="w-[85px] h-[65px] bg-[#111214] border border-[#1e1f22] rounded-[12px] relative flex flex-col items-center justify-center shadow-sm">
+                    <span className="font-bold text-white text-[17px] mt-1">$0.00</span>
+                    <span className="text-[9px] text-white/40 font-medium tracking-wide mt-0.5">revenue</span>
                   </div>
-                  <div className="aspect-[1.1] bg-[#111214] rounded-[16px] relative flex flex-col items-center justify-center gap-1.5 p-2 text-center">
-                    <MessageSquare className="h-5 w-5 text-white/40 mb-1" />
-                    <span className="font-bold text-white text-[15px]">3</span>
-                    <span className="text-[10px] text-white/40 uppercase tracking-widest font-semibold">
-                      Message
-                    </span>
+                  <div className="w-[85px] h-[65px] bg-[#111214] border border-[#1e1f22] rounded-[12px] relative flex flex-col items-center justify-center shadow-sm">
+                    <span className="font-bold text-white text-[17px] mt-1">3</span>
+                    <span className="text-[9px] text-white/40 font-medium tracking-wide mt-0.5">message</span>
                   </div>
                 </div>
               </div>
