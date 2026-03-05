@@ -2,12 +2,121 @@
 > my-v0-project@0.1.0 dev
 > next dev
 
- ⚠ Port 3000 is in use by an unknown process, using available port 3001 instead.
    ▲ Next.js 16.0.10 (Turbopack)
-   - Local:         http://localhost:3001
-   - Network:       http://192.168.0.2:3001
+   - Local:         http://localhost:3000
+   - Network:       http://192.168.0.2:3000
 
  ✓ Starting...
 [baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
  ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
- ✓ Ready in 2s
+ ✓ Ready in 1241ms
+ ○ Compiling /login ...
+ GET /login 200 in 3.7s (compile: 3.4s, proxy.ts: 4ms, render: 308ms)
+[v0] Auth Warning: Missing GOOGLE_CLIENT_ID
+[v0] Auth Warning: Missing GOOGLE_CLIENT_SECRET
+[v0] Auth Warning: Missing AUTH_SECRET
+[v0] Auth Warning: Missing GOOGLE_CLIENT_ID
+[v0] Auth Warning: Missing GOOGLE_CLIENT_SECRET
+[v0] Auth Warning: Missing AUTH_SECRET
+[NextAuth-WARN][NEXTAUTH_URL]
+[NextAuth-WARN][NO_SECRET]
+[NextAuth-WARN][DEBUG_ENABLED]
+ GET /api/auth/session 200 in 3.0s (compile: 2.9s, proxy.ts: 13ms, render: 36ms)
+MongoServerSelectionError: getaddrinfo ENOTFOUND dummy
+    at ignore-listed frames {
+  errorLabelSet: Set(0) {},
+  reason: [TopologyDescription],
+  code: undefined,
+  [cause]: MongoNetworkError: getaddrinfo ENOTFOUND dummy
+      at ignore-listed frames {
+    errorLabelSet: Set(1) { 'ResetPool' },
+    beforeHandshake: false,
+    [cause]: Error: getaddrinfo ENOTFOUND dummy
+        at ignore-listed frames {
+      errno: -3008,
+      code: 'ENOTFOUND',
+      syscall: 'getaddrinfo',
+      hostname: 'dummy'
+    }
+  }
+}
+ ⨯ unhandledRejection: MongoServerSelectionError: getaddrinfo ENOTFOUND dummy
+    at ignore-listed frames {
+  errorLabelSet: Set(0) {},
+  reason: [TopologyDescription],
+  code: undefined,
+  [cause]: MongoNetworkError: getaddrinfo ENOTFOUND dummy
+      at ignore-listed frames {
+    errorLabelSet: Set(1) { 'ResetPool' },
+    beforeHandshake: false,
+    [cause]: Error: getaddrinfo ENOTFOUND dummy
+        at ignore-listed frames {
+      errno: -3008,
+      code: 'ENOTFOUND',
+      syscall: 'getaddrinfo',
+      hostname: 'dummy'
+    }
+  }
+}
+ ⨯ unhandledRejection:  MongoServerSelectionError: getaddrinfo ENOTFOUND dummy
+    at ignore-listed frames {
+  errorLabelSet: Set(0) {},
+  reason: [TopologyDescription],
+  code: undefined,
+  [cause]: MongoNetworkError: getaddrinfo ENOTFOUND dummy
+      at ignore-listed frames {
+    errorLabelSet: Set(1) { 'ResetPool' },
+    beforeHandshake: false,
+    [cause]: Error: getaddrinfo ENOTFOUND dummy
+        at ignore-listed frames {
+      errno: -3008,
+      code: 'ENOTFOUND',
+      syscall: 'getaddrinfo',
+      hostname: 'dummy'
+    }
+  }
+}
+ GET /test-ui 404 in 659ms (compile: 564ms, proxy.ts: 6ms, render: 90ms)
+ GET /api/auth/session 200 in 44ms (compile: 26ms, proxy.ts: 5ms, render: 12ms)
+[v0] Auth Warning: Missing GOOGLE_CLIENT_ID
+[v0] Auth Warning: Missing GOOGLE_CLIENT_SECRET
+[v0] Auth Warning: Missing AUTH_SECRET
+ ○ Compiling /test-ui ...
+ GET /test-ui 200 in 5.5s (compile: 4.9s, proxy.ts: 70ms, render: 545ms)
+[v0] Auth Warning: Missing GOOGLE_CLIENT_ID
+[v0] Auth Warning: Missing GOOGLE_CLIENT_SECRET
+[v0] Auth Warning: Missing AUTH_SECRET
+[NextAuth-WARN][NEXTAUTH_URL]
+[NextAuth-WARN][NO_SECRET]
+[NextAuth-WARN][DEBUG_ENABLED]
+ GET /api/auth/session 200 in 268ms (compile: 224ms, proxy.ts: 14ms, render: 30ms)
+[v0] Auth Warning: Missing GOOGLE_CLIENT_ID
+[v0] Auth Warning: Missing GOOGLE_CLIENT_SECRET
+[v0] Auth Warning: Missing AUTH_SECRET
+ GET /test-ui 200 in 309ms (compile: 159ms, proxy.ts: 5ms, render: 145ms)
+ GET /api/auth/session 200 in 50ms (compile: 33ms, proxy.ts: 6ms, render: 11ms)
+[v0] Auth Warning: Missing GOOGLE_CLIENT_ID
+[v0] Auth Warning: Missing GOOGLE_CLIENT_SECRET
+[v0] Auth Warning: Missing AUTH_SECRET
+ GET /test-ui 404 in 718ms (compile: 251ms, proxy.ts: 71ms, render: 396ms)
+[v0] Auth Warning: Missing GOOGLE_CLIENT_ID
+[v0] Auth Warning: Missing GOOGLE_CLIENT_SECRET
+[v0] Auth Warning: Missing AUTH_SECRET
+[NextAuth-WARN][NEXTAUTH_URL]
+[NextAuth-WARN][NO_SECRET]
+[NextAuth-WARN][DEBUG_ENABLED]
+ GET /api/auth/session 200 in 305ms (compile: 252ms, proxy.ts: 8ms, render: 45ms)
+[v0] Auth Warning: Missing GOOGLE_CLIENT_ID
+[v0] Auth Warning: Missing GOOGLE_CLIENT_SECRET
+[v0] Auth Warning: Missing AUTH_SECRET
+ GET /test-ui 200 in 915ms (compile: 347ms, proxy.ts: 24ms, render: 544ms)
+[v0] Auth Warning: Missing GOOGLE_CLIENT_ID
+[v0] Auth Warning: Missing GOOGLE_CLIENT_SECRET
+[v0] Auth Warning: Missing AUTH_SECRET
+[NextAuth-WARN][NEXTAUTH_URL]
+[NextAuth-WARN][NO_SECRET]
+[NextAuth-WARN][DEBUG_ENABLED]
+ GET /api/auth/session 200 in 177ms (compile: 150ms, proxy.ts: 5ms, render: 21ms)
+[v0] Auth Warning: Missing GOOGLE_CLIENT_ID
+[v0] Auth Warning: Missing GOOGLE_CLIENT_SECRET
+[v0] Auth Warning: Missing AUTH_SECRET

@@ -1,0 +1,108 @@
+--- app/dashboard/sites/[id]/page.tsx
++++ app/dashboard/sites/[id]/page.tsx
+@@ -1073,59 +1073,52 @@
+             {/* TAB CONTENT: STYLES */}
+             {activeTab === "styles" && (
+                 <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+-                    <div className="block md:hidden space-y-6">
+-                        <div className="flex items-center justify-between gap-4">
+-                            <div className="flex-1 min-w-0 space-y-1">
+-                                <div className="flex items-center gap-2">
+-                                    <div className={cn("h-2.5 w-2.5 rounded-full shrink-0", previewUrl ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" : "bg-gray-500")} />
+-                                    <h3 className="font-bold text-xl truncate text-foreground tracking-tight">{displayUrl || 'Not deployed'}</h3>
+-                                </div>
+-                                <div className="flex items-center gap-2 text-sm text-muted-foreground pl-4.5 font-medium">
+-                                    <span>main</span>
+-                                    <span className="text-muted-foreground/30">•</span>
+-                                    <span>{project?.cloudflareDeployedAt ? new Date(project.cloudflareDeployedAt).toISOString().split('T')[0].replace(/-/g, ' ') : "Not deployed"}</span>
+-                                </div>
+-                            </div>
+-                            <div className="w-24 h-14 rounded-lg overflow-hidden border border-white/10 bg-black/20 shrink-0 relative shadow-sm group">
+-                                {previewUrl ? (
+-                                    <iframe src={previewUrl} className="w-[300%] h-[300%] origin-top-left scale-[0.33] border-0 pointer-events-none" title="Mini Preview" tabIndex={-1} />
+-                                ) : (
+-                                    <div className="flex items-center justify-center w-full h-full bg-muted/20"><div className="text-[10px] text-muted-foreground/50">No Preview</div></div>
+-                                )}
+-                            </div>
+-                        </div>
+-                        <div className="space-y-4">
+-                            <div className="grid grid-cols-2 gap-4">
+-                                <Button variant="outline" className="h-14 text-base font-medium bg-card/50 border-white/10 hover:bg-accent rounded-xl" disabled>
+-                                    <Globe className="mr-2 h-5 w-5 opacity-70" /> Domain (disabled)
+-                                </Button>
+-                                <Button variant="outline" className="h-14 text-base font-medium bg-card/50 border-white/10 hover:bg-accent rounded-xl" onClick={() => previewUrl && window.open(previewUrl, "_blank")} disabled={!previewUrl}>
+-                                    <ExternalLink className="mr-2 h-5 w-5 opacity-70" /> Visit
+-                                </Button>
+-                            </div>
+-                            <div className="space-y-2 relative">
+-                              <Button
+-                                  size="lg"
+-                                  className={cn("w-full h-14 font-semibold text-base shadow-lg shadow-primary/10 rounded-xl transition-all", deploySuccess && "bg-green-500/20 text-green-400 border-green-500/30", hasDeployError && !isDeploying && !deploySuccess && "bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30")}
+-                                  onClick={hasDeployError ? startAutoFix : handleDeploy}
+-                                  disabled={isDeploying}
+-                              >
+-                                  {isDeploying ? <><Loader2 className="h-5 w-5 mr-2 animate-spin" /> Deploying...</> : deploySuccess ? <><CheckCircle2 className="h-5 w-5 mr-2" /> Deployed!</> : hasDeployError ? <><Sparkles className="h-5 w-5 mr-2" /> Fix with AI</> : <><Rocket className="h-5 w-5 mr-2" /> Deploy to GitHub</>}
+-                              </Button>
+-                              {(isDeploying || deploySuccess) && <Progress value={deployProgress} className={cn("h-1.5 rounded-full", deploySuccess ? "[&>div]:bg-green-500" : "")} />}
+-                            </div>
+-                            {deployError && (
+-                              <div className="text-center space-y-2">
+-                                 <p className="text-sm text-destructive">{deployError}</p>
+-                                 {!hasDeployError && <Button variant="link" size="sm" onClick={startAutoFix} className="text-blue-400 h-auto p-0">Try fixing with AI</Button>}
+-                              </div>
+-                            )}
+-                        </div>
+-                        <div className="flex items-center gap-4 py-2">
+-                             <div className="h-px bg-border/40 flex-1"></div>
+-                             <div className="bg-card/50 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 flex items-center gap-2 shadow-sm">
+-                                <Eye className="h-3.5 w-3.5 text-foreground/70" />
+-                                <span className="font-bold text-sm text-foreground">{stats.visitors}</span>
+-                            </div>
+-                             <div className="h-px bg-border/40 flex-1"></div>
+-                        </div>
++                    <div className="block md:hidden px-2 space-y-8 mt-4">
++                        {/* Main Preview Container */}
++                        <div className="relative w-full aspect-[4/3] rounded-3xl bg-[#1c1c1e] shadow-lg overflow-visible">
++
++                            {previewUrl ? (
++                                <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none">
++                                    <iframe src={previewUrl} className="w-[300%] h-[300%] origin-top-left scale-[0.33] border-0" title="Mini Preview" tabIndex={-1} />
++                                </div>
++                            ) : null}
++
++                            {/* Green Banner */}
++                            <div className="absolute -bottom-1 -left-4 md:-left-6 flex items-center h-10 bg-[#0ea5e9] rounded-r-xl rounded-l-md shadow-lg pr-4 pl-3" style={{backgroundColor: "#10b981", zIndex: 10}}>
++                                {/* Diamond icon cut-out effect */}
++                                <div className="absolute -left-3 h-6 w-6 transform rotate-45 border-[3px] border-[#10b981] bg-[#1c1c1e] flex items-center justify-center"></div>
++                                <span className="text-white font-medium text-sm ml-4 tracking-wide">Your site is now live!</span>
++                            </div>
++                        </div>
++
++                        {/* Domain Row */}
++                        <div className="flex items-center justify-between px-1">
++                            <div className="flex items-center gap-4">
++                                {/* Checkbox-like rounded square */}
++                                <div className="h-7 w-7 rounded-lg bg-[#3a3a3c] flex-shrink-0"></div>
++                                <span className="text-white text-base font-medium">{displayUrl || 'Domain.com'}</span>
++                            </div>
++                            {/* Small Action Button */}
++                            <button
++                                className="h-8 w-20 rounded-lg bg-[#2c2c2e] hover:bg-[#3a3a3c] transition-colors flex-shrink-0 border border-white/5"
++                                onClick={() => previewUrl && window.open(previewUrl, "_blank")}
++                            ></button>
++                        </div>
++
++                        {/* Large Action Rectangle */}
++                        <div className="w-full h-[88px] rounded-2xl bg-[#1c1c1e] border border-white/5 shadow-sm"></div>
++
++                        {/* Three Smaller Squares */}
++                        <div className="flex justify-between items-center gap-4">
++                            <div className="flex-1 aspect-[1.25] rounded-xl bg-[#1c1c1e] border border-white/5 shadow-sm"></div>
++                            <div className="flex-1 aspect-[1.25] rounded-xl bg-[#1c1c1e] border border-white/5 shadow-sm"></div>
++                            <div className="flex-1 aspect-[1.25] rounded-xl bg-[#1c1c1e] border border-white/5 shadow-sm"></div>
++                        </div>
++
++                        <div className="h-4"></div> {/* Bottom spacing */}
+                     </div>
+
+                     <div className="hidden md:block">
