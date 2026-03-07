@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect, useRef, useCallback, useMemo } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -787,9 +787,12 @@ export default function SiteSettingsPage() {
     }
   }
 
-  const handleDeploy = useCallback(async () => {
+  const handleDeploy = async (options?: { markAutoAttempt?: boolean }) => {
     if (isDeploying || !id) return
-    
+    if (options?.markAutoAttempt) {
+      autoDeployAttempted.current = true
+    }
+
     setIsDeploying(true)
     setDeployProgress(0)
     setDeploySuccess(false)
@@ -858,15 +861,14 @@ export default function SiteSettingsPage() {
     } finally {
       setIsDeploying(false)
     }
-  }, [fetchLogs, id, isDeploying, pollForDomain, project])
+  }
 
   useEffect(() => {
     if (autoDeployAttempted.current) return
     if (!project || hasCloudflareDeployment || isDeploying) return
 
-    autoDeployAttempted.current = true
-    handleDeploy()
-  }, [project, hasCloudflareDeployment, isDeploying, handleDeploy])
+    handleDeploy({ markAutoAttempt: true })
+  }, [project, hasCloudflareDeployment, isDeploying])
 
   if (isInitialLoading) {
     return (
