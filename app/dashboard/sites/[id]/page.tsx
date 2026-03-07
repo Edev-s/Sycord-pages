@@ -470,7 +470,16 @@ export default function SiteSettingsPage() {
   const [autoFixLogs, setAutoFixLogs] = useState<string[] | null>(null)
   const autoDeployAttempted = useRef(false)
   const hasCloudflareDeployment = useMemo(
-    () => Boolean(project?.cloudflareUrl && project.cloudflareUrl.trim().startsWith("http")),
+    () => {
+      const url = project?.cloudflareUrl?.trim()
+      if (!url) return false
+      try {
+        const parsed = new URL(url)
+        return parsed.hostname.endsWith(".pages.dev") && (parsed.protocol === "https:" || parsed.protocol === "http:")
+      } catch {
+        return false
+      }
+    },
     [project?.cloudflareUrl]
   )
 
