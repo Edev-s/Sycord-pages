@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect, useRef, useMemo, useCallback } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -468,20 +468,17 @@ export default function SiteSettingsPage() {
   const [logs, setLogs] = useState<string[]>([])
   const [hasDeployError, setHasDeployError] = useState(false)
   const [autoFixLogs, setAutoFixLogs] = useState<string[] | null>(null)
-  const autoDeployAttempted = useRef(false)
-  const hasCloudflareDeployment = useMemo(
-    () => {
-      const url = project?.cloudflareUrl?.trim()
-      if (!url) return false
-      try {
-        const parsed = new URL(url)
-        return parsed.hostname.endsWith(".pages.dev") && (parsed.protocol === "https:" || parsed.protocol === "http:")
-      } catch {
-        return false
-      }
-    },
-    [project?.cloudflareUrl]
-  )
+  const [autoDeployAttempted, setAutoDeployAttempted] = useState(false)
+  const hasCloudflareDeployment = useMemo(() => {
+    const url = project?.cloudflareUrl?.trim()
+    if (!url) return false
+    try {
+      const parsed = new URL(url)
+      return parsed.hostname.endsWith(".pages.dev") && parsed.protocol === "https:"
+    } catch {
+      return false
+    }
+  }, [project?.cloudflareUrl])
 
   const fetchLogs = async (repoIdOverride?: string) => {
     const targetId = repoIdOverride || project?.githubRepoId
@@ -799,7 +796,7 @@ export default function SiteSettingsPage() {
   const handleDeploy = useCallback(async (options?: { markAutoAttempt?: boolean }) => {
     if (isDeploying || !id) return
     if (options?.markAutoAttempt) {
-      autoDeployAttempted.current = true
+      setAutoDeployAttempted(true)
     }
 
     setIsDeploying(true)
@@ -873,11 +870,11 @@ export default function SiteSettingsPage() {
   }, [fetchLogs, id, isDeploying, pollForDomain])
 
   useEffect(() => {
-    if (autoDeployAttempted.current) return
+    if (autoDeployAttempted) return
     if (!project || hasCloudflareDeployment || isDeploying) return
 
     handleDeploy({ markAutoAttempt: true })
-  }, [project, hasCloudflareDeployment, isDeploying, handleDeploy])
+  }, [autoDeployAttempted, project, hasCloudflareDeployment, isDeploying, handleDeploy])
 
   if (isInitialLoading) {
     return (
