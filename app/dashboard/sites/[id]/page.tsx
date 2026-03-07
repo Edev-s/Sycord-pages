@@ -469,16 +469,17 @@ export default function SiteSettingsPage() {
   const [hasDeployError, setHasDeployError] = useState(false)
   const [autoFixLogs, setAutoFixLogs] = useState<string[] | null>(null)
   const [autoDeployAttempted, setAutoDeployAttempted] = useState(false)
+  const CLOUDFLARE_PAGES_SUFFIX = ".pages.dev"
   const hasCloudflareDeployment = useMemo(() => {
     const url = project?.cloudflareUrl?.trim()
     if (!url) return false
     try {
       const parsed = new URL(url)
-      return parsed.hostname.endsWith(".pages.dev") && parsed.protocol === "https:"
+      return parsed.hostname.endsWith(CLOUDFLARE_PAGES_SUFFIX) && parsed.protocol === "https:"
     } catch {
       return false
     }
-  }, [project?.cloudflareUrl])
+  }, [project?.cloudflareUrl, CLOUDFLARE_PAGES_SUFFIX])
 
   const fetchLogs = async (repoIdOverride?: string) => {
     const targetId = repoIdOverride || project?.githubRepoId
