@@ -67,6 +67,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { Progress } from "@/components/ui/progress"
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from "recharts"
+import { SitePreviewDashboard } from "@/components/site-preview-dashboard"
 
 const headerComponents = {
   simple: { name: "Simple", description: "A clean, minimalist header" },
@@ -1131,54 +1132,20 @@ export default function SiteSettingsPage() {
                         </div>
                     </div>
 
-                    <div className="hidden md:block">
-                        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                        <div className="xl:col-span-2 space-y-4">
-                            <div className="flex items-center justify-between">
-                            <h2 className="text-xl font-semibold tracking-tight">Live Preview</h2>
-                            <div className="flex items-center gap-3 bg-muted/30 p-1 rounded-lg border border-white/5">
-                                    <Button variant="ghost" size="sm" className={cn("h-7 px-3 rounded-md", previewMode === "desktop" ? "bg-white/10 text-foreground" : "text-muted-foreground")} onClick={() => setPreviewMode("desktop")}>
-                                        <Monitor className="h-4 w-4 mr-2" /> Desktop
-                                    </Button>
-                                    <Button variant="ghost" size="sm" className={cn("h-7 px-3 rounded-md", previewMode === "mobile" ? "bg-white/10 text-foreground" : "text-muted-foreground")} onClick={() => setPreviewMode("mobile")}>
-                                        <Smartphone className="h-4 w-4 mr-2" /> Mobile
-                                    </Button>
-                            </div>
-                            </div>
-                            <div className="flex justify-center bg-black/10 rounded-xl border border-white/5 p-4 min-h-[400px]">
-                                <div className={cn("relative transition-all duration-300 ease-in-out bg-background shadow-2xl overflow-hidden border border-border", previewMode === "desktop" ? "w-full aspect-video rounded-lg" : "w-full max-w-[320px] aspect-[9/19.5] rounded-[3rem] border-8 border-black/80")}>
-                                    {previewMode === "mobile" && <div className="absolute top-0 left-1/2 -translate-x-1/2 h-6 w-32 bg-black rounded-b-xl z-20"></div>}
-                                    {previewUrl ? <iframe src={previewUrl} className="w-full h-full border-0 bg-white" title="Live Preview" sandbox="allow-scripts allow-forms" /> : <div className="flex items-center justify-center w-full h-full bg-muted/20"><div className="text-center"><AlertCircle className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" /><p className="text-sm text-muted-foreground">Deployment not available</p></div></div>}
-                                </div>
-                            </div>
+                    <div className="hidden md:block h-[600px] border border-white/5 rounded-xl overflow-hidden bg-card/30 backdrop-blur-sm">
+                      {previewUrl ? (
+                        <SitePreviewDashboard
+                          url={previewUrl}
+                          siteName={project?.businessName}
+                          isLive={!!previewUrl}
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center w-full h-full gap-3">
+                          <AlertCircle className="h-10 w-10 text-muted-foreground/50" />
+                          <p className="text-sm text-muted-foreground">Deployment not available</p>
+                          <p className="text-xs text-muted-foreground/70 max-w-xs text-center">Deploy your site to see a live preview here</p>
                         </div>
-                        <div className="xl:col-span-1 flex flex-col gap-4">
-                            <Card className="bg-card/50 backdrop-blur-sm border-white/10 shadow-sm">
-                            <CardHeader className="p-4 md:p-6"><CardTitle className="text-lg">Deployment Status</CardTitle><CardDescription>Manage your live production build</CardDescription></CardHeader>
-                            <CardContent className="space-y-5 p-4 md:p-6 pt-0">
-                                <div className="flex items-center gap-3 p-3 rounded-lg bg-black/20 border border-white/5">
-                                    <div className={cn("h-2.5 w-2.5 rounded-full shrink-0", previewUrl ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" : "bg-gray-500")} />
-                                    <div className="min-w-0 flex-1"><p className="text-xs text-muted-foreground mb-0.5">Public URL</p><a href={previewUrl || '#'} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-primary hover:underline truncate block">{displayUrl || 'Not deployed'}</a></div>
-                                </div>
-                                <div className="grid grid-cols-2 gap-3">
-                                <div className="p-3 rounded-lg bg-black/20 border border-white/5"><p className="text-xs text-muted-foreground mb-1">Last Update</p><p className="text-sm font-medium">{project?.cloudflareDeployedAt ? new Date(project.cloudflareDeployedAt).toLocaleDateString() : "Never"}</p></div>
-                                <div className="p-3 rounded-lg bg-black/20 border border-white/5"><p className="text-xs text-muted-foreground mb-1">Environment</p><p className="text-sm font-medium">Production</p></div>
-                                </div>
-                                <div className="space-y-2 relative">
-                                  <Button size="lg" className={cn("w-full font-semibold shadow-lg shadow-primary/20 transition-all", deploySuccess && "bg-green-500/20 text-green-400 border-green-500/30", hasDeployError && !isDeploying && !deploySuccess && "bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30")} onClick={hasDeployError ? startAutoFix : handleDeploy} disabled={isDeploying}>
-                                    {isDeploying ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Deploying...</> : deploySuccess ? <><CheckCircle2 className="h-4 w-4 mr-2" /> Deployed!</> : hasDeployError ? <><Sparkles className="h-4 w-4 mr-2" /> Fix with AI</> : <><Rocket className="h-4 w-4 mr-2" /> Deploy to GitHub</>}
-                                  </Button>
-                                  {(isDeploying || deploySuccess) && <Progress value={deployProgress} className={cn("h-1.5 rounded-full", deploySuccess ? "[&>div]:bg-green-500" : "")} />}
-                                </div>
-                                {deployError && <div className="space-y-1"><p className="text-sm text-destructive">{deployError}</p>{!hasDeployError && <Button variant="link" size="sm" onClick={startAutoFix} className="text-blue-400 h-auto p-0">Try fixing with AI</Button>}</div>}
-                                <div className="grid grid-cols-2 gap-3 pt-2">
-                                    <Button variant="outline" className="w-full bg-transparent border-white/10 hover:bg-white/5" onClick={handleSave} disabled={saving}>{saving ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Save className="h-3 w-3 mr-2" />} Save Draft</Button>
-                                    <Button variant="outline" className="w-full bg-transparent border-white/10 hover:bg-white/5" disabled><Globe className="h-3 w-3 mr-2" /> Domains (disabled)</Button>
-                                </div>
-                            </CardContent>
-                            </Card>
-                        </div>
-                        </div>
+                      )}
                     </div>
 
                     <div className="space-y-6">
