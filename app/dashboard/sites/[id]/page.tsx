@@ -469,6 +469,7 @@ export default function SiteSettingsPage() {
   const [hasDeployError, setHasDeployError] = useState(false)
   const [autoFixLogs, setAutoFixLogs] = useState<string[] | null>(null)
   const autoDeployAttempted = useRef(false)
+  const hasCloudflareDeployment = Boolean(project?.cloudflareUrl && project.cloudflareUrl.trim().startsWith("http"))
 
   const fetchLogs = async (repoIdOverride?: string) => {
     const targetId = repoIdOverride || project?.githubRepoId
@@ -854,15 +855,15 @@ export default function SiteSettingsPage() {
     } finally {
       setIsDeploying(false)
     }
-  }, [fetchLogs, id, isDeploying, pollForDomain, project])
+  }, [fetchLogs, id, isDeploying, pollForDomain])
 
   useEffect(() => {
     if (autoDeployAttempted.current) return
-    if (!project || project.cloudflareUrl || isDeploying) return
+    if (!project || hasCloudflareDeployment || isDeploying) return
 
     autoDeployAttempted.current = true
     handleDeploy()
-  }, [project, isDeploying, handleDeploy])
+  }, [project, hasCloudflareDeployment, isDeploying, handleDeploy])
 
   if (isInitialLoading) {
     return (
