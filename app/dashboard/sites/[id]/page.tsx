@@ -476,7 +476,8 @@ export default function SiteSettingsPage() {
     if (!url) return false
     try {
       const parsed = new URL(url)
-      return parsed.hostname.endsWith(CLOUDFLARE_PAGES_SUFFIX) && parsed.protocol === "https:"
+      if (parsed.protocol !== "https:") return false // Cloudflare Pages serves over HTTPS; reject http explicitly
+      return parsed.hostname.endsWith(CLOUDFLARE_PAGES_SUFFIX)
     } catch {
       return false
     }

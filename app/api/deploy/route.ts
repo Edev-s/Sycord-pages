@@ -242,7 +242,6 @@ export async function POST(request: Request) {
     // 5. Prepare Files
     const pages = project.pages || []
     const files = []
-    let deployMessage
 
     if (pages.length > 0) {
         for (const page of pages) {
@@ -254,12 +253,12 @@ export async function POST(request: Request) {
         files.push({ path: "index.html", content: project.aiGeneratedCode })
     }
 
-    if (files.length === 0) {
+    const hadGeneratedContent = files.length > 0
+    if (!hadGeneratedContent) {
+        // Fallback: always deploy an idle placeholder so every project gets a valid Pages deployment URL
         files.push({ path: "index.html", content: idlePageHtml })
-        deployMessage = "Deployed idle placeholder to GitHub"
-    } else {
-        deployMessage = "Deployed to GitHub"
     }
+    const deployMessage = hadGeneratedContent ? "Deployed to GitHub" : "Deployed idle placeholder to GitHub"
 
     // 6. Deploy using Git Tree Strategy (Atomic & Cleaner)
     await deployViaGitTree(owner, repo, files, token)
