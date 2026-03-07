@@ -293,8 +293,8 @@ export async function POST(request: Request) {
     })
 
     // 8. Trigger Sycord Cloudflare Deploy
-    const deployMessage = hadGeneratedContent ? "Deployed to GitHub" : "Deployed idle placeholder to GitHub"
     let cloudflareUrl = null
+    const deployMessage = hadGeneratedContent ? "Deployed to GitHub" : "Deployed idle placeholder to GitHub"
 
     try {
         // Trigger

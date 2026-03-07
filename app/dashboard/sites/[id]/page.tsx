@@ -872,6 +872,7 @@ export default function SiteSettingsPage() {
     } finally {
       setIsDeploying(false)
     }
+    // State setters and refs are stable; dependencies limited to changing inputs
   }, [fetchLogs, id, pollForDomain])
 
   useEffect(() => {
@@ -879,7 +880,7 @@ export default function SiteSettingsPage() {
     if (!project || hasCloudflareDeployment || isDeployingRef.current) return
 
     handleDeploy({ markAutoAttempt: true })
-  }, [autoDeployAttempted, project, hasCloudflareDeployment, handleDeploy])
+  }, [autoDeployAttempted, project, hasCloudflareDeployment, isDeployingRef, handleDeploy])
 
   useEffect(() => {
     isDeployingRef.current = isDeploying
