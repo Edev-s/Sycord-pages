@@ -1075,11 +1075,12 @@ export default function SiteSettingsPage() {
             {/* TAB CONTENT: PREVIEW */}
             {activeTab === "preview" && (
               <div className="h-full w-full flex flex-col">
-                {previewUrl ? (
+                {(previewUrl || generatedPages?.some(p => p.name === 'index.html')) ? (
                   <SitePreviewDashboard
-                    url={previewUrl}
+                    url={previewUrl || ""}
                     siteName={project?.businessName}
                     isLive={!!previewUrl}
+                    fallbackHtml={!previewUrl ? generatedPages?.find(p => p.name === 'index.html')?.code : undefined}
                     className="flex-1 h-full"
                   />
                 ) : (

@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/alert-dialog"
 
 interface WebsitePreviewCardProps {
+  fallbackHtml?: string;
   domain: string
   isLive: boolean
   deploymentId?: string
@@ -38,6 +39,7 @@ interface WebsitePreviewCardProps {
 }
 
 export function WebsitePreviewCard({
+  fallbackHtml,
   domain,
   isLive,
   deploymentId,
@@ -96,20 +98,38 @@ export function WebsitePreviewCard({
       >
         {/* Placeholder preview */}
         <div
-          className="w-full flex flex-col items-center justify-center gap-3"
+          className="w-full flex flex-col items-center justify-center gap-3 relative overflow-hidden"
           style={{ aspectRatio: "4/3", background: "#252527" }}
         >
-          <div className="relative">
-            <div className="absolute inset-0 rounded-full bg-white/10 blur-xl opacity-20 animate-pulse" />
-            <div
-              className="relative h-12 w-12 rounded-full flex items-center justify-center"
-              style={{ background: "#2e2e30", border: "1px solid rgba(255,255,255,0.07)" }}
-            >
-              <Loader2 className="h-5 w-5 text-zinc-400 animate-spin" />
-            </div>
-          </div>
-          <p className="text-sm font-semibold text-zinc-200">Building Project</p>
-          <p className="text-xs text-zinc-500">Waiting for deployment…</p>
+          {fallbackHtml ? (
+              <iframe
+                srcDoc={fallbackHtml}
+                title={`Preview of ${displayDomain}`}
+                className="absolute inset-0 w-full h-full border-0 block pointer-events-none select-none"
+                style={{
+                  width: "1440px",
+                  height: "1080px",
+                  transformOrigin: "top left",
+                  transform: `scale(${iframeScale})`,
+                }}
+                sandbox="allow-same-origin allow-scripts allow-forms"
+                tabIndex={-1}
+              />
+          ) : (
+            <>
+              <div className="relative">
+                <div className="absolute inset-0 rounded-full bg-white/10 blur-xl opacity-20 animate-pulse" />
+                <div
+                  className="relative h-12 w-12 rounded-full flex items-center justify-center"
+                  style={{ background: "#2e2e30", border: "1px solid rgba(255,255,255,0.07)" }}
+                >
+                  <Loader2 className="h-5 w-5 text-zinc-400 animate-spin" />
+                </div>
+              </div>
+              <p className="text-sm font-semibold text-zinc-200">Building Project</p>
+              <p className="text-xs text-zinc-500">Waiting for deployment…</p>
+            </>
+          )}
         </div>
 
         {/* Footer */}
