@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils"
 type DeviceMode = "desktop" | "mobile"
 
 export interface SitePreviewDashboardProps {
+  fallbackHtml?: string;
   /** The deployed URL to preview (full https:// or bare domain) */
   url: string
   /** Display name of the site */
@@ -35,6 +36,7 @@ export function SitePreviewDashboard({
   isLive = true,
   onClose,
   className,
+  fallbackHtml,
 }: SitePreviewDashboardProps) {
   const [deviceMode, setDeviceMode] = useState<DeviceMode>("desktop")
   const [frameLoading, setFrameLoading] = useState(true)
@@ -228,7 +230,8 @@ export function SitePreviewDashboard({
             ) : (
               <iframe
                 key={refreshKey}
-                src={fullUrl}
+                src={fullUrl || undefined}
+                srcDoc={!fullUrl && fallbackHtml ? fallbackHtml : undefined}
                 title={`Preview of ${displayUrl}`}
                 className="w-full h-full border-0 block"
                 onLoad={() => setFrameLoading(false)}
@@ -236,7 +239,7 @@ export function SitePreviewDashboard({
                   setFrameError(true)
                   setFrameLoading(false)
                 }}
-                sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
+                sandbox="allow-scripts"
               />
             )}
           </div>
@@ -308,7 +311,8 @@ export function SitePreviewDashboard({
                 ) : (
                   <iframe
                     key={refreshKey}
-                    src={fullUrl}
+                    src={fullUrl || undefined}
+                    srcDoc={!fullUrl && fallbackHtml ? fallbackHtml : undefined}
                     title={`Mobile preview of ${displayUrl}`}
                     className="border-0 block"
                     style={{
@@ -320,7 +324,7 @@ export function SitePreviewDashboard({
                       setFrameError(true)
                       setFrameLoading(false)
                     }}
-                    sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
+                    sandbox="allow-scripts"
                   />
                 )}
               </div>

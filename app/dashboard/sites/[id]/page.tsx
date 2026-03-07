@@ -953,7 +953,7 @@ export default function SiteSettingsPage() {
   ]
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden relative"
+    <div className="flex h-[100dvh] bg-background overflow-hidden relative"
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
@@ -1039,7 +1039,7 @@ export default function SiteSettingsPage() {
         </header>
 
         <main className={cn("flex-1 relative", (activeTab === "ai" || activeTab === "preview") ? "p-0 overflow-hidden" : "overflow-y-auto overflow-x-hidden p-4 md:p-6 lg:p-8 custom-scrollbar")}>
-          <div className={cn("mx-auto", (activeTab === "ai" || activeTab === "preview") ? "h-full w-full max-w-none p-0 pb-0 space-y-0" : "max-w-6xl space-y-8 pb-10")}>
+          <div className={cn("mx-auto", (activeTab === "ai" || activeTab === "preview") ? "h-full w-full max-w-none p-0 pb-0 space-y-0" : "max-w-6xl space-y-8 pb-[100px]")}>
 
             <AnimatePresence>
               {isSidebarOpen && (
@@ -1075,11 +1075,12 @@ export default function SiteSettingsPage() {
             {/* TAB CONTENT: PREVIEW */}
             {activeTab === "preview" && (
               <div className="h-full w-full flex flex-col">
-                {previewUrl ? (
+                {(previewUrl || generatedPages?.some(p => p.name === 'index.html')) ? (
                   <SitePreviewDashboard
-                    url={previewUrl}
+                    url={previewUrl || ""}
                     siteName={project?.businessName}
                     isLive={!!previewUrl}
+                    fallbackHtml={!previewUrl ? generatedPages?.find(p => p.name === 'index.html')?.code : undefined}
                     className="flex-1 h-full"
                   />
                 ) : (

@@ -293,15 +293,16 @@ function DashboardContent() {
                   key={project._id}
                   className="group relative border border-border/50 bg-card/30 backdrop-blur-sm rounded-xl overflow-hidden flex flex-col hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300"
                 >
-                  {project.domain && project.deploymentId ? (
+                  {((project.domain && project.deploymentId) || (project.pages && project.pages.some((p: any) => p.name === 'index.html'))) ? (
                     <WebsitePreviewCard
-                      domain={project.cloudflareUrl || project.domain}
-                      isLive={!flaggedDeployments.has(project.deploymentId)}
+                      domain={project.cloudflareUrl || project.domain || "example.com"}
+                      isLive={!!project.deploymentId && !flaggedDeployments.has(project.deploymentId)}
                       deploymentId={project.deploymentId}
                       projectId={project._id}
                       businessName={project.businessName}
                       createdAt={project.createdAt}
                       style={project.style || "default"}
+                      fallbackHtml={project.pages?.find((p: any) => p.name === 'index.html')?.content}
                       onDelete={() => handleDeleteProject(project._id)}
                     />
                   ) : (
