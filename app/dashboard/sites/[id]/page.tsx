@@ -869,20 +869,7 @@ export default function SiteSettingsPage() {
     } finally {
       setIsDeploying(false)
     }
-  }, [
-    fetchLogs,
-    id,
-    isDeploying,
-    pollForDomain,
-    setAutoDeployAttempted,
-    setDeployProgress,
-    setDeploySuccess,
-    setDeployError,
-    setDeployResult,
-    setHasDeployError,
-    setIsDeploying,
-    setProject
-  ])
+  }, [fetchLogs, id, isDeploying, pollForDomain])
 
   useEffect(() => {
     if (autoDeployAttempted) return
