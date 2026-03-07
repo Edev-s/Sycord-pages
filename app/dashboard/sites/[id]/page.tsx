@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -469,7 +469,10 @@ export default function SiteSettingsPage() {
   const [hasDeployError, setHasDeployError] = useState(false)
   const [autoFixLogs, setAutoFixLogs] = useState<string[] | null>(null)
   const autoDeployAttempted = useRef(false)
-  const hasCloudflareDeployment = Boolean(project?.cloudflareUrl && project.cloudflareUrl.trim().startsWith("http"))
+  const hasCloudflareDeployment = useMemo(
+    () => Boolean(project?.cloudflareUrl && project.cloudflareUrl.trim().startsWith("http")),
+    [project?.cloudflareUrl]
+  )
 
   const fetchLogs = async (repoIdOverride?: string) => {
     const targetId = repoIdOverride || project?.githubRepoId
@@ -855,7 +858,7 @@ export default function SiteSettingsPage() {
     } finally {
       setIsDeploying(false)
     }
-  }, [fetchLogs, id, isDeploying, pollForDomain])
+  }, [fetchLogs, id, isDeploying, pollForDomain, project])
 
   useEffect(() => {
     if (autoDeployAttempted.current) return
