@@ -81,7 +81,7 @@ export async function POST(request: Request) {
             padding: 0;
         }
         html, body {
-            height: 100%;
+            min-height: 100dvh;
             width: 100%;
             margin: 0;
             padding: 0;
@@ -96,8 +96,6 @@ export async function POST(request: Request) {
             justify-content: center;
             position: relative;
             overflow: hidden;
-            /* Better support for mobile viewport */
-            min-height: 100dvh;
         }
         .logo-container {
             position: absolute;
