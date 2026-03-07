@@ -242,7 +242,7 @@ export async function POST(request: Request) {
     // 5. Prepare Files
     const pages = project.pages || []
     const files = []
-    let usingIdlePlaceholder = false
+    let isUsingIdlePlaceholder = false
 
     if (pages.length > 0) {
         for (const page of pages) {
@@ -256,7 +256,7 @@ export async function POST(request: Request) {
 
     if (files.length === 0) {
         files.push({ path: "index.html", content: idlePageHtml })
-        usingIdlePlaceholder = true
+        isUsingIdlePlaceholder = true
     }
 
     // 6. Deploy using Git Tree Strategy (Atomic & Cleaner)
@@ -294,7 +294,7 @@ export async function POST(request: Request) {
 
     // 8. Trigger Sycord Cloudflare Deploy
     let cloudflareUrl = null
-    let deployMessage = usingIdlePlaceholder ? "Deployed idle placeholder to GitHub" : "Deployed to GitHub"
+    let deployMessage = isUsingIdlePlaceholder ? "Deployed idle placeholder to GitHub" : "Deployed to GitHub"
 
     try {
         // Trigger

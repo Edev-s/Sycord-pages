@@ -854,7 +854,7 @@ export default function SiteSettingsPage() {
     } finally {
       setIsDeploying(false)
     }
-  }, [fetchLogs, id, isDeploying])
+  }, [fetchLogs, id, isDeploying, pollForDomain, project])
 
   useEffect(() => {
     if (!project || project.cloudflareUrl || isDeploying) return
