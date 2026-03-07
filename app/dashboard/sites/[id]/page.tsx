@@ -953,7 +953,7 @@ export default function SiteSettingsPage() {
   ]
 
   return (
-    <div className="flex h-[100dvh] bg-background overflow-hidden relative"
+    <div className="flex h-[100dvh] bg-background overflow-hidden relative pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
