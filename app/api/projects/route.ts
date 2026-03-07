@@ -95,11 +95,14 @@ export async function POST(request: Request) {
             align-items: center;
             justify-content: center;
             position: relative;
+            overflow: hidden;
+            /* Better support for mobile viewport */
+            min-height: 100dvh;
         }
         .logo-container {
             position: absolute;
-            top: 2rem;
-            left: 2rem;
+            top: 20%;
+            left: 15%;
         }
         .logo {
             width: 48px;
@@ -113,35 +116,46 @@ export async function POST(request: Request) {
             max-width: 600px;
             width: 100%;
             padding: 2rem;
+            margin-left: -15%;
+        }
+        @media (max-width: 768px) {
+            .logo-container {
+                top: 20%;
+                left: 10%;
+            }
+            .content {
+                margin-left: 0;
+                padding-left: 10%;
+            }
         }
         h1 {
             font-size: 2.5rem;
             font-weight: 600;
-            margin-bottom: 1rem;
+            margin-bottom: 0.5rem;
             letter-spacing: -0.025em;
         }
         p {
             font-size: 1.125rem;
             color: #a1a1aa;
-            margin-bottom: 2.5rem;
+            margin-bottom: 3.5rem;
         }
         .return-btn {
-            background-color: #4b4b4b;
+            background-color: rgba(255, 255, 255, 0.4);
             color: #ffffff;
             border: none;
             border-radius: 9999px;
             padding: 0.75rem 2.5rem;
-            font-size: 1rem;
+            font-size: 1.25rem;
             font-weight: 600;
             cursor: pointer;
             transition: background-color 0.2s;
         }
         .return-btn:hover {
-            background-color: #5b5b5b;
+            background-color: rgba(255, 255, 255, 0.5);
         }
         .footer {
             position: absolute;
-            bottom: 2rem;
+            bottom: 5%;
             text-align: center;
             width: 100%;
             color: #a1a1aa;

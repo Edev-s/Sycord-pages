@@ -239,7 +239,7 @@ export function SitePreviewDashboard({
                   setFrameError(true)
                   setFrameLoading(false)
                 }}
-                sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
+                sandbox="allow-scripts"
               />
             )}
           </div>
@@ -324,7 +324,7 @@ export function SitePreviewDashboard({
                       setFrameError(true)
                       setFrameLoading(false)
                     }}
-                    sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
+                    sandbox="allow-scripts"
                   />
                 )}
               </div>

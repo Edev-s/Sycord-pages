@@ -112,7 +112,7 @@ export function WebsitePreviewCard({
                   transformOrigin: "top left",
                   transform: `scale(${iframeScale})`,
                 }}
-                sandbox="allow-same-origin allow-scripts allow-forms"
+                sandbox="allow-scripts"
                 tabIndex={-1}
               />
           ) : (
