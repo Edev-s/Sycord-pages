@@ -572,7 +572,7 @@ export default function AdminPage() {
                                     {user.websites.map((website) => (
                                       <a
                                         key={website.id}
-                                        href={`https://${website.subdomain}.ltpd.xyz`}
+                                        href={`https://${website.subdomain}.pages.dev`}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="flex items-center gap-2 bg-secondary/50 hover:bg-secondary border border-border rounded-md px-3 py-1.5 text-xs transition-colors"
