@@ -857,8 +857,8 @@ export default function SiteSettingsPage() {
   }, [fetchLogs, id, isDeploying, pollForDomain, project])
 
   useEffect(() => {
-    if (!project || project.cloudflareUrl || isDeploying) return
     if (autoDeployAttempted.current) return
+    if (!project || project.cloudflareUrl || isDeploying) return
 
     autoDeployAttempted.current = true
     handleDeploy()
