@@ -178,7 +178,7 @@ export function ProjectForm({ onSubmit }: ProjectFormProps) {
               <div className="space-y-4">
                 <p className="text-sm text-muted-foreground text-center">Az oldal URL-je:</p>
                 <p className="text-lg font-semibold text-center bg-primary/10 rounded-lg py-3 px-4">
-                  {formData.subdomain || "weboldalad"}.pages.dev
+                  {formData.subdomain || "weboldalad"}.ltpd.xyz
                 </p>
                 <input
                   type="text"

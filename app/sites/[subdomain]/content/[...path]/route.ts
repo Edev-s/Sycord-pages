@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server"
 import clientPromise from "@/lib/mongodb"
-import { ObjectId } from "mongodb"
+import { idlePageHtml } from "@/lib/idle-page"
 
 export async function GET(
   request: Request,
@@ -26,11 +25,14 @@ export async function GET(
       return new Response("Site Not Found", { status: 404 })
     }
 
-    const project = userWithProject.projects[0];
-    const projectId = project._id;
+    const project = userWithProject.projects[0]
+    const projectId = project._id
 
-    if (!project || (!project.pages && !project.aiGeneratedCode)) {
-      return new Response("Content Not Found", { status: 404 })
+    if (!project || ((!project.pages || project.pages.length === 0) && !project.aiGeneratedCode)) {
+      return new Response(idlePageHtml, {
+        status: 200,
+        headers: { "Content-Type": "text/html" },
+      })
     }
 
     // Find file in pages array with robust matching
