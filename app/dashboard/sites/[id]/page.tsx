@@ -67,6 +67,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { Progress } from "@/components/ui/progress"
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from "recharts"
+import { SitePreviewDashboard } from "@/components/site-preview-dashboard"
 
 const headerComponents = {
   simple: { name: "Simple", description: "A clean, minimalist header" },
@@ -406,7 +407,7 @@ export default function SiteSettingsPage() {
   const [productError, setProductError] = useState<string | null>(null)
 
   const [activeTab, setActiveTab] = useState<
-    "styles" | "products" | "payments" | "ai" | "pages" | "orders" | "customers" | "analytics" | "discount"
+    "styles" | "preview" | "products" | "payments" | "ai" | "pages" | "orders" | "customers" | "analytics" | "discount"
   >("styles")
   const [activeSubTab, setActiveSubTab] = useState<"limits" | "connections" | "help">("limits")
 
@@ -902,6 +903,7 @@ export default function SiteSettingsPage() {
       title: "Home",
       items: [
         { id: "styles", label: "Overview", icon: Layout },
+        { id: "preview", label: "Preview", icon: Eye },
         { id: "ai", label: "AI Builder", icon: Zap },
         { id: "pages", label: "Pages", icon: FileText },
         { id: "products", label: "Products", icon: ShoppingCart },
@@ -1036,8 +1038,8 @@ export default function SiteSettingsPage() {
           </div>
         </header>
 
-        <main className={cn("flex-1 relative", activeTab === "ai" ? "p-0 overflow-hidden" : "overflow-y-auto overflow-x-hidden p-4 md:p-6 lg:p-8 custom-scrollbar")}>
-          <div className={cn("mx-auto", activeTab === "ai" ? "h-full w-full max-w-none p-0 pb-0 space-y-0" : "max-w-6xl space-y-8 pb-10")}>
+        <main className={cn("flex-1 relative", (activeTab === "ai" || activeTab === "preview") ? "p-0 overflow-hidden" : "overflow-y-auto overflow-x-hidden p-4 md:p-6 lg:p-8 custom-scrollbar")}>
+          <div className={cn("mx-auto", (activeTab === "ai" || activeTab === "preview") ? "h-full w-full max-w-none p-0 pb-0 space-y-0" : "max-w-6xl space-y-8 pb-10")}>
 
             <AnimatePresence>
               {isSidebarOpen && (
@@ -1070,116 +1072,270 @@ export default function SiteSettingsPage() {
               )}
             </AnimatePresence>
 
-            {/* TAB CONTENT: STYLES */}
+            {/* TAB CONTENT: PREVIEW */}
+            {activeTab === "preview" && (
+              <div className="h-full w-full flex flex-col">
+                {previewUrl ? (
+                  <SitePreviewDashboard
+                    url={previewUrl}
+                    siteName={project?.businessName}
+                    isLive={!!previewUrl}
+                    className="flex-1 h-full"
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center flex-1 gap-4 text-center px-6"
+                    style={{ background: "#1a1a1c" }}
+                  >
+                    <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: "#252527" }}>
+                      <Globe className="h-7 w-7 text-zinc-500" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-base font-semibold text-zinc-200">No deployment yet</p>
+                      <p className="text-sm text-zinc-500 max-w-xs">Deploy your site first to see a live preview here.</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      className="mt-2 font-semibold"
+                      onClick={() => setActiveTab("styles")}
+                    >
+                      <Rocket className="h-4 w-4 mr-2" />
+                      Go to Overview
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB CONTENT: STYLES / OVERVIEW */}
             {activeTab === "styles" && (
-                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                    <div className="block md:hidden space-y-6">
-                        <div className="flex items-center justify-between gap-4">
-                            <div className="flex-1 min-w-0 space-y-1">
-                                <div className="flex items-center gap-2">
-                                    <div className={cn("h-2.5 w-2.5 rounded-full shrink-0", previewUrl ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" : "bg-gray-500")} />
-                                    <h3 className="font-bold text-xl truncate text-foreground tracking-tight">{displayUrl || 'Not deployed'}</h3>
-                                </div>
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground pl-4.5 font-medium">
-                                    <span>main</span>
-                                    <span className="text-muted-foreground/30">•</span>
-                                    <span>{project?.cloudflareDeployedAt ? new Date(project.cloudflareDeployedAt).toISOString().split('T')[0].replace(/-/g, ' ') : "Not deployed"}</span>
-                                </div>
-                            </div>
-                            <div className="w-24 h-14 rounded-lg overflow-hidden border border-white/10 bg-black/20 shrink-0 relative shadow-sm group">
-                                {previewUrl ? (
-                                    <iframe src={previewUrl} className="w-[300%] h-[300%] origin-top-left scale-[0.33] border-0 pointer-events-none" title="Mini Preview" tabIndex={-1} />
-                                ) : (
-                                    <div className="flex items-center justify-center w-full h-full bg-muted/20"><div className="text-[10px] text-muted-foreground/50">No Preview</div></div>
-                                )}
-                            </div>
+                <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+
+                    {/* ══════════════════════════════════════════════════════════════
+                        PRIMARY PREVIEW CARD (4:3) - matches photo exactly
+                       ══════════════════════════════════════════════════════════════ */}
+                    <div
+                      className="relative w-full overflow-hidden rounded-[20px]"
+                      style={{ background: "#252527", aspectRatio: "4/3" }}
+                    >
+                      {/* Live iframe preview */}
+                      {previewUrl ? (
+                        <iframe
+                          src={previewUrl}
+                          title={`Preview of ${displayUrl}`}
+                          className="absolute inset-0 w-[1440px] h-[1080px] border-0 origin-top-left pointer-events-none select-none"
+                          style={{ transform: "scale(0.28)" }}
+                          sandbox="allow-same-origin allow-scripts allow-forms"
+                          tabIndex={-1}
+                        />
+                      ) : (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                          <div
+                            className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                            style={{ background: "#2e2e30" }}
+                          >
+                            <Globe className="h-6 w-6 text-zinc-500" />
+                          </div>
+                          <p className="text-sm font-semibold text-zinc-300">No deployment yet</p>
+                          <p className="text-xs text-zinc-600 max-w-[200px] text-center">Deploy your site to see a live preview</p>
                         </div>
-                        <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <Button variant="outline" className="h-14 text-base font-medium bg-card/50 border-white/10 hover:bg-accent rounded-xl" disabled>
-                                    <Globe className="mr-2 h-5 w-5 opacity-70" /> Domain (disabled)
-                                </Button>
-                                <Button variant="outline" className="h-14 text-base font-medium bg-card/50 border-white/10 hover:bg-accent rounded-xl" onClick={() => previewUrl && window.open(previewUrl, "_blank")} disabled={!previewUrl}>
-                                    <ExternalLink className="mr-2 h-5 w-5 opacity-70" /> Visit
-                                </Button>
-                            </div>
-                            <div className="space-y-2 relative">
-                              <Button
-                                  size="lg"
-                                  className={cn("w-full h-14 font-semibold text-base shadow-lg shadow-primary/10 rounded-xl transition-all", deploySuccess && "bg-green-500/20 text-green-400 border-green-500/30", hasDeployError && !isDeploying && !deploySuccess && "bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30")}
-                                  onClick={hasDeployError ? startAutoFix : handleDeploy}
-                                  disabled={isDeploying}
-                              >
-                                  {isDeploying ? <><Loader2 className="h-5 w-5 mr-2 animate-spin" /> Deploying...</> : deploySuccess ? <><CheckCircle2 className="h-5 w-5 mr-2" /> Deployed!</> : hasDeployError ? <><Sparkles className="h-5 w-5 mr-2" /> Fix with AI</> : <><Rocket className="h-5 w-5 mr-2" /> Deploy to GitHub</>}
-                              </Button>
-                              {(isDeploying || deploySuccess) && <Progress value={deployProgress} className={cn("h-1.5 rounded-full", deploySuccess ? "[&>div]:bg-green-500" : "")} />}
-                            </div>
-                            {deployError && (
-                              <div className="text-center space-y-2">
-                                 <p className="text-sm text-destructive">{deployError}</p>
-                                 {!hasDeployError && <Button variant="link" size="sm" onClick={startAutoFix} className="text-blue-400 h-auto p-0">Try fixing with AI</Button>}
-                              </div>
-                            )}
+                      )}
+
+                      {/* Vignette overlay */}
+                      <div
+                        aria-hidden="true"
+                        className="absolute inset-0 pointer-events-none"
+                        style={{ background: "linear-gradient(to bottom, transparent 50%, rgba(28,28,30,0.7) 100%)" }}
+                      />
+
+                      {/* "Your site is now live!" banner - exact shape from photo */}
+                      {previewUrl && (
+                        <div
+                          className="absolute bottom-0 left-0 flex items-end"
+                          style={{ width: "72%", zIndex: 10 }}
+                        >
+                          {/* Rotated diamond */}
+                          <div
+                            aria-hidden="true"
+                            style={{ flexShrink: 0, zIndex: 2, marginLeft: "-10px", marginBottom: "-5px" }}
+                          >
+                            <div
+                              style={{
+                                width: "36px",
+                                height: "36px",
+                                borderRadius: "6px",
+                                background: "#22a846",
+                                transform: "rotate(45deg)",
+                              }}
+                            />
+                          </div>
+                          {/* Green strip */}
+                          <div
+                            style={{
+                              flex: 1,
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              padding: "11px 16px 11px 8px",
+                              marginLeft: "-14px",
+                              borderTopRightRadius: "18px",
+                              background: "#22a846",
+                              zIndex: 1,
+                            }}
+                          >
+                            <CheckCircle2
+                              aria-hidden="true"
+                              style={{ width: "13px", height: "13px", color: "rgba(255,255,255,0.85)", flexShrink: 0 }}
+                            />
+                            <span style={{ fontSize: "12.5px", fontWeight: 700, color: "#ffffff", lineHeight: 1.2, whiteSpace: "nowrap" }}>
+                              Your site is now live!
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-4 py-2">
-                             <div className="h-px bg-border/40 flex-1"></div>
-                             <div className="bg-card/50 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 flex items-center gap-2 shadow-sm">
-                                <Eye className="h-3.5 w-3.5 text-foreground/70" />
-                                <span className="font-bold text-sm text-foreground">{stats.visitors}</span>
-                            </div>
-                             <div className="h-px bg-border/40 flex-1"></div>
-                        </div>
+                      )}
                     </div>
 
-                    <div className="hidden md:block">
-                        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                        <div className="xl:col-span-2 space-y-4">
-                            <div className="flex items-center justify-between">
-                            <h2 className="text-xl font-semibold tracking-tight">Live Preview</h2>
-                            <div className="flex items-center gap-3 bg-muted/30 p-1 rounded-lg border border-white/5">
-                                    <Button variant="ghost" size="sm" className={cn("h-7 px-3 rounded-md", previewMode === "desktop" ? "bg-white/10 text-foreground" : "text-muted-foreground")} onClick={() => setPreviewMode("desktop")}>
-                                        <Monitor className="h-4 w-4 mr-2" /> Desktop
-                                    </Button>
-                                    <Button variant="ghost" size="sm" className={cn("h-7 px-3 rounded-md", previewMode === "mobile" ? "bg-white/10 text-foreground" : "text-muted-foreground")} onClick={() => setPreviewMode("mobile")}>
-                                        <Smartphone className="h-4 w-4 mr-2" /> Mobile
-                                    </Button>
-                            </div>
-                            </div>
-                            <div className="flex justify-center bg-black/10 rounded-xl border border-white/5 p-4 min-h-[400px]">
-                                <div className={cn("relative transition-all duration-300 ease-in-out bg-background shadow-2xl overflow-hidden border border-border", previewMode === "desktop" ? "w-full aspect-video rounded-lg" : "w-full max-w-[320px] aspect-[9/19.5] rounded-[3rem] border-8 border-black/80")}>
-                                    {previewMode === "mobile" && <div className="absolute top-0 left-1/2 -translate-x-1/2 h-6 w-32 bg-black rounded-b-xl z-20"></div>}
-                                    {previewUrl ? <iframe src={previewUrl} className="w-full h-full border-0 bg-white" title="Live Preview" sandbox="allow-scripts allow-forms" /> : <div className="flex items-center justify-center w-full h-full bg-muted/20"><div className="text-center"><AlertCircle className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" /><p className="text-sm text-muted-foreground">Deployment not available</p></div></div>}
-                                </div>
-                            </div>
-                        </div>
-                        <div className="xl:col-span-1 flex flex-col gap-4">
-                            <Card className="bg-card/50 backdrop-blur-sm border-white/10 shadow-sm">
-                            <CardHeader className="p-4 md:p-6"><CardTitle className="text-lg">Deployment Status</CardTitle><CardDescription>Manage your live production build</CardDescription></CardHeader>
-                            <CardContent className="space-y-5 p-4 md:p-6 pt-0">
-                                <div className="flex items-center gap-3 p-3 rounded-lg bg-black/20 border border-white/5">
-                                    <div className={cn("h-2.5 w-2.5 rounded-full shrink-0", previewUrl ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" : "bg-gray-500")} />
-                                    <div className="min-w-0 flex-1"><p className="text-xs text-muted-foreground mb-0.5">Public URL</p><a href={previewUrl || '#'} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-primary hover:underline truncate block">{displayUrl || 'Not deployed'}</a></div>
-                                </div>
-                                <div className="grid grid-cols-2 gap-3">
-                                <div className="p-3 rounded-lg bg-black/20 border border-white/5"><p className="text-xs text-muted-foreground mb-1">Last Update</p><p className="text-sm font-medium">{project?.cloudflareDeployedAt ? new Date(project.cloudflareDeployedAt).toLocaleDateString() : "Never"}</p></div>
-                                <div className="p-3 rounded-lg bg-black/20 border border-white/5"><p className="text-xs text-muted-foreground mb-1">Environment</p><p className="text-sm font-medium">Production</p></div>
-                                </div>
-                                <div className="space-y-2 relative">
-                                  <Button size="lg" className={cn("w-full font-semibold shadow-lg shadow-primary/20 transition-all", deploySuccess && "bg-green-500/20 text-green-400 border-green-500/30", hasDeployError && !isDeploying && !deploySuccess && "bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30")} onClick={hasDeployError ? startAutoFix : handleDeploy} disabled={isDeploying}>
-                                    {isDeploying ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Deploying...</> : deploySuccess ? <><CheckCircle2 className="h-4 w-4 mr-2" /> Deployed!</> : hasDeployError ? <><Sparkles className="h-4 w-4 mr-2" /> Fix with AI</> : <><Rocket className="h-4 w-4 mr-2" /> Deploy to GitHub</>}
-                                  </Button>
-                                  {(isDeploying || deploySuccess) && <Progress value={deployProgress} className={cn("h-1.5 rounded-full", deploySuccess ? "[&>div]:bg-green-500" : "")} />}
-                                </div>
-                                {deployError && <div className="space-y-1"><p className="text-sm text-destructive">{deployError}</p>{!hasDeployError && <Button variant="link" size="sm" onClick={startAutoFix} className="text-blue-400 h-auto p-0">Try fixing with AI</Button>}</div>}
-                                <div className="grid grid-cols-2 gap-3 pt-2">
-                                    <Button variant="outline" className="w-full bg-transparent border-white/10 hover:bg-white/5" onClick={handleSave} disabled={saving}>{saving ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Save className="h-3 w-3 mr-2" />} Save Draft</Button>
-                                    <Button variant="outline" className="w-full bg-transparent border-white/10 hover:bg-white/5" disabled><Globe className="h-3 w-3 mr-2" /> Domains (disabled)</Button>
-                                </div>
-                            </CardContent>
-                            </Card>
-                        </div>
-                        </div>
+                    {/* ══════════════════════════════════════════════════════════════
+                        DOMAIN ROW - icon square + domain + visit button
+                       ══════════════════════════════════════════════════════════════ */}
+                    <div className="flex items-center gap-3 px-1">
+                      {/* Favicon square */}
+                      <div
+                        className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                        style={{ background: "#2e2e30" }}
+                      >
+                        <Globe className="h-4 w-4 text-zinc-500" />
+                      </div>
+                      {/* Domain */}
+                      <span className="flex-1 text-[14px] font-semibold text-zinc-100 truncate min-w-0">
+                        {displayUrl || "Not deployed"}
+                      </span>
+                      {/* Visit button */}
+                      <button
+                        onClick={() => previewUrl && window.open(previewUrl, "_blank")}
+                        disabled={!previewUrl}
+                        className="h-9 px-5 rounded-full text-[12px] font-semibold text-white shrink-0 transition-opacity hover:opacity-85 active:opacity-70 disabled:opacity-40 disabled:cursor-not-allowed"
+                        style={{ background: "#2e2e30" }}
+                      >
+                        Visit Site
+                      </button>
                     </div>
+
+                    {/* ══════════════════════════════════════════════════════════════
+                        SECONDARY CARD (16:9) - Quick stats summary
+                       ══════════════════════════════════════════════════════════════ */}
+                    <div
+                      className="w-full rounded-[20px] p-5 flex flex-col justify-between"
+                      style={{ background: "#252527", aspectRatio: "16/9" }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[13px] font-semibold text-zinc-300">Quick Stats</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="relative flex h-1.5 w-1.5">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500" />
+                          </span>
+                          <span className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider">Live</span>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="text-center">
+                          <p className="text-2xl font-bold text-zinc-100">{stats.visitors}</p>
+                          <p className="text-[10px] text-zinc-500 uppercase tracking-wide mt-0.5">Visitors</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-2xl font-bold text-zinc-100">{generatedPages.length}</p>
+                          <p className="text-[10px] text-zinc-500 uppercase tracking-wide mt-0.5">Pages</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-2xl font-bold text-zinc-100">{products.length}</p>
+                          <p className="text-[10px] text-zinc-500 uppercase tracking-wide mt-0.5">Products</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* ══════════════════════════════════════════════════════════════
+                        3-COLUMN ACTION CARDS - exact layout from photo
+                       ══════════════════════════════════════════════════════════════ */}
+                    <div className="grid grid-cols-3 gap-3">
+                      {/* AI Builder card */}
+                      <button
+                        onClick={() => setActiveTab("ai")}
+                        className="rounded-[18px] flex flex-col items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                        style={{ background: "#252527", aspectRatio: "1/1", border: "1px solid #2e2e30" }}
+                      >
+                        <div
+                          className="w-10 h-10 rounded-xl flex items-center justify-center"
+                          style={{ background: "#2e2e30" }}
+                        >
+                          <Sparkles className="h-5 w-5 text-zinc-400" />
+                        </div>
+                        <span className="text-[11px] font-semibold text-zinc-300">AI Builder</span>
+                      </button>
+
+                      {/* Statistics card */}
+                      <button
+                        onClick={() => setActiveSubTab("limits")}
+                        className="rounded-[18px] flex flex-col items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                        style={{ background: "#252527", aspectRatio: "1/1", border: "1px solid #2e2e30" }}
+                      >
+                        <div
+                          className="w-10 h-10 rounded-xl flex items-center justify-center"
+                          style={{ background: "#2e2e30" }}
+                        >
+                          <BarChart3 className="h-5 w-5 text-zinc-400" />
+                        </div>
+                        <span className="text-[11px] font-semibold text-zinc-300">Statistics</span>
+                      </button>
+
+                      {/* Deploy card */}
+                      <button
+                        onClick={hasDeployError ? startAutoFix : handleDeploy}
+                        disabled={isDeploying}
+                        className={cn(
+                          "rounded-[18px] flex flex-col items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60",
+                          deploySuccess && "ring-2 ring-green-500/30"
+                        )}
+                        style={{ background: "#252527", aspectRatio: "1/1", border: "1px solid #2e2e30" }}
+                      >
+                        <div
+                          className={cn(
+                            "w-10 h-10 rounded-xl flex items-center justify-center",
+                            deploySuccess ? "bg-green-500/20" : ""
+                          )}
+                          style={!deploySuccess ? { background: "#2e2e30" } : {}}
+                        >
+                          {isDeploying ? (
+                            <Loader2 className="h-5 w-5 text-zinc-400 animate-spin" />
+                          ) : deploySuccess ? (
+                            <CheckCircle2 className="h-5 w-5 text-green-400" />
+                          ) : hasDeployError ? (
+                            <Sparkles className="h-5 w-5 text-red-400" />
+                          ) : (
+                            <Rocket className="h-5 w-5 text-zinc-400" />
+                          )}
+                        </div>
+                        <span className="text-[11px] font-semibold text-zinc-300">
+                          {isDeploying ? "Deploying..." : deploySuccess ? "Deployed!" : hasDeployError ? "Fix Error" : "Deploy"}
+                        </span>
+                      </button>
+                    </div>
+
+                    {/* Deploy progress bar */}
+                    {(isDeploying || deploySuccess) && (
+                      <Progress value={deployProgress} className={cn("h-1.5 rounded-full", deploySuccess ? "[&>div]:bg-green-500" : "")} />
+                    )}
+
+                    {/* Deploy error message */}
+                    {deployError && (
+                      <div className="text-center space-y-1 py-2">
+                        <p className="text-xs text-destructive">{deployError}</p>
+                        {!hasDeployError && (
+                          <Button variant="link" size="sm" onClick={startAutoFix} className="text-blue-400 h-auto p-0 text-xs">
+                            Try fixing with AI
+                          </Button>
+                        )}
+                      </div>
+                    )}
 
                     <div className="space-y-6">
                          <div className="w-full bg-muted/40 p-1.5 rounded-xl border border-white/5">

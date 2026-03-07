@@ -1,7 +1,17 @@
 "use client"
 
-import { useState } from "react"
-import { AlertCircle, Trash2, Edit2, CheckCircle2, Package, Sparkles, Zap, Loader2, Globe } from "lucide-react"
+import { useState, useRef, useEffect, useCallback } from "react"
+import {
+  Loader2,
+  Globe,
+  Edit2,
+  Trash2,
+  ExternalLink,
+  Package,
+  Sparkles,
+  Zap,
+  CheckCircle2,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import {
@@ -23,7 +33,7 @@ interface WebsitePreviewCardProps {
   projectId?: string
   businessName?: string
   createdAt?: string
-  onDelete?: (deploymentId: string) => void
+  onDelete?: (id: string) => void
   style?: string
 }
 
@@ -37,164 +47,330 @@ export function WebsitePreviewCard({
   onDelete,
   style = "default",
 }: WebsitePreviewCardProps) {
-  const [imageLoading, setImageLoading] = useState(true)
-  const [imageError, setImageError] = useState(false)
+  const [frameLoading, setFrameLoading] = useState(true)
+  const [frameError, setFrameError] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [iframeScale, setIframeScale] = useState(0.26)
+  const wrapperRef = useRef<HTMLDivElement>(null)
+
+  const fullUrl = domain.startsWith("http") ? domain : `https://${domain}`
+  const displayDomain = domain.replace(/^https?:\/\//, "")
+  const formattedDate = new Date(createdAt).toLocaleDateString("hu-HU")
+  const IconComp = style === "browse" ? Sparkles : style === "ai" ? Zap : Package
+
+  // Compute iframe scale from actual card width so preview fills the card
+  // exactly on every screen size without hardcoded breakpoints.
+  const updateScale = useCallback(() => {
+    if (wrapperRef.current) {
+      setIframeScale(wrapperRef.current.offsetWidth / 1440)
+    }
+  }, [])
+
+  useEffect(() => {
+    updateScale()
+    const ro = new ResizeObserver(updateScale)
+    if (wrapperRef.current) ro.observe(wrapperRef.current)
+    return () => ro.disconnect()
+  }, [updateScale])
 
   const handleDelete = async () => {
     if (!projectId) return
-
     setIsDeleting(true)
     try {
-      const response = await fetch(`/api/projects/${projectId}`, {
-        method: "DELETE",
-      })
-
-      if (response.ok) {
-        console.log("[v0] Project deleted successfully")
-        onDelete?.(projectId)
-      } else {
-        alert("Failed to delete project")
-      }
-    } catch (error) {
-      console.error("[v0] Error deleting project:", error)
+      const res = await fetch(`/api/projects/${projectId}`, { method: "DELETE" })
+      if (res.ok) onDelete?.(projectId)
+      else alert("Failed to delete project")
+    } catch {
       alert("Error deleting project")
     } finally {
       setIsDeleting(false)
     }
   }
 
-  const formattedDate = new Date(createdAt).toLocaleDateString("hu-HU")
-
-  const getWebsiteIcon = () => {
-    switch (style) {
-      case "default":
-        return Package
-      case "browse":
-        return Sparkles
-      case "ai":
-        return Zap
-      default:
-        return Package
-    }
-  }
-
-  const WebsiteIcon = getWebsiteIcon()
-
-  return (
-    <div className="border border-white/5 bg-zinc-900/40 backdrop-blur-sm rounded-xl overflow-hidden flex flex-col hover:border-white/10 transition-colors">
-      {!isLive ? (
-        <div className="w-full h-40 sm:h-56 md:h-72 bg-gradient-to-br from-zinc-900 to-black/50 rounded-t-xl flex flex-col items-center justify-center border-b border-white/5 relative group">
-          <div className="text-center">
-            <div className="mb-3 flex justify-center">
-              <div className="relative">
-                <div className="absolute inset-0 bg-white/10 rounded-full blur-lg opacity-30 animate-pulse" />
-                <div className="h-12 w-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
-                   <Loader2 className="h-5 w-5 text-zinc-400 animate-spin" />
-                </div>
-              </div>
+  /* ── NOT LIVE ─────────────────────────────────────────────── */
+  if (!isLive) {
+    return (
+      <div
+        className="flex flex-col rounded-2xl overflow-hidden"
+        style={{ background: "#1c1c1e" }}
+      >
+        {/* Placeholder preview */}
+        <div
+          className="w-full flex flex-col items-center justify-center gap-3"
+          style={{ aspectRatio: "4/3", background: "#252527" }}
+        >
+          <div className="relative">
+            <div className="absolute inset-0 rounded-full bg-white/10 blur-xl opacity-20 animate-pulse" />
+            <div
+              className="relative h-12 w-12 rounded-full flex items-center justify-center"
+              style={{ background: "#2e2e30", border: "1px solid rgba(255,255,255,0.07)" }}
+            >
+              <Loader2 className="h-5 w-5 text-zinc-400 animate-spin" />
             </div>
-            <p className="text-sm font-semibold text-zinc-200 mb-1">Building Project</p>
-            <p className="text-xs text-zinc-500">Waiting for deployment...</p>
           </div>
+          <p className="text-sm font-semibold text-zinc-200">Building Project</p>
+          <p className="text-xs text-zinc-500">Waiting for deployment…</p>
         </div>
-      ) : (
-        <div className="relative w-full h-48 sm:h-72 md:h-[28rem] bg-zinc-950 overflow-hidden group">
-          {imageLoading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-zinc-900 z-10">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white/20"></div>
-            </div>
-          )}
 
-          {imageError ? (
-            <div className="w-full h-full flex items-center justify-center bg-zinc-950">
-              <div className="text-center">
-                <Globe className="h-8 w-8 text-zinc-700 mx-auto mb-2" />
-                <p className="text-xs text-zinc-600">Preview unavailable</p>
-              </div>
-            </div>
-          ) : (
-            <div className="w-full h-full overflow-hidden flex items-start justify-start select-none pointer-events-none">
-              <iframe
-                src={domain.startsWith("http") ? domain : `https://${domain}`}
-                className="w-[1440px] h-[1440px] border-none origin-top-left scale-[0.85] sm:scale-[0.95] md:scale-[1.05] lg:scale-[1.1] grayscale-[20%] group-hover:grayscale-0 transition-all duration-500"
-                onLoad={() => setImageLoading(false)}
-                onError={() => {
-                  setImageError(true)
-                  setImageLoading(false)
-                }}
-                title={`Preview of ${domain}`}
-                sandbox="allow-same-origin allow-scripts allow-forms"
-                tabIndex={-1}
-              />
-            </div>
-          )}
-
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80 pointer-events-none" />
-
-          {/* Domain and Live Badge */}
-          <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between z-20">
-            <div className="flex items-center gap-2 overflow-hidden">
-              <div className="h-6 w-6 rounded-md bg-white/10 border border-white/10 flex items-center justify-center shrink-0">
-                  <WebsiteIcon className="h-3.5 w-3.5 text-white" />
-              </div>
-              <a href={domain.startsWith("http") ? domain : `https://${domain}`} target="_blank" className="text-zinc-200 hover:text-white text-xs font-medium truncate underline-offset-4 hover:underline transition-colors">
-                  {domain}
-              </a>
-            </div>
-            {isLive && (
-              <div className="flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-full border border-white/10 backdrop-blur-md">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                </span>
-                <span className="text-[10px] font-medium text-zinc-300 uppercase tracking-wider">Live</span>
-              </div>
-            )}
+        {/* Footer */}
+        <div
+          className="flex items-center gap-3 px-4 py-3"
+          style={{ borderTop: "1px solid #2e2e30" }}
+        >
+          <div
+            className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+            style={{ background: "#2e2e30" }}
+          >
+            <IconComp className="h-4 w-4 text-zinc-500" />
           </div>
-        </div>
-      )}
-
-      <div className="p-4 flex flex-col justify-between flex-1 border-t border-white/5 bg-zinc-900/50">
-        <div className="flex-1">
-          <h3 className="font-medium text-sm text-zinc-100 mb-1">{businessName}</h3>
-          <p className="text-[10px] text-zinc-500">Created {formattedDate}</p>
-        </div>
-        <div className="flex gap-2 mt-4 justify-between">
-          <Link href={`/dashboard/sites/${projectId}`} className="flex-1">
-            <Button variant="outline" className="w-full bg-white/5 border-white/10 text-zinc-300 hover:text-white hover:bg-white/10 h-8 text-xs" size="sm">
-              <Edit2 className="h-3 w-3 mr-2" />
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] font-semibold text-zinc-100 truncate">{businessName}</p>
+            <p className="text-[10px] text-zinc-600 mt-0.5">Created {formattedDate}</p>
+          </div>
+          <Link href={`/dashboard/sites/${projectId}`}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 shrink-0 text-xs px-3 rounded-full text-zinc-400 hover:text-white"
+              style={{ background: "#2e2e30" }}
+            >
+              <Edit2 className="h-3 w-3 mr-1.5" />
               Edit
             </Button>
           </Link>
+        </div>
+      </div>
+    )
+  }
 
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={isDeleting}
-                className="px-3 h-8 bg-red-500/5 hover:bg-red-500/10 text-red-500/70 hover:text-red-400 border border-red-500/10 flex items-center justify-center"
+  /* ── LIVE ─────────────────────────────────────────────────── */
+  return (
+    <div
+      className="flex flex-col rounded-2xl overflow-hidden"
+      style={{ background: "#1c1c1e" }}
+    >
+      {/* ── Live iframe preview region ── */}
+      <div
+        ref={wrapperRef}
+        className="relative w-full overflow-hidden"
+        style={{ aspectRatio: "4/3", background: "#252527" }}
+      >
+        {/* Loading spinner */}
+        {frameLoading && !frameError && (
+          <div
+            className="absolute inset-0 flex items-center justify-center z-10"
+            style={{ background: "#252527" }}
+          >
+            <Loader2 className="h-6 w-6 text-zinc-500 animate-spin" />
+          </div>
+        )}
+
+        {frameError ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+            <Globe className="h-8 w-8 text-zinc-700" />
+            <p className="text-xs text-zinc-500">Preview unavailable</p>
+          </div>
+        ) : (
+          /* iframe scaled to fill the card exactly */
+          <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
+            <iframe
+              src={fullUrl}
+              title={`Preview of ${displayDomain}`}
+              className="border-0 block"
+              style={{
+                width: "1440px",
+                height: "1080px",
+                transformOrigin: "top left",
+                transform: `scale(${iframeScale})`,
+              }}
+              onLoad={() => setFrameLoading(false)}
+              onError={() => {
+                setFrameError(true)
+                setFrameLoading(false)
+              }}
+              sandbox="allow-same-origin allow-scripts allow-forms"
+              tabIndex={-1}
+            />
+          </div>
+        )}
+
+        {/* Vignette so banner reads clearly */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              "linear-gradient(to bottom, transparent 45%, rgba(28,28,30,0.65) 100%)",
+          }}
+        />
+
+        {/* ── "Your site is now live!" banner ──
+            Exact shape from the reference photo:
+            • Rotated green diamond square bleeds out of bottom-left corner
+            • Green rounded strip extends right with text
+        */}
+        <div
+          aria-label="Your site is now live"
+          className="absolute bottom-0 left-0 flex items-end"
+          style={{ width: "72%", zIndex: 10 }}
+        >
+          {/* Diamond */}
+          <div
+            aria-hidden="true"
+            style={{
+              flexShrink: 0,
+              zIndex: 2,
+              marginLeft: "-10px",
+              marginBottom: "-5px",
+            }}
+          >
+            <div
+              style={{
+                width: "36px",
+                height: "36px",
+                borderRadius: "6px",
+                background: "#22a846",
+                transform: "rotate(45deg)",
+              }}
+            />
+          </div>
+
+          {/* Green strip */}
+          <div
+            style={{
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "11px 16px 11px 8px",
+              marginLeft: "-14px",
+              borderTopRightRadius: "18px",
+              background: "#22a846",
+              zIndex: 1,
+            }}
+          >
+            <CheckCircle2
+              aria-hidden="true"
+              style={{
+                width: "13px",
+                height: "13px",
+                color: "rgba(255,255,255,0.85)",
+                flexShrink: 0,
+              }}
+            />
+            <span
+              style={{
+                fontSize: "12.5px",
+                fontWeight: 700,
+                color: "#ffffff",
+                lineHeight: 1.2,
+                whiteSpace: "nowrap",
+              }}
+            >
+              Your site is now live!
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Domain row ── */}
+      <div
+        className="flex items-center gap-2.5 px-4 py-3"
+        style={{ borderTop: "1px solid #2e2e30" }}
+      >
+        {/* Site icon */}
+        <div
+          className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+          style={{ background: "#2e2e30" }}
+        >
+          <IconComp className="h-4 w-4 text-zinc-400" />
+        </div>
+
+        {/* Domain */}
+        <span className="flex-1 text-[13px] font-semibold text-zinc-100 truncate min-w-0">
+          {displayDomain}
+        </span>
+
+        {/* Visit pill */}
+        <a
+          href={fullUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 px-3 h-8 rounded-full text-[11px] font-semibold text-white shrink-0 transition-opacity hover:opacity-85 active:opacity-70"
+          style={{ background: "#2e2e30" }}
+        >
+          <ExternalLink className="h-3 w-3" aria-hidden="true" />
+          Visit
+        </a>
+
+        {/* Edit */}
+        <Link href={`/dashboard/sites/${projectId}`} className="shrink-0">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0 rounded-full text-zinc-500 hover:text-white hover:bg-white/10"
+          >
+            <Edit2 className="h-3.5 w-3.5" />
+            <span className="sr-only">Edit {businessName}</span>
+          </Button>
+        </Link>
+
+        {/* Delete */}
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={isDeleting}
+              className="h-8 w-8 p-0 rounded-full shrink-0 text-red-500/50 hover:text-red-400 hover:bg-red-500/10"
+            >
+              {isDeleting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5" />
+              )}
+              <span className="sr-only">Delete {businessName}</span>
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent className="bg-zinc-950 border-white/10 text-zinc-100">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Project?</AlertDialogTitle>
+              <AlertDialogDescription className="text-zinc-400">
+                This will permanently delete{" "}
+                <strong className="text-zinc-200">{businessName}</strong> and cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="bg-transparent border-white/10 hover:bg-white/5 text-zinc-300">
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDelete}
+                className="bg-red-900/50 text-red-200 hover:bg-red-900/70 border border-red-500/20"
               >
-                {isDeleting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent className="bg-zinc-950 border-white/10 text-zinc-100">
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete Project?</AlertDialogTitle>
-                <AlertDialogDescription className="text-zinc-400">
-                  This action cannot be undone. This will permanently delete your project
-                  and remove it from our servers.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel className="bg-transparent border-white/10 hover:bg-white/5 text-zinc-300">Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete} className="bg-red-900/50 text-red-200 hover:bg-red-900/70 border border-red-500/20">
-                  Delete Project
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+
+      {/* ── Footer: name + live badge ── */}
+      <div className="flex items-center justify-between px-4 pb-4 pt-0">
+        <p className="text-[11px] text-zinc-600">
+          {businessName} · {formattedDate}
+        </p>
+        <div
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
+          style={{ background: "#2e2e30" }}
+        >
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500" />
+          </span>
+          <span className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider">
+            Live
+          </span>
         </div>
       </div>
     </div>

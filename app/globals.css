@@ -131,3 +131,13 @@
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+
+/* ── Site-preview dashboard tokens ── */
+:root {
+  --preview-bg:      #1a1a1c;
+  --preview-card:    #252527;
+  --preview-surface: #2e2e30;
+  --preview-border:  #2e2e30;
+  --preview-green:   #22a846;
+  --preview-orange:  #e0441e;
+}
