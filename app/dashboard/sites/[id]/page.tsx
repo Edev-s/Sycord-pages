@@ -69,6 +69,8 @@ import { Progress } from "@/components/ui/progress"
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from "recharts"
 import { SitePreviewDashboard } from "@/components/site-preview-dashboard"
 
+const CLOUDFLARE_PAGES_SUFFIX = ".pages.dev"
+
 const headerComponents = {
   simple: { name: "Simple", description: "A clean, minimalist header" },
   centered: { name: "Centered", description: "Logo and navigation centered" },
@@ -469,7 +471,6 @@ export default function SiteSettingsPage() {
   const [hasDeployError, setHasDeployError] = useState(false)
   const [autoFixLogs, setAutoFixLogs] = useState<string[] | null>(null)
   const [autoDeployAttempted, setAutoDeployAttempted] = useState(false)
-  const CLOUDFLARE_PAGES_SUFFIX = ".pages.dev"
   const hasCloudflareDeployment = useMemo(() => {
     const url = project?.cloudflareUrl?.trim()
     if (!url) return false
@@ -479,7 +480,7 @@ export default function SiteSettingsPage() {
     } catch {
       return false
     }
-  }, [project?.cloudflareUrl, CLOUDFLARE_PAGES_SUFFIX])
+  }, [project?.cloudflareUrl])
 
   const fetchLogs = async (repoIdOverride?: string) => {
     const targetId = repoIdOverride || project?.githubRepoId
@@ -868,7 +869,20 @@ export default function SiteSettingsPage() {
     } finally {
       setIsDeploying(false)
     }
-  }, [fetchLogs, id, isDeploying, pollForDomain])
+  }, [
+    fetchLogs,
+    id,
+    isDeploying,
+    pollForDomain,
+    setAutoDeployAttempted,
+    setDeployProgress,
+    setDeploySuccess,
+    setDeployError,
+    setDeployResult,
+    setHasDeployError,
+    setIsDeploying,
+    setProject
+  ])
 
   useEffect(() => {
     if (autoDeployAttempted) return
