@@ -59,6 +59,14 @@ export function CreateProjectModal({ isOpen, onClose }: CreateProjectModalProps)
 
       const newProject = await response.json()
       console.log("[v0] Project created successfully:", newProject._id)
+
+      // Auto-deploy the idle page in background
+      fetch("/api/deploy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId: newProject._id }),
+      }).catch(err => console.error("Initial auto-deploy failed", err));
+
       toast.success("Project created successfully!")
 
       setIsLoading(false)

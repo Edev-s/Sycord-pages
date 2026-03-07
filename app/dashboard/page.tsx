@@ -278,7 +278,7 @@ function DashboardContent() {
               <div className="max-w-md mx-auto">
                 <h3 className="text-lg font-semibold text-foreground mb-2">Még nincsenek projektek</h3>
                 <p className="text-sm text-muted-foreground mb-6">
-                  Kezdje el első projektjét, és indítsa el weboldalát {"{"}name{"}"}.ltpd.xyz címen
+                  Kezdje el első projektjét, és indítsa el weboldalát {"{"}name{"}"}.pages.dev címen
                 </p>
                 <Button onClick={() => setIsModalOpen(true)}>
                   <Plus className="h-4 w-4 mr-2" />
