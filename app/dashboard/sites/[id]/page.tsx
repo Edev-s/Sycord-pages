@@ -1109,64 +1109,55 @@ export default function SiteSettingsPage() {
             {/* TAB CONTENT: STYLES */}
             {activeTab === "styles" && (
                 <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                    <div className="block md:hidden space-y-6">
-                        <div className="flex items-center justify-between gap-4">
-                            <div className="flex-1 min-w-0 space-y-1">
-                                <div className="flex items-center gap-2">
-                                    <div className={cn("h-2.5 w-2.5 rounded-full shrink-0", previewUrl ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" : "bg-gray-500")} />
-                                    <h3 className="font-bold text-xl truncate text-foreground tracking-tight">{displayUrl || 'Not deployed'}</h3>
-                                </div>
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground pl-4.5 font-medium">
-                                    <span>main</span>
-                                    <span className="text-muted-foreground/30">•</span>
-                                    <span>{project?.cloudflareDeployedAt ? new Date(project.cloudflareDeployedAt).toISOString().split('T')[0].replace(/-/g, ' ') : "Not deployed"}</span>
-                                </div>
+                    {/* Mobile: action buttons + compact stats */}
+                    <div className="block md:hidden space-y-4">
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2 min-w-0">
+                                <div className={cn("h-2 w-2 rounded-full shrink-0", previewUrl ? "bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.5)]" : "bg-gray-500")} />
+                                <span className="text-sm font-semibold text-foreground truncate">{displayUrl || 'Not deployed'}</span>
                             </div>
-                            <div className="w-24 h-14 rounded-lg overflow-hidden border border-white/10 bg-black/20 shrink-0 relative shadow-sm group">
-                                {previewUrl ? (
-                                    <iframe src={previewUrl} className="w-[300%] h-[300%] origin-top-left scale-[0.33] border-0 pointer-events-none" title="Mini Preview" tabIndex={-1} />
-                                ) : (
-                                    <div className="flex items-center justify-center w-full h-full bg-muted/20"><div className="text-[10px] text-muted-foreground/50">No Preview</div></div>
-                                )}
-                            </div>
-                        </div>
-                        <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <Button variant="outline" className="h-14 text-base font-medium bg-card/50 border-white/10 hover:bg-accent rounded-xl" disabled>
-                                    <Globe className="mr-2 h-5 w-5 opacity-70" /> Domain (disabled)
-                                </Button>
-                                <Button variant="outline" className="h-14 text-base font-medium bg-card/50 border-white/10 hover:bg-accent rounded-xl" onClick={() => previewUrl && window.open(previewUrl, "_blank")} disabled={!previewUrl}>
-                                    <ExternalLink className="mr-2 h-5 w-5 opacity-70" /> Visit
+                            <div className="flex items-center gap-2 shrink-0">
+                                <Button variant="outline" size="sm" className="h-8 px-3 bg-card/50 border-white/10" onClick={() => previewUrl && window.open(previewUrl, "_blank")} disabled={!previewUrl}>
+                                    <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> Visit
                                 </Button>
                             </div>
-                            <div className="space-y-2 relative">
-                              <Button
-                                  size="lg"
-                                  className={cn("w-full h-14 font-semibold text-base shadow-lg shadow-primary/10 rounded-xl transition-all", deploySuccess && "bg-green-500/20 text-green-400 border-green-500/30", hasDeployError && !isDeploying && !deploySuccess && "bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30")}
-                                  onClick={hasDeployError ? startAutoFix : handleDeploy}
-                                  disabled={isDeploying}
-                              >
-                                  {isDeploying ? <><Loader2 className="h-5 w-5 mr-2 animate-spin" /> Deploying...</> : deploySuccess ? <><CheckCircle2 className="h-5 w-5 mr-2" /> Deployed!</> : hasDeployError ? <><Sparkles className="h-5 w-5 mr-2" /> Fix with AI</> : <><Rocket className="h-5 w-5 mr-2" /> Deploy to GitHub</>}
-                              </Button>
-                              {(isDeploying || deploySuccess) && <Progress value={deployProgress} className={cn("h-1.5 rounded-full", deploySuccess ? "[&>div]:bg-green-500" : "")} />}
-                            </div>
-                            {deployError && (
-                              <div className="text-center space-y-2">
-                                 <p className="text-sm text-destructive">{deployError}</p>
-                                 {!hasDeployError && <Button variant="link" size="sm" onClick={startAutoFix} className="text-blue-400 h-auto p-0">Try fixing with AI</Button>}
-                              </div>
-                            )}
                         </div>
-                        <div className="flex items-center gap-4 py-2">
-                             <div className="h-px bg-border/40 flex-1"></div>
-                             <div className="bg-card/50 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 flex items-center gap-2 shadow-sm">
-                                <Eye className="h-3.5 w-3.5 text-foreground/70" />
-                                <span className="font-bold text-sm text-foreground">{stats.visitors}</span>
-                            </div>
-                             <div className="h-px bg-border/40 flex-1"></div>
+                        <div className="space-y-2">
+                          <Button
+                              size="lg"
+                              className={cn("w-full h-12 font-semibold text-sm shadow-lg shadow-primary/10 rounded-xl transition-all", deploySuccess && "bg-green-500/20 text-green-400 border-green-500/30", hasDeployError && !isDeploying && !deploySuccess && "bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30")}
+                              onClick={hasDeployError ? startAutoFix : handleDeploy}
+                              disabled={isDeploying}
+                          >
+                              {isDeploying ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Deploying...</> : deploySuccess ? <><CheckCircle2 className="h-4 w-4 mr-2" /> Deployed!</> : hasDeployError ? <><Sparkles className="h-4 w-4 mr-2" /> Fix with AI</> : <><Rocket className="h-4 w-4 mr-2" /> Deploy to GitHub</>}
+                          </Button>
+                          {(isDeploying || deploySuccess) && <Progress value={deployProgress} className={cn("h-1.5 rounded-full", deploySuccess ? "[&>div]:bg-green-500" : "")} />}
                         </div>
+                        {deployError && (
+                          <div className="text-center space-y-1">
+                             <p className="text-xs text-destructive">{deployError}</p>
+                             {!hasDeployError && <Button variant="link" size="sm" onClick={startAutoFix} className="text-blue-400 h-auto p-0 text-xs">Try fixing with AI</Button>}
+                          </div>
+                        )}
                     </div>
 
+                    {/* Mobile preview dashboard */}
+                    <div className="block md:hidden h-[420px] border border-white/5 rounded-xl overflow-hidden bg-card/30">
+                      {previewUrl ? (
+                        <SitePreviewDashboard
+                          url={previewUrl}
+                          siteName={project?.businessName}
+                          isLive={!!previewUrl}
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center w-full h-full gap-2">
+                          <AlertCircle className="h-8 w-8 text-muted-foreground/50" />
+                          <p className="text-sm text-muted-foreground">Not deployed yet</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Desktop preview dashboard */}
                     <div className="hidden md:block h-[600px] border border-white/5 rounded-xl overflow-hidden bg-card/30 backdrop-blur-sm">
                       {previewUrl ? (
                         <SitePreviewDashboard
