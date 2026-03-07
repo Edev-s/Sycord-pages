@@ -868,7 +868,7 @@ export default function SiteSettingsPage() {
     if (!project || hasCloudflareDeployment || isDeploying) return
 
     handleDeploy({ markAutoAttempt: true })
-  }, [project, hasCloudflareDeployment, isDeploying])
+  }, [project, hasCloudflareDeployment, isDeploying, handleDeploy])
 
   if (isInitialLoading) {
     return (
