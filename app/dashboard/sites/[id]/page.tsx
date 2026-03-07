@@ -803,6 +803,7 @@ export default function SiteSettingsPage() {
       setAutoDeployAttempted(true)
     }
 
+    isDeployingRef.current = true
     setIsDeploying(true)
     setDeployProgress(0)
     setDeploySuccess(false)
@@ -875,10 +876,10 @@ export default function SiteSettingsPage() {
 
   useEffect(() => {
     if (autoDeployAttempted) return
-    if (!project || hasCloudflareDeployment || isDeploying) return
+    if (!project || hasCloudflareDeployment || isDeployingRef.current) return
 
     handleDeploy({ markAutoAttempt: true })
-  }, [autoDeployAttempted, project, hasCloudflareDeployment, isDeploying, handleDeploy])
+  }, [autoDeployAttempted, project, hasCloudflareDeployment, handleDeploy])
 
   useEffect(() => {
     isDeployingRef.current = isDeploying

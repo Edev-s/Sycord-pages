@@ -258,7 +258,6 @@ export async function POST(request: Request) {
         // Fallback: always deploy an idle placeholder so every project gets a valid Pages deployment URL
         files.push({ path: "index.html", content: idlePageHtml })
     }
-    const deployMessage = hadGeneratedContent ? "Deployed to GitHub" : "Deployed idle placeholder to GitHub"
 
     // 6. Deploy using Git Tree Strategy (Atomic & Cleaner)
     await deployViaGitTree(owner, repo, files, token)
@@ -294,6 +293,7 @@ export async function POST(request: Request) {
     })
 
     // 8. Trigger Sycord Cloudflare Deploy
+    const deployMessage = hadGeneratedContent ? "Deployed to GitHub" : "Deployed idle placeholder to GitHub"
     let cloudflareUrl = null
 
     try {
