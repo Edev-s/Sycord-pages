@@ -407,7 +407,7 @@ export default function SiteSettingsPage() {
   const [productError, setProductError] = useState<string | null>(null)
 
   const [activeTab, setActiveTab] = useState<
-    "styles" | "products" | "payments" | "ai" | "pages" | "orders" | "customers" | "analytics" | "discount"
+    "styles" | "preview" | "products" | "payments" | "ai" | "pages" | "orders" | "customers" | "analytics" | "discount"
   >("styles")
   const [activeSubTab, setActiveSubTab] = useState<"limits" | "connections" | "help">("limits")
 
@@ -903,6 +903,7 @@ export default function SiteSettingsPage() {
       title: "Home",
       items: [
         { id: "styles", label: "Overview", icon: Layout },
+        { id: "preview", label: "Preview", icon: Eye },
         { id: "ai", label: "AI Builder", icon: Zap },
         { id: "pages", label: "Pages", icon: FileText },
         { id: "products", label: "Products", icon: ShoppingCart },
@@ -1037,8 +1038,8 @@ export default function SiteSettingsPage() {
           </div>
         </header>
 
-        <main className={cn("flex-1 relative", activeTab === "ai" ? "p-0 overflow-hidden" : "overflow-y-auto overflow-x-hidden p-4 md:p-6 lg:p-8 custom-scrollbar")}>
-          <div className={cn("mx-auto", activeTab === "ai" ? "h-full w-full max-w-none p-0 pb-0 space-y-0" : "max-w-6xl space-y-8 pb-10")}>
+        <main className={cn("flex-1 relative", (activeTab === "ai" || activeTab === "preview") ? "p-0 overflow-hidden" : "overflow-y-auto overflow-x-hidden p-4 md:p-6 lg:p-8 custom-scrollbar")}>
+          <div className={cn("mx-auto", (activeTab === "ai" || activeTab === "preview") ? "h-full w-full max-w-none p-0 pb-0 space-y-0" : "max-w-6xl space-y-8 pb-10")}>
 
             <AnimatePresence>
               {isSidebarOpen && (
@@ -1070,6 +1071,40 @@ export default function SiteSettingsPage() {
                 </>
               )}
             </AnimatePresence>
+
+            {/* TAB CONTENT: PREVIEW */}
+            {activeTab === "preview" && (
+              <div className="h-full w-full flex flex-col">
+                {previewUrl ? (
+                  <SitePreviewDashboard
+                    url={previewUrl}
+                    siteName={project?.businessName}
+                    isLive={!!previewUrl}
+                    className="flex-1 h-full"
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center flex-1 gap-4 text-center px-6"
+                    style={{ background: "#1a1a1c" }}
+                  >
+                    <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: "#252527" }}>
+                      <Globe className="h-7 w-7 text-zinc-500" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-base font-semibold text-zinc-200">No deployment yet</p>
+                      <p className="text-sm text-zinc-500 max-w-xs">Deploy your site first to see a live preview here.</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      className="mt-2 font-semibold"
+                      onClick={() => setActiveTab("styles")}
+                    >
+                      <Rocket className="h-4 w-4 mr-2" />
+                      Go to Overview
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* TAB CONTENT: STYLES */}
             {activeTab === "styles" && (
