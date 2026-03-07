@@ -1,191 +1,340 @@
 "use client"
 
-import { Menu, Globe } from "lucide-react"
+import { useState, useRef, useEffect, useCallback } from "react"
+import {
+  Globe,
+  ExternalLink,
+  Monitor,
+  Smartphone,
+  Loader2,
+  CheckCircle2,
+  RefreshCw,
+  Copy,
+  Check,
+} from "lucide-react"
+import { cn } from "@/lib/utils"
 
-interface SiteCard {
-  id: string
-  previewUrl?: string
-  label?: string
-}
+type DeviceMode = "desktop" | "mobile"
 
-interface SitePreviewDashboardProps {
+export interface SitePreviewDashboardProps {
+  /** The deployed URL to preview (full https:// or bare domain) */
+  url: string
+  /** Display name of the site */
   siteName?: string
-  domain?: string
+  /** Whether the site is flagged as live */
   isLive?: boolean
-  userInitial?: string
-  primaryPreviewUrl?: string
-  secondaryPreviewUrl?: string
-  quickCards?: SiteCard[]
-  onMenuClick?: () => void
-  onAvatarClick?: () => void
+  /** Called when user explicitly closes / navigates away */
+  onClose?: () => void
+  /** Optional class names for the root wrapper */
+  className?: string
 }
 
 export function SitePreviewDashboard({
-  siteName = "Ok",
-  domain = "Domain.com",
+  url,
+  siteName,
   isLive = true,
-  userInitial = "D",
-  primaryPreviewUrl,
-  secondaryPreviewUrl,
-  quickCards = [{id:"a"},{id:"b"},{id:"c"}],
-  onMenuClick,
-  onAvatarClick,
+  onClose,
+  className,
 }: SitePreviewDashboardProps) {
+  const [deviceMode, setDeviceMode] = useState<DeviceMode>("desktop")
+  const [frameLoading, setFrameLoading] = useState(true)
+  const [frameError, setFrameError] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [copied, setCopied] = useState(false)
+  const [iframeScale, setIframeScale] = useState(1)
+  const viewportRef = useRef<HTMLDivElement>(null)
+
+  const fullUrl = url.startsWith("http") ? url : `https://${url}`
+  const displayUrl = url.replace(/^https?:\/\//, "")
+  const label = siteName || displayUrl
+
+  // Mobile phone frame dimensions (CSS pixels at 1x)
+  const PHONE_W = 390
+  const PHONE_H = 844
+
+  // Desktop: scale iframe to viewport; mobile: scale phone frame to viewport
+  const updateScale = useCallback(() => {
+    if (!viewportRef.current) return
+    if (deviceMode === "mobile") {
+      const availH = viewportRef.current.offsetHeight - 48 // leave breathing room
+      const availW = viewportRef.current.offsetWidth - 32
+      const scaleH = availH / (PHONE_H + 48) // +48 for phone chrome
+      const scaleW = availW / (PHONE_W + 24)
+      setIframeScale(Math.min(scaleH, scaleW, 1))
+    } else {
+      setIframeScale(1)
+    }
+  }, [deviceMode])
+
+  useEffect(() => {
+    updateScale()
+    const ro = new ResizeObserver(updateScale)
+    if (viewportRef.current) ro.observe(viewportRef.current)
+    return () => ro.disconnect()
+  }, [updateScale])
+
+  const handleRefresh = () => {
+    setFrameLoading(true)
+    setFrameError(false)
+    setRefreshKey((k) => k + 1)
+  }
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(fullUrl)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1800)
+    } catch {
+      /* clipboard unavailable */
+    }
+  }
+
   return (
     <div
-      className="flex flex-col min-h-screen font-sans select-none"
-      style={{ background: "var(--dash-bg)" }}
+      className={cn("flex flex-col w-full h-full min-h-0", className)}
+      style={{ background: "#1a1a1c" }}
     >
-      {/* ── Header ── */}
-      <header
-        className="flex items-center justify-between px-5 py-[18px]"
-        style={{ borderBottom: "1px solid var(--dash-border)" }}
+      {/* ── Top toolbar ── */}
+      <div
+        className="flex items-center gap-2 px-4 py-2.5 shrink-0"
+        style={{ borderBottom: "1px solid #2e2e30" }}
       >
-        <div className="flex items-center gap-3">
-          <button
-            onClick={onMenuClick}
-            aria-label="Open navigation menu"
-            className="transition-opacity hover:opacity-70 active:opacity-50"
-            style={{ color: "var(--dash-muted)" }}
-          >
-            <Menu size={20} strokeWidth={1.75} />
-          </button>
-          <span className="text-[17px] font-medium" style={{ color: "var(--dash-text)" }}>
-            {siteName}
-          </span>
+        {/* Device mode toggle */}
+        <div
+          className="flex items-center rounded-lg p-0.5 shrink-0"
+          style={{ background: "#252527" }}
+        >
+          {(["desktop", "mobile"] as DeviceMode[]).map((mode) => {
+            const Icon = mode === "desktop" ? Monitor : Smartphone
+            return (
+              <button
+                key={mode}
+                onClick={() => setDeviceMode(mode)}
+                aria-label={`${mode} preview`}
+                className={cn(
+                  "flex items-center justify-center w-8 h-7 rounded-md transition-colors",
+                  deviceMode === mode
+                    ? "text-white"
+                    : "text-zinc-500 hover:text-zinc-300"
+                )}
+                style={
+                  deviceMode === mode
+                    ? { background: "#3a3a3c" }
+                    : {}
+                }
+              >
+                <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
+            )
+          })}
         </div>
 
-        <button
-          onClick={onAvatarClick}
-          aria-label="User profile"
-          className="w-9 h-9 rounded-full flex items-center justify-center text-[13px] font-semibold transition-opacity hover:opacity-85"
-          style={{ background: "var(--dash-orange)", color: "var(--dash-text)" }}
-        >
-          {userInitial.charAt(0).toUpperCase()}
-        </button>
-      </header>
-
-      {/* ── Scrollable body ── */}
-      <main className="flex-1 flex flex-col gap-[18px] px-4 pt-6 pb-10 overflow-y-auto">
-
-        {/* Primary preview card */}
+        {/* URL bar */}
         <div
-          className="relative w-full rounded-[20px] overflow-hidden"
-          style={{
-            background: "var(--dash-card)",
-            aspectRatio: "4 / 3",
-          }}
+          className="flex items-center gap-2 flex-1 min-w-0 h-8 px-3 rounded-lg"
+          style={{ background: "#252527" }}
         >
-          {primaryPreviewUrl ? (
-            <img
-              src={primaryPreviewUrl}
-              alt={`${domain} website preview`}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full" aria-hidden="true" />
-          )}
-
-          {/* "Your site is now live!" banner */}
+          {/* Live dot */}
           {isLive && (
-            <div className="absolute bottom-0 left-0 flex items-end" style={{ width: "70%" }}>
-              {/* Rotated diamond icon */}
+            <span className="relative flex h-1.5 w-1.5 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500" />
+            </span>
+          )}
+          <span className="flex-1 text-[12px] text-zinc-400 truncate font-mono">
+            {displayUrl}
+          </span>
+          {/* Copy URL */}
+          <button
+            onClick={handleCopy}
+            aria-label="Copy URL"
+            className="shrink-0 text-zinc-600 hover:text-zinc-300 transition-colors"
+          >
+            {copied ? (
+              <Check className="h-3 w-3 text-green-400" />
+            ) : (
+              <Copy className="h-3 w-3" />
+            )}
+          </button>
+        </div>
+
+        {/* Refresh */}
+        <button
+          onClick={handleRefresh}
+          aria-label="Refresh preview"
+          className="h-8 w-8 rounded-lg flex items-center justify-center text-zinc-500 hover:text-zinc-200 transition-colors shrink-0"
+          style={{ background: "#252527" }}
+        >
+          <RefreshCw className={cn("h-3.5 w-3.5", frameLoading && "animate-spin")} />
+        </button>
+
+        {/* Open in new tab */}
+        <a
+          href={fullUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Open in new tab"
+          className="h-8 w-8 rounded-lg flex items-center justify-center text-zinc-500 hover:text-zinc-200 transition-colors shrink-0"
+          style={{ background: "#252527" }}
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+        </a>
+      </div>
+
+      {/* ── Live banner (shown only when site is live) ── */}
+      {isLive && (
+        <div
+          className="flex items-center gap-2.5 px-4 py-2 shrink-0"
+          style={{ background: "rgba(34,168,70,0.12)", borderBottom: "1px solid rgba(34,168,70,0.18)" }}
+        >
+          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" style={{ color: "#22a846" }} aria-hidden="true" />
+          <span className="text-[12px] font-semibold" style={{ color: "#22a846" }}>
+            Your site is now live!
+          </span>
+          <span className="text-[12px] text-zinc-500 truncate min-w-0">— {label}</span>
+        </div>
+      )}
+
+      {/* ── Preview viewport ── */}
+      <div
+        ref={viewportRef}
+        className="flex-1 min-h-0 flex items-start justify-center overflow-hidden"
+        style={{ background: "#111113", paddingTop: deviceMode === "mobile" ? "24px" : "0" }}
+      >
+        {deviceMode === "desktop" ? (
+          /* ── DESKTOP: full-bleed iframe ── */
+          <div className="relative w-full h-full">
+            {frameLoading && !frameError && (
               <div
-                className="relative flex-shrink-0 z-10"
-                style={{ marginBottom: "-2px", marginLeft: "-4px" }}
+                className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10"
+                style={{ background: "#111113" }}
+              >
+                <Loader2 className="h-7 w-7 text-zinc-600 animate-spin" />
+                <p className="text-xs text-zinc-600">Loading preview…</p>
+              </div>
+            )}
+            {frameError ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                <Globe className="h-10 w-10 text-zinc-700" />
+                <p className="text-sm text-zinc-500">Could not load preview</p>
+                <button
+                  onClick={handleRefresh}
+                  className="mt-1 text-xs px-4 py-1.5 rounded-full text-zinc-300 hover:text-white transition-colors"
+                  style={{ background: "#2e2e30" }}
+                >
+                  Try again
+                </button>
+              </div>
+            ) : (
+              <iframe
+                key={refreshKey}
+                src={fullUrl}
+                title={`Preview of ${displayUrl}`}
+                className="w-full h-full border-0 block"
+                onLoad={() => setFrameLoading(false)}
+                onError={() => {
+                  setFrameError(true)
+                  setFrameLoading(false)
+                }}
+                sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
+              />
+            )}
+          </div>
+        ) : (
+          /* ── MOBILE: phone chrome frame ── */
+          <div
+            style={{
+              transform: `scale(${iframeScale})`,
+              transformOrigin: "top center",
+              flexShrink: 0,
+            }}
+          >
+            {/* Phone outer shell */}
+            <div
+              className="relative flex flex-col overflow-hidden"
+              style={{
+                width: `${PHONE_W}px`,
+                height: `${PHONE_H}px`,
+                borderRadius: "48px",
+                background: "#1c1c1e",
+                boxShadow: "0 0 0 10px #2a2a2c, 0 32px 80px rgba(0,0,0,0.8)",
+                border: "1.5px solid #3a3a3c",
+              }}
+            >
+              {/* Status bar notch */}
+              <div
+                className="absolute top-0 left-1/2 -translate-x-1/2 z-20 flex items-center justify-center"
+                style={{
+                  width: "126px",
+                  height: "34px",
+                  background: "#1c1c1e",
+                  borderBottomLeftRadius: "18px",
+                  borderBottomRightRadius: "18px",
+                }}
                 aria-hidden="true"
               >
                 <div
-                  className="w-8 h-8 rotate-45 rounded-[5px]"
-                  style={{ background: "var(--dash-green)" }}
+                  className="rounded-full"
+                  style={{ width: "12px", height: "12px", background: "#111113" }}
                 />
               </div>
 
-              {/* Banner pill */}
+              {/* iframe content */}
+              <div className="absolute inset-0 overflow-hidden" style={{ borderRadius: "46px" }}>
+                {frameLoading && !frameError && (
+                  <div
+                    className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10"
+                    style={{ background: "#111113" }}
+                  >
+                    <Loader2 className="h-7 w-7 text-zinc-600 animate-spin" />
+                    <p className="text-xs text-zinc-600">Loading preview…</p>
+                  </div>
+                )}
+                {frameError ? (
+                  <div
+                    className="absolute inset-0 flex flex-col items-center justify-center gap-3"
+                    style={{ background: "#111113" }}
+                  >
+                    <Globe className="h-10 w-10 text-zinc-700" />
+                    <p className="text-sm text-zinc-500">Could not load preview</p>
+                    <button
+                      onClick={handleRefresh}
+                      className="mt-1 text-xs px-4 py-1.5 rounded-full text-zinc-300 hover:text-white transition-colors"
+                      style={{ background: "#2e2e30" }}
+                    >
+                      Try again
+                    </button>
+                  </div>
+                ) : (
+                  <iframe
+                    key={refreshKey}
+                    src={fullUrl}
+                    title={`Mobile preview of ${displayUrl}`}
+                    className="border-0 block"
+                    style={{
+                      width: `${PHONE_W}px`,
+                      height: `${PHONE_H}px`,
+                    }}
+                    onLoad={() => setFrameLoading(false)}
+                    onError={() => {
+                      setFrameError(true)
+                      setFrameLoading(false)
+                    }}
+                    sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
+                  />
+                )}
+              </div>
+
+              {/* Home bar */}
               <div
-                className="flex-1 flex items-center py-[13px] px-4 -ml-3 rounded-tr-[18px]"
-                style={{ background: "var(--dash-green)" }}
-              >
-                <span
-                  className="text-[13px] font-bold leading-tight text-pretty"
-                  style={{ color: "var(--dash-text)" }}
-                >
-                  Your site is now live!
-                </span>
-              </div>
+                className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full z-20"
+                style={{ width: "134px", height: "5px", background: "rgba(255,255,255,0.18)" }}
+                aria-hidden="true"
+              />
             </div>
-          )}
-        </div>
-
-        {/* Domain row */}
-        <div className="flex items-center gap-3 px-1">
-          {/* Favicon square */}
-          <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: "var(--dash-surface)" }}
-          >
-            <Globe size={15} style={{ color: "var(--dash-muted)" }} aria-hidden="true" />
           </div>
-
-          <span
-            className="flex-1 text-[14px] font-semibold"
-            style={{ color: "var(--dash-text)" }}
-          >
-            {domain}
-          </span>
-
-          {/* Pill action button placeholder */}
-          <div
-            className="h-9 w-28 rounded-full"
-            style={{ background: "var(--dash-surface)" }}
-            aria-hidden="true"
-          />
-        </div>
-
-        {/* Secondary preview card */}
-        <div
-          className="w-full rounded-[20px]"
-          style={{
-            background: "var(--dash-card)",
-            aspectRatio: "16 / 9",
-          }}
-        >
-          {secondaryPreviewUrl ? (
-            <img
-              src={secondaryPreviewUrl}
-              alt="Secondary website preview"
-              className="w-full h-full object-cover rounded-[20px]"
-            />
-          ) : (
-            <div className="w-full h-full" aria-hidden="true" />
-          )}
-        </div>
-
-        {/* Quick-action card grid */}
-        <div className="grid grid-cols-3 gap-3">
-          {quickCards.map((card) => (
-            <div
-              key={card.id}
-              className="rounded-[18px] overflow-hidden"
-              style={{
-                background: "var(--dash-card)",
-                aspectRatio: "1 / 1",
-              }}
-            >
-              {card.previewUrl ? (
-                <img
-                  src={card.previewUrl}
-                  alt={card.label ?? "Site thumbnail"}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full" aria-hidden="true" />
-              )}
-            </div>
-          ))}
-        </div>
-
-      </main>
+        )}
+      </div>
     </div>
   )
 }

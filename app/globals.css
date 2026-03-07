@@ -132,23 +132,12 @@
   -webkit-text-fill-color: transparent;
 }
 
-/* ── Dashboard preview design tokens ── */
+/* ── Site-preview dashboard tokens ── */
 :root {
-  --dash-bg:        #1a1a1a;
-  --dash-card:      #252525;
-  --dash-surface:   #2e2e2e;
-  --dash-border:    #2e2e2e;
-  --dash-green:     #22a846;
-  --dash-orange:    #e0441e;
-  --dash-text:      #ffffff;
-  --dash-muted:     rgba(255,255,255,0.45);
-}
-
-@theme inline {
-  --color-dash-bg:      var(--dash-bg);
-  --color-dash-card:    var(--dash-card);
-  --color-dash-surface: var(--dash-surface);
-  --color-dash-border:  var(--dash-border);
-  --color-dash-green:   var(--dash-green);
-  --color-dash-orange:  var(--dash-orange);
+  --preview-bg:      #1a1a1c;
+  --preview-card:    #252527;
+  --preview-surface: #2e2e30;
+  --preview-border:  #2e2e30;
+  --preview-green:   #22a846;
+  --preview-orange:  #e0441e;
 }
