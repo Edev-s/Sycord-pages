@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect, useMemo, useCallback } from "react"
+import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -471,12 +471,13 @@ export default function SiteSettingsPage() {
   const [hasDeployError, setHasDeployError] = useState(false)
   const [autoFixLogs, setAutoFixLogs] = useState<string[] | null>(null)
   const [autoDeployAttempted, setAutoDeployAttempted] = useState(false)
+  const isDeployingRef = useRef(false)
   const hasCloudflareDeployment = useMemo(() => {
     const url = project?.cloudflareUrl?.trim()
     if (!url) return false
     try {
       const parsed = new URL(url)
-      if (parsed.protocol !== "https:") return false // Cloudflare Pages serves over HTTPS; reject http explicitly
+      if (parsed.protocol !== "https:") return false // Cloudflare Pages serves over HTTPS; reject non-HTTPS protocols
       return parsed.hostname.endsWith(CLOUDFLARE_PAGES_SUFFIX)
     } catch {
       return false
@@ -797,7 +798,7 @@ export default function SiteSettingsPage() {
   }
 
   const handleDeploy = useCallback(async (options?: { markAutoAttempt?: boolean }) => {
-    if (isDeploying || !id) return
+    if (isDeployingRef.current || !id) return
     if (options?.markAutoAttempt) {
       setAutoDeployAttempted(true)
     }
@@ -870,7 +871,7 @@ export default function SiteSettingsPage() {
     } finally {
       setIsDeploying(false)
     }
-  }, [fetchLogs, id, isDeploying, pollForDomain])
+  }, [fetchLogs, id, pollForDomain])
 
   useEffect(() => {
     if (autoDeployAttempted) return
@@ -878,6 +879,10 @@ export default function SiteSettingsPage() {
 
     handleDeploy({ markAutoAttempt: true })
   }, [autoDeployAttempted, project, hasCloudflareDeployment, isDeploying, handleDeploy])
+
+  useEffect(() => {
+    isDeployingRef.current = isDeploying
+  }, [isDeploying])
 
   if (isInitialLoading) {
     return (
