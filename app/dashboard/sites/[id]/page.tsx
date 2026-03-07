@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -468,6 +468,7 @@ export default function SiteSettingsPage() {
   const [logs, setLogs] = useState<string[]>([])
   const [hasDeployError, setHasDeployError] = useState(false)
   const [autoFixLogs, setAutoFixLogs] = useState<string[] | null>(null)
+  const autoDeployAttempted = useRef(false)
 
   const fetchLogs = async (repoIdOverride?: string) => {
     const targetId = repoIdOverride || project?.githubRepoId
@@ -782,8 +783,8 @@ export default function SiteSettingsPage() {
     }
   }
 
-  const handleDeploy = async () => {
-    if (isDeploying) return
+  const handleDeploy = useCallback(async () => {
+    if (isDeploying || !id) return
     
     setIsDeploying(true)
     setDeployProgress(0)
@@ -853,7 +854,15 @@ export default function SiteSettingsPage() {
     } finally {
       setIsDeploying(false)
     }
-  }
+  }, [fetchLogs, id, isDeploying])
+
+  useEffect(() => {
+    if (!project || project.cloudflareUrl || isDeploying) return
+    if (autoDeployAttempted.current) return
+
+    autoDeployAttempted.current = true
+    handleDeploy()
+  }, [project, isDeploying, handleDeploy])
 
   if (isInitialLoading) {
     return (
