@@ -311,29 +311,28 @@ export function WebsitePreviewCard({
           {displayDomain}
         </span>
 
-        {/* Visit pill */}
+        {/* Settings pill (Primary Action) */}
+        <Link href={`/dashboard/sites/${projectId}`} className="shrink-0">
+          <div
+            className="inline-flex items-center gap-1.5 px-3 h-8 rounded-full text-[11px] font-semibold text-white transition-opacity hover:opacity-85 active:opacity-70 cursor-pointer"
+            style={{ background: "#2e2e30" }}
+          >
+            <Edit2 className="h-3 w-3" aria-hidden="true" />
+            Settings
+          </div>
+        </Link>
+
+        {/* Visit (Secondary Action) */}
         <a
           href={fullUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 px-3 h-8 rounded-full text-[11px] font-semibold text-white shrink-0 transition-opacity hover:opacity-85 active:opacity-70"
-          style={{ background: "#2e2e30" }}
+          className="shrink-0 h-8 w-8 flex items-center justify-center rounded-full text-zinc-500 hover:text-white hover:bg-white/10 transition-colors"
+          title="Visit Live Site"
         >
-          <ExternalLink className="h-3 w-3" aria-hidden="true" />
-          Visit
+          <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+          <span className="sr-only">Visit {businessName}</span>
         </a>
-
-        {/* Edit */}
-        <Link href={`/dashboard/sites/${projectId}`} className="shrink-0">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 w-8 p-0 rounded-full text-zinc-500 hover:text-white hover:bg-white/10"
-          >
-            <Edit2 className="h-3.5 w-3.5" />
-            <span className="sr-only">Edit {businessName}</span>
-          </Button>
-        </Link>
 
         {/* Delete */}
         <AlertDialog>

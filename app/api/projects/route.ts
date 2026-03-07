@@ -80,11 +80,16 @@ export async function POST(request: Request) {
             margin: 0;
             padding: 0;
         }
+        html, body {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            background-color: #141414;
+        }
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #1a1a1c;
             color: #ffffff;
-            min-height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
