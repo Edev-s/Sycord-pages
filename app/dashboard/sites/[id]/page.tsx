@@ -45,7 +45,6 @@ import {
   FileType,
   ChevronRight,
   Code,
-  Palette,
 } from "lucide-react"
 import { currencySymbols } from "@/lib/webshop-types"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -1171,70 +1170,53 @@ export default function SiteSettingsPage() {
                     </div>
 
                     {/* ══════════════════════════════════════════════════════════════
-                        EDIT STYLE — quick customization actions
+                        QUICK ACTION BUTTONS
                        ══════════════════════════════════════════════════════════════ */}
-                    <div
-                      className="w-full rounded-[20px] p-5"
-                      style={{ background: "#252527", border: "1px solid rgba(255,255,255,0.08)" }}
-                    >
-                      <div className="flex items-center gap-3 mb-4">
-                        <div
-                          className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                          style={{ background: "#2e2e30" }}
-                        >
-                          <Palette className="h-4 w-4 text-zinc-400" />
-                        </div>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <button
+                        onClick={() => setActiveTab("ai")}
+                        className="flex items-center gap-2.5 px-3.5 py-3 rounded-xl text-left transition-all hover:scale-[1.02] active:scale-[0.98]"
+                        style={{ background: "#252527", border: "1px solid rgba(255,255,255,0.08)" }}
+                      >
+                        <Sparkles className="h-4 w-4 text-zinc-400 shrink-0" />
                         <div>
-                          <p className="text-[13px] font-semibold text-zinc-200">Edit Style</p>
-                          <p className="text-[11px] text-zinc-500">Customize your website appearance</p>
+                          <p className="text-[12px] font-semibold text-zinc-200">AI Redesign</p>
+                          <p className="text-[10px] text-zinc-500">Regenerate with AI</p>
                         </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2.5">
-                        <button
-                          onClick={() => setActiveTab("ai")}
-                          className="flex items-center gap-2.5 px-3.5 py-3 rounded-xl text-left transition-all hover:scale-[1.02] active:scale-[0.98]"
-                          style={{ background: "#2e2e30" }}
-                        >
-                          <Sparkles className="h-4 w-4 text-zinc-400 shrink-0" />
-                          <div>
-                            <p className="text-[12px] font-semibold text-zinc-200">AI Redesign</p>
-                            <p className="text-[10px] text-zinc-500">Regenerate with AI</p>
-                          </div>
-                        </button>
-                        <button
-                          onClick={() => setActiveTab("pages")}
-                          className="flex items-center gap-2.5 px-3.5 py-3 rounded-xl text-left transition-all hover:scale-[1.02] active:scale-[0.98]"
-                          style={{ background: "#2e2e30" }}
-                        >
-                          <FileText className="h-4 w-4 text-zinc-400 shrink-0" />
-                          <div>
-                            <p className="text-[12px] font-semibold text-zinc-200">Edit Pages</p>
-                            <p className="text-[10px] text-zinc-500">Manage content</p>
-                          </div>
-                        </button>
-                        <button
-                          onClick={() => setActiveTab("products")}
-                          className="flex items-center gap-2.5 px-3.5 py-3 rounded-xl text-left transition-all hover:scale-[1.02] active:scale-[0.98]"
-                          style={{ background: "#2e2e30" }}
-                        >
-                          <ShoppingCart className="h-4 w-4 text-zinc-400 shrink-0" />
-                          <div>
-                            <p className="text-[12px] font-semibold text-zinc-200">Products</p>
-                            <p className="text-[10px] text-zinc-500">Add or edit items</p>
-                          </div>
-                        </button>
-                        <button
-                          onClick={() => setActiveTab("payments")}
-                          className="flex items-center gap-2.5 px-3.5 py-3 rounded-xl text-left transition-all hover:scale-[1.02] active:scale-[0.98]"
-                          style={{ background: "#2e2e30" }}
-                        >
-                          <CreditCard className="h-4 w-4 text-zinc-400 shrink-0" />
-                          <div>
-                            <p className="text-[12px] font-semibold text-zinc-200">Payments</p>
-                            <p className="text-[10px] text-zinc-500">Configure billing</p>
-                          </div>
-                        </button>
-                      </div>
+                      </button>
+                      <button
+                        onClick={() => setActiveTab("pages")}
+                        className="flex items-center gap-2.5 px-3.5 py-3 rounded-xl text-left transition-all hover:scale-[1.02] active:scale-[0.98]"
+                        style={{ background: "#252527", border: "1px solid rgba(255,255,255,0.08)" }}
+                      >
+                        <FileText className="h-4 w-4 text-zinc-400 shrink-0" />
+                        <div>
+                          <p className="text-[12px] font-semibold text-zinc-200">Edit Pages</p>
+                          <p className="text-[10px] text-zinc-500">Manage content</p>
+                        </div>
+                      </button>
+                      <button
+                        onClick={() => setActiveTab("products")}
+                        className="flex items-center gap-2.5 px-3.5 py-3 rounded-xl text-left transition-all hover:scale-[1.02] active:scale-[0.98]"
+                        style={{ background: "#252527", border: "1px solid rgba(255,255,255,0.08)" }}
+                      >
+                        <ShoppingCart className="h-4 w-4 text-zinc-400 shrink-0" />
+                        <div>
+                          <p className="text-[12px] font-semibold text-zinc-200">Products</p>
+                          <p className="text-[10px] text-zinc-500">Add or edit items</p>
+                        </div>
+                      </button>
+                      <button
+                        onClick={() => setActiveTab("payments")}
+                        className="flex items-center gap-2.5 px-3.5 py-3 rounded-xl text-left transition-all hover:scale-[1.02] active:scale-[0.98]"
+                        style={{ background: "#252527", border: "1px solid rgba(255,255,255,0.08)" }}
+                      >
+                        <CreditCard className="h-4 w-4 text-zinc-400 shrink-0" />
+                        <div>
+                          <p className="text-[12px] font-semibold text-zinc-200">Payments</p>
+                          <p className="text-[10px] text-zinc-500">Configure billing</p>
+                        </div>
+                      </button>
                     </div>
 
                 </div>
