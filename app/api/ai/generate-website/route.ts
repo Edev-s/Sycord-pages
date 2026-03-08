@@ -10,6 +10,7 @@ import {
   type GeneratedFile,
 } from "@/lib/ai-memory"
 import { getSystemPrompts, getProjectPrompts } from "@/lib/ai-prompts"
+import { cacheGeneratedFile, getCachedFiles } from "@/lib/gemini-cache"
 
 // API Configurations
 const GOOGLE_API_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
@@ -17,6 +18,7 @@ const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions"
 
 // Map models to their specific endpoints and Env Vars
 const MODEL_CONFIGS: Record<string, { url: string, envVar: string, provider: string }> = {
+  "gemini-3.1-pro-preview": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
   "gemini-2.0-flash": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
   "gemini-1.5-flash": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
   "gemini-1.5-pro": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
@@ -33,15 +35,22 @@ export async function POST(request: Request) {
     const { messages, instruction, model, generatedPages, projectId } = await request.json()
 
     // Parse generatedPages from frontend (array of { name, code })
-    const previousFiles: GeneratedFile[] = Array.isArray(generatedPages)
+    const frontendFiles: GeneratedFile[] = Array.isArray(generatedPages)
       ? generatedPages.map((p: { name: string; code: string }) => ({
           name: p.name,
           code: p.code,
         }))
       : []
 
-    // Default to Gemini 2.0 Flash
-    const modelId = model || "gemini-2.0-flash"
+    // Merge with server-side cache so the AI retains context across calls
+    // even if the frontend doesn't re-send every previously generated file.
+    const cachedFiles = projectId ? getCachedFiles(projectId) : []
+    const cachedMap = new Map<string, GeneratedFile>(cachedFiles.map((f) => [f.name, { name: f.name, code: f.code }]))
+    frontendFiles.forEach((f) => cachedMap.set(f.name, f)) // frontend data takes precedence
+    const previousFiles: GeneratedFile[] = Array.from(cachedMap.values())
+
+    // Default to gemini-3.1-pro-preview
+    const modelId = model || "gemini-3.1-pro-preview"
 
     // Map "gemini-3-flash" or similar user requests to actual model
     let configKey = modelId
@@ -52,7 +61,7 @@ export async function POST(request: Request) {
        configKey = "gemini-1.5-pro"
     }
 
-    const config = MODEL_CONFIGS[configKey] || MODEL_CONFIGS["gemini-2.0-flash"]
+    const config = MODEL_CONFIGS[configKey] || MODEL_CONFIGS["gemini-3.1-pro-preview"]
 
     let apiKey = process.env[config.envVar]
     if (config.provider === "Google" && !apiKey) {
@@ -137,7 +146,7 @@ export async function POST(request: Request) {
     }))
 
     const payload = {
-      model: modelId === "gemini-3-flash" ? "gemini-2.0-flash" : modelId,
+      model: configKey,
       messages: [
           { role: "system", content: systemPrompt },
           ...conversationHistory,
@@ -183,6 +192,11 @@ export async function POST(request: Request) {
     }
 
     extractedCode = extractedCode.replace(/\[file\].*?\[file\]/g, '').replace(/\[usedfor\].*?\[usedfor\]/g, '')
+
+    // Update server-side cache with the newly generated file
+    if (projectId && extractedCode) {
+      cacheGeneratedFile(projectId, currentTask.filename, extractedCode, currentTask.usedFor)
+    }
 
     // 5. Update Instruction (Mark as Done)
     const updatedInstruction = instruction.replace(`[${currentTask.number}]`, `[Done]`)

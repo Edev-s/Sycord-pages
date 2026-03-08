@@ -31,7 +31,10 @@ import {
   Zap,
   Cloud,
   Globe,
-  Database
+  Database,
+  ThumbsUp,
+  ThumbsDown,
+  Flag,
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -46,13 +49,20 @@ import {
 } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
 
-// Updated Models List
+// Updated Models List — gemini-3.1-pro-preview is the default
 const MODELS = [
+  { id: "gemini-3.1-pro-preview", name: "Gemini 3.1 Pro (Preview)", provider: "Google" },
   { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", provider: "Google" },
   { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", provider: "Google" },
-  { id: "gemini-3-flash", name: "Gemini 3 Flash (Preview)", provider: "Google" },
   { id: "deepseek-v3.2-exp", name: "DeepSeek V3", provider: "DeepSeek" },
 ]
+
+// Log-analysis constants — keep in sync with dashboard page fetchLogs
+const LOG_SUCCESS_PATTERNS = ['take a peek over at', 'deployment complete', 'pages.dev']
+const LOG_ERROR_PATTERNS   = ['error', 'fail', 'exception']
+
+// How long to wait after deploy before the first log check (build pipeline startup time)
+const DEPLOY_LOG_CHECK_DELAY_MS = 8000
 
 type Step = "idle" | "planning" | "needs_info" | "firebase_auth" | "coding" | "fixing" | "done"
 
@@ -263,37 +273,66 @@ const ThinkingCard = ({ isActive, isDone }: { isActive: boolean, isDone: boolean
 
     return (
         <div className="flex flex-col items-center justify-center py-6 gap-3 group transition-all duration-500 animate-in fade-in slide-in-from-bottom-2">
-            <div className="flex items-center justify-center text-zinc-500">
+            <div className="flex items-center justify-center text-zinc-300">
                 <Brain className="h-6 w-6 animate-pulse" />
             </div>
-            <h3 className={cn("text-sm font-medium transition-colors duration-300", isActive ? "text-zinc-400" : "text-zinc-500")}>
+            <h3 className={cn("text-sm font-medium transition-colors duration-300", isActive ? "text-zinc-200" : "text-zinc-400")}>
                 Thinking
             </h3>
+            {isActive && (
+                <p className="text-xs text-zinc-500 animate-pulse">Architecting your website structure…</p>
+            )}
         </div>
     )
 }
 
-const ProgressCard = ({ isActive, isDone, progress }: { isActive: boolean, isDone: boolean, progress: { percent: number } }) => {
+interface ProgressCardProps {
+  isActive: boolean
+  isDone: boolean
+  progress: { percent: number; done: number; total: number }
+  currentFile?: string
+  currentFileUsedFor?: string
+}
+
+const ProgressCard = ({ isActive, isDone, progress, currentFile, currentFileUsedFor }: ProgressCardProps) => {
     if (!isActive && !isDone) return null;
 
     return (
-        <div className="flex flex-col items-center justify-center py-6 gap-5 group transition-all duration-500 delay-100 animate-in fade-in slide-in-from-bottom-2">
-            <div className="flex items-center gap-2 text-zinc-500">
+        <div className="flex flex-col items-center justify-center py-6 gap-5 group transition-all duration-500 delay-100 animate-in fade-in slide-in-from-bottom-2 w-full">
+            <div className="flex items-center gap-2 text-zinc-300">
                 <Hammer className="h-5 w-5" />
                 <h3 className="text-base font-medium">Building</h3>
             </div>
 
             <div className="flex flex-col items-center gap-3 w-full max-w-xs">
                 {isActive ? (
-                    <Loader2 className="h-6 w-6 animate-spin text-zinc-500" />
+                    <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
                 ) : (
-                    <CheckCircle2 className="h-6 w-6 text-zinc-500" />
+                    <CheckCircle2 className="h-6 w-6 text-zinc-400" />
                 )}
-                <div className="text-center space-y-2">
-                    <p className="text-sm font-medium text-white">The AI is currently building your site</p>
-                    <div className="h-1.5 w-48 bg-zinc-800 rounded-full overflow-hidden mx-auto mt-4">
+
+                {/* Current file being generated */}
+                {currentFile && isActive && (
+                    <div className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-center space-y-1">
+                        <div className="flex items-center justify-center gap-1.5 text-[11px] text-zinc-500 uppercase tracking-wider font-semibold mb-1">
+                            <Code className="h-3 w-3" />
+                            Now generating
+                        </div>
+                        <p className="text-sm font-mono font-semibold text-white truncate">{currentFile}</p>
+                        {currentFileUsedFor && (
+                            <p className="text-xs text-zinc-400 leading-relaxed">{currentFileUsedFor}</p>
+                        )}
+                    </div>
+                )}
+
+                <div className="text-center space-y-2 w-full">
+                    <div className="flex items-center justify-between text-xs text-zinc-500 px-1">
+                        <span>{progress.done} of {progress.total} files</span>
+                        <span>{progress.percent}%</span>
+                    </div>
+                    <div className="h-1.5 w-full bg-zinc-800 rounded-full overflow-hidden">
                         <div
-                            className="h-full bg-zinc-500 rounded-full transition-all duration-500 ease-out"
+                            className="h-full bg-zinc-400 rounded-full transition-all duration-500 ease-out"
                             style={{ width: `${progress.percent}%` }}
                         />
                     </div>
@@ -308,10 +347,10 @@ const SavingCard = ({ isActive, isDone }: { isActive: boolean, isDone: boolean }
 
     return (
         <div className="flex flex-col items-center justify-center py-6 gap-3 group transition-all duration-500 delay-200 animate-in fade-in slide-in-from-bottom-2">
-            <div className="flex items-center justify-center text-zinc-500">
+            <div className="flex items-center justify-center text-zinc-300">
                {isDone ? <Check className="h-6 w-6" /> : <Cloud className="h-6 w-6 animate-pulse" />}
             </div>
-            <h3 className={cn("text-sm font-medium transition-colors duration-300", isActive ? "text-zinc-400" : "text-zinc-500")}>
+            <h3 className={cn("text-sm font-medium transition-colors duration-300", isActive ? "text-zinc-200" : "text-zinc-300")}>
                {isDone ? "Saved to cloud" : "Saving"}
             </h3>
         </div>
@@ -389,6 +428,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
   const [error, setError] = useState<string | null>(null)
 
   const [activeFile, setActiveFile] = useState<string | undefined>(undefined)
+  const [activeFileUsedFor, setActiveFileUsedFor] = useState<string | undefined>(undefined)
 
   const [isDeploying, setIsDeploying] = useState(false)
   const [deploySuccess, setDeploySuccess] = useState(false)
@@ -400,6 +440,16 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
 
   const [fixHistory, setFixHistory] = useState<any[]>([])
   const [requiresDatabase, setRequiresDatabase] = useState(false)
+
+  // Per-message feedback: 'like' | 'dislike' | 'report' | null
+  const [messageFeedback, setMessageFeedback] = useState<Record<string, 'like' | 'dislike' | 'report' | null>>({})
+
+  const giveFeedback = (msgId: string, kind: 'like' | 'dislike' | 'report') => {
+    setMessageFeedback(prev => ({
+      ...prev,
+      [msgId]: prev[msgId] === kind ? null : kind,
+    }))
+  }
 
 
   // Compute file-level progress from instruction
@@ -414,6 +464,15 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
   }
 
   const progress = getProgress()
+
+  // Ref for auto-scrolling to the bottom of the chat
+  const chatBottomRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (step !== 'idle') {
+      chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [messages.length, step])
 
   useEffect(() => {
     if (autoFixLogs && autoFixLogs.length > 0 && step === 'idle') {
@@ -689,8 +748,13 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
     setStep("coding")
     setCurrentPlan("Generating next file...")
 
-    const nextFileMatch = /\[\d+\]\s*([^\s:]+)/.exec(currentInstruction)
-    if (nextFileMatch) setActiveFile(nextFileMatch[1])
+    // Pattern matches: [N] filename.ext [usedfor]description[/usedfor]
+    // e.g. [1] index.html [usedfor]Main entry point[usedfor]
+    const nextFileMatch = /\[\d+\]\s*([^\s:]+)(?:[:\-]?\s*\[usedfor\](.*?)\[usedfor\])?/.exec(currentInstruction)
+    if (nextFileMatch) {
+      setActiveFile(nextFileMatch[1])
+      setActiveFileUsedFor(nextFileMatch[2]?.trim() || undefined)
+    }
 
     try {
       const response = await fetch("/api/ai/generate-website", {
@@ -712,6 +776,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
         setStep("done")
         setCurrentPlan("All files generated.")
         setActiveFile(undefined)
+        setActiveFileUsedFor(undefined)
         return
       }
 
@@ -755,6 +820,50 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       setError(err.message)
       setStep("idle")
       setActiveFile(undefined)
+      setActiveFileUsedFor(undefined)
+    }
+  }
+
+  const checkDeployLogs = async (repoId: string, attempt = 0) => {
+    // Give up after ~40 seconds (8 attempts × 5 s)
+    if (attempt >= 8) return
+
+    try {
+      const res = await fetch(`https://micro1.sycord.com/api/logs?project_id=${repoId}`)
+      if (!res.ok) {
+        setTimeout(() => checkDeployLogs(repoId, attempt + 1), 5000)
+        return
+      }
+      const data = await res.json()
+      if (!data.success || !Array.isArray(data.logs) || data.logs.length === 0) {
+        setTimeout(() => checkDeployLogs(repoId, attempt + 1), 5000)
+        return
+      }
+
+      const combinedLower = data.logs.join('\n').toLowerCase()
+
+      const isSuccess = LOG_SUCCESS_PATTERNS.some(p => combinedLower.includes(p))
+      if (isSuccess) return // Build was fine
+
+      const hasError = data.logs.some((log: string) => {
+        const logLower = log.toLowerCase()
+        return LOG_ERROR_PATTERNS.some(p => logLower.includes(p))
+      })
+
+      if (hasError) {
+        setMessages(prev => [...prev, {
+          id: Date.now().toString(),
+          role: 'assistant',
+          content: 'I detected a build error in the deployment logs. Starting automatic repair…',
+        }])
+        startAutoFixSession(data.logs)
+        return
+      }
+
+      // No conclusive result yet — keep polling
+      setTimeout(() => checkDeployLogs(repoId, attempt + 1), 5000)
+    } catch {
+      setTimeout(() => checkDeployLogs(repoId, attempt + 1), 5000)
     }
   }
 
@@ -771,6 +880,10 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
               setDeploySuccess(true)
               setDeployResult(data)
               setShowAutoDeploy(false)
+              // After deploy succeeds, wait for the build then check logs for errors
+              if (data.repoId) {
+                  setTimeout(() => checkDeployLogs(data.repoId), DEPLOY_LOG_CHECK_DELAY_MS)
+              }
           } else {
               setError(data.error)
           }
@@ -781,110 +894,176 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       }
   }
 
-  // Plan content extraction
-  const planMessage = messages.find(m => m.role === 'assistant' && m.plan)
-  const planContent = planMessage?.content || ""
-
   return (
-    <div className="flex flex-col h-full bg-transparent text-zinc-100 font-sans relative overflow-hidden">
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col relative overflow-hidden">
-             {/* Background Accents - Blue only, as requested */}
-             {step === 'idle' && (
-                 <>
-                     <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
-                     <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
-                 </>
-             )}
+    <div className="flex flex-col h-full bg-transparent text-zinc-100 font-sans relative">
+        {/* Background Accents - idle only */}
+        {step === 'idle' && (
+            <>
+                <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+            </>
+        )}
 
-            <div className="flex-1 overflow-y-auto p-6 md:p-12 custom-scrollbar relative z-10 flex flex-col">
-                 {/* IDLE STATE */}
+        {/* Scrollable chat area */}
+        <div
+            className="flex-1 overflow-y-auto custom-scrollbar relative z-10 pb-32"
+            style={{ WebkitOverflowScrolling: 'touch' }}
+        >
+            <div className="max-w-2xl mx-auto w-full px-4 md:px-0 min-h-full flex flex-col">
+
+                {/* IDLE STATE */}
                 {step === 'idle' && (
-                    <div className="flex flex-col items-center justify-start pt-20 text-center max-w-2xl w-full mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700 delay-150 h-full">
+                    <div className="flex-1 flex flex-col items-center justify-center text-center py-20 animate-in fade-in slide-in-from-bottom-8 duration-700 relative">
                         <GeminiBadge />
-                        <div className="flex-1 flex flex-col items-center justify-center">
-                            <h1 className="text-4xl md:text-5xl font-medium tracking-tight mb-2 text-white">
+                        <div className="mt-4 space-y-1">
+                            <h1 className="text-4xl md:text-5xl font-medium tracking-tight text-white">
                                 Hi {userName},
                             </h1>
-                            <h2 className="text-4xl md:text-5xl font-medium tracking-tight text-zinc-500 mb-6">
+                            <h2 className="text-4xl md:text-5xl font-medium tracking-tight text-zinc-500">
                                 What are we building?
                             </h2>
                         </div>
                     </div>
                 )}
 
-                {/* GENERATING/DONE STATE */}
-                {(step !== 'idle') && (
-                    <div className="max-w-2xl mx-auto space-y-6 w-full flex-1 flex flex-col justify-start pb-20 pt-6">
+                {/* CHAT / GENERATING STATE */}
+                {step !== 'idle' && (
+                    <div className="flex flex-col pt-8 pb-4">
 
-                         {/* Preview Box Skeleton */}
-                         {(step === 'coding' || step === 'fixing' || step === 'planning' || step === 'needs_info' || step === 'firebase_auth' || step === 'done') && (
-                             <WebsitePreviewCardSkeleton />
-                         )}
+                        {/* Messages — plain text, no bubbles, Gemini-style */}
+                        {messages
+                            .filter(m => m.role === 'user' || (m.role === 'assistant' && !m.plan && !m.isIntermediate))
+                            .map((msg, i) => (
+                                <div
+                                    key={msg.id || i}
+                                    className={cn(
+                                        "py-2.5",
+                                        msg.role === 'user' ? "flex justify-end" : "flex flex-col items-start"
+                                    )}
+                                >
+                                    <p className={cn(
+                                        "text-sm leading-relaxed max-w-[82%]",
+                                        msg.role === 'user' ? "text-zinc-200 text-right" : "text-zinc-400"
+                                    )}>
+                                        {msg.content}
+                                    </p>
 
-                         <div className="flex flex-col items-center justify-center w-full">
-                            {step === 'planning' && (
-                                <ThinkingCard isActive={true} isDone={false} />
-                            )}
+                                    {/* Feedback buttons — assistant messages only */}
+                                    {msg.role === 'assistant' && (
+                                        <div className="flex items-center gap-3 mt-1.5">
+                                            <button
+                                                onClick={() => giveFeedback(msg.id, 'like')}
+                                                title="Like"
+                                                className={cn(
+                                                    "transition-colors",
+                                                    messageFeedback[msg.id] === 'like'
+                                                        ? "text-zinc-200"
+                                                        : "text-zinc-700 hover:text-zinc-400"
+                                                )}
+                                            >
+                                                <ThumbsUp className="h-3.5 w-3.5" />
+                                            </button>
+                                            <button
+                                                onClick={() => giveFeedback(msg.id, 'dislike')}
+                                                title="Dislike"
+                                                className={cn(
+                                                    "transition-colors",
+                                                    messageFeedback[msg.id] === 'dislike'
+                                                        ? "text-zinc-200"
+                                                        : "text-zinc-700 hover:text-zinc-400"
+                                                )}
+                                            >
+                                                <ThumbsDown className="h-3.5 w-3.5" />
+                                            </button>
+                                            <button
+                                                onClick={() => giveFeedback(msg.id, 'report')}
+                                                title="Report problem"
+                                                className={cn(
+                                                    "transition-colors",
+                                                    messageFeedback[msg.id] === 'report'
+                                                        ? "text-red-400"
+                                                        : "text-zinc-700 hover:text-zinc-400"
+                                                )}
+                                            >
+                                                <Flag className="h-3.5 w-3.5" />
+                                            </button>
+                                            {messageFeedback[msg.id] === 'report' && (
+                                                <span className="text-[11px] text-zinc-600">Reported</span>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            ))
+                        }
 
-                            {(step === 'coding' || step === 'fixing') && (
-                                <ProgressCard isActive={true} isDone={false} progress={progress} />
-                            )}
+                        {/* ── Status indicators at bottom — inline, chat-style ── */}
 
-                            {step === 'firebase_auth' && (
+                        {step === 'planning' && (
+                            <div className="flex items-center gap-2.5 py-3 mt-2 animate-in fade-in duration-300">
+                                <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-zinc-500" />
+                                <span className="text-sm text-zinc-500">Thinking…</span>
+                            </div>
+                        )}
+
+                        {(step === 'coding' || step === 'fixing') && (
+                            <div className="py-3 mt-2 space-y-2.5 animate-in fade-in duration-300">
+                                <div className="flex items-center gap-2.5">
+                                    <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-zinc-500" />
+                                    <span className="text-sm text-zinc-400 truncate">
+                                        {activeFile ? `Generating ${activeFile}` : 'Building your website…'}
+                                    </span>
+                                </div>
+                                {activeFileUsedFor && (
+                                    <p className="text-xs text-zinc-600 pl-6 leading-relaxed">{activeFileUsedFor}</p>
+                                )}
+                                <div className="pl-6 space-y-1">
+                                    <div className="flex items-center justify-between text-[11px] text-zinc-600">
+                                        <span>{progress.done} of {progress.total} files</span>
+                                        <span>{progress.percent}%</span>
+                                    </div>
+                                    <div className="h-[2px] bg-zinc-800/80 rounded-full overflow-hidden">
+                                        <div
+                                            className="h-full bg-zinc-500 rounded-full transition-all duration-500 ease-out"
+                                            style={{ width: `${progress.percent}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {step === 'firebase_auth' && (
+                            <div className="mt-4">
                                 <FirebaseConnectionCard onConnect={() => {
                                     setStep("planning")
-                                    if (instruction) {
-                                        processNextStep(instruction, [...messages])
-                                    }
+                                    if (instruction) processNextStep(instruction, [...messages])
                                 }} />
-                            )}
+                            </div>
+                        )}
 
-                            {step === 'done' && (
-                                <SavingCard isActive={false} isDone={true} />
-                            )}
-                         </div>
-
-                         {/* Chat History View */}
-                         {(step === 'coding' || step === 'done' || step === 'fixing' || step === 'needs_info' || step === 'firebase_auth') && (
-                             <div className="mt-8 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                                 {messages.filter(m => m.role === 'user' || (m.role === 'assistant' && !m.plan && !m.isIntermediate)).map((msg, i) => (
-                                     <div key={i} className={cn("flex flex-col", msg.role === 'user' ? "items-end" : "items-start")}>
-                                         <div className={cn(
-                                             "px-4 py-3 rounded-2xl max-w-[85%] text-sm",
-                                             msg.role === 'user'
-                                                ? "bg-white/10 text-white rounded-br-sm"
-                                                : "bg-zinc-900/50 border border-white/5 text-zinc-300 rounded-bl-sm"
-                                         )}>
-                                             {msg.content}
-                                         </div>
-                                     </div>
-                                 ))}
-                             </div>
-                         )}
-
-                         {/* Done Actions */}
                         {step === 'done' && (
-                            <div className="mt-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                                 <div className="flex items-center gap-4 p-4 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 mb-6 backdrop-blur-md">
-                                    <CheckCircle2 className="h-5 w-5" />
-                                    <span className="font-medium">Website generation complete!</span>
-                                 </div>
+                            <div className="py-3 mt-2 flex items-center gap-2.5 animate-in fade-in duration-300">
+                                <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+                                <span className="text-sm text-zinc-400">Website ready</span>
+                            </div>
+                        )}
 
-                                 <div className="grid grid-cols-2 gap-4">
+                        {/* Done Actions */}
+                        {step === 'done' && (
+                            <div className="mt-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                <div className="grid grid-cols-2 gap-3">
                                     <Button
                                         size="lg"
-                                        className="w-full h-14 text-base font-semibold bg-white text-black hover:bg-zinc-200 rounded-xl"
+                                        className="w-full h-12 text-sm font-semibold bg-white text-black hover:bg-zinc-200 rounded-xl"
                                         onClick={handleDeploy}
                                         disabled={isDeploying}
                                     >
-                                        {isDeploying ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Rocket className="h-5 w-5 mr-2" />}
+                                        {isDeploying ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Rocket className="h-4 w-4 mr-2" />}
                                         {deploySuccess ? "Deployed!" : "Deploy to Cloudflare"}
                                     </Button>
-                                     <Button
+                                    <Button
                                         size="lg"
                                         variant="outline"
-                                        className="w-full h-14 text-base font-medium bg-zinc-900/50 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white rounded-xl backdrop-blur-sm"
+                                        className="w-full h-12 text-sm font-medium bg-transparent border-zinc-800 text-zinc-400 hover:bg-zinc-800/50 hover:text-white rounded-xl"
                                         onClick={() => {
                                             setStep('idle')
                                             setInput("")
@@ -893,40 +1072,41 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                                     >
                                         Create Another
                                     </Button>
-                                 </div>
-                            </div>
-                        )}
-
-                         {/* Error Display */}
-                        {error && (
-                             <div className="mt-8 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 flex items-start gap-3 backdrop-blur-md">
-                                <Bug className="h-5 w-5 shrink-0" />
-                                <div className="space-y-1">
-                                    <h4 className="font-medium text-sm">Error</h4>
-                                    <p className="text-xs opacity-90">{error}</p>
-                                    <Button
-                                        variant="link"
-                                        className="text-red-400 p-0 h-auto text-xs mt-2"
-                                        onClick={() => setStep('idle')}
-                                    >
-                                        Reset
-                                    </Button>
                                 </div>
                             </div>
                         )}
+
+                        {/* Error Display */}
+                        {error && (
+                            <div className="mt-4 flex items-start gap-2.5">
+                                <Bug className="h-4 w-4 shrink-0 text-red-400 mt-0.5" />
+                                <div>
+                                    <p className="text-sm text-red-400">{error}</p>
+                                    <button
+                                        className="text-xs text-red-500/60 hover:text-red-400 mt-1 underline-offset-2 underline"
+                                        onClick={() => setStep('idle')}
+                                    >
+                                        Reset
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Scroll anchor — keeps status row visible at bottom */}
+                        <div ref={chatBottomRef} />
                     </div>
                 )}
             </div>
+        </div>
 
-            {/* Input Bar - Always visible, fixed at bottom */}
-            <div className="w-full relative z-20">
-                <InputBar
-                    input={input}
-                    setInput={setInput}
-                    onSend={startGeneration}
-                    disabled={step !== 'idle' && step !== 'needs_info'}
-                />
-            </div>
+        {/* Input Bar — always at bottom */}
+        <div className="w-full relative z-20">
+            <InputBar
+                input={input}
+                setInput={setInput}
+                onSend={startGeneration}
+                disabled={step !== 'idle' && step !== 'needs_info'}
+            />
         </div>
     </div>
   )

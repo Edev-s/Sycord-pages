@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth"
 import { GoogleGenerativeAI } from "@google/generative-ai"
 import { getSystemPrompts } from "@/lib/ai-prompts"
 
-const PLAN_MODEL = "gemini-2.0-flash"
+const PLAN_MODEL = "gemini-3.1-pro-preview"
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions)
