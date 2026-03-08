@@ -46,12 +46,11 @@ import {
 } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
 
-// Updated Models List
+// Updated Models List - gemini-3.1-pro-preview forced for generation
 const MODELS = [
+  { id: "gemini-3.1-pro-preview", name: "Gemini 3.1 Pro (Preview)", provider: "Google" },
   { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", provider: "Google" },
   { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", provider: "Google" },
-  { id: "gemini-3-flash", name: "Gemini 3 Flash (Preview)", provider: "Google" },
-  { id: "deepseek-v3.2-exp", name: "DeepSeek V3", provider: "DeepSeek" },
 ]
 
 type Step = "idle" | "planning" | "needs_info" | "firebase_auth" | "coding" | "fixing" | "done"
@@ -165,7 +164,7 @@ const FileTreeVisualizer = ({ pages, currentFile }: { pages: GeneratedPage[], cu
               isGenerating && "text-white"
           )} />
 
-          <span className={cn("truncate flex-1 font-mono", isGenerating ? "text-white" : "text-zinc-400")}>{node.name}</span>
+          <span className={cn("truncate flex-1 font-mono", isGenerating ? "text-white" : "text-zinc-300")}>{node.name}</span>
 
           {isGenerating && <Loader2 className="h-3 w-3 animate-spin text-white" />}
         </div>
@@ -177,8 +176,8 @@ const FileTreeVisualizer = ({ pages, currentFile }: { pages: GeneratedPage[], cu
   }
 
   return (
-    <div className="font-mono bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-3 min-h-[200px] max-h-[400px] overflow-y-auto custom-scrollbar">
-      <div className="text-[10px] text-zinc-500 mb-3 flex items-center gap-2 uppercase tracking-wider font-semibold px-2">
+    <div className="font-mono bg-white/5 backdrop-blur-md rounded-xl border border-white/10 p-3 min-h-[200px] max-h-[400px] overflow-y-auto overscroll-contain custom-scrollbar [-webkit-overflow-scrolling:touch]">
+      <div className="text-[10px] text-zinc-400 mb-3 flex items-center gap-2 uppercase tracking-wider font-semibold px-2">
          <Folder className="h-3 w-3" /> Project Structure
       </div>
       {tree.length === 0 ? (
@@ -224,10 +223,10 @@ const GeminiBadge = () => (
 )
 
 const InputBar = ({ input, setInput, onSend, disabled }: { input: string, setInput: (v: string) => void, onSend: () => void, disabled: boolean }) => (
-    <div className="w-full max-w-2xl mx-auto px-4 pb-6 md:pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 z-50 fixed bottom-0 left-0 right-0 md:static">
+    <div className="w-full max-w-2xl mx-auto px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 z-50 fixed bottom-0 left-0 right-0 md:static">
         <div className={cn(
-            "rounded-[2rem] p-1.5 relative shadow-lg transition-all duration-300 border border-white/5 bg-[#1c1c1c] flex items-center gap-2",
-            disabled ? "opacity-80 pointer-events-none" : "focus-within:border-white/10"
+            "rounded-[2rem] p-1.5 relative shadow-lg transition-all duration-300 border border-white/10 bg-[#1c1c1c] flex items-center gap-2",
+            disabled ? "opacity-80 pointer-events-none" : "focus-within:border-white/20 focus-within:shadow-xl"
         )}>
             <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full text-zinc-500 hover:text-zinc-300 hover:bg-white/5 transition-all shrink-0 ml-1" disabled={disabled}>
                 <Paperclip className="h-5 w-5" />
@@ -237,8 +236,8 @@ const InputBar = ({ input, setInput, onSend, disabled }: { input: string, setInp
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && onSend()}
-                placeholder="Describe the website you want"
-                className="flex-1 border-none bg-transparent dark:bg-transparent h-12 text-base text-zinc-200 placeholder:text-zinc-600 focus-visible:ring-0 px-0 shadow-none"
+                placeholder="Describe the website you want to build..."
+                className="flex-1 border-none bg-transparent dark:bg-transparent h-12 text-base text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-0 px-0 shadow-none"
                 disabled={disabled}
                 autoFocus={!disabled}
             />
@@ -247,12 +246,12 @@ const InputBar = ({ input, setInput, onSend, disabled }: { input: string, setInp
                 size="icon"
                 className={cn(
                     "h-10 w-10 rounded-full transition-all active:scale-95 shrink-0 flex items-center justify-center bg-transparent border-none mr-1 shadow-none",
-                    input.trim() && !disabled ? "text-zinc-400 hover:text-white hover:bg-white/10" : "text-zinc-700 hover:bg-transparent"
+                    input.trim() && !disabled ? "text-zinc-300 hover:text-white hover:bg-white/10" : "text-zinc-700 hover:bg-transparent"
                 )}
                 onClick={onSend}
                 disabled={!input.trim() || disabled}
             >
-               {disabled ? <Loader2 className="h-5 w-5 animate-spin text-zinc-700" /> : <Send className="h-5 w-5" />}
+               {disabled ? <Loader2 className="h-5 w-5 animate-spin text-zinc-600" /> : <Send className="h-5 w-5" />}
             </Button>
         </div>
     </div>
@@ -263,11 +262,11 @@ const ThinkingCard = ({ isActive, isDone }: { isActive: boolean, isDone: boolean
 
     return (
         <div className="flex flex-col items-center justify-center py-6 gap-3 group transition-all duration-500 animate-in fade-in slide-in-from-bottom-2">
-            <div className="flex items-center justify-center text-zinc-500">
+            <div className="flex items-center justify-center text-zinc-300">
                 <Brain className="h-6 w-6 animate-pulse" />
             </div>
-            <h3 className={cn("text-sm font-medium transition-colors duration-300", isActive ? "text-zinc-400" : "text-zinc-500")}>
-                Thinking
+            <h3 className={cn("text-sm font-medium transition-colors duration-300", isActive ? "text-zinc-200" : "text-zinc-400")}>
+                Analyzing your request...
             </h3>
         </div>
     )
@@ -278,22 +277,23 @@ const ProgressCard = ({ isActive, isDone, progress }: { isActive: boolean, isDon
 
     return (
         <div className="flex flex-col items-center justify-center py-6 gap-5 group transition-all duration-500 delay-100 animate-in fade-in slide-in-from-bottom-2">
-            <div className="flex items-center gap-2 text-zinc-500">
+            <div className="flex items-center gap-2 text-zinc-300">
                 <Hammer className="h-5 w-5" />
-                <h3 className="text-base font-medium">Building</h3>
+                <h3 className="text-base font-medium">Building your site</h3>
             </div>
 
             <div className="flex flex-col items-center gap-3 w-full max-w-xs">
                 {isActive ? (
-                    <Loader2 className="h-6 w-6 animate-spin text-zinc-500" />
+                    <Loader2 className="h-6 w-6 animate-spin text-zinc-300" />
                 ) : (
-                    <CheckCircle2 className="h-6 w-6 text-zinc-500" />
+                    <CheckCircle2 className="h-6 w-6 text-zinc-300" />
                 )}
                 <div className="text-center space-y-2">
-                    <p className="text-sm font-medium text-white">The AI is currently building your site</p>
-                    <div className="h-1.5 w-48 bg-zinc-800 rounded-full overflow-hidden mx-auto mt-4">
+                    <p className="text-sm font-medium text-zinc-100">Generating files with Gemini 3.1 Pro</p>
+                    <p className="text-xs text-zinc-400">{progress.percent}% complete</p>
+                    <div className="h-2 w-48 bg-zinc-800 rounded-full overflow-hidden mx-auto mt-4">
                         <div
-                            className="h-full bg-zinc-500 rounded-full transition-all duration-500 ease-out"
+                            className="h-full bg-zinc-400 rounded-full transition-all duration-500 ease-out"
                             style={{ width: `${progress.percent}%` }}
                         />
                     </div>
@@ -308,11 +308,11 @@ const SavingCard = ({ isActive, isDone }: { isActive: boolean, isDone: boolean }
 
     return (
         <div className="flex flex-col items-center justify-center py-6 gap-3 group transition-all duration-500 delay-200 animate-in fade-in slide-in-from-bottom-2">
-            <div className="flex items-center justify-center text-zinc-500">
+            <div className="flex items-center justify-center text-zinc-300">
                {isDone ? <Check className="h-6 w-6" /> : <Cloud className="h-6 w-6 animate-pulse" />}
             </div>
-            <h3 className={cn("text-sm font-medium transition-colors duration-300", isActive ? "text-zinc-400" : "text-zinc-500")}>
-               {isDone ? "Saved to cloud" : "Saving"}
+            <h3 className={cn("text-sm font-medium transition-colors duration-300", isActive ? "text-zinc-200" : "text-zinc-400")}>
+               {isDone ? "Saved to cloud" : "Saving files..."}
             </h3>
         </div>
     )
@@ -797,16 +797,16 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                  </>
              )}
 
-            <div className="flex-1 overflow-y-auto p-6 md:p-12 custom-scrollbar relative z-10 flex flex-col">
+            <div className="flex-1 overflow-y-auto overscroll-contain p-4 md:p-12 custom-scrollbar relative z-10 flex flex-col scroll-smooth pb-28 md:pb-6 [-webkit-overflow-scrolling:touch]">
                  {/* IDLE STATE */}
                 {step === 'idle' && (
-                    <div className="flex flex-col items-center justify-start pt-20 text-center max-w-2xl w-full mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700 delay-150 h-full">
+                    <div className="flex flex-col items-center justify-start pt-16 md:pt-20 text-center max-w-2xl w-full mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700 delay-150 h-full">
                         <GeminiBadge />
                         <div className="flex-1 flex flex-col items-center justify-center">
-                            <h1 className="text-4xl md:text-5xl font-medium tracking-tight mb-2 text-white">
+                            <h1 className="text-3xl md:text-5xl font-medium tracking-tight mb-2 text-white">
                                 Hi {userName},
                             </h1>
-                            <h2 className="text-4xl md:text-5xl font-medium tracking-tight text-zinc-500 mb-6">
+                            <h2 className="text-3xl md:text-5xl font-medium tracking-tight text-zinc-400 mb-6">
                                 What are we building?
                             </h2>
                         </div>
@@ -815,7 +815,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
 
                 {/* GENERATING/DONE STATE */}
                 {(step !== 'idle') && (
-                    <div className="max-w-2xl mx-auto space-y-6 w-full flex-1 flex flex-col justify-start pb-20 pt-6">
+                    <div className="max-w-2xl mx-auto space-y-6 w-full flex-1 flex flex-col justify-start pb-32 md:pb-20 pt-4 md:pt-6">
 
                          {/* Preview Box Skeleton */}
                          {(step === 'coding' || step === 'fixing' || step === 'planning' || step === 'needs_info' || step === 'firebase_auth' || step === 'done') && (
@@ -851,10 +851,10 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                                  {messages.filter(m => m.role === 'user' || (m.role === 'assistant' && !m.plan && !m.isIntermediate)).map((msg, i) => (
                                      <div key={i} className={cn("flex flex-col", msg.role === 'user' ? "items-end" : "items-start")}>
                                          <div className={cn(
-                                             "px-4 py-3 rounded-2xl max-w-[85%] text-sm",
+                                             "px-4 py-3 rounded-2xl max-w-[85%] text-sm leading-relaxed",
                                              msg.role === 'user'
-                                                ? "bg-white/10 text-white rounded-br-sm"
-                                                : "bg-zinc-900/50 border border-white/5 text-zinc-300 rounded-bl-sm"
+                                                ? "bg-white/10 text-zinc-100 rounded-br-sm"
+                                                : "bg-zinc-900/50 border border-white/10 text-zinc-200 rounded-bl-sm"
                                          )}>
                                              {msg.content}
                                          </div>
