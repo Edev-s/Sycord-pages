@@ -31,7 +31,10 @@ import {
   Zap,
   Cloud,
   Globe,
-  Database
+  Database,
+  ThumbsUp,
+  ThumbsDown,
+  Flag,
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -53,6 +56,13 @@ const MODELS = [
   { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", provider: "Google" },
   { id: "deepseek-v3.2-exp", name: "DeepSeek V3", provider: "DeepSeek" },
 ]
+
+// Log-analysis constants — keep in sync with dashboard page fetchLogs
+const LOG_SUCCESS_PATTERNS = ['take a peek over at', 'deployment complete', 'pages.dev']
+const LOG_ERROR_PATTERNS   = ['error', 'fail', 'exception']
+
+// How long to wait after deploy before the first log check (build pipeline startup time)
+const DEPLOY_LOG_CHECK_DELAY_MS = 8000
 
 type Step = "idle" | "planning" | "needs_info" | "firebase_auth" | "coding" | "fixing" | "done"
 
@@ -431,6 +441,16 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
   const [fixHistory, setFixHistory] = useState<any[]>([])
   const [requiresDatabase, setRequiresDatabase] = useState(false)
 
+  // Per-message feedback: 'like' | 'dislike' | 'report' | null
+  const [messageFeedback, setMessageFeedback] = useState<Record<string, 'like' | 'dislike' | 'report' | null>>({})
+
+  const giveFeedback = (msgId: string, kind: 'like' | 'dislike' | 'report') => {
+    setMessageFeedback(prev => ({
+      ...prev,
+      [msgId]: prev[msgId] === kind ? null : kind,
+    }))
+  }
+
 
   // Compute file-level progress from instruction
   const getProgress = () => {
@@ -804,6 +824,49 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
     }
   }
 
+  const checkDeployLogs = async (repoId: string, attempt = 0) => {
+    // Give up after ~40 seconds (8 attempts × 5 s)
+    if (attempt >= 8) return
+
+    try {
+      const res = await fetch(`https://micro1.sycord.com/api/logs?project_id=${repoId}`)
+      if (!res.ok) {
+        setTimeout(() => checkDeployLogs(repoId, attempt + 1), 5000)
+        return
+      }
+      const data = await res.json()
+      if (!data.success || !Array.isArray(data.logs) || data.logs.length === 0) {
+        setTimeout(() => checkDeployLogs(repoId, attempt + 1), 5000)
+        return
+      }
+
+      const combinedLower = data.logs.join('\n').toLowerCase()
+
+      const isSuccess = LOG_SUCCESS_PATTERNS.some(p => combinedLower.includes(p))
+      if (isSuccess) return // Build was fine
+
+      const hasError = data.logs.some((log: string) => {
+        const logLower = log.toLowerCase()
+        return LOG_ERROR_PATTERNS.some(p => logLower.includes(p))
+      })
+
+      if (hasError) {
+        setMessages(prev => [...prev, {
+          id: Date.now().toString(),
+          role: 'assistant',
+          content: 'I detected a build error in the deployment logs. Starting automatic repair…',
+        }])
+        startAutoFixSession(data.logs)
+        return
+      }
+
+      // No conclusive result yet — keep polling
+      setTimeout(() => checkDeployLogs(repoId, attempt + 1), 5000)
+    } catch {
+      setTimeout(() => checkDeployLogs(repoId, attempt + 1), 5000)
+    }
+  }
+
   const handleDeploy = async () => {
       setIsDeploying(true)
       try {
@@ -817,6 +880,10 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
               setDeploySuccess(true)
               setDeployResult(data)
               setShowAutoDeploy(false)
+              // After deploy succeeds, wait for the build then check logs for errors
+              if (data.repoId) {
+                  setTimeout(() => checkDeployLogs(data.repoId), DEPLOY_LOG_CHECK_DELAY_MS)
+              }
           } else {
               setError(data.error)
           }
@@ -871,7 +938,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                                     key={msg.id || i}
                                     className={cn(
                                         "py-2.5",
-                                        msg.role === 'user' ? "flex justify-end" : "flex justify-start"
+                                        msg.role === 'user' ? "flex justify-end" : "flex flex-col items-start"
                                     )}
                                 >
                                     <p className={cn(
@@ -880,6 +947,51 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                                     )}>
                                         {msg.content}
                                     </p>
+
+                                    {/* Feedback buttons — assistant messages only */}
+                                    {msg.role === 'assistant' && (
+                                        <div className="flex items-center gap-3 mt-1.5">
+                                            <button
+                                                onClick={() => giveFeedback(msg.id, 'like')}
+                                                title="Like"
+                                                className={cn(
+                                                    "transition-colors",
+                                                    messageFeedback[msg.id] === 'like'
+                                                        ? "text-zinc-200"
+                                                        : "text-zinc-700 hover:text-zinc-400"
+                                                )}
+                                            >
+                                                <ThumbsUp className="h-3.5 w-3.5" />
+                                            </button>
+                                            <button
+                                                onClick={() => giveFeedback(msg.id, 'dislike')}
+                                                title="Dislike"
+                                                className={cn(
+                                                    "transition-colors",
+                                                    messageFeedback[msg.id] === 'dislike'
+                                                        ? "text-zinc-200"
+                                                        : "text-zinc-700 hover:text-zinc-400"
+                                                )}
+                                            >
+                                                <ThumbsDown className="h-3.5 w-3.5" />
+                                            </button>
+                                            <button
+                                                onClick={() => giveFeedback(msg.id, 'report')}
+                                                title="Report problem"
+                                                className={cn(
+                                                    "transition-colors",
+                                                    messageFeedback[msg.id] === 'report'
+                                                        ? "text-red-400"
+                                                        : "text-zinc-700 hover:text-zinc-400"
+                                                )}
+                                            >
+                                                <Flag className="h-3.5 w-3.5" />
+                                            </button>
+                                            {messageFeedback[msg.id] === 'report' && (
+                                                <span className="text-[11px] text-zinc-600">Reported</span>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             ))
                         }
