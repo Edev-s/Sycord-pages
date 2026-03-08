@@ -76,7 +76,7 @@ You must output a single text block strictly following this format:
 [Description of the goal]
 
 ## REQUIRES_DATABASE: [true/false]
-[Set to true ONLY if the user request requires a database/backend to store or manage data (e.g. users, posts, products, messages). Otherwise false.]
+[Evaluate carefully whether this project requires persistent data storage. Set to true if the project involves any of: products/items (e.g. phone store, flower shop, any e-commerce), user accounts/login, posts, messages, bookings, orders, or any dynamic content that needs to be saved. Set to false only for purely static/informational websites with no data persistence needs. Always explain your decision briefly to the user in the ## 5. Implementation Strategy section.]
 
 ## 2. Design System
 [Description of the design]
@@ -93,7 +93,7 @@ You must output a single text block strictly following this format:
 - **Reservation/**: Conversion page. Define date picker, time slot selection, and confirmation logic.
 
 ## 5. Implementation Strategy
-[Summary]
+[Summary. If REQUIRES_DATABASE is true, explain to the user (in their language) that this project needs a database to store items/data, and that they will need to connect Firebase to proceed. Example: "This project needs a database to store your products. I'll ask you to connect Firebase so your items can be saved and managed."]
 
 [0] The user base plan is to create [Overview of the site]. As an AI web builder using Vite + TypeScript for Cloudflare Pages, I will generate the following files following proper project structure. Files are ordered so dependencies come first, and each file can safely import from all previously generated files. The backend will mark completed files by replacing [N] with [Done].
 

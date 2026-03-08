@@ -45,6 +45,8 @@ import {
   FileType,
   ChevronRight,
   Code,
+  Lock,
+  Database,
 } from "lucide-react"
 import { currencySymbols } from "@/lib/webshop-types"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -310,7 +312,8 @@ const SidebarContent = ({
   setIsSidebarOpen,
   navGroups,
   router,
-  getWebsiteIcon
+  getWebsiteIcon,
+  databaseConnected,
 }: any) => {
   const WebsiteIcon = getWebsiteIcon()
 
@@ -333,22 +336,29 @@ const SidebarContent = ({
               {group.items.map((item: any) => {
                 const Icon = item.icon
                 const isActive = activeTab === item.id
+                const isLocked = item.requiresDatabase && !databaseConnected
                 return (
                   <button
                     key={item.id}
                     onClick={() => {
+                      if (isLocked) return
                       setActiveTab(item.id)
                       setIsSidebarOpen(false)
                     }}
+                    disabled={isLocked}
+                    title={isLocked ? "Connect a database to unlock this feature" : undefined}
                     className={cn(
                       "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group text-sm font-medium",
                       isActive
                         ? "bg-primary text-primary-foreground shadow-sm"
+                        : isLocked
+                        ? "text-muted-foreground/40 cursor-not-allowed"
                         : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
                     )}
                   >
                     <Icon className="h-4 w-4 flex-shrink-0" />
-                    <span className="truncate">{item.label}</span>
+                    <span className="truncate flex-1">{item.label}</span>
+                    {isLocked && <Lock className="h-3 w-3 shrink-0 opacity-50" />}
                   </button>
                 )
               })}
@@ -459,6 +469,9 @@ export default function SiteSettingsPage() {
   const [hasDeployError, setHasDeployError] = useState(false)
   const [autoFixLogs, setAutoFixLogs] = useState<string[] | null>(null)
 
+  // Database / Firebase connection state
+  const [databaseConnected, setDatabaseConnected] = useState(false)
+
   const fetchLogs = async (repoIdOverride?: string) => {
     const targetId = repoIdOverride || project?.githubRepoId
     if (!targetId) return
@@ -515,6 +528,7 @@ export default function SiteSettingsPage() {
             if (data.message) throw new Error(data.message)
             setProject(data)
             setShopName(data.businessName || "")
+            if (data.firebaseConnected) setDatabaseConnected(true)
 
             if (data.pages && Array.isArray(data.pages)) {
               setGeneratedPages(
@@ -896,8 +910,8 @@ export default function SiteSettingsPage() {
         { id: "preview", label: "Preview", icon: Eye },
         { id: "ai", label: "AI Builder", icon: Zap },
         { id: "pages", label: "Pages", icon: FileText },
-        { id: "products", label: "Products", icon: ShoppingCart },
-        { id: "payments", label: "Payments", icon: CreditCard },
+        { id: "products", label: "Items", icon: ShoppingCart, requiresDatabase: true },
+        { id: "payments", label: "Payments", icon: CreditCard, requiresDatabase: true },
       ],
     },
     {
@@ -934,6 +948,7 @@ export default function SiteSettingsPage() {
           navGroups={navGroups}
           router={router}
           getWebsiteIcon={getWebsiteIcon}
+          databaseConnected={databaseConnected}
         />
       </aside>
 
@@ -1032,6 +1047,7 @@ export default function SiteSettingsPage() {
                       navGroups={navGroups}
                       router={router}
                       getWebsiteIcon={getWebsiteIcon}
+                      databaseConnected={databaseConnected}
                     />
                   </motion.aside>
                 </>
@@ -1196,26 +1212,42 @@ export default function SiteSettingsPage() {
                         </div>
                       </button>
                       <button
-                        onClick={() => setActiveTab("products")}
-                        className="flex items-center gap-2.5 px-3.5 py-3 rounded-xl text-left transition-all hover:scale-[1.02] active:scale-[0.98]"
+                        onClick={() => databaseConnected && setActiveTab("products")}
+                        disabled={!databaseConnected}
+                        title={!databaseConnected ? "Connect a database to unlock" : undefined}
+                        className={cn(
+                          "flex items-center gap-2.5 px-3.5 py-3 rounded-xl text-left transition-all",
+                          databaseConnected
+                            ? "hover:scale-[1.02] active:scale-[0.98]"
+                            : "opacity-50 cursor-not-allowed"
+                        )}
                         style={{ background: "#252527", border: "1px solid rgba(255,255,255,0.08)" }}
                       >
                         <ShoppingCart className="h-4 w-4 text-zinc-400 shrink-0" />
-                        <div>
-                          <p className="text-[12px] font-semibold text-zinc-200">Products</p>
+                        <div className="flex-1">
+                          <p className="text-[12px] font-semibold text-zinc-200">Items</p>
                           <p className="text-[10px] text-zinc-500">Add or edit items</p>
                         </div>
+                        {!databaseConnected && <Lock className="h-3 w-3 text-zinc-600 shrink-0" />}
                       </button>
                       <button
-                        onClick={() => setActiveTab("payments")}
-                        className="flex items-center gap-2.5 px-3.5 py-3 rounded-xl text-left transition-all hover:scale-[1.02] active:scale-[0.98]"
+                        onClick={() => databaseConnected && setActiveTab("payments")}
+                        disabled={!databaseConnected}
+                        title={!databaseConnected ? "Connect a database to unlock" : undefined}
+                        className={cn(
+                          "flex items-center gap-2.5 px-3.5 py-3 rounded-xl text-left transition-all",
+                          databaseConnected
+                            ? "hover:scale-[1.02] active:scale-[0.98]"
+                            : "opacity-50 cursor-not-allowed"
+                        )}
                         style={{ background: "#252527", border: "1px solid rgba(255,255,255,0.08)" }}
                       >
                         <CreditCard className="h-4 w-4 text-zinc-400 shrink-0" />
-                        <div>
+                        <div className="flex-1">
                           <p className="text-[12px] font-semibold text-zinc-200">Payments</p>
                           <p className="text-[10px] text-zinc-500">Configure billing</p>
                         </div>
+                        {!databaseConnected && <Lock className="h-3 w-3 text-zinc-600 shrink-0" />}
                       </button>
                     </div>
 
@@ -1223,18 +1255,18 @@ export default function SiteSettingsPage() {
               )
             })()}
 
-            {/* TAB CONTENT: PRODUCTS */}
+            {/* TAB CONTENT: ITEMS (formerly Products) */}
             {activeTab === "products" && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold">Products</h2>
+                  <h2 className="text-2xl font-bold">Items</h2>
                   <Button onClick={() => document.getElementById('add-product-form')?.scrollIntoView({ behavior: 'smooth' })}>
-                    <Plus className="h-4 w-4 mr-2" /> Add Product
+                    <Plus className="h-4 w-4 mr-2" /> Add Item
                   </Button>
                 </div>
 
                 <div className="grid grid-cols-1 gap-6">
-                  {/* Product List */}
+                  {/* Item List */}
                   <Card className="bg-card/50 backdrop-blur-sm border-white/10">
                     <CardHeader>
                       <CardTitle>Inventory ({products.length})</CardTitle>
@@ -1247,7 +1279,7 @@ export default function SiteSettingsPage() {
                       ) : products.length === 0 ? (
                         <div className="text-center py-12">
                           <ShoppingCart className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-20" />
-                          <p className="text-muted-foreground">No products found.</p>
+                          <p className="text-muted-foreground">No items found.</p>
                         </div>
                       ) : (
                         <div className="space-y-4">
@@ -1287,15 +1319,15 @@ export default function SiteSettingsPage() {
                     </CardContent>
                   </Card>
 
-                  {/* Add Product Form */}
+                  {/* Add Item Form */}
                   <Card id="add-product-form" className="bg-card/50 backdrop-blur-sm border-white/10">
                     <CardHeader>
-                      <CardTitle>Add New Product</CardTitle>
+                      <CardTitle>Add New Item</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                          <div className="space-y-2">
-                           <Label>Product Name</Label>
+                           <Label>Item Name</Label>
                            <Input
                              value={newProduct.name}
                              onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
@@ -1346,7 +1378,7 @@ export default function SiteSettingsPage() {
                        </div>
                        <Button onClick={handleAddProduct} disabled={isAddingProduct} className="w-full mt-2">
                          {isAddingProduct ? <Loader2 className="h-4 w-4 animate-spin mr-2"/> : <Plus className="h-4 w-4 mr-2"/>}
-                         Save Product
+                         Save Item
                        </Button>
                        {productError && <p className="text-sm text-destructive text-center">{productError}</p>}
                     </CardContent>
@@ -1366,6 +1398,7 @@ export default function SiteSettingsPage() {
                         generatedPages={generatedPages}
                         setGeneratedPages={setGeneratedPages}
                         autoFixLogs={autoFixLogs}
+                        onDatabaseConnected={() => setDatabaseConnected(true)}
                       />
                     </div>
                   ) : (

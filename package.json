@@ -52,6 +52,7 @@
     "cmdk": "1.0.4",
     "date-fns": "4.1.0",
     "embla-carousel-react": "8.5.1",
+    "firebase": "^12.10.0",
     "form-data": "4.0.5",
     "gcp-metadata": "latest",
     "html-validator": "6.0.1",

@@ -381,13 +381,60 @@ const HexagonIcon = ({ className }: { className?: string }) => (
     </svg>
 )
 
-const FirebaseConnectionCard = ({ onConnect }: { onConnect: () => void }) => {
+const FirebaseConnectionCard = ({
+    projectId,
+    onConnect,
+}: {
+    projectId: string
+    onConnect: () => void
+}) => {
+    const [isConnecting, setIsConnecting] = useState(false)
+    const [connectError, setConnectError] = useState<string | null>(null)
+
+    const handleConnect = async () => {
+        setIsConnecting(true)
+        setConnectError(null)
+        try {
+            const { signInWithGoogle } = await import("@/lib/firebase-client")
+            const credential = await signInWithGoogle()
+            const user = credential.user
+
+            const res = await fetch(`/api/projects/${projectId}/firebase`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    firebaseUid: user.uid,
+                    firebaseEmail: user.email,
+                    firebaseDisplayName: user.displayName,
+                }),
+            })
+
+            if (!res.ok) {
+                const data = await res.json()
+                throw new Error(data.message || "Failed to save Firebase connection")
+            }
+
+            onConnect()
+        } catch (err: any) {
+            if (err?.code === "auth/popup-closed-by-user" || err?.code === "auth/cancelled-popup-request") {
+                setConnectError(null)
+            } else {
+                setConnectError(err?.message || "Connection failed. Please try again.")
+            }
+        } finally {
+            setIsConnecting(false)
+        }
+    }
+
     return (
         <div className="flex flex-col items-center justify-center py-6 gap-5 animate-in fade-in slide-in-from-bottom-2 duration-700">
             <div className="flex items-center gap-3 mb-2">
                 <HexagonIcon className="h-5 w-5 text-[#f97316]" />
                 <h3 className="text-base font-medium text-zinc-100">Let's connect you to a database</h3>
             </div>
+            <p className="text-xs text-zinc-500 text-center max-w-xs -mt-2">
+                This project needs a database to store your items. Connect with Google to enable Firebase.
+            </p>
 
             <div className="flex items-center justify-between p-4 rounded-2xl bg-[#1c1c1c] border border-white/5 w-full max-w-sm">
                 <div className="flex items-center gap-3">
@@ -400,12 +447,17 @@ const FirebaseConnectionCard = ({ onConnect }: { onConnect: () => void }) => {
                     <span className="font-semibold text-white">Firebase</span>
                 </div>
                 <Button
-                    onClick={onConnect}
+                    onClick={handleConnect}
+                    disabled={isConnecting}
                     className="bg-[#3c3c3e] text-white hover:bg-[#4c4c4e] rounded-full px-6 py-2 h-9 font-medium border-none"
                 >
-                    Connect
+                    {isConnecting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Connect"}
                 </Button>
             </div>
+
+            {connectError && (
+                <p className="text-xs text-red-400 text-center max-w-xs">{connectError}</p>
+            )}
         </div>
     )
 }
@@ -415,9 +467,10 @@ interface AIWebsiteBuilderProps {
   generatedPages: GeneratedPage[]
   setGeneratedPages: React.Dispatch<React.SetStateAction<GeneratedPage[]>>
   autoFixLogs?: string[] | null
+  onDatabaseConnected?: () => void
 }
 
-const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFixLogs }: AIWebsiteBuilderProps) => {
+const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFixLogs, onDatabaseConnected }: AIWebsiteBuilderProps) => {
   const { data: session } = useSession()
   const userName = session?.user?.name?.split(' ')[0] || "there"
 
@@ -1033,10 +1086,14 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
 
                         {step === 'firebase_auth' && (
                             <div className="mt-4">
-                                <FirebaseConnectionCard onConnect={() => {
-                                    setStep("planning")
-                                    if (instruction) processNextStep(instruction, [...messages])
-                                }} />
+                                <FirebaseConnectionCard
+                                    projectId={projectId}
+                                    onConnect={() => {
+                                        onDatabaseConnected?.()
+                                        setStep("coding")
+                                        if (instruction) processNextStep(instruction, [...messages])
+                                    }}
+                                />
                             </div>
                         )}
 
