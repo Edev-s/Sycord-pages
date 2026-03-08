@@ -1111,110 +1111,62 @@ export default function SiteSettingsPage() {
             {/* TAB CONTENT: STYLES / OVERVIEW */}
             {activeTab === "styles" && (() => {
               const hasRealPages = generatedPages.some(p => p.usedFor !== "Idle deployment placeholder")
+              const onboardingSteps = [
+                {
+                  id: "create",
+                  label: "Projekt létrehozása",
+                  done: !!project,
+                },
+                {
+                  id: "setup-style",
+                  label: "Stílus beállítása",
+                  done: hasRealPages,
+                  action: () => setActiveTab("ai"),
+                  actionLabel: "Személyreszabás",
+                },
+                {
+                  id: "products",
+                  label: "Termékek hozzáadása",
+                  done: products.length > 0,
+                  action: () => setActiveTab("products"),
+                  actionLabel: "Termékek",
+                },
+              ]
               const onboardingComplete = !!project && hasRealPages && products.length > 0
+              const doneCount = onboardingSteps.filter((s) => s.done).length
+              const progress = Math.round((doneCount / onboardingSteps.length) * 100)
               return (
                 <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
 
                     {/* ══════════════════════════════════════════════════════════════
-                        ONBOARDING CHECKLIST (Hungarian) — shown at top before preview
+                        ONBOARDING STATUS BAR — title + progress bar at top
                        ══════════════════════════════════════════════════════════════ */}
-                    {(() => {
-                      const onboardingSteps = [
-                        {
-                          id: "create",
-                          label: "Projekt létrehozása",
-                          done: !!project,
-                        },
-                        {
-                          id: "setup-style",
-                          label: "Stílus beállítása",
-                          done: hasRealPages,
-                          action: () => setActiveTab("ai"),
-                          actionLabel: "Személyreszabás",
-                        },
-                        {
-                          id: "products",
-                          label: "Termékek hozzáadása",
-                          done: products.length > 0,
-                          action: () => setActiveTab("products"),
-                          actionLabel: "Termékek",
-                        },
-                      ]
-                      const doneCount = onboardingSteps.filter((s) => s.done).length
-                      const progress = Math.round((doneCount / onboardingSteps.length) * 100)
+                    {!onboardingComplete && (
+                      <div className="space-y-2">
+                        <p className="text-[13px] font-semibold text-zinc-100 text-center">
+                          Fejezd be a weboldalad elkészítését!
+                        </p>
 
-                      if (onboardingComplete) return null
-
-                      return (
-                        <div className="space-y-3">
-                          <p className="text-[13px] font-semibold text-zinc-100 text-center">
-                            Fejezd be a weboldalad elkészítését!
-                          </p>
-
-                          {/* Progress bar */}
-                          <div className="relative h-1.5 w-full rounded-full overflow-hidden" style={{ background: "#2e2e30" }}>
+                        {/* Progress bar */}
+                        <div className="relative h-1.5 w-full rounded-full overflow-hidden" style={{ background: "#2e2e30" }}>
+                          <div
+                            className="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
+                            style={{
+                              width: `${progress}%`,
+                              background: "linear-gradient(90deg, #22a846 0%, #4ade80 100%)",
+                            }}
+                          />
+                          {/* Segment markers */}
+                          {Array.from({ length: onboardingSteps.length - 1 }, (_, i) => i + 1).map((i) => (
                             <div
-                              className="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
-                              style={{
-                                width: `${progress}%`,
-                                background: "linear-gradient(90deg, #22a846 0%, #4ade80 100%)",
-                              }}
+                              key={i}
+                              className="absolute top-0 bottom-0 w-[2px]"
+                              style={{ left: `${(i / onboardingSteps.length) * 100}%`, background: "#18191B" }}
                             />
-                            {/* Segment markers */}
-                            {Array.from({ length: onboardingSteps.length - 1 }, (_, i) => i + 1).map((i) => (
-                              <div
-                                key={i}
-                                className="absolute top-0 bottom-0 w-[2px]"
-                                style={{ left: `${(i / onboardingSteps.length) * 100}%`, background: "#18191B" }}
-                              />
-                            ))}
-                          </div>
-
-                          {/* Steps */}
-                          <div className="space-y-1.5">
-                            {onboardingSteps.map((step) => (
-                              <div
-                                key={step.id}
-                                className="flex items-center gap-2.5 px-1"
-                              >
-                                {/* Check icon */}
-                                {step.done ? (
-                                  <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 bg-green-500">
-                                    <CheckCircle2 className="h-4 w-4 text-white" />
-                                  </div>
-                                ) : (
-                                  <div
-                                    className="w-6 h-6 rounded-full shrink-0"
-                                    style={{ border: "2px solid #3f3f46", background: "transparent" }}
-                                  />
-                                )}
-
-                                {/* Label */}
-                                <span
-                                  className={cn(
-                                    "flex-1 text-[13px] font-medium min-w-0",
-                                    step.done ? "text-zinc-400" : "text-zinc-100"
-                                  )}
-                                >
-                                  {step.label}
-                                </span>
-
-                                {/* Action button for incomplete steps */}
-                                {!step.done && step.action && (
-                                  <button
-                                    onClick={step.action}
-                                    className="h-7 px-3 rounded-full text-[11px] font-semibold text-zinc-200 shrink-0 transition-all hover:opacity-85 active:opacity-70"
-                                    style={{ border: "1px solid rgba(255,255,255,0.15)", background: "transparent" }}
-                                  >
-                                    {step.actionLabel}
-                                  </button>
-                                )}
-                              </div>
-                            ))}
-                          </div>
+                          ))}
                         </div>
-                      )
-                    })()}
+                      </div>
+                    )}
 
                     {/* ══════════════════════════════════════════════════════════════
                         PRIMARY PREVIEW CARD (4:3) - matches photo exactly
@@ -1284,7 +1236,7 @@ export default function SiteSettingsPage() {
                     {/* ══════════════════════════════════════════════════════════════
                         DOMAIN ROW - icon square + domain + visit button
                        ══════════════════════════════════════════════════════════════ */}
-                    <div className="flex items-center gap-3 px-1">
+                    <div className="flex items-center gap-3 px-1 py-1">
                       {/* Favicon square */}
                       <div
                         className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
@@ -1306,6 +1258,53 @@ export default function SiteSettingsPage() {
                         Visit Site
                       </button>
                     </div>
+
+                    {/* ══════════════════════════════════════════════════════════════
+                        ONBOARDING STEPS (dots) — shown below domain row
+                       ══════════════════════════════════════════════════════════════ */}
+                    {!onboardingComplete && (
+                      <div className="space-y-1.5">
+                        {onboardingSteps.map((step) => (
+                          <div
+                            key={step.id}
+                            className="flex items-center gap-2.5 px-1"
+                          >
+                            {/* Check icon */}
+                            {step.done ? (
+                              <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 bg-green-500">
+                                <CheckCircle2 className="h-4 w-4 text-white" />
+                              </div>
+                            ) : (
+                              <div
+                                className="w-6 h-6 rounded-full shrink-0"
+                                style={{ border: "2px solid #3f3f46", background: "transparent" }}
+                              />
+                            )}
+
+                            {/* Label */}
+                            <span
+                              className={cn(
+                                "flex-1 text-[13px] font-medium min-w-0",
+                                step.done ? "text-zinc-400" : "text-zinc-100"
+                              )}
+                            >
+                              {step.label}
+                            </span>
+
+                            {/* Action button for incomplete steps */}
+                            {!step.done && step.action && (
+                              <button
+                                onClick={step.action}
+                                className="h-7 px-3 rounded-full text-[11px] font-semibold text-zinc-200 shrink-0 transition-all hover:opacity-85 active:opacity-70"
+                                style={{ border: "1px solid rgba(255,255,255,0.15)", background: "transparent" }}
+                              >
+                                {step.actionLabel}
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
 
                     {/* ══════════════════════════════════════════════════════════════
                         STATS, ACTION CARDS & SUB-TABS — only shown after onboarding
