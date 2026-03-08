@@ -427,6 +427,10 @@ const FirebaseConnectionCard = ({
         }
     }
 
+    const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    const projectDomain = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_DOMAIN
+    const proxyLoopDetected = !!authDomain && !!projectDomain && authDomain === projectDomain
+
     return (
         <div className="flex flex-col items-center justify-center py-6 gap-5 animate-in fade-in slide-in-from-bottom-2 duration-700">
             <div className="flex items-center gap-3 mb-2">
@@ -458,6 +462,35 @@ const FirebaseConnectionCard = ({
 
             {connectError && (
                 <p className="text-xs text-red-400 text-center max-w-xs">{connectError}</p>
+            )}
+
+            {/* Debug panel — visible when env vars suggest a misconfiguration */}
+            {(proxyLoopDetected || !projectDomain) && (
+                <details className="w-full max-w-sm text-[10px] text-zinc-600 border border-white/5 rounded-xl px-3 py-2 bg-[#1c1c1c]">
+                    <summary className="cursor-pointer text-zinc-500 font-mono select-none">⚠ Firebase proxy debug</summary>
+                    <div className="mt-2 flex flex-col gap-1 font-mono">
+                        <div>
+                            <span className="text-zinc-600">AUTH_DOMAIN: </span>
+                            <span className={authDomain ? "text-zinc-300" : "text-red-500"}>{authDomain || "(not set)"}</span>
+                        </div>
+                        <div>
+                            <span className="text-zinc-600">PROJECT_DOMAIN: </span>
+                            <span className={projectDomain ? "text-zinc-300" : "text-red-500"}>{projectDomain || "(not set)"}</span>
+                        </div>
+                        {proxyLoopDetected && (
+                            <p className="mt-1 text-red-400 leading-snug">
+                                AUTH_DOMAIN and PROJECT_DOMAIN are identical — the /__/auth proxy would loop back to itself (508).
+                                Set NEXT_PUBLIC_FIREBASE_PROJECT_DOMAIN to your {"<project-id>"}.firebaseapp.com hostname.
+                            </p>
+                        )}
+                        {!projectDomain && (
+                            <p className="mt-1 text-amber-400 leading-snug">
+                                NEXT_PUBLIC_FIREBASE_PROJECT_DOMAIN is not set — the /__/auth proxy is disabled.
+                                Add this env var (e.g. my-project.firebaseapp.com) to enable Google Sign-In via popup.
+                            </p>
+                        )}
+                    </div>
+                </details>
             )}
         </div>
     )
