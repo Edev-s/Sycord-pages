@@ -121,9 +121,22 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    background-color: var(--background);
+    min-height: 100%;
+    min-height: 100dvh;
+  }
   body {
     @apply bg-background text-foreground;
+    min-height: 100%;
+    min-height: 100dvh;
   }
+}
+
+/* Safe-area-aware bottom scroll padding for mobile dashboards */
+.pb-safe-scroll {
+  padding-bottom: 100px;
+  padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px));
 }
 
 .text-gradient {

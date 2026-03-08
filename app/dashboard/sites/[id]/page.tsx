@@ -973,7 +973,7 @@ export default function SiteSettingsPage() {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className={cn("border-b border-white/10 bg-background/50 backdrop-blur-sm z-20 shrink-0")}>
+        <header className={cn("border-b border-white/10 bg-background/50 backdrop-blur-sm z-20 shrink-0 pt-[env(safe-area-inset-top)]")}>
           <div className="flex items-center justify-between h-16 px-4 md:px-6">
              <div className="flex items-center gap-3 md:hidden">
               <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(true)} className="-ml-2">
@@ -1039,7 +1039,7 @@ export default function SiteSettingsPage() {
         </header>
 
         <main className={cn("flex-1 relative", (activeTab === "ai" || activeTab === "preview") ? "p-0 overflow-hidden" : "overflow-y-auto overflow-x-hidden p-4 md:p-6 lg:p-8 custom-scrollbar")}>
-          <div className={cn("mx-auto", (activeTab === "ai" || activeTab === "preview") ? "h-full w-full max-w-none p-0 pb-0 space-y-0" : "max-w-6xl space-y-8 pb-[100px]")}>
+          <div className={cn("mx-auto", (activeTab === "ai" || activeTab === "preview") ? "h-full w-full max-w-none p-0 pb-0 space-y-0" : "max-w-6xl space-y-8 pb-safe-scroll")}>
 
             <AnimatePresence>
               {isSidebarOpen && (
