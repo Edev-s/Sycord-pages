@@ -5,8 +5,6 @@ import {
   Loader2,
   Globe,
   Edit2,
-  Trash2,
-  ExternalLink,
   Package,
   Sparkles,
   Zap,
@@ -14,17 +12,6 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
 
 interface WebsitePreviewCardProps {
   fallbackHtml?: string;
@@ -51,7 +38,6 @@ export function WebsitePreviewCard({
 }: WebsitePreviewCardProps) {
   const [frameLoading, setFrameLoading] = useState(true)
   const [frameError, setFrameError] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
   const [iframeScale, setIframeScale] = useState(0.26)
   const wrapperRef = useRef<HTMLDivElement>(null)
 
@@ -74,20 +60,6 @@ export function WebsitePreviewCard({
     if (wrapperRef.current) ro.observe(wrapperRef.current)
     return () => ro.disconnect()
   }, [updateScale])
-
-  const handleDelete = async () => {
-    if (!projectId) return
-    setIsDeleting(true)
-    try {
-      const res = await fetch(`/api/projects/${projectId}`, { method: "DELETE" })
-      if (res.ok) onDelete?.(projectId)
-      else alert("Failed to delete project")
-    } catch {
-      alert("Error deleting project")
-    } finally {
-      setIsDeleting(false)
-    }
-  }
 
   /* ── NOT LIVE ─────────────────────────────────────────────── */
   if (!isLive) {
@@ -292,57 +264,6 @@ export function WebsitePreviewCard({
             Settings
           </div>
         </Link>
-
-        {/* Visit (Secondary Action) */}
-        <a
-          href={fullUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="shrink-0 h-8 w-8 flex items-center justify-center rounded-full text-zinc-500 hover:text-white hover:bg-white/10 transition-colors"
-          title="Visit Live Site"
-        >
-          <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-          <span className="sr-only">Visit {businessName}</span>
-        </a>
-
-        {/* Delete */}
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={isDeleting}
-              className="h-8 w-8 p-0 rounded-full shrink-0 text-red-500/50 hover:text-red-400 hover:bg-red-500/10"
-            >
-              {isDeleting ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Trash2 className="h-3.5 w-3.5" />
-              )}
-              <span className="sr-only">Delete {businessName}</span>
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent className="bg-zinc-950 border-white/10 text-zinc-100">
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete Project?</AlertDialogTitle>
-              <AlertDialogDescription className="text-zinc-400">
-                This will permanently delete{" "}
-                <strong className="text-zinc-200">{businessName}</strong> and cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel className="bg-transparent border-white/10 hover:bg-white/5 text-zinc-300">
-                Cancel
-              </AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleDelete}
-                className="bg-red-900/50 text-red-200 hover:bg-red-900/70 border border-red-500/20"
-              >
-                Delete
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </div>
 
       {/* ── Footer: name + live badge ── */}
