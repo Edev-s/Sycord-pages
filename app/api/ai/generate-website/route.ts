@@ -1,27 +1,19 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
+import { GoogleGenerativeAI } from "@google/generative-ai"
 import {
   FILE_STRUCTURE,
   getShortTermMemory,
-  getFileContext,
   getSmartContext,
   extractDesignSystem,
   type GeneratedFile,
 } from "@/lib/ai-memory"
 import { getSystemPrompts, getProjectPrompts } from "@/lib/ai-prompts"
+import { getCachedContext, updateCachedContext } from "@/lib/gemini-cache"
 
-// API Configurations
-const GOOGLE_API_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions"
-
-// Map models to their specific endpoints and Env Vars
-const MODEL_CONFIGS: Record<string, { url: string, envVar: string, provider: string }> = {
-  "gemini-2.0-flash": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
-  "gemini-1.5-flash": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
-  "gemini-1.5-pro": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
-  "deepseek-v3.2-exp": { url: DEEPSEEK_API_URL, envVar: "DEEPSEEK_API", provider: "DeepSeek" }
-}
+// Force gemini-3.1-pro-preview for all file generation
+const CODE_MODEL = "gemini-3.1-pro-preview"
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions)
@@ -40,27 +32,10 @@ export async function POST(request: Request) {
         }))
       : []
 
-    // Default to Gemini 2.0 Flash
-    const modelId = model || "gemini-2.0-flash"
-
-    // Map "gemini-3-flash" or similar user requests to actual model
-    let configKey = modelId
-    if (modelId === "gemini-3-flash" || modelId === "gemini-3.0-flash") {
-       configKey = "gemini-2.0-flash"
-    }
-    if (modelId === "gemini-3-pro" || modelId === "gemini-3.0-pro") {
-       configKey = "gemini-1.5-pro"
-    }
-
-    const config = MODEL_CONFIGS[configKey] || MODEL_CONFIGS["gemini-2.0-flash"]
-
-    let apiKey = process.env[config.envVar]
-    if (config.provider === "Google" && !apiKey) {
-        apiKey = process.env.GOOGLE_API_KEY
-    }
-
+    // Use GOOGLE_AI_API by default, fallback to GOOGLE_API_KEY
+    const apiKey = process.env.GOOGLE_AI_API || process.env.GOOGLE_API_KEY
     if (!apiKey) {
-      return NextResponse.json({ message: `AI service not configured (${config.provider})` }, { status: 500 })
+      return NextResponse.json({ message: "AI service not configured (Google)" }, { status: 500 })
     }
 
     // 1. Parse Instruction to find next task
@@ -88,7 +63,7 @@ export async function POST(request: Request) {
         })
     }
 
-    console.log(`[v0] Generating file: ${currentTask.filename} (Task [${currentTask.number}])`)
+    console.log(`[v0] Generating file: ${currentTask.filename} (Task [${currentTask.number}]) using ${CODE_MODEL}`)
 
     // Determine file type
     const fileExt = currentTask.filename.split('.').pop() || ''
@@ -112,6 +87,13 @@ export async function POST(request: Request) {
     const designSystem = extractDesignSystem(previousFiles)
     // Keep legacy memory as fallback / additional signal
     const shortTermMemory = getShortTermMemory(instruction)
+
+    // Retrieve cached context from previous generations in this session
+    const cachedCtx = getCachedContext(projectId)
+    let cacheSection = ""
+    if (cachedCtx) {
+      cacheSection = `\n\n**===== CACHED GENERATION MEMORY =====**\nThe following files were generated in this session (use this to maintain consistency):\n${cachedCtx.filesSummary}\nLast generated file: ${cachedCtx.lastFile}\n`
+    }
     
     let fileRules = ""
     if (isHTML) fileRules = `- Use <!DOCTYPE html>. Include <script src="https://cdn.tailwindcss.com"></script>. Include <script type="module" src="/src/main.ts"></script>.`
@@ -128,36 +110,30 @@ export async function POST(request: Request) {
         .replace("{{FILE_EXT}}", fileExt.toUpperCase())
         .replace("{{FILE_RULES}}", fileRules)
         // Legacy fallback -- if the prompt still has {{MEMORY}}, fill it
-        .replace("{{MEMORY}}", shortTermMemory) + projectMemory
+        .replace("{{MEMORY}}", shortTermMemory) + projectMemory + cacheSection
 
-    // 3. Call AI
-    const conversationHistory = messages.map((msg: any) => ({
-        role: msg.role === "user" ? "user" : "assistant",
-        content: msg.content
-    }))
-
-    const payload = {
-      model: modelId === "gemini-3-flash" ? "gemini-2.0-flash" : modelId,
-      messages: [
-          { role: "system", content: systemPrompt },
-          ...conversationHistory,
-          { role: "user", content: `Generate the full content for ${currentTask.filename}.` }
-      ],
-      temperature: 0.2
-    }
-
-    const response = await fetch(config.url, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
+    // 3. Call Gemini AI using native SDK
+    const genAI = new GoogleGenerativeAI(apiKey)
+    const aiModel = genAI.getGenerativeModel({
+        model: CODE_MODEL,
+        systemInstruction: systemPrompt,
+        generationConfig: {
+            temperature: 0.2,
+        },
     })
 
-    if (!response.ok) throw new Error(`${config.provider} API error: ${response.status}`)
-    const data = await response.json()
-    const responseText = data.choices?.[0]?.message?.content || ""
+    const conversationHistory = messages.map((msg: any) => ({
+        role: msg.role === "user" ? "user" : "model",
+        parts: [{ text: msg.content }]
+    }))
+
+    const chat = aiModel.startChat({
+        history: conversationHistory,
+    })
+
+    const result = await chat.sendMessage(`Generate the full content for ${currentTask.filename}.`)
+    const response = await result.response
+    const responseText = response.text()
 
     // 4. Robust Parsing
     let extractedCode = ""
@@ -184,7 +160,10 @@ export async function POST(request: Request) {
 
     extractedCode = extractedCode.replace(/\[file\].*?\[file\]/g, '').replace(/\[usedfor\].*?\[usedfor\]/g, '')
 
-    // 5. Update Instruction (Mark as Done)
+    // 5. Update cache with the newly generated file
+    updateCachedContext(projectId, currentTask.filename, extractedCode, previousFiles)
+
+    // 6. Update Instruction (Mark as Done)
     const updatedInstruction = instruction.replace(`[${currentTask.number}]`, `[Done]`)
 
     return NextResponse.json({
