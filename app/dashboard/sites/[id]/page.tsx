@@ -1109,7 +1109,9 @@ export default function SiteSettingsPage() {
             )}
 
             {/* TAB CONTENT: STYLES / OVERVIEW */}
-            {activeTab === "styles" && (
+            {activeTab === "styles" && (() => {
+              const onboardingComplete = !!project && generatedPages.length > 0 && products.length > 0
+              return (
                 <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
 
                     {/* ══════════════════════════════════════════════════════════════
@@ -1204,46 +1206,39 @@ export default function SiteSettingsPage() {
                     </div>
 
                     {/* ══════════════════════════════════════════════════════════════
-                        ONBOARDING CHECKLIST
+                        ONBOARDING CHECKLIST (Hungarian)
                        ══════════════════════════════════════════════════════════════ */}
                     {(() => {
                       const onboardingSteps = [
                         {
                           id: "create",
-                          label: "Create your Project",
+                          label: "Projekt létrehozása",
                           done: !!project,
                         },
                         {
-                          id: "ai-build",
-                          label: "Build with AI",
+                          id: "setup-style",
+                          label: "Stílus beállítása",
                           done: generatedPages.length > 0,
                           action: () => setActiveTab("ai"),
-                          actionLabel: "Start Building",
+                          actionLabel: "Személyreszabás",
                         },
                         {
                           id: "products",
-                          label: "Add products",
+                          label: "Termékek hozzáadása",
                           done: products.length > 0,
                           action: () => setActiveTab("products"),
-                          actionLabel: "Add Products",
-                        },
-                        {
-                          id: "deploy",
-                          label: "Deploy your site",
-                          done: !!previewUrl,
-                          action: handleDeploy,
-                          actionLabel: "Deploy",
+                          actionLabel: "Termékek",
                         },
                       ]
                       const doneCount = onboardingSteps.filter((s) => s.done).length
                       const progress = Math.round((doneCount / onboardingSteps.length) * 100)
 
-                      if (doneCount === onboardingSteps.length) return null
+                      if (onboardingComplete) return null
 
                       return (
-                        <div className="space-y-4">
+                        <div className="space-y-4 mt-4">
                           <p className="text-[15px] font-semibold text-zinc-100 text-center">
-                            Complete your website setup!
+                            Fejezd be a weboldalad elkészítését!
                           </p>
 
                           {/* Progress bar */}
@@ -1312,8 +1307,10 @@ export default function SiteSettingsPage() {
                     })()}
 
                     {/* ══════════════════════════════════════════════════════════════
-                        SECONDARY CARD (16:9) - Quick stats summary
+                        STATS, ACTION CARDS & SUB-TABS — only shown after onboarding
                        ══════════════════════════════════════════════════════════════ */}
+                    {onboardingComplete && (<>
+                    {/* SECONDARY CARD (16:9) - Quick stats summary */}
                     <div
                       className="w-full rounded-[20px] p-5 flex flex-col justify-between"
                       style={{ background: "#252527", aspectRatio: "16/9", border: "1px solid rgba(255,255,255,0.08)" }}
@@ -1359,9 +1356,7 @@ export default function SiteSettingsPage() {
                       </div>
                     </div>
 
-                    {/* ══════════════════════════════════════════════════════════════
-                        3-COLUMN ACTION CARDS - exact layout from photo
-                       ══════════════════════════════════════════════════════════════ */}
+                    {/* 3-COLUMN ACTION CARDS */}
                     <div className="grid grid-cols-3 gap-3">
                       {/* AI Builder card */}
                       <button
@@ -1505,8 +1500,10 @@ export default function SiteSettingsPage() {
                             </div>
                         )}
                     </div>
+                    </>)}
                 </div>
-            )}
+              )
+            })()}
 
             {/* TAB CONTENT: PRODUCTS */}
             {activeTab === "products" && (
