@@ -25,6 +25,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const client = await clientPromise
   const db = client.db()
 
+  // Verify ownership before update
+  const owner = await db.collection("users").findOne(
+    { id: session.user.id, "projects._id": new ObjectId(id) },
+    { projection: { _id: 1 } }
+  )
+  if (!owner) {
+    return NextResponse.json({ message: "Project not found" }, { status: 404 })
+  }
+
   const result = await db.collection("users").updateOne(
     {
       id: session.user.id,

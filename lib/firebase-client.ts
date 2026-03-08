@@ -19,9 +19,8 @@ if (typeof window !== "undefined") {
 }
 
 export const signInWithGoogle = async (): Promise<UserCredential> => {
-  if (!auth) throw new Error("Firebase Auth is not initialized")
+  if (!auth) throw new Error("Firebase Auth is not initialized. This function must be called in a browser environment.")
   const provider = new GoogleAuthProvider()
-  provider.addScope("https://www.googleapis.com/auth/firebase")
   return signInWithPopup(auth, provider)
 }
 

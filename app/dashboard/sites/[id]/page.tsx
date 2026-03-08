@@ -409,7 +409,7 @@ export default function SiteSettingsPage() {
   const [productError, setProductError] = useState<string | null>(null)
 
   const [activeTab, setActiveTab] = useState<
-    "styles" | "preview" | "products" | "payments" | "ai" | "pages" | "orders" | "customers" | "analytics" | "discount"
+    "styles" | "preview" | "items" | "payments" | "ai" | "pages" | "orders" | "customers" | "analytics" | "discount"
   >("styles")
   const [selectedStyle, setSelectedStyle] = useState<string | null>(null)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
@@ -910,7 +910,7 @@ export default function SiteSettingsPage() {
         { id: "preview", label: "Preview", icon: Eye },
         { id: "ai", label: "AI Builder", icon: Zap },
         { id: "pages", label: "Pages", icon: FileText },
-        { id: "products", label: "Items", icon: ShoppingCart, requiresDatabase: true },
+        { id: "items", label: "Items", icon: ShoppingCart, requiresDatabase: true },
         { id: "payments", label: "Payments", icon: CreditCard, requiresDatabase: true },
       ],
     },
@@ -1212,7 +1212,7 @@ export default function SiteSettingsPage() {
                         </div>
                       </button>
                       <button
-                        onClick={() => databaseConnected && setActiveTab("products")}
+                        onClick={() => databaseConnected && setActiveTab("items")}
                         disabled={!databaseConnected}
                         title={!databaseConnected ? "Connect a database to unlock" : undefined}
                         className={cn(
@@ -1255,8 +1255,8 @@ export default function SiteSettingsPage() {
               )
             })()}
 
-            {/* TAB CONTENT: ITEMS (formerly Products) */}
-            {activeTab === "products" && (
+            {/* TAB CONTENT: ITEMS */}
+            {activeTab === "items" && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
                 <div className="flex items-center justify-between">
                   <h2 className="text-2xl font-bold">Items</h2>

@@ -48,6 +48,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
+import { signInWithGoogle } from "@/lib/firebase-client"
 
 // Updated Models List — gemini-3.1-pro-preview is the default
 const MODELS = [
@@ -395,7 +396,6 @@ const FirebaseConnectionCard = ({
         setIsConnecting(true)
         setConnectError(null)
         try {
-            const { signInWithGoogle } = await import("@/lib/firebase-client")
             const credential = await signInWithGoogle()
             const user = credential.user
 
@@ -415,11 +415,12 @@ const FirebaseConnectionCard = ({
             }
 
             onConnect()
-        } catch (err: any) {
-            if (err?.code === "auth/popup-closed-by-user" || err?.code === "auth/cancelled-popup-request") {
+        } catch (err: unknown) {
+            const firebaseErr = err as { code?: string; message?: string }
+            if (firebaseErr?.code === "auth/popup-closed-by-user" || firebaseErr?.code === "auth/cancelled-popup-request") {
                 setConnectError(null)
             } else {
-                setConnectError(err?.message || "Connection failed. Please try again.")
+                setConnectError(firebaseErr?.message || "Connection failed. Please try again.")
             }
         } finally {
             setIsConnecting(false)
@@ -1090,7 +1091,6 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                                     projectId={projectId}
                                     onConnect={() => {
                                         onDatabaseConnected?.()
-                                        setStep("coding")
                                         if (instruction) processNextStep(instruction, [...messages])
                                     }}
                                 />
