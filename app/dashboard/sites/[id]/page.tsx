@@ -36,12 +36,6 @@ import {
   Save,
   Smartphone,
   Monitor,
-  Link,
-  HelpCircle,
-  Activity,
-  HardDrive,
-  MessageSquare,
-  Bot,
   Eye,
   CheckCircle2,
   Folder,
@@ -66,8 +60,6 @@ import {
 import { useSession, signOut } from "next-auth/react"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
-import { Progress } from "@/components/ui/progress"
-import { AreaChart, Area, ResponsiveContainer, Tooltip } from "recharts"
 import { SitePreviewDashboard } from "@/components/site-preview-dashboard"
 
 const headerComponents = {
@@ -410,8 +402,6 @@ export default function SiteSettingsPage() {
   const [activeTab, setActiveTab] = useState<
     "styles" | "preview" | "products" | "payments" | "ai" | "pages" | "orders" | "customers" | "analytics" | "discount"
   >("styles")
-  const [activeSubTab, setActiveSubTab] = useState<"limits" | "connections" | "help">("limits")
-
   const [selectedStyle, setSelectedStyle] = useState<string | null>(null)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop")
@@ -925,34 +915,9 @@ export default function SiteSettingsPage() {
     },
   ]
 
-  const subTabs = [
-    { id: "limits", label: "Limits", icon: Activity },
-    { id: "connections", label: "Connections", icon: Link },
-    { id: "help", label: "Help", icon: HelpCircle },
-  ]
-
   const userInitials = session?.user?.name?.split(" ").map((n) => n[0]).join("").toUpperCase() || "U"
   const previewUrl = project?.cloudflareUrl || null
   const displayUrl = previewUrl ? previewUrl.replace(/^https?:\/\//, "") : null
-
-  // Mock stats
-  const stats = {
-    changes: { used: generatedPages.length, limit: 300, label: "MESSAGES REMAIN", icon: MessageSquare },
-    aiBuilds: { used: generatedPages.length, limit: 100, label: "/MO AI BUILDS", icon: Bot },
-    storage: { used: parseFloat((generatedPages.length * 0.2 + products.length * 0.1).toFixed(1)), limit: 50, label: "MB STORAGE", icon: HardDrive },
-    products: { used: products.length, limit: 500, label: "PRODUCTS", icon: Package },
-    visitors: 0
-  }
-  const activityData = [
-    { name: "Mon", value: 40 },
-    { name: "Tue", value: 30 },
-    { name: "Wed", value: 45 },
-    { name: "Thu", value: 25 },
-    { name: "Fri", value: 55 },
-    { name: "Sat", value: 40 },
-    { name: "Sun", value: 35 },
-  ]
-  const maxActivityValue = Math.max(...activityData.map(d => d.value)) || 1
 
   return (
     <div className="flex h-[100dvh] bg-background overflow-hidden relative"
@@ -1270,201 +1235,6 @@ export default function SiteSettingsPage() {
                           </div>
                         </button>
                       </div>
-                    </div>
-
-                    {/* ══════════════════════════════════════════════════════════════
-                        STATS, ACTION CARDS & SUB-TABS
-                       ══════════════════════════════════════════════════════════════ */}
-
-                    {/* SECONDARY CARD (16:9) - Quick stats summary */}
-                    <div
-                      className="w-full rounded-[20px] p-5 flex flex-col justify-between"
-                      style={{ background: "#252527", aspectRatio: "16/9", border: "1px solid rgba(255,255,255,0.08)" }}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-[13px] font-semibold text-zinc-300">Quick Stats</span>
-                        <div className="flex items-center gap-1.5">
-                          <span className="relative flex h-1.5 w-1.5">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-                            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500" />
-                          </span>
-                          <span className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider">Live</span>
-                        </div>
-                      </div>
-                      {/* Mini activity chart */}
-                      <div className="flex items-end justify-between gap-1 flex-1 py-3">
-                        {activityData.map((d, i) => (
-                          <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                            <div
-                              className="w-full rounded-sm"
-                              style={{
-                                height: `${d.value}%`,
-                                background: `rgba(255,255,255,${0.06 + (d.value / maxActivityValue) * 0.06})`,
-                                minHeight: "4px",
-                              }}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                      <div className="grid grid-cols-3 gap-3">
-                        <div className="text-center">
-                          <p className="text-2xl font-bold text-zinc-100">{stats.visitors}</p>
-                          <p className="text-[10px] text-zinc-500 uppercase tracking-wide mt-0.5">Visitors</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-2xl font-bold text-zinc-100">{generatedPages.length}</p>
-                          <p className="text-[10px] text-zinc-500 uppercase tracking-wide mt-0.5">Pages</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-2xl font-bold text-zinc-100">{products.length}</p>
-                          <p className="text-[10px] text-zinc-500 uppercase tracking-wide mt-0.5">Products</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 3-COLUMN ACTION CARDS */}
-                    <div className="grid grid-cols-3 gap-3">
-                      {/* AI Builder card */}
-                      <button
-                        onClick={() => setActiveTab("ai")}
-                        className="rounded-[18px] flex flex-col items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]"
-                        style={{ background: "#252527", aspectRatio: "1/1", border: "1px solid #2e2e30" }}
-                      >
-                        <div
-                          className="w-10 h-10 rounded-xl flex items-center justify-center"
-                          style={{ background: "#2e2e30" }}
-                        >
-                          <Sparkles className="h-5 w-5 text-zinc-400" />
-                        </div>
-                        <span className="text-[11px] font-semibold text-zinc-300">AI Builder</span>
-                      </button>
-
-                      {/* Statistics card */}
-                      <button
-                        onClick={() => setActiveSubTab("limits")}
-                        className="rounded-[18px] flex flex-col items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]"
-                        style={{ background: "#252527", aspectRatio: "1/1", border: "1px solid #2e2e30" }}
-                      >
-                        <div
-                          className="w-10 h-10 rounded-xl flex items-center justify-center"
-                          style={{ background: "#2e2e30" }}
-                        >
-                          <BarChart3 className="h-5 w-5 text-zinc-400" />
-                        </div>
-                        <span className="text-[11px] font-semibold text-zinc-300">Statistics</span>
-                      </button>
-
-                      {/* Deploy card */}
-                      <button
-                        onClick={hasDeployError ? startAutoFix : handleDeploy}
-                        disabled={isDeploying}
-                        className={cn(
-                          "rounded-[18px] flex flex-col items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60",
-                          deploySuccess && "ring-2 ring-green-500/30"
-                        )}
-                        style={{ background: "#252527", aspectRatio: "1/1", border: "1px solid #2e2e30" }}
-                      >
-                        <div
-                          className={cn(
-                            "w-10 h-10 rounded-xl flex items-center justify-center",
-                            deploySuccess ? "bg-green-500/20" : ""
-                          )}
-                          style={!deploySuccess ? { background: "#2e2e30" } : {}}
-                        >
-                          {isDeploying ? (
-                            <Loader2 className="h-5 w-5 text-zinc-400 animate-spin" />
-                          ) : deploySuccess ? (
-                            <CheckCircle2 className="h-5 w-5 text-green-400" />
-                          ) : hasDeployError ? (
-                            <Sparkles className="h-5 w-5 text-red-400" />
-                          ) : (
-                            <Rocket className="h-5 w-5 text-zinc-400" />
-                          )}
-                        </div>
-                        <span className="text-[11px] font-semibold text-zinc-300">
-                          {isDeploying ? "Deploying..." : deploySuccess ? "Deployed!" : hasDeployError ? "Fix Error" : "Deploy"}
-                        </span>
-                      </button>
-                    </div>
-
-                    {/* Deploy progress bar */}
-                    {(isDeploying || deploySuccess) && (
-                      <Progress value={deployProgress} className={cn("h-1.5 rounded-full", deploySuccess ? "[&>div]:bg-green-500" : "")} />
-                    )}
-
-                    {/* Deploy error message */}
-                    {deployError && (
-                      <div className="text-center space-y-1 py-2">
-                        <p className="text-xs text-destructive">{deployError}</p>
-                        {!hasDeployError && (
-                          <Button variant="link" size="sm" onClick={startAutoFix} className="text-blue-400 h-auto p-0 text-xs">
-                            Try fixing with AI
-                          </Button>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="space-y-6">
-                         <div className="w-full bg-muted/40 p-1.5 rounded-xl border border-white/5">
-                            <div className="flex items-center gap-1">
-                                {subTabs.map((tab) => {
-                                    const Icon = tab.icon
-                                    const isActive = activeSubTab === tab.id
-                                    return (
-                                    <button
-                                        key={tab.id}
-                                        onClick={() => setActiveSubTab(tab.id as any)}
-                                        className={cn(
-                                        "flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium rounded-lg transition-all duration-200",
-                                        isActive ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-white/5"
-                                        )}
-                                    >
-                                        <Icon className="h-4 w-4" />
-                                        {tab.label}
-                                    </button>
-                                    )
-                                })}
-                            </div>
-                        </div>
-                        {activeSubTab === "limits" && (
-                            <div className="animate-in fade-in slide-in-from-bottom-2">
-                                <Card className="bg-card/50 backdrop-blur-xl border-white/10 shadow-sm">
-                                    <CardHeader className="pb-4 pt-6 px-6"><div className="flex items-center gap-3"><CardTitle className="text-xl font-bold">Statistics</CardTitle><span className="bg-muted text-muted-foreground text-[10px] font-medium px-2 py-0.5 rounded-md border border-border/50 uppercase tracking-wide">Free</span></div></CardHeader>
-                                    <CardContent className="space-y-8 px-6 pb-8">
-                                        <div className="flex items-center gap-5"><div className="h-12 w-12 bg-muted/50 rounded-xl shrink-0 flex items-center justify-center border border-white/5"><stats.changes.icon className="h-6 w-6 text-foreground/70" /></div><div className="flex-1"><Progress value={(stats.changes.used / stats.changes.limit) * 100} className="h-1.5 bg-muted/50" /></div><div className="text-right min-w-[80px]"><span className="text-lg font-bold block leading-none mb-1">{stats.changes.limit - stats.changes.used}</span><span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">{stats.changes.label}</span></div></div>
-                                        <div className="flex items-center gap-5"><div className="h-12 w-12 bg-muted/50 rounded-xl shrink-0 flex items-center justify-center border border-white/5"><stats.aiBuilds.icon className="h-6 w-6 text-foreground/70" /></div><div className="flex-1"><Progress value={(stats.aiBuilds.used / stats.aiBuilds.limit) * 100} className="h-1.5 bg-muted/50" /></div><div className="text-right min-w-[80px]"><span className="text-lg font-bold block leading-none mb-1">{stats.aiBuilds.used} / {stats.aiBuilds.limit}</span><span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">{stats.aiBuilds.label}</span></div></div>
-                                        <div className="flex items-center gap-5"><div className="h-12 w-12 bg-muted/50 rounded-xl shrink-0 flex items-center justify-center border border-white/5"><stats.storage.icon className="h-6 w-6 text-foreground/70" /></div><div className="flex-1"><Progress value={(stats.storage.used / stats.storage.limit) * 100} className="h-1.5 bg-muted/50" /></div><div className="text-right min-w-[80px]"><span className="text-lg font-bold block leading-none mb-1">{stats.storage.used}MB</span><span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">{stats.storage.label}</span></div></div>
-                                        <div className="flex items-center gap-5"><div className="h-12 w-12 bg-muted/50 rounded-xl shrink-0 flex items-center justify-center border border-white/5"><stats.products.icon className="h-6 w-6 text-foreground/70" /></div><div className="flex-1"><Progress value={(stats.products.used / stats.products.limit) * 100} className="h-1.5 bg-muted/50" /></div><div className="text-right min-w-[80px]"><span className="text-lg font-bold block leading-none mb-1">{stats.products.used} / {stats.products.limit}</span><span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">{stats.products.label}</span></div></div>
-                                        <div className="pt-6 border-t border-white/5">
-                                            <h4 className="text-sm font-medium mb-4 text-muted-foreground uppercase tracking-wider">Weekly Activity</h4>
-                                            <div className="h-[200px] w-full">
-                                                <ResponsiveContainer width="100%" height="100%">
-                                                    <AreaChart data={activityData}>
-                                                        <defs><linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/><stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/></linearGradient></defs>
-                                                        <Tooltip contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '8px' }} itemStyle={{ color: '#e4e4e7' }} />
-                                                        <Area type="monotone" dataKey="value" stroke="#3b82f6" fillOpacity={1} fill="url(#colorValue)" strokeWidth={2} />
-                                                    </AreaChart>
-                                                </ResponsiveContainer>
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </div>
-                        )}
-                        {activeSubTab === "connections" && (
-                            <div className="flex flex-col items-center justify-center h-[30vh] text-center border-2 border-dashed border-white/10 rounded-xl bg-white/5 animate-in fade-in slide-in-from-bottom-2">
-                                <Link className="h-10 w-10 text-muted-foreground mb-3 opacity-50" />
-                                <h3 className="text-lg font-medium mb-1">Connections</h3>
-                                <p className="text-muted-foreground text-sm">Currently under construction</p>
-                            </div>
-                        )}
-                        {activeSubTab === "help" && (
-                            <div className="flex flex-col items-center justify-center h-[30vh] text-center border-2 border-dashed border-white/10 rounded-xl bg-white/5 animate-in fade-in slide-in-from-bottom-2">
-                                <HelpCircle className="h-10 w-10 text-muted-foreground mb-3 opacity-50" />
-                                <h3 className="text-lg font-medium mb-1">Help Center</h3>
-                                <p className="text-muted-foreground text-sm">Currently under construction</p>
-                            </div>
-                        )}
                     </div>
 
                 </div>
