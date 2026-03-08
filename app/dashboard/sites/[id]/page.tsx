@@ -1214,7 +1214,7 @@ export default function SiteSettingsPage() {
                           done: !!project,
                         },
                         {
-                          id: "style",
+                          id: "ai-build",
                           label: "Build with AI",
                           done: generatedPages.length > 0,
                           action: () => setActiveTab("ai"),
@@ -1256,7 +1256,7 @@ export default function SiteSettingsPage() {
                               }}
                             />
                             {/* Segment markers */}
-                            {[1, 2, 3].map((i) => (
+                            {Array.from({ length: onboardingSteps.length - 1 }, (_, i) => i + 1).map((i) => (
                               <div
                                 key={i}
                                 className="absolute top-0 bottom-0 w-[2px]"
