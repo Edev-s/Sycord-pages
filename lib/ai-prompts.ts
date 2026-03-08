@@ -138,6 +138,10 @@ REQUIREMENTS:
     - vite.config.ts MUST set build.outDir = 'dist'
 9.  **Connected Files**: Every component must properly import from types.ts and utils.ts. The entry point main.ts must import from all components.
 
+LANGUAGE RULE:
+Detect the language the user writes in and respond in that same language for all natural-language text (questions, business goal descriptions, design descriptions, user flow, implementation strategy, clarification questions).
+Keep ALL technical identifiers in English regardless of language: file names, code, variable names, function names, JSON keys, CSS properties, package names, and the fixed bracket markers ([0], [1], [usedfor], [QUESTION], etc.).
+
 CONVERSATION HISTORY:
 {{HISTORY}}
 
@@ -145,6 +149,7 @@ Request: {{REQUEST}}
 
 MISSING INFORMATION & CLARIFICATIONS:
 If the user's request is too vague, lacks detail, or you need more specific information about the design, layout, or features to build a high-quality site, you MUST ask a question.
+Write the question in the same language the user used.
 To ask a question, return ONLY this format (do not return the plan yet):
 [QUESTION] <Your specific question here>
 `

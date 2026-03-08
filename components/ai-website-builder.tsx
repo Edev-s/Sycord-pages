@@ -445,6 +445,15 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
 
   const progress = getProgress()
 
+  // Ref for auto-scrolling to the bottom of the chat
+  const chatBottomRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (step !== 'idle') {
+      chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [messages.length, step])
+
   useEffect(() => {
     if (autoFixLogs && autoFixLogs.length > 0 && step === 'idle') {
       startAutoFixSession(autoFixLogs)
@@ -818,110 +827,131 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       }
   }
 
-  // Plan content extraction
-  const planMessage = messages.find(m => m.role === 'assistant' && m.plan)
-  const planContent = planMessage?.content || ""
-
   return (
-    <div className="flex flex-col h-full bg-transparent text-zinc-100 font-sans relative overflow-hidden">
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col relative overflow-hidden">
-             {/* Background Accents - Blue only, as requested */}
-             {step === 'idle' && (
-                 <>
-                     <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
-                     <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
-                 </>
-             )}
+    <div className="flex flex-col h-full bg-transparent text-zinc-100 font-sans relative">
+        {/* Background Accents - idle only */}
+        {step === 'idle' && (
+            <>
+                <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+            </>
+        )}
 
-            <div className="flex-1 overflow-y-auto p-6 md:p-12 custom-scrollbar relative z-10 flex flex-col" style={{ WebkitOverflowScrolling: 'touch' }}>
-                 {/* IDLE STATE */}
+        {/* Scrollable chat area */}
+        <div
+            className="flex-1 overflow-y-auto custom-scrollbar relative z-10 pb-32"
+            style={{ WebkitOverflowScrolling: 'touch' }}
+        >
+            <div className="max-w-2xl mx-auto w-full px-4 md:px-0 min-h-full flex flex-col">
+
+                {/* IDLE STATE */}
                 {step === 'idle' && (
-                    <div className="flex flex-col items-center justify-start pt-20 text-center max-w-2xl w-full mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700 delay-150 h-full">
+                    <div className="flex-1 flex flex-col items-center justify-center text-center py-20 animate-in fade-in slide-in-from-bottom-8 duration-700 relative">
                         <GeminiBadge />
-                        <div className="flex-1 flex flex-col items-center justify-center">
-                            <h1 className="text-4xl md:text-5xl font-medium tracking-tight mb-2 text-white">
+                        <div className="mt-4 space-y-1">
+                            <h1 className="text-4xl md:text-5xl font-medium tracking-tight text-white">
                                 Hi {userName},
                             </h1>
-                            <h2 className="text-4xl md:text-5xl font-medium tracking-tight text-zinc-500 mb-6">
+                            <h2 className="text-4xl md:text-5xl font-medium tracking-tight text-zinc-500">
                                 What are we building?
                             </h2>
                         </div>
                     </div>
                 )}
 
-                {/* GENERATING/DONE STATE */}
-                {(step !== 'idle') && (
-                    <div className="max-w-2xl mx-auto space-y-6 w-full flex-1 flex flex-col justify-start pb-20 pt-6">
+                {/* CHAT / GENERATING STATE */}
+                {step !== 'idle' && (
+                    <div className="flex flex-col pt-8 pb-4">
 
-                         {/* Preview Box Skeleton */}
-                         {(step === 'coding' || step === 'fixing' || step === 'planning' || step === 'needs_info' || step === 'firebase_auth' || step === 'done') && (
-                             <WebsitePreviewCardSkeleton />
-                         )}
+                        {/* Messages — plain text, no bubbles, Gemini-style */}
+                        {messages
+                            .filter(m => m.role === 'user' || (m.role === 'assistant' && !m.plan && !m.isIntermediate))
+                            .map((msg, i) => (
+                                <div
+                                    key={msg.id || i}
+                                    className={cn(
+                                        "py-2.5",
+                                        msg.role === 'user' ? "flex justify-end" : "flex justify-start"
+                                    )}
+                                >
+                                    <p className={cn(
+                                        "text-sm leading-relaxed max-w-[82%]",
+                                        msg.role === 'user' ? "text-zinc-200 text-right" : "text-zinc-400"
+                                    )}>
+                                        {msg.content}
+                                    </p>
+                                </div>
+                            ))
+                        }
 
-                         <div className="flex flex-col items-center justify-center w-full">
-                            {step === 'planning' && (
-                                <ThinkingCard isActive={true} isDone={false} />
-                            )}
+                        {/* ── Status indicators at bottom — inline, chat-style ── */}
 
-                            {(step === 'coding' || step === 'fixing') && (
-                                <ProgressCard isActive={true} isDone={false} progress={progress} currentFile={activeFile} currentFileUsedFor={activeFileUsedFor} />
-                            )}
+                        {step === 'planning' && (
+                            <div className="flex items-center gap-2.5 py-3 mt-2 animate-in fade-in duration-300">
+                                <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-zinc-500" />
+                                <span className="text-sm text-zinc-500">Thinking…</span>
+                            </div>
+                        )}
 
-                            {step === 'firebase_auth' && (
+                        {(step === 'coding' || step === 'fixing') && (
+                            <div className="py-3 mt-2 space-y-2.5 animate-in fade-in duration-300">
+                                <div className="flex items-center gap-2.5">
+                                    <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-zinc-500" />
+                                    <span className="text-sm text-zinc-400 truncate">
+                                        {activeFile ? `Generating ${activeFile}` : 'Building your website…'}
+                                    </span>
+                                </div>
+                                {activeFileUsedFor && (
+                                    <p className="text-xs text-zinc-600 pl-6 leading-relaxed">{activeFileUsedFor}</p>
+                                )}
+                                <div className="pl-6 space-y-1">
+                                    <div className="flex items-center justify-between text-[11px] text-zinc-600">
+                                        <span>{progress.done} of {progress.total} files</span>
+                                        <span>{progress.percent}%</span>
+                                    </div>
+                                    <div className="h-[2px] bg-zinc-800/80 rounded-full overflow-hidden">
+                                        <div
+                                            className="h-full bg-zinc-500 rounded-full transition-all duration-500 ease-out"
+                                            style={{ width: `${progress.percent}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {step === 'firebase_auth' && (
+                            <div className="mt-4">
                                 <FirebaseConnectionCard onConnect={() => {
                                     setStep("planning")
-                                    if (instruction) {
-                                        processNextStep(instruction, [...messages])
-                                    }
+                                    if (instruction) processNextStep(instruction, [...messages])
                                 }} />
-                            )}
+                            </div>
+                        )}
 
-                            {step === 'done' && (
-                                <SavingCard isActive={false} isDone={true} />
-                            )}
-                         </div>
-
-                         {/* Chat History View */}
-                         {(step === 'coding' || step === 'done' || step === 'fixing' || step === 'needs_info' || step === 'firebase_auth') && (
-                             <div className="mt-8 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                                 {messages.filter(m => m.role === 'user' || (m.role === 'assistant' && !m.plan && !m.isIntermediate)).map((msg, i) => (
-                                     <div key={i} className={cn("flex flex-col", msg.role === 'user' ? "items-end" : "items-start")}>
-                                         <div className={cn(
-                                             "px-4 py-3 rounded-2xl max-w-[85%] text-sm",
-                                             msg.role === 'user'
-                                                ? "bg-white/15 text-white rounded-br-sm"
-                                                : "bg-zinc-900/70 border border-white/10 text-zinc-200 rounded-bl-sm"
-                                         )}>
-                                             {msg.content}
-                                         </div>
-                                     </div>
-                                 ))}
-                             </div>
-                         )}
-
-                         {/* Done Actions */}
                         {step === 'done' && (
-                            <div className="mt-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                                 <div className="flex items-center gap-4 p-4 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 mb-6 backdrop-blur-md">
-                                    <CheckCircle2 className="h-5 w-5" />
-                                    <span className="font-medium">Website generation complete!</span>
-                                 </div>
+                            <div className="py-3 mt-2 flex items-center gap-2.5 animate-in fade-in duration-300">
+                                <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+                                <span className="text-sm text-zinc-400">Website ready</span>
+                            </div>
+                        )}
 
-                                 <div className="grid grid-cols-2 gap-4">
+                        {/* Done Actions */}
+                        {step === 'done' && (
+                            <div className="mt-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                <div className="grid grid-cols-2 gap-3">
                                     <Button
                                         size="lg"
-                                        className="w-full h-14 text-base font-semibold bg-white text-black hover:bg-zinc-200 rounded-xl"
+                                        className="w-full h-12 text-sm font-semibold bg-white text-black hover:bg-zinc-200 rounded-xl"
                                         onClick={handleDeploy}
                                         disabled={isDeploying}
                                     >
-                                        {isDeploying ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Rocket className="h-5 w-5 mr-2" />}
+                                        {isDeploying ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Rocket className="h-4 w-4 mr-2" />}
                                         {deploySuccess ? "Deployed!" : "Deploy to Cloudflare"}
                                     </Button>
-                                     <Button
+                                    <Button
                                         size="lg"
                                         variant="outline"
-                                        className="w-full h-14 text-base font-medium bg-zinc-900/50 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white rounded-xl backdrop-blur-sm"
+                                        className="w-full h-12 text-sm font-medium bg-transparent border-zinc-800 text-zinc-400 hover:bg-zinc-800/50 hover:text-white rounded-xl"
                                         onClick={() => {
                                             setStep('idle')
                                             setInput("")
@@ -930,40 +960,41 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                                     >
                                         Create Another
                                     </Button>
-                                 </div>
-                            </div>
-                        )}
-
-                         {/* Error Display */}
-                        {error && (
-                             <div className="mt-8 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 flex items-start gap-3 backdrop-blur-md">
-                                <Bug className="h-5 w-5 shrink-0" />
-                                <div className="space-y-1">
-                                    <h4 className="font-medium text-sm">Error</h4>
-                                    <p className="text-xs opacity-90">{error}</p>
-                                    <Button
-                                        variant="link"
-                                        className="text-red-400 p-0 h-auto text-xs mt-2"
-                                        onClick={() => setStep('idle')}
-                                    >
-                                        Reset
-                                    </Button>
                                 </div>
                             </div>
                         )}
+
+                        {/* Error Display */}
+                        {error && (
+                            <div className="mt-4 flex items-start gap-2.5">
+                                <Bug className="h-4 w-4 shrink-0 text-red-400 mt-0.5" />
+                                <div>
+                                    <p className="text-sm text-red-400">{error}</p>
+                                    <button
+                                        className="text-xs text-red-500/60 hover:text-red-400 mt-1 underline-offset-2 underline"
+                                        onClick={() => setStep('idle')}
+                                    >
+                                        Reset
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Scroll anchor — keeps status row visible at bottom */}
+                        <div ref={chatBottomRef} />
                     </div>
                 )}
             </div>
+        </div>
 
-            {/* Input Bar - Always visible, fixed at bottom */}
-            <div className="w-full relative z-20">
-                <InputBar
-                    input={input}
-                    setInput={setInput}
-                    onSend={startGeneration}
-                    disabled={step !== 'idle' && step !== 'needs_info'}
-                />
-            </div>
+        {/* Input Bar — always at bottom */}
+        <div className="w-full relative z-20">
+            <InputBar
+                input={input}
+                setInput={setInput}
+                onSend={startGeneration}
+                disabled={step !== 'idle' && step !== 'needs_info'}
+            />
         </div>
     </div>
   )
