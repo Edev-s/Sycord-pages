@@ -1116,7 +1116,7 @@ export default function SiteSettingsPage() {
                        ══════════════════════════════════════════════════════════════ */}
                     <div
                       className="relative w-full overflow-hidden rounded-[20px]"
-                      style={{ background: "#252527", aspectRatio: "4/3" }}
+                      style={{ background: "#252527", aspectRatio: "4/3", border: "1px solid rgba(255,255,255,0.08)" }}
                     >
                       {/* Live iframe preview */}
                       {previewUrl ? (
@@ -1148,39 +1148,20 @@ export default function SiteSettingsPage() {
                         style={{ background: "linear-gradient(to bottom, transparent 50%, rgba(28,28,30,0.7) 100%)" }}
                       />
 
-                      {/* "Your site is now live!" banner - exact shape from photo */}
+                      {/* "Your site is now live!" banner */}
                       {previewUrl && (
                         <div
-                          className="absolute bottom-0 left-0 flex items-end"
-                          style={{ width: "72%", zIndex: 10 }}
+                          className="absolute bottom-0 left-0"
+                          style={{ zIndex: 10 }}
                         >
-                          {/* Rotated diamond */}
-                          <div
-                            aria-hidden="true"
-                            style={{ flexShrink: 0, zIndex: 2, marginLeft: "-10px", marginBottom: "-5px" }}
-                          >
-                            <div
-                              style={{
-                                width: "36px",
-                                height: "36px",
-                                borderRadius: "6px",
-                                background: "#22a846",
-                                transform: "rotate(45deg)",
-                              }}
-                            />
-                          </div>
-                          {/* Green strip */}
                           <div
                             style={{
-                              flex: 1,
                               display: "flex",
                               alignItems: "center",
                               gap: "6px",
-                              padding: "11px 16px 11px 8px",
-                              marginLeft: "-14px",
+                              padding: "10px 16px",
                               borderTopRightRadius: "18px",
                               background: "#22a846",
-                              zIndex: 1,
                             }}
                           >
                             <CheckCircle2
@@ -1226,7 +1207,7 @@ export default function SiteSettingsPage() {
                        ══════════════════════════════════════════════════════════════ */}
                     <div
                       className="w-full rounded-[20px] p-5 flex flex-col justify-between"
-                      style={{ background: "#252527", aspectRatio: "16/9" }}
+                      style={{ background: "#252527", aspectRatio: "16/9", border: "1px solid rgba(255,255,255,0.08)" }}
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-[13px] font-semibold text-zinc-300">Quick Stats</span>
@@ -1237,6 +1218,21 @@ export default function SiteSettingsPage() {
                           </span>
                           <span className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider">Live</span>
                         </div>
+                      </div>
+                      {/* Mini activity chart */}
+                      <div className="flex items-end justify-between gap-1 flex-1 py-3">
+                        {activityData.map((d, i) => (
+                          <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                            <div
+                              className="w-full rounded-sm"
+                              style={{
+                                height: `${d.value}%`,
+                                background: `rgba(255,255,255,${0.06 + (d.value / 55) * 0.06})`,
+                                minHeight: "4px",
+                              }}
+                            />
+                          </div>
+                        ))}
                       </div>
                       <div className="grid grid-cols-3 gap-3">
                         <div className="text-center">

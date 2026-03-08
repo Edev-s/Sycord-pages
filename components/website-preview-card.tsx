@@ -224,49 +224,20 @@ export function WebsitePreviewCard({
           }}
         />
 
-        {/* ── "Your site is now live!" banner ──
-            Exact shape from the reference photo:
-            • Rotated green diamond square bleeds out of bottom-left corner
-            • Green rounded strip extends right with text
-        */}
+        {/* ── "Your site is now live!" banner ── */}
         <div
           aria-label="Your site is now live"
-          className="absolute bottom-0 left-0 flex items-end"
-          style={{ width: "72%", zIndex: 10 }}
+          className="absolute bottom-0 left-0"
+          style={{ zIndex: 10 }}
         >
-          {/* Diamond */}
-          <div
-            aria-hidden="true"
-            style={{
-              flexShrink: 0,
-              zIndex: 2,
-              marginLeft: "-10px",
-              marginBottom: "-5px",
-            }}
-          >
-            <div
-              style={{
-                width: "36px",
-                height: "36px",
-                borderRadius: "6px",
-                background: "#22a846",
-                transform: "rotate(45deg)",
-              }}
-            />
-          </div>
-
-          {/* Green strip */}
           <div
             style={{
-              flex: 1,
               display: "flex",
               alignItems: "center",
               gap: "6px",
-              padding: "11px 16px 11px 8px",
-              marginLeft: "-14px",
+              padding: "10px 16px",
               borderTopRightRadius: "18px",
               background: "#22a846",
-              zIndex: 1,
             }}
           >
             <CheckCircle2
