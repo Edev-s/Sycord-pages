@@ -392,6 +392,13 @@ const FirebaseConnectionCard = ({
     const [isConnecting, setIsConnecting] = useState(false)
     const [connectError, setConnectError] = useState<string | null>(null)
 
+    const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    const projectDomain = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_DOMAIN
+    const proxyLoopDetected = !!authDomain && !!projectDomain && authDomain === projectDomain
+    // The exact URLs Google Cloud Console must have for the popup to work
+    const oauthRedirectUri = authDomain ? `https://${authDomain}/__/auth/handler` : null
+    const oauthJsOrigin   = authDomain ? `https://${authDomain}` : null
+
     const handleConnect = async () => {
         setIsConnecting(true)
         setConnectError(null)
@@ -419,6 +426,10 @@ const FirebaseConnectionCard = ({
             const firebaseErr = err as { code?: string; message?: string }
             if (firebaseErr?.code === "auth/popup-closed-by-user" || firebaseErr?.code === "auth/cancelled-popup-request") {
                 setConnectError(null)
+            } else if (firebaseErr?.code === "auth/redirect-uri-mismatch") {
+                setConnectError(
+                    `redirect_uri_mismatch — open the debug panel below and add the listed Redirect URI to your Google Cloud OAuth client.`
+                )
             } else {
                 setConnectError(firebaseErr?.message || "Connection failed. Please try again.")
             }
@@ -426,10 +437,6 @@ const FirebaseConnectionCard = ({
             setIsConnecting(false)
         }
     }
-
-    const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
-    const projectDomain = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_DOMAIN
-    const proxyLoopDetected = !!authDomain && !!projectDomain && authDomain === projectDomain
 
     return (
         <div className="flex flex-col items-center justify-center py-6 gap-5 animate-in fade-in slide-in-from-bottom-2 duration-700">
@@ -464,11 +471,15 @@ const FirebaseConnectionCard = ({
                 <p className="text-xs text-red-400 text-center max-w-xs">{connectError}</p>
             )}
 
-            {/* Debug panel — visible when env vars suggest a misconfiguration */}
-            {(proxyLoopDetected || !projectDomain) && (
-                <details className="w-full max-w-sm text-[10px] text-zinc-600 border border-white/5 rounded-xl px-3 py-2 bg-[#1c1c1c]">
-                    <summary className="cursor-pointer text-zinc-500 font-mono select-none">⚠ Firebase proxy debug</summary>
-                    <div className="mt-2 flex flex-col gap-1 font-mono">
+            {/* Debug panel — always available so operators can verify the required OAuth setup */}
+            <details className="w-full max-w-sm text-[10px] text-zinc-600 border border-white/5 rounded-xl px-3 py-2 bg-[#1c1c1c]">
+                <summary className="cursor-pointer text-zinc-500 font-mono select-none">
+                    {proxyLoopDetected || !projectDomain ? "⚠ " : ""}Firebase OAuth debug
+                </summary>
+                <div className="mt-2 flex flex-col gap-2 font-mono">
+
+                    {/* Env var status */}
+                    <div className="flex flex-col gap-1">
                         <div>
                             <span className="text-zinc-600">AUTH_DOMAIN: </span>
                             <span className={authDomain ? "text-zinc-300" : "text-red-500"}>{authDomain || "(not set)"}</span>
@@ -477,21 +488,43 @@ const FirebaseConnectionCard = ({
                             <span className="text-zinc-600">PROJECT_DOMAIN: </span>
                             <span className={projectDomain ? "text-zinc-300" : "text-red-500"}>{projectDomain || "(not set)"}</span>
                         </div>
-                        {proxyLoopDetected && (
-                            <p className="mt-1 text-red-400 leading-snug">
-                                AUTH_DOMAIN and PROJECT_DOMAIN are identical — the /__/auth proxy would loop back to itself (508).
-                                Set NEXT_PUBLIC_FIREBASE_PROJECT_DOMAIN to your {"<project-id>"}.firebaseapp.com hostname.
-                            </p>
-                        )}
-                        {!projectDomain && (
-                            <p className="mt-1 text-amber-400 leading-snug">
-                                NEXT_PUBLIC_FIREBASE_PROJECT_DOMAIN is not set — the /__/auth proxy is disabled.
-                                Add this env var (e.g. my-project.firebaseapp.com) to enable Google Sign-In via popup.
-                            </p>
-                        )}
                     </div>
-                </details>
-            )}
+
+                    {/* Proxy misconfiguration warnings */}
+                    {proxyLoopDetected && (
+                        <p className="text-red-400 leading-snug">
+                            AUTH_DOMAIN and PROJECT_DOMAIN are identical — the /__/auth proxy would loop back to itself (508).
+                            Set NEXT_PUBLIC_FIREBASE_PROJECT_DOMAIN to your {"<project-id>"}.firebaseapp.com hostname.
+                        </p>
+                    )}
+                    {!projectDomain && (
+                        <p className="text-amber-400 leading-snug">
+                            NEXT_PUBLIC_FIREBASE_PROJECT_DOMAIN is not set — the /__/auth proxy is disabled.
+                            Add this env var (e.g. my-project.firebaseapp.com) to enable Google Sign-In via popup.
+                        </p>
+                    )}
+
+                    {/* Google Cloud Console required setup */}
+                    {authDomain && (
+                        <div className="border-t border-white/5 pt-2 flex flex-col gap-1">
+                            <p className="text-zinc-500 mb-1">
+                                Google Cloud Console → APIs &amp; Services → Credentials → OAuth 2.0 Client must have:
+                            </p>
+                            <div>
+                                <span className="text-zinc-600">Authorized JavaScript origins:</span>
+                                <div className="mt-0.5 px-2 py-1 rounded bg-zinc-800 text-zinc-200 break-all select-all">{oauthJsOrigin ?? "(AUTH_DOMAIN not set)"}</div>
+                            </div>
+                            <div className="mt-1">
+                                <span className="text-zinc-600">Authorized redirect URIs:</span>
+                                <div className="mt-0.5 px-2 py-1 rounded bg-zinc-800 text-zinc-200 break-all select-all">{oauthRedirectUri ?? "(AUTH_DOMAIN not set)"}</div>
+                            </div>
+                            <p className="text-zinc-600 mt-1 leading-snug">
+                                Firebase Console → Authentication → Settings → Authorized domains must also include <span className="text-zinc-400">{authDomain}</span>.
+                            </p>
+                        </div>
+                    )}
+                </div>
+            </details>
         </div>
     )
 }
