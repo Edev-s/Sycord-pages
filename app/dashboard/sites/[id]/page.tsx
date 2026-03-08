@@ -1110,7 +1110,8 @@ export default function SiteSettingsPage() {
 
             {/* TAB CONTENT: STYLES / OVERVIEW */}
             {activeTab === "styles" && (() => {
-              const onboardingComplete = !!project && generatedPages.length > 0 && products.length > 0
+              const hasRealPages = generatedPages.some(p => p.usedFor !== "Idle deployment placeholder")
+              const onboardingComplete = !!project && hasRealPages && products.length > 0
               return (
                 <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
 
@@ -1218,7 +1219,7 @@ export default function SiteSettingsPage() {
                         {
                           id: "setup-style",
                           label: "Stílus beállítása",
-                          done: generatedPages.length > 0,
+                          done: hasRealPages,
                           action: () => setActiveTab("ai"),
                           actionLabel: "Személyreszabás",
                         },
@@ -1236,13 +1237,13 @@ export default function SiteSettingsPage() {
                       if (onboardingComplete) return null
 
                       return (
-                        <div className="space-y-4 mt-4">
-                          <p className="text-[15px] font-semibold text-zinc-100 text-center">
+                        <div className="space-y-3 mt-2">
+                          <p className="text-[13px] font-semibold text-zinc-100 text-center">
                             Fejezd be a weboldalad elkészítését!
                           </p>
 
                           {/* Progress bar */}
-                          <div className="relative h-2 w-full rounded-full overflow-hidden" style={{ background: "#2e2e30" }}>
+                          <div className="relative h-1.5 w-full rounded-full overflow-hidden" style={{ background: "#2e2e30" }}>
                             <div
                               className="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
                               style={{
@@ -1261,20 +1262,20 @@ export default function SiteSettingsPage() {
                           </div>
 
                           {/* Steps */}
-                          <div className="space-y-2">
+                          <div className="space-y-1.5">
                             {onboardingSteps.map((step) => (
                               <div
                                 key={step.id}
-                                className="flex items-center gap-3 px-1"
+                                className="flex items-center gap-2.5 px-1"
                               >
                                 {/* Check icon */}
                                 {step.done ? (
-                                  <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-green-500">
-                                    <CheckCircle2 className="h-5 w-5 text-white" />
+                                  <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 bg-green-500">
+                                    <CheckCircle2 className="h-4 w-4 text-white" />
                                   </div>
                                 ) : (
                                   <div
-                                    className="w-8 h-8 rounded-full shrink-0"
+                                    className="w-6 h-6 rounded-full shrink-0"
                                     style={{ border: "2px solid #3f3f46", background: "transparent" }}
                                   />
                                 )}
@@ -1282,7 +1283,7 @@ export default function SiteSettingsPage() {
                                 {/* Label */}
                                 <span
                                   className={cn(
-                                    "flex-1 text-[14px] font-medium min-w-0",
+                                    "flex-1 text-[13px] font-medium min-w-0",
                                     step.done ? "text-zinc-400" : "text-zinc-100"
                                   )}
                                 >
@@ -1293,7 +1294,7 @@ export default function SiteSettingsPage() {
                                 {!step.done && step.action && (
                                   <button
                                     onClick={step.action}
-                                    className="h-8 px-4 rounded-full text-[12px] font-semibold text-zinc-200 shrink-0 transition-all hover:opacity-85 active:opacity-70"
+                                    className="h-7 px-3 rounded-full text-[11px] font-semibold text-zinc-200 shrink-0 transition-all hover:opacity-85 active:opacity-70"
                                     style={{ border: "1px solid rgba(255,255,255,0.15)", background: "transparent" }}
                                   >
                                     {step.actionLabel}
