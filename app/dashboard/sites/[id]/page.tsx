@@ -951,6 +951,7 @@ export default function SiteSettingsPage() {
     { name: "Sat", value: 40 },
     { name: "Sun", value: 35 },
   ]
+  const maxActivityValue = Math.max(...activityData.map(d => d.value)) || 1
 
   return (
     <div className="flex h-[100dvh] bg-background overflow-hidden relative"
@@ -1227,7 +1228,7 @@ export default function SiteSettingsPage() {
                               className="w-full rounded-sm"
                               style={{
                                 height: `${d.value}%`,
-                                background: `rgba(255,255,255,${0.06 + (d.value / 55) * 0.06})`,
+                                background: `rgba(255,255,255,${0.06 + (d.value / maxActivityValue) * 0.06})`,
                                 minHeight: "4px",
                               }}
                             />
