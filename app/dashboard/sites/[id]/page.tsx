@@ -1204,6 +1204,114 @@ export default function SiteSettingsPage() {
                     </div>
 
                     {/* ══════════════════════════════════════════════════════════════
+                        ONBOARDING CHECKLIST
+                       ══════════════════════════════════════════════════════════════ */}
+                    {(() => {
+                      const onboardingSteps = [
+                        {
+                          id: "create",
+                          label: "Create your Project",
+                          done: !!project,
+                        },
+                        {
+                          id: "style",
+                          label: "Build with AI",
+                          done: generatedPages.length > 0,
+                          action: () => setActiveTab("ai"),
+                          actionLabel: "Start Building",
+                        },
+                        {
+                          id: "products",
+                          label: "Add products",
+                          done: products.length > 0,
+                          action: () => setActiveTab("products"),
+                          actionLabel: "Add Products",
+                        },
+                        {
+                          id: "deploy",
+                          label: "Deploy your site",
+                          done: !!previewUrl,
+                          action: handleDeploy,
+                          actionLabel: "Deploy",
+                        },
+                      ]
+                      const doneCount = onboardingSteps.filter((s) => s.done).length
+                      const progress = Math.round((doneCount / onboardingSteps.length) * 100)
+
+                      if (doneCount === onboardingSteps.length) return null
+
+                      return (
+                        <div className="space-y-4">
+                          <p className="text-[15px] font-semibold text-zinc-100 text-center">
+                            Complete your website setup!
+                          </p>
+
+                          {/* Progress bar */}
+                          <div className="relative h-2 w-full rounded-full overflow-hidden" style={{ background: "#2e2e30" }}>
+                            <div
+                              className="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
+                              style={{
+                                width: `${progress}%`,
+                                background: "linear-gradient(90deg, #22a846 0%, #4ade80 100%)",
+                              }}
+                            />
+                            {/* Segment markers */}
+                            {[1, 2, 3].map((i) => (
+                              <div
+                                key={i}
+                                className="absolute top-0 bottom-0 w-[2px]"
+                                style={{ left: `${(i / onboardingSteps.length) * 100}%`, background: "#18191B" }}
+                              />
+                            ))}
+                          </div>
+
+                          {/* Steps */}
+                          <div className="space-y-2">
+                            {onboardingSteps.map((step) => (
+                              <div
+                                key={step.id}
+                                className="flex items-center gap-3 px-1"
+                              >
+                                {/* Check icon */}
+                                {step.done ? (
+                                  <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-green-500">
+                                    <CheckCircle2 className="h-5 w-5 text-white" />
+                                  </div>
+                                ) : (
+                                  <div
+                                    className="w-8 h-8 rounded-full shrink-0"
+                                    style={{ border: "2px solid #3f3f46", background: "transparent" }}
+                                  />
+                                )}
+
+                                {/* Label */}
+                                <span
+                                  className={cn(
+                                    "flex-1 text-[14px] font-medium min-w-0",
+                                    step.done ? "text-zinc-400" : "text-zinc-100"
+                                  )}
+                                >
+                                  {step.label}
+                                </span>
+
+                                {/* Action button for incomplete steps */}
+                                {!step.done && step.action && (
+                                  <button
+                                    onClick={step.action}
+                                    className="h-8 px-4 rounded-full text-[12px] font-semibold text-zinc-200 shrink-0 transition-all hover:opacity-85 active:opacity-70"
+                                    style={{ border: "1px solid rgba(255,255,255,0.15)", background: "transparent" }}
+                                  >
+                                    {step.actionLabel}
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    })()}
+
+                    {/* ══════════════════════════════════════════════════════════════
                         SECONDARY CARD (16:9) - Quick stats summary
                        ══════════════════════════════════════════════════════════════ */}
                     <div
