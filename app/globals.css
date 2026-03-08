@@ -133,6 +133,12 @@
   }
 }
 
+/* Safe-area-aware bottom scroll padding for mobile dashboards */
+.pb-safe-scroll {
+  padding-bottom: 100px;
+  padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+}
+
 .text-gradient {
   background: linear-gradient(to bottom, white 0%, rgba(255, 255, 255, 0) 100%);
   -webkit-background-clip: text;
