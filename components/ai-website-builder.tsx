@@ -46,11 +46,11 @@ import {
 } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
 
-// Updated Models List
+// Updated Models List — gemini-3.1-pro-preview is the default
 const MODELS = [
+  { id: "gemini-3.1-pro-preview", name: "Gemini 3.1 Pro (Preview)", provider: "Google" },
   { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", provider: "Google" },
   { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", provider: "Google" },
-  { id: "gemini-3-flash", name: "Gemini 3 Flash (Preview)", provider: "Google" },
   { id: "deepseek-v3.2-exp", name: "DeepSeek V3", provider: "DeepSeek" },
 ]
 
@@ -263,37 +263,66 @@ const ThinkingCard = ({ isActive, isDone }: { isActive: boolean, isDone: boolean
 
     return (
         <div className="flex flex-col items-center justify-center py-6 gap-3 group transition-all duration-500 animate-in fade-in slide-in-from-bottom-2">
-            <div className="flex items-center justify-center text-zinc-500">
+            <div className="flex items-center justify-center text-zinc-300">
                 <Brain className="h-6 w-6 animate-pulse" />
             </div>
-            <h3 className={cn("text-sm font-medium transition-colors duration-300", isActive ? "text-zinc-400" : "text-zinc-500")}>
+            <h3 className={cn("text-sm font-medium transition-colors duration-300", isActive ? "text-zinc-200" : "text-zinc-400")}>
                 Thinking
             </h3>
+            {isActive && (
+                <p className="text-xs text-zinc-500 animate-pulse">Architecting your website structure…</p>
+            )}
         </div>
     )
 }
 
-const ProgressCard = ({ isActive, isDone, progress }: { isActive: boolean, isDone: boolean, progress: { percent: number } }) => {
+interface ProgressCardProps {
+  isActive: boolean
+  isDone: boolean
+  progress: { percent: number; done: number; total: number }
+  currentFile?: string
+  currentFileUsedFor?: string
+}
+
+const ProgressCard = ({ isActive, isDone, progress, currentFile, currentFileUsedFor }: ProgressCardProps) => {
     if (!isActive && !isDone) return null;
 
     return (
-        <div className="flex flex-col items-center justify-center py-6 gap-5 group transition-all duration-500 delay-100 animate-in fade-in slide-in-from-bottom-2">
-            <div className="flex items-center gap-2 text-zinc-500">
+        <div className="flex flex-col items-center justify-center py-6 gap-5 group transition-all duration-500 delay-100 animate-in fade-in slide-in-from-bottom-2 w-full">
+            <div className="flex items-center gap-2 text-zinc-300">
                 <Hammer className="h-5 w-5" />
                 <h3 className="text-base font-medium">Building</h3>
             </div>
 
             <div className="flex flex-col items-center gap-3 w-full max-w-xs">
                 {isActive ? (
-                    <Loader2 className="h-6 w-6 animate-spin text-zinc-500" />
+                    <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
                 ) : (
-                    <CheckCircle2 className="h-6 w-6 text-zinc-500" />
+                    <CheckCircle2 className="h-6 w-6 text-zinc-400" />
                 )}
-                <div className="text-center space-y-2">
-                    <p className="text-sm font-medium text-white">The AI is currently building your site</p>
-                    <div className="h-1.5 w-48 bg-zinc-800 rounded-full overflow-hidden mx-auto mt-4">
+
+                {/* Current file being generated */}
+                {currentFile && isActive && (
+                    <div className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-center space-y-1">
+                        <div className="flex items-center justify-center gap-1.5 text-[11px] text-zinc-500 uppercase tracking-wider font-semibold mb-1">
+                            <Code className="h-3 w-3" />
+                            Now generating
+                        </div>
+                        <p className="text-sm font-mono font-semibold text-white truncate">{currentFile}</p>
+                        {currentFileUsedFor && (
+                            <p className="text-xs text-zinc-400 leading-relaxed">{currentFileUsedFor}</p>
+                        )}
+                    </div>
+                )}
+
+                <div className="text-center space-y-2 w-full">
+                    <div className="flex items-center justify-between text-xs text-zinc-500 px-1">
+                        <span>{progress.done} of {progress.total} files</span>
+                        <span>{progress.percent}%</span>
+                    </div>
+                    <div className="h-1.5 w-full bg-zinc-800 rounded-full overflow-hidden">
                         <div
-                            className="h-full bg-zinc-500 rounded-full transition-all duration-500 ease-out"
+                            className="h-full bg-zinc-400 rounded-full transition-all duration-500 ease-out"
                             style={{ width: `${progress.percent}%` }}
                         />
                     </div>
@@ -308,10 +337,10 @@ const SavingCard = ({ isActive, isDone }: { isActive: boolean, isDone: boolean }
 
     return (
         <div className="flex flex-col items-center justify-center py-6 gap-3 group transition-all duration-500 delay-200 animate-in fade-in slide-in-from-bottom-2">
-            <div className="flex items-center justify-center text-zinc-500">
+            <div className="flex items-center justify-center text-zinc-300">
                {isDone ? <Check className="h-6 w-6" /> : <Cloud className="h-6 w-6 animate-pulse" />}
             </div>
-            <h3 className={cn("text-sm font-medium transition-colors duration-300", isActive ? "text-zinc-400" : "text-zinc-500")}>
+            <h3 className={cn("text-sm font-medium transition-colors duration-300", isActive ? "text-zinc-200" : "text-zinc-300")}>
                {isDone ? "Saved to cloud" : "Saving"}
             </h3>
         </div>
@@ -389,6 +418,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
   const [error, setError] = useState<string | null>(null)
 
   const [activeFile, setActiveFile] = useState<string | undefined>(undefined)
+  const [activeFileUsedFor, setActiveFileUsedFor] = useState<string | undefined>(undefined)
 
   const [isDeploying, setIsDeploying] = useState(false)
   const [deploySuccess, setDeploySuccess] = useState(false)
@@ -689,8 +719,13 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
     setStep("coding")
     setCurrentPlan("Generating next file...")
 
-    const nextFileMatch = /\[\d+\]\s*([^\s:]+)/.exec(currentInstruction)
-    if (nextFileMatch) setActiveFile(nextFileMatch[1])
+    // Pattern matches: [N] filename.ext [usedfor]description[/usedfor]
+    // e.g. [1] index.html [usedfor]Main entry point[usedfor]
+    const nextFileMatch = /\[\d+\]\s*([^\s:]+)(?:[:\-]?\s*\[usedfor\](.*?)\[usedfor\])?/.exec(currentInstruction)
+    if (nextFileMatch) {
+      setActiveFile(nextFileMatch[1])
+      setActiveFileUsedFor(nextFileMatch[2]?.trim() || undefined)
+    }
 
     try {
       const response = await fetch("/api/ai/generate-website", {
@@ -712,6 +747,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
         setStep("done")
         setCurrentPlan("All files generated.")
         setActiveFile(undefined)
+        setActiveFileUsedFor(undefined)
         return
       }
 
@@ -755,6 +791,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       setError(err.message)
       setStep("idle")
       setActiveFile(undefined)
+      setActiveFileUsedFor(undefined)
     }
   }
 
@@ -797,7 +834,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                  </>
              )}
 
-            <div className="flex-1 overflow-y-auto p-6 md:p-12 custom-scrollbar relative z-10 flex flex-col">
+            <div className="flex-1 overflow-y-auto p-6 md:p-12 custom-scrollbar relative z-10 flex flex-col" style={{ WebkitOverflowScrolling: 'touch' }}>
                  {/* IDLE STATE */}
                 {step === 'idle' && (
                     <div className="flex flex-col items-center justify-start pt-20 text-center max-w-2xl w-full mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700 delay-150 h-full">
@@ -828,7 +865,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                             )}
 
                             {(step === 'coding' || step === 'fixing') && (
-                                <ProgressCard isActive={true} isDone={false} progress={progress} />
+                                <ProgressCard isActive={true} isDone={false} progress={progress} currentFile={activeFile} currentFileUsedFor={activeFileUsedFor} />
                             )}
 
                             {step === 'firebase_auth' && (
@@ -853,8 +890,8 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                                          <div className={cn(
                                              "px-4 py-3 rounded-2xl max-w-[85%] text-sm",
                                              msg.role === 'user'
-                                                ? "bg-white/10 text-white rounded-br-sm"
-                                                : "bg-zinc-900/50 border border-white/5 text-zinc-300 rounded-bl-sm"
+                                                ? "bg-white/15 text-white rounded-br-sm"
+                                                : "bg-zinc-900/70 border border-white/10 text-zinc-200 rounded-bl-sm"
                                          )}>
                                              {msg.content}
                                          </div>
