@@ -18,7 +18,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const body = await request.json()
   const { firebaseUid, firebaseEmail, firebaseDisplayName } = body
 
-  if (!firebaseUid || !firebaseEmail) {
+  if (!firebaseUid) {
     return NextResponse.json({ message: "Missing Firebase user details" }, { status: 400 })
   }
 
@@ -43,7 +43,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       $set: {
         "projects.$.firebaseConnected": true,
         "projects.$.firebaseUid": firebaseUid,
-        "projects.$.firebaseEmail": firebaseEmail,
+        "projects.$.firebaseEmail": firebaseEmail || null,
         "projects.$.firebaseDisplayName": firebaseDisplayName || null,
         "projects.$.firebaseConnectedAt": new Date(),
         "projects.$.updatedAt": new Date(),
