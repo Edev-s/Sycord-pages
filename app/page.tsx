@@ -3,271 +3,103 @@
 import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
-import { ArrowRight, Zap, Globe, Shield, Megaphone } from "lucide-react"
-import { Countdown } from "@/components/countdown"
-import { StatusBadge } from "@/components/status-badge"
+import { Info, Github } from "lucide-react"
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#18191B] flex flex-col items-center overflow-x-hidden font-sans">
       {/* Header */}
-      <header className="border-b border-border">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Image src="/logo.png" alt="Logo" width={32} height={32} />
-            <span className="text-xl font-semibold text-foreground">Sycord</span>
-          </div>
-          <nav className="hidden md:flex items-center gap-8">
-            <Link href="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Funkciók
-            </Link>
-            <Link href="#pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Árak
-            </Link>
-            <Link href="#docs" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Dokumentáció
-            </Link>
-          </nav>
-          <div className="flex items-center gap-2 md:gap-3">
-            <Link href="/login">
-              <Button variant="ghost" className="text-foreground text-sm md:text-base">
-                Bejelentkezés
-              </Button>
-            </Link>
-            <Link href="/login">
-              <Button className="bg-white text-black hover:bg-white/90 text-sm md:text-base">Kezdés</Button>
-            </Link>
-          </div>
+      <header className="w-full max-w-7xl px-6 md:px-12 py-8 flex items-center justify-between z-10">
+        <div className="flex items-center gap-3">
+          <Image src="/logo.png" alt="Logo" width={24} height={24} className="opacity-90" />
+          <span className="text-xl font-medium text-white">Sycord</span>
         </div>
-      </header>
-
-      {/* Hero Section */}
-      <section className="relative pt-12 pb-12 md:pt-16 md:pb-16 overflow-hidden min-h-[500px] flex items-center bg-background">
-        <div className="container mx-auto px-4 relative z-20 mt-10">
-          <div className="max-w-5xl mx-auto text-center">
-            <Link href="/releases" className="inline-block mb-8">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/20 text-xs text-white bg-black/40 backdrop-blur-md hover:bg-black/60 transition-colors">
-                <Megaphone className="h-3 w-3" />
-                <span>What's new</span>
-              </div>
-            </Link>
-            <div className="mb-12 w-full mx-auto">
-              <video
-                src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/git-blob/prj_bWxAHpVzfcWBsKF4gKloSpnKnAKn/5fMm3-1m5lF9dVjpOwJyr8/public/hero-video.mp4"
-                autoPlay
-                loop
-                muted
-                playsInline
-                className="w-full h-auto rounded-xl"
-              />
-            </div>
-
-            <div className="mb-12">
-              <Countdown targetDate={new Date("2026-01-16T00:00:00")} />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="border-y border-border">
-        <div className="container mx-auto px-4 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div className="text-center md:text-left">
-              <div className="text-3xl font-bold text-foreground mb-1">100M+</div>
-              <div className="text-sm text-muted-foreground mb-2">API kérések naponta</div>
-              <div className="text-xs text-muted-foreground/60">Powered by Next.js</div>
-            </div>
-            <div className="text-center md:text-left">
-              <div className="text-3xl font-bold text-foreground mb-1">99.9%</div>
-              <div className="text-sm text-muted-foreground mb-2">Rendelkezésre állás</div>
-              <div className="text-xs text-muted-foreground/60">Cloudflare</div>
-            </div>
-            <div className="text-center md:text-left">
-              <div className="text-3xl font-bold text-foreground mb-1">10K</div>
-              <div className="text-sm text-muted-foreground mb-2">Aktív felhasználók</div>
-              <div className="text-xs text-muted-foreground/60">Growing Daily</div>
-            </div>
-            <div className="text-center md:text-left">
-              <div className="text-3xl font-bold text-foreground mb-1">24/7</div>
-              <div className="text-sm text-muted-foreground mb-2">Támogatás</div>
-              <div className="text-xs text-muted-foreground/60">GitHub</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section id="features" className="container mx-auto px-4 py-24">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
-              Erőteljes Funkciók Modern Alkalmazásokhoz
-            </h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              A Sycord mindent biztosít, amire szüksége van az alkalmazás egyszerű létrehozásához és skálázásához.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-lg p-8 hover:bg-white/10 transition-colors">
-              <div className="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center mb-4 text-white">
-                <Zap className="h-6 w-6" />
-              </div>
-              <h3 className="text-xl font-semibold text-foreground mb-2">Villámgyors Teljesítmény</h3>
-              <p className="text-muted-foreground leading-relaxed">
-                Platformunk a sebességre van optimalizálva, biztosítva a zökkenőmentes felhasználói élményt.
-              </p>
-            </div>
-            <div className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-lg p-8 hover:bg-white/10 transition-colors">
-              <div className="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center mb-4 text-white">
-                <Globe className="h-6 w-6" />
-              </div>
-              <h3 className="text-xl font-semibold text-foreground mb-2">Globális Skálázhatóság</h3>
-              <p className="text-muted-foreground leading-relaxed">
-                Telepítse alkalmazását világszerte a robusztus infrastruktúránkkal.
-              </p>
-            </div>
-            <div className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-lg p-8 hover:bg-white/10 transition-colors">
-              <div className="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center mb-4 text-white">
-                <Shield className="h-6 w-6" />
-              </div>
-              <h3 className="text-xl font-semibold text-foreground mb-2">Csúcskategóriás Biztonság</h3>
-              <p className="text-muted-foreground leading-relaxed">
-                A biztonságot helyezzük előtérbe az adatai és a felhasználói védelme érdekében.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="container mx-auto px-4 py-24">
-        <div className="max-w-4xl mx-auto text-center border border-border rounded-2xl p-12 bg-card">
-          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">Készen áll a kezdésre?</h2>
-          <p className="text-lg text-muted-foreground mb-8">
-            Hozzon létre egy fiókot és kezdje el ma az alkalmazás építését.
-          </p>
+        <div className="flex items-center gap-8">
+          <Link href="/login" className="text-[15px] font-medium text-white hover:text-white/80 transition-colors">
+            Bejelentkezés
+          </Link>
           <Link href="/login">
-            <Button size="lg" className="bg-white text-black hover:bg-white/90 text-base px-8">
-              Fiók létrehozása
-              <ArrowRight className="ml-2 h-4 w-4" />
+            <Button className="bg-white text-black hover:bg-white/90 text-[15px] font-medium px-6 h-10 rounded-md">
+              Kezdés
             </Button>
           </Link>
         </div>
-      </section>
+      </header>
 
-      {/* Footer */}
-      <footer className="border-t border-border">
-        <div className="container mx-auto px-4 py-12">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
-            <div>
-              <h4 className="font-semibold text-foreground mb-4">Termék</h4>
-              <ul className="space-y-2">
-                <li>
-                  <Link href="#" className="text-sm text-muted-foreground hover:text-foreground">
-                    Funkciók
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-sm text-muted-foreground hover:text-foreground">
-                    Árak
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-sm text-muted-foreground hover:text-foreground">
-                    Sablonok
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold text-foreground mb-4">Cég</h4>
-              <ul className="space-y-2">
-                <li>
-                  <Link href="#" className="text-sm text-muted-foreground hover:text-foreground">
-                    Rólunk
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/contact" className="text-sm text-muted-foreground hover:text-foreground">
-                    Kapcsolat
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-sm text-muted-foreground hover:text-foreground">
-                    Blog
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-sm text-muted-foreground hover:text-foreground">
-                    Karrier
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold text-foreground mb-4">Források</h4>
-              <ul className="space-y-2">
-                <li>
-                  <Link href="#" className="text-sm text-muted-foreground hover:text-foreground">
-                    Dokumentáció
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-sm text-muted-foreground hover:text-foreground">
-                    Támogatás
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-sm text-muted-foreground hover:text-foreground">
-                    Állapot
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold text-foreground mb-4">Jogi</h4>
-              <ul className="space-y-2">
-                <li>
-                  <Link href="#" className="text-sm text-muted-foreground hover:text-foreground">
-                    Adatvédelem
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-sm text-muted-foreground hover:text-foreground">
-                    Feltételek
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-sm text-muted-foreground hover:text-foreground">
-                    Biztonság
-                  </Link>
-                </li>
-              </ul>
-            </div>
+      {/* Main Content */}
+      <main className="w-full max-w-7xl px-6 md:px-12 flex-1 flex flex-col justify-center relative mt-16 md:mt-32">
+        <div className="flex flex-col md:flex-row items-center justify-between w-full">
+          {/* Left Column */}
+          <div className="flex-1 max-w-xl z-10 pt-4">
+            <h1 className="text-5xl md:text-[56px] leading-[1.1] tracking-tight mb-8">
+              <span className="font-bold text-white block">Create <span className="text-[#8A8E91] font-medium">your</span></span>
+              <span className="text-[#8A8E91] font-medium block">website <span className="font-bold text-white">under 5</span></span>
+              <span className="font-bold text-white block">minute!</span>
+            </h1>
+            <Button className="bg-[#8A8E91] hover:bg-[#787C7F] text-white text-[15px] font-medium px-8 h-11 rounded-[12px] border-none">
+              Get started
+            </Button>
           </div>
-          <div className="flex justify-center mb-6">
-            <StatusBadge />
-          </div>
-          <div className="pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Image src="/logo.png" alt="Logo" width={24} height={24} />
-              <span className="text-sm text-muted-foreground">© 2024 Sycord. Minden jog fenntartva.</span>
-            </div>
-            <div className="flex items-center gap-6">
-              <Link href="#" className="text-sm text-muted-foreground hover:text-foreground">
-                Twitter
-              </Link>
-              <Link href="#" className="text-sm text-muted-foreground hover:text-foreground">
-                GitHub
-              </Link>
-              <Link href="#" className="text-sm text-muted-foreground hover:text-foreground">
-                Discord
-              </Link>
+
+          {/* Right Column - Phone Image */}
+          <div className="flex-1 mt-16 md:mt-0 relative w-full flex justify-end">
+            <div className="relative w-[300px] h-[600px] md:w-[450px] md:h-[900px] md:-mr-32 xl:-mr-48 translate-y-20">
+              <Image
+                src="/phone-mockup.png"
+                alt="Phone Mockup"
+                fill
+                className="object-contain object-right"
+                priority
+              />
             </div>
           </div>
         </div>
-      </footer>
+
+        {/* Logos & Supporters Section */}
+        <div className="flex flex-col items-center mt-32 z-10 w-full max-w-3xl mx-auto pb-16">
+          <div className="flex items-center justify-center gap-16 md:gap-24 w-full mb-6">
+            <div className="flex items-center gap-2 text-white">
+              <Github className="w-[22px] h-[22px]" fill="currentColor" />
+              <span className="text-lg font-semibold tracking-tight">GitHub</span>
+            </div>
+
+            {/* Custom Cloud Icon based on original design */}
+            <div className="flex items-center justify-center text-white">
+              <svg width="40" height="26" viewBox="0 0 40 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M10.8333 25.5H29.1667C34.6895 25.5 39.1667 21.0228 39.1667 15.5C39.1667 10.3344 35.2536 6.08253 30.2227 5.54921C28.8927 2.10301 25.5683 -0.5 21.6667 -0.5C16.8123 -0.5 12.6987 2.92484 11.839 7.42672C11.5126 7.37059 11.1764 7.33333 10.8333 7.33333C4.85025 7.33333 -0.000101566 12.1837 -0.000101566 18.1667C-0.000101566 23.6394 4.05315 28.1667 9.16656 28.1667" fill="white"/>
+                <path fillRule="evenodd" clipRule="evenodd" d="M10.8333 26H29.1667C34.9656 26 39.6667 21.2989 39.6667 15.5C39.6667 10.0573 35.5186 5.58611 30.2443 5.05051C28.8596 1.45508 25.5113 -1 21.6667 -1C16.5982 -1 12.3533 2.65179 11.3789 7.36836C11.1983 7.345 11.0166 7.33333 10.8333 7.33333C4.57344 7.33333 -0.500102 12.4068 -0.500102 18.6667C-0.500102 24.3976 3.76632 29.1337 9.16656 29.1337C10.0886 29.1337 10.8333 28.389 10.8333 27.467C10.8333 26.545 10.0886 25.8003 9.16656 25.8003C5.60682 25.8003 2.83323 22.9255 2.83323 18.6667C2.83323 14.2484 6.41505 10.6667 10.8333 10.6667C11.667 10.6667 12.4334 10.8277 13.1118 11.1065C13.5937 11.3045 14.1611 11.054 14.3468 10.5638C15.0135 8.80492 16.5644 7.4267 18.4312 6.81232C20.4485 6.14838 22.7533 6.64166 24.3168 8.12571C24.6853 8.47549 25.2638 8.44112 25.5878 8.04944C26.7909 6.59567 28.6625 5.66667 30.8333 5.66667C34.5152 5.66667 37.5 8.65144 37.5 12.3333C37.5 15.6568 35.068 18.4116 31.8333 18.9135C31.3005 18.9961 30.8333 19.4921 30.8333 20.0326C30.8333 20.5849 31.2811 21.0326 31.8333 21.0326C36.4357 21.0326 40.1667 17.3017 40.1667 12.6993C40.1667 8.3686 36.8488 4.81439 32.6105 4.3946C31.0601 0.778007 27.562 -1.5 23.3333 -1.5C18.0035 -1.5 13.5042 2.3732 12.1843 7.41113C11.7454 7.35954 11.294 7.33333 10.8333 7.33333C4.29744 7.33333 -1.0001 12.6309 -1.0001 19.1667C-1.0001 25.3283 3.69342 30.4079 9.66656 30.8066V30.8066C10.0469 30.8315 10.3333 30.5407 10.3333 30.1604V26H10.8333Z" fill="#18191B"/>
+              </svg>
+            </div>
+
+            <div className="flex items-center text-white">
+               <span className="text-[20px] font-medium tracking-tight">Google</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 bg-[#252527] px-4 py-1.5 rounded-full border border-white/5 shadow-sm mt-4">
+            <span className="text-[13px] text-[#8A8E91]">Corporate Supporters:</span>
+            <Info className="w-3.5 h-3.5 text-[#8A8E91]" />
+          </div>
+
+          <div className="flex items-center gap-2 mt-16 mb-8">
+            <div className="w-8 h-[6px] bg-[#8A8E91] rounded-full"></div>
+            <div className="w-[6px] h-[6px] bg-[#323335] rounded-full"></div>
+            <div className="w-[6px] h-[6px] bg-[#323335] rounded-full"></div>
+            <div className="w-[6px] h-[6px] bg-[#323335] rounded-full"></div>
+          </div>
+
+          {/* Pricing Card Section */}
+          <div className="w-full max-w-[500px] bg-[#252527] border-t border-x border-white/5 rounded-t-[32px] p-8 pb-32 mb-0 shadow-xl relative overflow-hidden">
+             <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-5 h-5 rotate-45 bg-[#8A8E91] rounded-sm flex-shrink-0"></div>
+                  <span className="text-2xl font-semibold text-[#8A8E91]">Free</span>
+                </div>
+                <div className="w-[140px] h-9 bg-[#323335] rounded-[10px]"></div>
+             </div>
+          </div>
+        </div>
+      </main>
     </div>
   )
 }
