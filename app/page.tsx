@@ -3,7 +3,7 @@
 import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
-import { Info, Github } from "lucide-react"
+import { Info } from "lucide-react"
 
 export default function LandingPage() {
   return (
@@ -18,19 +18,17 @@ export default function LandingPage() {
           <Link href="/login" className="text-[15px] font-medium text-white hover:text-white/80 transition-colors">
             Bejelentkezés
           </Link>
-          <Link href="/login">
-            <Button className="bg-white text-black hover:bg-white/90 text-[15px] font-medium px-6 h-10 rounded-md">
-              Kezdés
-            </Button>
-          </Link>
+          <Button asChild className="bg-white text-black hover:bg-white/90 text-[15px] font-medium px-6 h-10 rounded-md">
+            <Link href="/login">Kezdés</Link>
+          </Button>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="w-full max-w-7xl px-6 md:px-12 flex-1 flex flex-col justify-center relative mt-16 md:mt-32">
-        <div className="flex flex-col md:flex-row items-center justify-between w-full">
+      <main className="w-full max-w-7xl px-6 md:px-12 flex-1 flex flex-col justify-center relative mt-16 md:mt-32 mb-16">
+        <div className="flex flex-col md:flex-row items-center justify-between w-full relative h-[400px]">
           {/* Left Column */}
-          <div className="flex-1 max-w-xl z-10 pt-4">
+          <div className="flex-1 max-w-xl z-10 pt-4 absolute left-0 top-1/2 -translate-y-1/2">
             <h1 className="text-5xl md:text-[56px] leading-[1.1] tracking-tight mb-8">
               <span className="font-bold text-white block">Create <span className="text-[#8A8E91] font-medium">your</span></span>
               <span className="text-[#8A8E91] font-medium block">website <span className="font-bold text-white">under 5</span></span>
@@ -41,38 +39,45 @@ export default function LandingPage() {
             </Button>
           </div>
 
-          {/* Right Column - Phone Image */}
-          <div className="flex-1 mt-16 md:mt-0 relative w-full flex justify-end">
-            <div className="relative w-[300px] h-[600px] md:w-[450px] md:h-[900px] md:-mr-32 xl:-mr-48 translate-y-20">
-              <Image
-                src="/phone-mockup.png"
-                alt="Phone Mockup"
-                fill
-                className="object-contain object-right"
-                priority
-              />
-            </div>
+          {/* Right Column - Phone Image (Absolutely positioned to overflow right edge) */}
+          <div className="absolute top-1/2 -translate-y-[45%] right-[-15%] md:right-[-20%] lg:right-[-15%] w-[450px] h-[900px] md:w-[600px] md:h-[1200px] pointer-events-none z-0">
+            <Image
+              src="/phone-mockup.png"
+              alt="Phone Mockup"
+              fill
+              className="object-contain object-right"
+              priority
+            />
           </div>
         </div>
 
         {/* Logos & Supporters Section */}
-        <div className="flex flex-col items-center mt-32 z-10 w-full max-w-3xl mx-auto pb-16">
+        <div className="flex flex-col items-center mt-64 md:mt-48 z-10 w-full max-w-3xl mx-auto pb-16">
           <div className="flex items-center justify-center gap-16 md:gap-24 w-full mb-6">
             <div className="flex items-center gap-2 text-white">
-              <Github className="w-[22px] h-[22px]" fill="currentColor" />
-              <span className="text-lg font-semibold tracking-tight">GitHub</span>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+                <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12C2 16.42 4.868 20.166 8.839 21.503C9.339 21.594 9.52 21.288 9.52 21.025C9.52 20.79 9.512 20.165 9.507 19.336C6.726 19.938 6.139 17.994 6.139 17.994C5.684 16.84 5.03 16.533 5.03 16.533C4.126 15.915 5.099 15.928 5.099 15.928C6.1 16.001 6.626 16.96 6.626 16.96C7.514 18.483 8.956 18.043 9.543 17.789C9.633 17.127 9.898 16.688 10.194 16.44C7.973 16.188 5.638 15.332 5.638 11.478C5.638 10.378 6.031 9.479 6.674 8.784C6.57 8.532 6.224 7.508 6.772 6.111C6.772 6.111 7.616 5.842 9.49 7.109C10.293 6.886 11.152 6.775 12.002 6.771C12.852 6.775 13.711 6.886 14.515 7.109C16.388 5.842 17.23 6.111 17.23 6.111C17.78 7.508 17.435 8.532 17.331 8.784C17.975 9.479 18.366 10.378 18.366 11.478C18.366 15.344 16.027 16.185 13.801 16.432C14.169 16.748 14.498 17.371 14.498 18.324C14.498 19.689 14.485 20.79 14.485 21.025C14.485 21.29 14.664 21.6 15.17 21.501C19.135 20.163 22 16.418 22 12C22 6.477 17.523 2 12 2Z" fill="white"/>
+              </svg>
+              <span className="text-xl font-semibold tracking-tight">GitHub</span>
             </div>
 
-            {/* Custom Cloud Icon based on original design */}
+            {/* Cloudflare logo solid fill */}
             <div className="flex items-center justify-center text-white">
-              <svg width="40" height="26" viewBox="0 0 40 26" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M10.8333 25.5H29.1667C34.6895 25.5 39.1667 21.0228 39.1667 15.5C39.1667 10.3344 35.2536 6.08253 30.2227 5.54921C28.8927 2.10301 25.5683 -0.5 21.6667 -0.5C16.8123 -0.5 12.6987 2.92484 11.839 7.42672C11.5126 7.37059 11.1764 7.33333 10.8333 7.33333C4.85025 7.33333 -0.000101566 12.1837 -0.000101566 18.1667C-0.000101566 23.6394 4.05315 28.1667 9.16656 28.1667" fill="white"/>
-                <path fillRule="evenodd" clipRule="evenodd" d="M10.8333 26H29.1667C34.9656 26 39.6667 21.2989 39.6667 15.5C39.6667 10.0573 35.5186 5.58611 30.2443 5.05051C28.8596 1.45508 25.5113 -1 21.6667 -1C16.5982 -1 12.3533 2.65179 11.3789 7.36836C11.1983 7.345 11.0166 7.33333 10.8333 7.33333C4.57344 7.33333 -0.500102 12.4068 -0.500102 18.6667C-0.500102 24.3976 3.76632 29.1337 9.16656 29.1337C10.0886 29.1337 10.8333 28.389 10.8333 27.467C10.8333 26.545 10.0886 25.8003 9.16656 25.8003C5.60682 25.8003 2.83323 22.9255 2.83323 18.6667C2.83323 14.2484 6.41505 10.6667 10.8333 10.6667C11.667 10.6667 12.4334 10.8277 13.1118 11.1065C13.5937 11.3045 14.1611 11.054 14.3468 10.5638C15.0135 8.80492 16.5644 7.4267 18.4312 6.81232C20.4485 6.14838 22.7533 6.64166 24.3168 8.12571C24.6853 8.47549 25.2638 8.44112 25.5878 8.04944C26.7909 6.59567 28.6625 5.66667 30.8333 5.66667C34.5152 5.66667 37.5 8.65144 37.5 12.3333C37.5 15.6568 35.068 18.4116 31.8333 18.9135C31.3005 18.9961 30.8333 19.4921 30.8333 20.0326C30.8333 20.5849 31.2811 21.0326 31.8333 21.0326C36.4357 21.0326 40.1667 17.3017 40.1667 12.6993C40.1667 8.3686 36.8488 4.81439 32.6105 4.3946C31.0601 0.778007 27.562 -1.5 23.3333 -1.5C18.0035 -1.5 13.5042 2.3732 12.1843 7.41113C11.7454 7.35954 11.294 7.33333 10.8333 7.33333C4.29744 7.33333 -1.0001 12.6309 -1.0001 19.1667C-1.0001 25.3283 3.69342 30.4079 9.66656 30.8066V30.8066C10.0469 30.8315 10.3333 30.5407 10.3333 30.1604V26H10.8333Z" fill="#18191B"/>
+              <svg width="48" height="32" viewBox="0 0 64 42" fill="white" xmlns="http://www.w3.org/2000/svg">
+                <path d="M43.95 11.41C42.84 5.01 37.3 0 30.63 0C25.4 0 20.89 3.09 18.66 7.64C18.12 7.55 17.57 7.5 17 7.5C10.65 7.5 5.5 12.65 5.5 19C5.5 19.33 5.52 19.65 5.54 19.98C2.33 21.6 0.13 24.96 0.13 28.84C0.13 34.45 4.68 39 10.29 39H43.71C49.23 39 53.71 34.52 53.71 29C53.71 23.86 49.83 19.6 44.86 19.06C45.33 17.9 45.62 16.65 45.62 15.34C45.62 13.94 45.02 12.59 43.95 11.41Z" fill="white" />
+                <path d="M62.08 26.15C60.85 22.09 57.07 19.12 52.6 19.12C52.12 19.12 51.65 19.16 51.2 19.24C50.22 17.98 48.97 16.94 47.53 16.2C49.33 17.7 50.7 19.66 51.48 21.91C51.52 22 51.57 22.1 51.6 22.19C52.07 23.47 52.33 24.84 52.33 26.26C52.33 32.12 47.8 36.93 42 37.37H54C59.52 37.37 64 32.89 64 27.37C64 26.96 63.97 26.55 63.91 26.15H62.08Z" fill="white" />
               </svg>
             </div>
 
             <div className="flex items-center text-white">
-               <span className="text-[20px] font-medium tracking-tight">Google</span>
+               {/* Google G logo solid white */}
+               <svg width="24" height="24" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M22.56 12.25C22.56 11.47 22.49 10.72 22.36 10H12V14.26H17.92C17.66 15.63 16.88 16.79 15.71 17.57V20.34H19.27C21.35 18.42 22.56 15.6 22.56 12.25Z" fill="white" />
+                  <path d="M12 23C14.97 23 17.46 22.02 19.28 20.34L15.71 17.57C14.73 18.23 13.48 18.63 12 18.63C9.14 18.63 6.71 16.7 5.84 14.1H2.18V16.94C3.99 20.53 7.7 23 12 23Z" fill="white" />
+                  <path d="M5.84 14.1C5.62 13.44 5.49 12.74 5.49 12C5.49 11.26 5.62 10.56 5.84 9.9V7.06H2.18C1.43 8.55 1 10.22 1 12C1 13.78 1.43 15.45 2.18 16.94L5.84 14.1Z" fill="white" />
+                  <path d="M12 5.38C13.62 5.38 15.06 5.94 16.21 7.02L19.36 3.87C17.45 2.09 14.97 1 12 1C7.7 1 3.99 3.47 2.18 7.06L5.84 9.9C6.71 7.3 9.14 5.38 12 5.38Z" fill="white" />
+               </svg>
+               <span className="text-[20px] font-medium tracking-tight ml-2">Google</span>
             </div>
           </div>
 
