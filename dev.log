@@ -1,0 +1,76 @@
+
+> my-v0-project@0.1.0 dev
+> next dev
+
+   ▲ Next.js 16.0.10 (Turbopack)
+   - Local:         http://localhost:3000
+   - Network:       http://192.168.0.2:3000
+
+ ✓ Starting...
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+ ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+ ✓ Ready in 1384ms
+ ○ Compiling / ...
+ GET / 200 in 4.3s (compile: 3.9s, proxy.ts: 120ms, render: 337ms)
+ ⨯ Error: Missing MONGO_URI environment variable
+    at module evaluation (lib/mongodb.ts:4:9)
+    at module evaluation (lib/auth.ts:4:1)
+    at module evaluation (app/api/auth/[...nextauth]/route.ts:2:1)
+    at Object.<anonymous> (.next/dev/server/app/api/auth/[...nextauth]/route.js:9:3)
+  2 |
+  3 | if (!process.env.MONGO_URI) {
+> 4 |   throw new Error("Missing MONGO_URI environment variable");
+    |         ^
+  5 | }
+  6 |
+  7 | const uri = process.env.MONGO_URI; {
+  page: '/api/auth/session'
+}
+ GET / 200 in 81ms (compile: 4ms, proxy.ts: 10ms, render: 67ms)
+ GET /api/auth/session 500 in 3.3s (compile: 3.2s, proxy.ts: 5ms, render: 166ms)
+ ⨯ Error: Missing MONGO_URI environment variable
+    at module evaluation (lib/mongodb.ts:4:9)
+    at module evaluation (lib/auth.ts:4:1)
+    at module evaluation (app/api/auth/[...nextauth]/route.ts:2:1)
+    at Object.<anonymous> (.next/dev/server/app/api/auth/[...nextauth]/route.js:9:3)
+  2 |
+  3 | if (!process.env.MONGO_URI) {
+> 4 |   throw new Error("Missing MONGO_URI environment variable");
+    |         ^
+  5 | }
+  6 |
+  7 | const uri = process.env.MONGO_URI; {
+  page: '/api/auth/session'
+}
+ GET /api/auth/session 500 in 115ms (compile: 90ms, proxy.ts: 8ms, render: 17ms)
+ ⨯ Error: Missing MONGO_URI environment variable
+    at module evaluation (lib/mongodb.ts:4:9)
+    at module evaluation (lib/auth.ts:4:1)
+    at module evaluation (app/api/auth/[...nextauth]/route.ts:2:1)
+    at Object.<anonymous> (.next/dev/server/app/api/auth/[...nextauth]/route.js:9:3)
+  2 |
+  3 | if (!process.env.MONGO_URI) {
+> 4 |   throw new Error("Missing MONGO_URI environment variable");
+    |         ^
+  5 | }
+  6 |
+  7 | const uri = process.env.MONGO_URI; {
+  page: '/api/auth/_log'
+}
+ POST /api/auth/_log 500 in 203ms (compile: 182ms, proxy.ts: 7ms, render: 15ms)
+ ⨯ Error: Missing MONGO_URI environment variable
+    at module evaluation (lib/mongodb.ts:4:9)
+    at module evaluation (lib/auth.ts:4:1)
+    at module evaluation (app/api/auth/[...nextauth]/route.ts:2:1)
+    at Object.<anonymous> (.next/dev/server/app/api/auth/[...nextauth]/route.js:9:3)
+  2 |
+  3 | if (!process.env.MONGO_URI) {
+> 4 |   throw new Error("Missing MONGO_URI environment variable");
+    |         ^
+  5 | }
+  6 |
+  7 | const uri = process.env.MONGO_URI; {
+  page: '/api/auth/_log'
+}
+ POST /api/auth/_log 500 in 104ms (compile: 80ms, proxy.ts: 10ms, render: 14ms)
+[?25h
