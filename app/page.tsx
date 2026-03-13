@@ -26,9 +26,9 @@ export default function LandingPage() {
 
       {/* Hero Section */}
       <main className="w-full flex-1 flex flex-col">
-        <section className="w-full px-5 pt-10 pb-6 relative min-h-[320px] overflow-hidden">
+        <section className="w-full px-5 pt-10 pb-8 relative min-h-[400px] overflow-hidden">
           {/* Text Content */}
-          <div className="relative z-10 max-w-[280px]">
+          <div className="relative z-10 max-w-[200px]">
             <h1 className="text-[36px] font-bold leading-[1.15] tracking-tight mb-8">
               <span className="text-white">Create </span>
               <span className="text-[#8A8E91]">your</span>
@@ -46,10 +46,10 @@ export default function LandingPage() {
             </Button>
           </div>
 
-          {/* Phone Mockup - Half visible, positioned at right edge */}
+          {/* Phone Mockup - Exactly half-cut on the right side, no rotation */}
+          {/* -right value = phone width / 2 = 320px / 2 = 160px, ensuring exactly half is visible */}
           <div 
-            className="absolute top-4 -right-[120px] w-[280px] h-[380px] pointer-events-none z-0"
-            style={{ transform: 'rotate(12deg)' }}
+            className="absolute top-0 -right-[calc(320px/2)] w-[320px] h-[520px] pointer-events-none z-0"
           >
             <Image
               src="/phone-mockup.png"
