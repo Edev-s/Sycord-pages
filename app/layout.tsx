@@ -13,8 +13,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} font-sans antialiased`}>
+    <html lang="en" suppressHydrationWarning className="bg-[#18191B]">
+      <body className={`${inter.className} font-sans antialiased bg-[#18191B]`}>
         <ThemeProvider attribute="class" defaultTheme="dark" forcedTheme="dark" disableTransitionOnChange>
           <AuthProvider>
             {children}
@@ -27,6 +27,8 @@ export default function RootLayout({
 }
 
 export const metadata = {
+  title: 'Sycord - Create Your Website Under 5 Minutes',
+  description: 'Build beautiful websites in minutes with AI-powered tools. No coding required. Start for free.',
   generator: 'v0.app'
 };
 
@@ -35,4 +37,5 @@ export const viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  themeColor: '#18191B',
 };
