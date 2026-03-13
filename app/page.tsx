@@ -15,7 +15,7 @@ export default function LandingPage() {
           <span className="text-xl font-medium text-white">Sycord</span>
         </div>
         <div className="flex items-center gap-8">
-          <Link href="/login" className="text-[15px] font-medium text-white hover:text-white/80 transition-colors">
+          <Link href="/login" className="hidden md:block text-[15px] font-medium text-white hover:text-white/80 transition-colors">
             Bejelentkezés
           </Link>
           <Button asChild className="bg-white text-black hover:bg-white/90 text-[15px] font-medium px-6 h-10 rounded-md">
@@ -93,14 +93,14 @@ export default function LandingPage() {
             <div className="w-[6px] h-[6px] bg-[#323335] rounded-full"></div>
           </div>
 
-          {/* Pricing Card Section */}
-          <div className="w-full max-w-[500px] bg-[#252527] border-t border-x border-white/5 rounded-t-[32px] p-8 pb-32 mb-0 shadow-xl relative overflow-hidden">
-             <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-5 h-5 rotate-45 bg-[#8A8E91] rounded-sm flex-shrink-0"></div>
-                  <span className="text-2xl font-semibold text-[#8A8E91]">Free</span>
+                    {/* Pricing Card Section */}
+          <div className="w-full bg-[#323335] rounded-t-[40px] p-8 md:p-12 h-[220px] shadow-2xl relative overflow-hidden flex flex-col justify-start">
+             <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-6">
+                  <div className="w-10 h-10 rotate-45 bg-[#8A8E91] rounded-lg flex-shrink-0"></div>
+                  <span className="text-4xl md:text-[40px] font-bold text-[#8A8E91] tracking-tight ml-2">Free</span>
                 </div>
-                <div className="w-[140px] h-9 bg-[#323335] rounded-[10px]"></div>
+                <div className="w-[140px] h-[50px] md:w-[320px] md:h-[80px] bg-[#464749] rounded-2xl md:rounded-3xl"></div>
              </div>
           </div>
         </div>
