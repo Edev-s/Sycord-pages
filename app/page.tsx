@@ -16,7 +16,7 @@ export default function LandingPage() {
         </div>
         <Button 
           asChild 
-          className="bg-white text-[#18191B] hover:bg-white/90 text-xs md:text-sm font-semibold px-5 md:px-7 h-9 md:h-11 rounded-full min-h-[44px]"
+          className="bg-white text-[#18191B] hover:bg-white/90 text-xs md:text-sm font-semibold px-6 md:px-8 h-9 md:h-11 rounded-full min-h-[44px]"
         >
           <Link href="/login">Kezdés</Link>
         </Button>
@@ -126,7 +126,7 @@ export default function LandingPage() {
               Everything you need to build and launch your website in minutes
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-              <div className="bg-[#252527] rounded-2xl p-5 md:p-6 border border-white/5 hover:border-white/10 transition-colors group">
+              <div className="bg-[#252527] rounded-2xl p-5 md:p-6 border border-white/5 hover:border-white/10 transition-colors">
                 <div className="w-11 h-11 bg-yellow-500/10 rounded-xl flex items-center justify-center mb-4">
                   <Zap className="w-5 h-5 text-yellow-500" />
                 </div>
@@ -134,7 +134,7 @@ export default function LandingPage() {
                 <p className="text-[#8A8E91] text-xs md:text-sm">Build your website in under 5 minutes with our AI-powered builder</p>
               </div>
               
-              <div className="bg-[#252527] rounded-2xl p-5 md:p-6 border border-white/5 hover:border-white/10 transition-colors group">
+              <div className="bg-[#252527] rounded-2xl p-5 md:p-6 border border-white/5 hover:border-white/10 transition-colors">
                 <div className="w-11 h-11 bg-blue-500/10 rounded-xl flex items-center justify-center mb-4">
                   <Globe className="w-5 h-5 text-blue-500" />
                 </div>
@@ -142,7 +142,7 @@ export default function LandingPage() {
                 <p className="text-[#8A8E91] text-xs md:text-sm">Your website loads fast everywhere with our global content delivery</p>
               </div>
               
-              <div className="bg-[#252527] rounded-2xl p-5 md:p-6 border border-white/5 hover:border-white/10 transition-colors group">
+              <div className="bg-[#252527] rounded-2xl p-5 md:p-6 border border-white/5 hover:border-white/10 transition-colors">
                 <div className="w-11 h-11 bg-green-500/10 rounded-xl flex items-center justify-center mb-4">
                   <Shield className="w-5 h-5 text-green-500" />
                 </div>
@@ -150,7 +150,7 @@ export default function LandingPage() {
                 <p className="text-[#8A8E91] text-xs md:text-sm">SSL certificates and enterprise-grade security included by default</p>
               </div>
               
-              <div className="bg-[#252527] rounded-2xl p-5 md:p-6 border border-white/5 hover:border-white/10 transition-colors group">
+              <div className="bg-[#252527] rounded-2xl p-5 md:p-6 border border-white/5 hover:border-white/10 transition-colors">
                 <div className="w-11 h-11 bg-purple-500/10 rounded-xl flex items-center justify-center mb-4">
                   <Sparkles className="w-5 h-5 text-purple-500" />
                 </div>
@@ -158,15 +158,15 @@ export default function LandingPage() {
                 <p className="text-[#8A8E91] text-xs md:text-sm">Intelligent recommendations to help you create better websites</p>
               </div>
               
-              <div className="bg-[#252527] rounded-2xl p-5 md:p-6 border border-white/5 hover:border-white/10 transition-colors group">
-                <div className="w-11 h-11 bg-green-500/10 rounded-xl flex items-center justify-center mb-4">
-                  <MousePointerClick className="w-5 h-5 text-green-500" />
+              <div className="bg-[#252527] rounded-2xl p-5 md:p-6 border border-white/5 hover:border-white/10 transition-colors">
+                <div className="w-11 h-11 bg-orange-500/10 rounded-xl flex items-center justify-center mb-4">
+                  <MousePointerClick className="w-5 h-5 text-orange-500" />
                 </div>
                 <h3 className="text-white font-semibold text-sm md:text-base mb-2">No Code Required</h3>
                 <p className="text-[#8A8E91] text-xs md:text-sm">Drag and drop interface makes it easy for anyone to build</p>
               </div>
               
-              <div className="bg-[#252527] rounded-2xl p-5 md:p-6 border border-white/5 hover:border-white/10 transition-colors group">
+              <div className="bg-[#252527] rounded-2xl p-5 md:p-6 border border-white/5 hover:border-white/10 transition-colors">
                 <div className="w-11 h-11 bg-cyan-500/10 rounded-xl flex items-center justify-center mb-4">
                   <Layers className="w-5 h-5 text-cyan-500" />
                 </div>
