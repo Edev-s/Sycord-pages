@@ -14,7 +14,8 @@ export default function LandingPage() {
           <Image src="/logo.png" alt="Sycord Logo" width={28} height={28} className="opacity-90" />
           <span className="text-lg font-bold text-white tracking-tight">Sycord</span>
         </div>
-        <div>
+        <div className="flex items-center gap-4">
+          <Link href="/login" className="text-[#8A8E91] text-sm font-medium hover:text-white transition">Bejelentkezés</Link>
           <Button 
             asChild 
             className="bg-white text-[#18191B] hover:bg-white/90 text-sm font-semibold px-5 h-11 rounded-lg min-h-[44px]"
@@ -26,10 +27,10 @@ export default function LandingPage() {
 
       {/* Hero Section */}
       <main className="w-full flex-1 flex flex-col">
-        <section className="w-full px-5 pt-10 pb-8 relative min-h-[400px] overflow-hidden">
-          {/* Text Content */}
-          <div className="relative z-10 max-w-[200px]">
-            <h1 className="text-[36px] font-bold leading-[1.15] tracking-tight mb-8">
+        <section className="w-full px-5 pt-10 pb-10 relative min-h-[560px] overflow-hidden">
+          {/* Text Content – no max-w so "website under 5" fits on its explicit line */}
+          <div className="relative z-10">
+            <h1 className="text-[36px] font-bold leading-[1.15] tracking-tight">
               <span className="text-white">Create </span>
               <span className="text-[#8A8E91]">your</span>
               <br />
@@ -38,6 +39,10 @@ export default function LandingPage() {
               <br />
               <span className="text-white">minute!</span>
             </h1>
+          </div>
+
+          {/* Get started button - anchored to bottom of hero to match design */}
+          <div className="absolute bottom-10 left-5 z-10">
             <Button 
               asChild
               className="bg-[#6B6E71] hover:bg-[#5A5D60] text-white text-[14px] font-medium px-6 h-11 rounded-xl min-w-[44px] min-h-[44px]"
@@ -46,16 +51,30 @@ export default function LandingPage() {
             </Button>
           </div>
 
-          {/* Phone Mockup - Exactly half-cut on the right side, no rotation */}
-          {/* -right value = phone width / 2 = 320px / 2 = 160px, ensuring exactly half is visible */}
+          {/* Phone Mockup – right side, preserving the source image's 1:2.17 aspect ratio
+              (phone-mockup.png: 1179×2556 px).
+
+              Layout maths (for typical ~390 px mobile viewport):
+              • Container 320×750 px with objectPosition:'left top'.
+              • Because container h/w (2.34) > image h/w (2.17), the image is
+                WIDTH-LIMITED: rendered at 320×694 inside the 320×750 container
+                (56 px blank at the bottom).
+              • The PNG has a dark-background region covering the top ~31.8 % of
+                the image (rendered top 220 px) that blends with the page colour.
+                Shifting the container 190 px above the section top (-top-[190px])
+                and letting overflow-hidden clip it causes the visible metallic rim
+                to appear from ~section y=30 (upper-right of the hero).
+              • Right offset 145 px = container width (320) − target visible width
+                (~175 px ≈ 45 % of viewport), keeping the right portion off-screen. */}
           <div 
-            className="absolute top-0 -right-[calc(320px/2)] w-[320px] h-[520px] pointer-events-none z-0"
+            className="absolute -top-[190px] -right-[145px] w-[320px] h-[750px] pointer-events-none z-0"
           >
             <Image
               src="/phone-mockup.png"
               alt="Phone Mockup"
               fill
-              className="object-contain object-left"
+              className="object-contain"
+              style={{ objectPosition: 'left top' }}
               priority
             />
           </div>
