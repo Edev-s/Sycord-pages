@@ -3,7 +3,7 @@
 import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
-import { Info, Check, Zap, Globe, Shield, Sparkles, ArrowRight } from "lucide-react"
+import { Info, Check, Zap, Globe, Shield, Sparkles, ArrowRight, Layers, MousePointerClick } from "lucide-react"
 
 export default function LandingPage() {
   return (
@@ -16,7 +16,7 @@ export default function LandingPage() {
         </div>
         <Button 
           asChild 
-          className="bg-white text-[#18191B] hover:bg-white/90 text-xs md:text-sm font-semibold px-4 md:px-6 h-9 md:h-11 rounded-lg min-h-[44px]"
+          className="bg-white text-[#18191B] hover:bg-white/90 text-xs md:text-sm font-semibold px-5 md:px-7 h-9 md:h-11 rounded-full min-h-[44px]"
         >
           <Link href="/login">Kezdés</Link>
         </Button>
@@ -27,91 +27,148 @@ export default function LandingPage() {
         
         {/* Hero Section */}
         <section className="w-full px-4 md:px-8 pt-8 md:pt-16 pb-8 md:pb-12">
-          <div className="max-w-2xl mx-auto">
-            <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold leading-tight tracking-tight mb-6">
-              <span className="text-white">Create </span>
-              <span className="text-[#8A8E91]">your</span>
-              <br className="md:hidden" />
-              <span className="text-[#8A8E91]"> website </span>
-              <span className="text-white">under 5</span>
-              <br />
-              <span className="text-white">minute!</span>
-            </h1>
-            <p className="text-sm md:text-base text-[#8A8E91] mb-6 md:mb-8 max-w-md">
-              Build stunning websites with AI-powered tools. No coding skills required. Start your free website today.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-              <Button 
-                asChild
-                className="bg-white text-[#18191B] hover:bg-white/90 text-sm font-semibold px-6 md:px-8 h-11 md:h-12 rounded-lg min-h-[44px] flex items-center gap-2"
-              >
-                <Link href="/login">
-                  Get started
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-              </Button>
-              <Button 
-                asChild
-                variant="outline"
-                className="border-white/20 text-white hover:bg-white/5 text-sm font-medium px-6 md:px-8 h-11 md:h-12 rounded-lg min-h-[44px]"
-              >
-                <Link href="#pricing">View pricing</Link>
-              </Button>
+          <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center gap-8 md:gap-12">
+            <div className="flex-1 max-w-2xl">
+              <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold leading-tight tracking-tight mb-6">
+                <span className="text-white">Create </span>
+                <span className="text-[#8A8E91]">your</span>
+                <br className="md:hidden" />
+                <span className="text-[#8A8E91]"> website </span>
+                <span className="text-white">under 5</span>
+                <br />
+                <span className="text-white">minute!</span>
+              </h1>
+              <p className="text-sm md:text-base text-[#8A8E91] mb-6 md:mb-8 max-w-md">
+                Build stunning websites with AI-powered tools. No coding skills required. Start your free website today.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                <Button 
+                  asChild
+                  className="bg-white text-[#18191B] hover:bg-white/90 text-sm font-semibold px-6 md:px-8 h-11 md:h-12 rounded-full min-h-[44px] flex items-center gap-2"
+                >
+                  <Link href="/login">
+                    Get started
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </Button>
+                <Button 
+                  asChild
+                  variant="outline"
+                  className="border-white/20 text-white hover:bg-white/5 text-sm font-medium px-6 md:px-8 h-11 md:h-12 rounded-full min-h-[44px]"
+                >
+                  <Link href="#pricing">View pricing</Link>
+                </Button>
+              </div>
+            </div>
+            
+            {/* Hero Illustration */}
+            <div className="flex-1 hidden md:flex justify-center">
+              <div className="relative w-full max-w-md">
+                <svg viewBox="0 0 400 320" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto">
+                  {/* Browser window frame */}
+                  <rect x="40" y="30" width="320" height="240" rx="16" fill="#252527" stroke="#3A3B3D" strokeWidth="1.5"/>
+                  {/* Title bar */}
+                  <rect x="40" y="30" width="320" height="36" rx="16" fill="#2E2E30"/>
+                  <rect x="40" y="50" width="320" height="16" fill="#2E2E30"/>
+                  {/* Traffic lights */}
+                  <circle cx="62" cy="48" r="5" fill="#FF5F57"/>
+                  <circle cx="80" cy="48" r="5" fill="#FEBC2E"/>
+                  <circle cx="98" cy="48" r="5" fill="#28C840"/>
+                  {/* URL bar */}
+                  <rect x="120" y="41" width="160" height="14" rx="7" fill="#3A3B3D"/>
+                  {/* Content blocks - hero area */}
+                  <rect x="60" y="82" width="140" height="12" rx="6" fill="#4A4B4D"/>
+                  <rect x="60" y="102" width="100" height="8" rx="4" fill="#3A3B3D"/>
+                  <rect x="60" y="118" width="120" height="8" rx="4" fill="#3A3B3D"/>
+                  {/* CTA button illustration */}
+                  <rect x="60" y="140" width="80" height="24" rx="12" fill="white"/>
+                  {/* Image placeholder */}
+                  <rect x="220" y="82" width="120" height="90" rx="12" fill="#3A3B3D"/>
+                  <circle cx="280" cy="115" r="20" fill="#4A4B4D" opacity="0.5"/>
+                  <polygon points="270,125 290,110 280,130" fill="#6B6E71" opacity="0.5"/>
+                  {/* Card section */}
+                  <rect x="60" y="185" width="88" height="70" rx="10" fill="#2E2E30" stroke="#3A3B3D" strokeWidth="1"/>
+                  <rect x="156" y="185" width="88" height="70" rx="10" fill="#2E2E30" stroke="#3A3B3D" strokeWidth="1"/>
+                  <rect x="252" y="185" width="88" height="70" rx="10" fill="#2E2E30" stroke="#3A3B3D" strokeWidth="1"/>
+                  {/* Card icons */}
+                  <circle cx="82" cy="205" r="8" fill="#EAB308" opacity="0.3"/>
+                  <circle cx="178" cy="205" r="8" fill="#3B82F6" opacity="0.3"/>
+                  <circle cx="274" cy="205" r="8" fill="#22C55E" opacity="0.3"/>
+                  {/* Card text lines */}
+                  <rect x="72" y="222" width="60" height="5" rx="2.5" fill="#4A4B4D"/>
+                  <rect x="72" y="232" width="44" height="4" rx="2" fill="#3A3B3D"/>
+                  <rect x="168" y="222" width="60" height="5" rx="2.5" fill="#4A4B4D"/>
+                  <rect x="168" y="232" width="44" height="4" rx="2" fill="#3A3B3D"/>
+                  <rect x="264" y="222" width="60" height="5" rx="2.5" fill="#4A4B4D"/>
+                  <rect x="264" y="232" width="44" height="4" rx="2" fill="#3A3B3D"/>
+                  {/* Cursor */}
+                  <g transform="translate(170, 135)">
+                    <path d="M0 0L0 20L5.5 15L11 22L14 20.5L8.5 13.5L15 12L0 0Z" fill="white" stroke="#18191B" strokeWidth="1"/>
+                  </g>
+                  {/* Decorative sparkle */}
+                  <g transform="translate(340, 28)">
+                    <path d="M8 0L10 6L16 8L10 10L8 16L6 10L0 8L6 6Z" fill="#EAB308" opacity="0.6"/>
+                  </g>
+                  <g transform="translate(20, 70)">
+                    <path d="M6 0L7.5 4.5L12 6L7.5 7.5L6 12L4.5 7.5L0 6L4.5 4.5Z" fill="#A855F7" opacity="0.4"/>
+                  </g>
+                </svg>
+              </div>
             </div>
           </div>
         </section>
 
         {/* Features Section */}
-        <section className="w-full px-4 md:px-8 py-8 md:py-16">
+        <section className="w-full px-4 md:px-8 py-8 md:py-16 relative">
           <div className="max-w-6xl mx-auto">
             <h2 className="text-xl md:text-3xl font-bold text-white text-center mb-4 md:mb-2">Why Choose Sycord?</h2>
             <p className="text-sm md:text-base text-[#8A8E91] text-center mb-10 md:mb-12 max-w-xl mx-auto">
               Everything you need to build and launch your website in minutes
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-              <div className="bg-[#252527] rounded-xl p-5 md:p-6 border border-white/5 hover:border-white/10 transition-colors">
-                <div className="w-10 h-10 bg-[#3A3B3D] rounded-lg flex items-center justify-center mb-3">
+              <div className="bg-[#252527] rounded-2xl p-5 md:p-6 border border-white/5 hover:border-white/10 transition-colors group">
+                <div className="w-11 h-11 bg-yellow-500/10 rounded-xl flex items-center justify-center mb-4">
                   <Zap className="w-5 h-5 text-yellow-500" />
                 </div>
                 <h3 className="text-white font-semibold text-sm md:text-base mb-2">Lightning Fast</h3>
                 <p className="text-[#8A8E91] text-xs md:text-sm">Build your website in under 5 minutes with our AI-powered builder</p>
               </div>
               
-              <div className="bg-[#252527] rounded-xl p-5 md:p-6 border border-white/5 hover:border-white/10 transition-colors">
-                <div className="w-10 h-10 bg-[#3A3B3D] rounded-lg flex items-center justify-center mb-3">
+              <div className="bg-[#252527] rounded-2xl p-5 md:p-6 border border-white/5 hover:border-white/10 transition-colors group">
+                <div className="w-11 h-11 bg-blue-500/10 rounded-xl flex items-center justify-center mb-4">
                   <Globe className="w-5 h-5 text-blue-500" />
                 </div>
                 <h3 className="text-white font-semibold text-sm md:text-base mb-2">Global CDN</h3>
                 <p className="text-[#8A8E91] text-xs md:text-sm">Your website loads fast everywhere with our global content delivery</p>
               </div>
               
-              <div className="bg-[#252527] rounded-xl p-5 md:p-6 border border-white/5 hover:border-white/10 transition-colors">
-                <div className="w-10 h-10 bg-[#3A3B3D] rounded-lg flex items-center justify-center mb-3">
+              <div className="bg-[#252527] rounded-2xl p-5 md:p-6 border border-white/5 hover:border-white/10 transition-colors group">
+                <div className="w-11 h-11 bg-green-500/10 rounded-xl flex items-center justify-center mb-4">
                   <Shield className="w-5 h-5 text-green-500" />
                 </div>
                 <h3 className="text-white font-semibold text-sm md:text-base mb-2">Enterprise Secure</h3>
                 <p className="text-[#8A8E91] text-xs md:text-sm">SSL certificates and enterprise-grade security included by default</p>
               </div>
               
-              <div className="bg-[#252527] rounded-xl p-5 md:p-6 border border-white/5 hover:border-white/10 transition-colors">
-                <div className="w-10 h-10 bg-[#3A3B3D] rounded-lg flex items-center justify-center mb-3">
+              <div className="bg-[#252527] rounded-2xl p-5 md:p-6 border border-white/5 hover:border-white/10 transition-colors group">
+                <div className="w-11 h-11 bg-purple-500/10 rounded-xl flex items-center justify-center mb-4">
                   <Sparkles className="w-5 h-5 text-purple-500" />
                 </div>
                 <h3 className="text-white font-semibold text-sm md:text-base mb-2">AI Powered</h3>
                 <p className="text-[#8A8E91] text-xs md:text-sm">Intelligent recommendations to help you create better websites</p>
               </div>
               
-              <div className="bg-[#252527] rounded-xl p-5 md:p-6 border border-white/5 hover:border-white/10 transition-colors">
-                <div className="w-10 h-10 bg-[#3A3B3D] rounded-lg flex items-center justify-center mb-3">
-                  <Check className="w-5 h-5 text-green-500" />
+              <div className="bg-[#252527] rounded-2xl p-5 md:p-6 border border-white/5 hover:border-white/10 transition-colors group">
+                <div className="w-11 h-11 bg-green-500/10 rounded-xl flex items-center justify-center mb-4">
+                  <MousePointerClick className="w-5 h-5 text-green-500" />
                 </div>
                 <h3 className="text-white font-semibold text-sm md:text-base mb-2">No Code Required</h3>
                 <p className="text-[#8A8E91] text-xs md:text-sm">Drag and drop interface makes it easy for anyone to build</p>
               </div>
               
-              <div className="bg-[#252527] rounded-xl p-5 md:p-6 border border-white/5 hover:border-white/10 transition-colors">
-                <div className="w-10 h-10 bg-[#3A3B3D] rounded-lg flex items-center justify-center mb-3">
-                  <ArrowRight className="w-5 h-5 text-cyan-500" />
+              <div className="bg-[#252527] rounded-2xl p-5 md:p-6 border border-white/5 hover:border-white/10 transition-colors group">
+                <div className="w-11 h-11 bg-cyan-500/10 rounded-xl flex items-center justify-center mb-4">
+                  <Layers className="w-5 h-5 text-cyan-500" />
                 </div>
                 <h3 className="text-white font-semibold text-sm md:text-base mb-2">Easy Migration</h3>
                 <p className="text-[#8A8E91] text-xs md:text-sm">Seamlessly migrate from other platforms to Sycord</p>
@@ -237,7 +294,7 @@ export default function LandingPage() {
                 </div>
                 <Button 
                   asChild
-                  className="w-full bg-[#3A3B3D] hover:bg-[#4A4B4D] text-white mb-6 h-10 rounded-lg"
+                  className="w-full bg-[#3A3B3D] hover:bg-[#4A4B4D] text-white mb-6 h-10 rounded-full"
                 >
                   <Link href="/login">Get Started</Link>
                 </Button>
@@ -273,7 +330,7 @@ export default function LandingPage() {
                 </div>
                 <Button 
                   asChild
-                  className="w-full bg-white hover:bg-white/90 text-[#18191B] font-semibold mb-6 h-10 rounded-lg"
+                  className="w-full bg-white hover:bg-white/90 text-[#18191B] font-semibold mb-6 h-10 rounded-full"
                 >
                   <Link href="/login">Upgrade Now</Link>
                 </Button>
@@ -307,7 +364,7 @@ export default function LandingPage() {
                 <Button 
                   asChild
                   variant="outline"
-                  className="w-full border-white/20 hover:bg-white/5 text-white mb-6 h-10 rounded-lg"
+                  className="w-full border-white/20 hover:bg-white/5 text-white mb-6 h-10 rounded-full"
                 >
                   <Link href="/login">Contact Sales</Link>
                 </Button>
@@ -346,7 +403,7 @@ export default function LandingPage() {
                   </div>
                   <Button 
                     asChild
-                    className="w-full bg-[#3A3B3D] hover:bg-[#4A4B4D] text-white text-xs h-9 rounded-lg mb-4"
+                    className="w-full bg-[#3A3B3D] hover:bg-[#4A4B4D] text-white text-xs h-9 rounded-full mb-4"
                   >
                     <Link href="/login">Get Started</Link>
                   </Button>
@@ -380,7 +437,7 @@ export default function LandingPage() {
                   </div>
                   <Button 
                     asChild
-                    className="w-full bg-white hover:bg-white/90 text-[#18191B] text-xs h-9 rounded-lg font-semibold mb-4"
+                    className="w-full bg-white hover:bg-white/90 text-[#18191B] text-xs h-9 rounded-full font-semibold mb-4"
                   >
                     <Link href="/login">Upgrade</Link>
                   </Button>
@@ -414,7 +471,7 @@ export default function LandingPage() {
                   <Button 
                     asChild
                     variant="outline"
-                    className="w-full border-white/20 hover:bg-white/5 text-white text-xs h-9 rounded-lg mb-4"
+                    className="w-full border-white/20 hover:bg-white/5 text-white text-xs h-9 rounded-full mb-4"
                   >
                     <Link href="/login">Contact</Link>
                   </Button>
@@ -440,17 +497,32 @@ export default function LandingPage() {
 
         {/* CTA Section */}
         <section className="w-full px-4 md:px-8 py-12 md:py-16">
-          <div className="max-w-2xl mx-auto bg-[#252527] border border-white/10 rounded-2xl p-8 md:p-12 text-center">
-            <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">Ready to build your website?</h2>
-            <p className="text-[#8A8E91] mb-6 md:mb-8 text-sm md:text-base">
-              Join thousands of creators and businesses already using Sycord to build amazing websites.
-            </p>
-            <Button 
-              asChild
-              className="bg-white text-[#18191B] hover:bg-white/90 font-semibold px-8 h-11 md:h-12 rounded-lg"
-            >
-              <Link href="/login">Start Building Now</Link>
-            </Button>
+          <div className="max-w-2xl mx-auto bg-[#252527] border border-white/10 rounded-2xl p-8 md:p-12 text-center relative overflow-hidden">
+            {/* Decorative background illustration */}
+            <svg className="absolute -right-10 -top-10 w-40 h-40 opacity-[0.06]" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="80" cy="80" r="78" stroke="white" strokeWidth="2"/>
+              <circle cx="80" cy="80" r="55" stroke="white" strokeWidth="1.5"/>
+              <circle cx="80" cy="80" r="32" stroke="white" strokeWidth="1"/>
+              <line x1="80" y1="0" x2="80" y2="160" stroke="white" strokeWidth="1"/>
+              <line x1="0" y1="80" x2="160" y2="80" stroke="white" strokeWidth="1"/>
+            </svg>
+            <svg className="absolute -left-8 -bottom-8 w-32 h-32 opacity-[0.05]" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="10" y="10" width="108" height="108" rx="20" stroke="white" strokeWidth="2"/>
+              <rect x="30" y="30" width="68" height="68" rx="14" stroke="white" strokeWidth="1.5"/>
+              <rect x="48" y="48" width="32" height="32" rx="8" stroke="white" strokeWidth="1"/>
+            </svg>
+            <div className="relative z-10">
+              <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">Ready to build your website?</h2>
+              <p className="text-[#8A8E91] mb-6 md:mb-8 text-sm md:text-base">
+                Join thousands of creators and businesses already using Sycord to build amazing websites.
+              </p>
+              <Button 
+                asChild
+                className="bg-white text-[#18191B] hover:bg-white/90 font-semibold px-8 h-11 md:h-12 rounded-full"
+              >
+                <Link href="/login">Start Building Now</Link>
+              </Button>
+            </div>
           </div>
         </section>
       </main>
