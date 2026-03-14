@@ -3,291 +3,332 @@
 import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
-import { Check, Zap, Globe, Shield, Sparkles, ArrowRight } from "lucide-react"
+import { Info, Check, Zap, Globe, Shield, Sparkles } from "lucide-react"
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-[#0F0F11] flex flex-col">
+    <div className="min-h-screen bg-[#18191B] flex flex-col items-center overflow-x-hidden font-sans">
       {/* Header */}
-      <header className="sticky top-0 z-50 w-full border-b border-white/5 bg-[#0F0F11]/80 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Image src="/logo.png" alt="Sycord" width={32} height={32} className="opacity-90" />
-            <span className="font-bold text-lg text-white">Sycord</span>
-          </div>
+      <header className="w-full px-4 py-6 flex items-center justify-between z-20 sticky top-0 bg-[#18191B]/95 backdrop-blur-sm border-b border-white/5">
+        <div className="flex items-center gap-3">
+          <Image src="/logo.png" alt="Sycord Logo" width={28} height={28} className="opacity-90" />
+          <span className="text-lg font-bold text-white tracking-tight">Sycord</span>
+        </div>
+        <div>
           <Button 
             asChild 
-            className="bg-white text-[#0F0F11] hover:bg-white/90 font-semibold px-6 h-10 rounded-full"
+            className="bg-white text-[#18191B] hover:bg-white/90 text-sm font-semibold px-5 h-11 rounded-lg min-h-[44px]"
           >
-            <Link href="/signup">Get Started</Link>
+            <Link href="/login">Kezdés</Link>
           </Button>
         </div>
       </header>
 
       {/* Hero Section */}
-      <section className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-16 md:py-32">
-        <div className="max-w-3xl mx-auto text-center">
-          <div className="inline-block mb-4 px-3 py-1 bg-white/5 border border-white/10 rounded-full text-sm text-white/70 font-medium">
-            ✨ Build smarter, faster
-          </div>
-          <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 leading-tight">
-            Create your website in{" "}
-            <span className="bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
-              under 5 minutes
-            </span>
-          </h1>
-          <p className="text-lg md:text-xl text-white/60 mb-8 max-w-2xl mx-auto leading-relaxed">
-            Build beautiful, professional websites without any coding. Powered by AI, designed for creators.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+      <main className="w-full flex-1 flex flex-col">
+        <section className="w-full px-5 pt-10 pb-6 relative min-h-[320px] overflow-hidden">
+          {/* Text Content */}
+          <div className="relative z-10 max-w-[280px]">
+            <h1 className="text-[36px] font-bold leading-[1.15] tracking-tight mb-8">
+              <span className="text-white">Create </span>
+              <span className="text-[#8A8E91]">your</span>
+              <br />
+              <span className="text-[#8A8E91]">website </span>
+              <span className="text-white">under 5</span>
+              <br />
+              <span className="text-white">minute!</span>
+            </h1>
             <Button 
               asChild
-              className="bg-white text-[#0F0F11] hover:bg-white/90 font-semibold px-8 h-12 rounded-full text-base"
+              className="bg-[#6B6E71] hover:bg-[#5A5D60] text-white text-[14px] font-medium px-6 h-11 rounded-xl min-w-[44px] min-h-[44px]"
             >
-              <Link href="/signup">Start Building Free</Link>
-            </Button>
-            <Button 
-              asChild
-              variant="outline"
-              className="border border-white/20 text-white hover:bg-white/5 font-semibold px-8 h-12 rounded-full text-base"
-            >
-              <Link href="/demo">Watch Demo</Link>
+              <Link href="/login">Get started</Link>
             </Button>
           </div>
-        </div>
-      </section>
 
-      {/* Stats Section */}
-      <section className="w-full bg-white/2.5 border-t border-white/5">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
-            <div className="flex flex-col items-center md:items-start">
-              <div className="text-3xl md:text-4xl font-bold text-white mb-2">10K+</div>
-              <p className="text-white/60 text-sm md:text-base">Websites Created</p>
-            </div>
-            <div className="flex flex-col items-center md:items-start">
-              <div className="text-3xl md:text-4xl font-bold text-white mb-2">50K+</div>
-              <p className="text-white/60 text-sm md:text-base">Active Users</p>
-            </div>
-            <div className="flex flex-col items-center md:items-start">
-              <div className="text-3xl md:text-4xl font-bold text-white mb-2">99.9%</div>
-              <p className="text-white/60 text-sm md:text-base">Uptime</p>
-            </div>
-            <div className="flex flex-col items-center md:items-start">
-              <div className="text-3xl md:text-4xl font-bold text-white mb-2">24/7</div>
-              <p className="text-white/60 text-sm md:text-base">Support</p>
-            </div>
+          {/* Phone Mockup - Half visible, positioned at right edge */}
+          <div 
+            className="absolute top-4 -right-[120px] w-[280px] h-[380px] pointer-events-none z-0"
+            style={{ transform: 'rotate(12deg)' }}
+          >
+            <Image
+              src="/phone-mockup.png"
+              alt="Phone Mockup"
+              fill
+              className="object-contain object-left"
+              priority
+            />
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Trusted By Section */}
-      <section className="w-full py-12 md:py-16 border-b border-white/5">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <p className="text-center text-white/60 text-sm font-medium mb-8">Trusted by industry leaders</p>
-          <div className="flex flex-wrap justify-center items-center gap-8 md:gap-12">
-            <div className="flex items-center gap-2 text-white/80">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
-                <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12C2 16.42 4.868 20.166 8.839 21.503C9.339 21.594 9.52 21.288 9.52 21.025C9.52 20.79 9.512 20.165 9.507 19.336C6.726 19.938 6.139 17.994 6.139 17.994C5.684 16.84 5.03 16.533 5.03 16.533C4.126 15.915 5.099 15.928 5.099 15.928C6.1 16.001 6.626 16.96 6.626 16.96C7.514 18.483 8.956 18.043 9.543 17.789C9.633 17.127 9.898 16.688 10.194 16.44C7.973 16.188 5.638 15.332 5.638 11.478C5.638 10.378 6.031 9.479 6.674 8.784C6.57 8.532 6.224 7.508 6.772 6.111C6.772 6.111 7.616 5.842 9.49 7.109C10.293 6.886 11.152 6.775 12.002 6.771C12.852 6.775 13.711 6.886 14.515 7.109C16.388 5.842 17.23 6.111 17.23 6.111C17.78 7.508 17.435 8.532 17.331 8.784C17.975 9.479 18.366 10.378 18.366 11.478C18.366 15.344 16.027 16.185 13.801 16.432C14.169 16.748 14.498 17.371 14.498 18.324C14.498 19.689 14.485 20.79 14.485 21.025C14.485 21.29 14.664 21.6 15.17 21.501C19.135 20.163 22 16.418 22 12C22 6.477 17.523 2 12 2Z" fill="white"/>
-              </svg>
-              <span className="text-sm font-medium">GitHub</span>
-            </div>
-            <div className="w-px h-6 bg-white/10"></div>
-            <div className="flex items-center gap-2 text-white/80">
-              <svg width="20" height="20" viewBox="0 0 64 42" fill="white" xmlns="http://www.w3.org/2000/svg">
-                <path d="M43.95 11.41C42.84 5.01 37.3 0 30.63 0C25.4 0 20.89 3.09 18.66 7.64C18.12 7.55 17.57 7.5 17 7.5C10.65 7.5 5.5 12.65 5.5 19C5.5 19.33 5.52 19.65 5.54 19.98C2.33 21.6 0.13 24.96 0.13 28.84C0.13 34.45 4.68 39 10.29 39H43.71C49.23 39 53.71 34.52 53.71 29C53.71 23.86 49.83 19.6 44.86 19.06C45.33 17.9 45.62 16.65 45.62 15.34C45.62 13.94 45.02 12.59 43.95 11.41Z" fill="white" />
-              </svg>
-              <span className="text-sm font-medium">Cloudflare</span>
-            </div>
-            <div className="w-px h-6 bg-white/10"></div>
-            <div className="flex items-center gap-2 text-white/80">
-              <span className="text-sm font-medium">Google</span>
-            </div>
-            <div className="w-px h-6 bg-white/10"></div>
-            <div className="flex items-center gap-2 text-white/80">
-              <span className="text-sm font-medium">Telegram</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section className="w-full py-16 md:py-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Why Choose Sycord?</h2>
-            <p className="text-white/60 text-lg max-w-2xl mx-auto">
-              Everything you need to create stunning websites in minutes
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[
-              { icon: Zap, title: "Lightning Fast", desc: "Build in minutes, not hours" },
-              { icon: Globe, title: "Global Reach", desc: "Deploy worldwide instantly" },
-              { icon: Shield, title: "Enterprise Secure", desc: "Bank-grade security" },
-              { icon: Sparkles, title: "AI Powered", desc: "Smart suggestions included" },
-              { icon: Check, title: "No Coding", desc: "Visual builder for everyone" },
-              { icon: ArrowRight, title: "SEO Optimized", desc: "Rank higher automatically" }
-            ].map((feature, i) => (
-              <div key={i} className="p-6 rounded-2xl bg-white/5 border border-white/10 hover:border-white/20 transition-colors">
-                <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center mb-4">
-                  <feature.icon className="w-6 h-6 text-blue-400" />
+        {/* Corporate Supporters - Infinite Scroll Marquee */}
+        <section className="w-full pt-10 pb-6 overflow-hidden">
+          <div className="relative">
+            {/* Marquee Container */}
+            <div className="flex animate-marquee">
+              {/* First set of logos */}
+              <div className="flex items-center gap-16 px-8 flex-shrink-0">
+                <div className="flex items-center gap-3 text-white">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+                    <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12C2 16.42 4.868 20.166 8.839 21.503C9.339 21.594 9.52 21.288 9.52 21.025C9.52 20.79 9.512 20.165 9.507 19.336C6.726 19.938 6.139 17.994 6.139 17.994C5.684 16.84 5.03 16.533 5.03 16.533C4.126 15.915 5.099 15.928 5.099 15.928C6.1 16.001 6.626 16.96 6.626 16.96C7.514 18.483 8.956 18.043 9.543 17.789C9.633 17.127 9.898 16.688 10.194 16.44C7.973 16.188 5.638 15.332 5.638 11.478C5.638 10.378 6.031 9.479 6.674 8.784C6.57 8.532 6.224 7.508 6.772 6.111C6.772 6.111 7.616 5.842 9.49 7.109C10.293 6.886 11.152 6.775 12.002 6.771C12.852 6.775 13.711 6.886 14.515 7.109C16.388 5.842 17.23 6.111 17.23 6.111C17.78 7.508 17.435 8.532 17.331 8.784C17.975 9.479 18.366 10.378 18.366 11.478C18.366 15.344 16.027 16.185 13.801 16.432C14.169 16.748 14.498 17.371 14.498 18.324C14.498 19.689 14.485 20.79 14.485 21.025C14.485 21.29 14.664 21.6 15.17 21.501C19.135 20.163 22 16.418 22 12C22 6.477 17.523 2 12 2Z" fill="white"/>
+                  </svg>
+                  <span className="text-[15px] font-semibold tracking-tight">GitHub</span>
                 </div>
-                <h3 className="text-lg font-semibold text-white mb-2">{feature.title}</h3>
-                <p className="text-white/60 text-sm">{feature.desc}</p>
+                <div className="flex items-center justify-center text-white">
+                  <svg width="44" height="28" viewBox="0 0 64 42" fill="white" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M43.95 11.41C42.84 5.01 37.3 0 30.63 0C25.4 0 20.89 3.09 18.66 7.64C18.12 7.55 17.57 7.5 17 7.5C10.65 7.5 5.5 12.65 5.5 19C5.5 19.33 5.52 19.65 5.54 19.98C2.33 21.6 0.13 24.96 0.13 28.84C0.13 34.45 4.68 39 10.29 39H43.71C49.23 39 53.71 34.52 53.71 29C53.71 23.86 49.83 19.6 44.86 19.06C45.33 17.9 45.62 16.65 45.62 15.34C45.62 13.94 45.02 12.59 43.95 11.41Z" fill="white" />
+                  </svg>
+                </div>
+                <div className="flex items-center text-white">
+                  <span className="text-[18px] font-bold tracking-tight">Google</span>
+                </div>
+                <div className="flex items-center gap-2 text-white">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="white"/>
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="white"/>
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="white"/>
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="white"/>
+                  </svg>
+                </div>
+                <div className="flex items-center gap-2 text-white">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 0C5.37 0 0 5.37 0 12C0 18.63 5.37 24 12 24C18.63 24 24 18.63 24 12C24 5.37 18.63 0 12 0ZM17.57 8.15L15.77 16.77C15.64 17.37 15.27 17.52 14.77 17.24L11.77 15.06L10.32 16.44C10.17 16.59 10.05 16.71 9.77 16.71L9.97 13.63L15.42 8.73C15.67 8.51 15.37 8.38 15.04 8.60L8.32 12.85L5.37 11.92C4.77 11.73 4.76 11.31 5.49 11.03L16.81 6.90C17.31 6.72 17.75 7.04 17.57 8.15Z" fill="white"/>
+                  </svg>
+                </div>
+                <div className="flex items-center gap-2 text-white">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" fill="white"/>
+                  </svg>
+                </div>
               </div>
-            ))}
+              {/* Duplicate for seamless loop */}
+              <div className="flex items-center gap-16 px-8 flex-shrink-0">
+                <div className="flex items-center gap-3 text-white">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+                    <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12C2 16.42 4.868 20.166 8.839 21.503C9.339 21.594 9.52 21.288 9.52 21.025C9.52 20.79 9.512 20.165 9.507 19.336C6.726 19.938 6.139 17.994 6.139 17.994C5.684 16.84 5.03 16.533 5.03 16.533C4.126 15.915 5.099 15.928 5.099 15.928C6.1 16.001 6.626 16.96 6.626 16.96C7.514 18.483 8.956 18.043 9.543 17.789C9.633 17.127 9.898 16.688 10.194 16.44C7.973 16.188 5.638 15.332 5.638 11.478C5.638 10.378 6.031 9.479 6.674 8.784C6.57 8.532 6.224 7.508 6.772 6.111C6.772 6.111 7.616 5.842 9.49 7.109C10.293 6.886 11.152 6.775 12.002 6.771C12.852 6.775 13.711 6.886 14.515 7.109C16.388 5.842 17.23 6.111 17.23 6.111C17.78 7.508 17.435 8.532 17.331 8.784C17.975 9.479 18.366 10.378 18.366 11.478C18.366 15.344 16.027 16.185 13.801 16.432C14.169 16.748 14.498 17.371 14.498 18.324C14.498 19.689 14.485 20.79 14.485 21.025C14.485 21.29 14.664 21.6 15.17 21.501C19.135 20.163 22 16.418 22 12C22 6.477 17.523 2 12 2Z" fill="white"/>
+                  </svg>
+                  <span className="text-[15px] font-semibold tracking-tight">GitHub</span>
+                </div>
+                <div className="flex items-center justify-center text-white">
+                  <svg width="44" height="28" viewBox="0 0 64 42" fill="white" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M43.95 11.41C42.84 5.01 37.3 0 30.63 0C25.4 0 20.89 3.09 18.66 7.64C18.12 7.55 17.57 7.5 17 7.5C10.65 7.5 5.5 12.65 5.5 19C5.5 19.33 5.52 19.65 5.54 19.98C2.33 21.6 0.13 24.96 0.13 28.84C0.13 34.45 4.68 39 10.29 39H43.71C49.23 39 53.71 34.52 53.71 29C53.71 23.86 49.83 19.6 44.86 19.06C45.33 17.9 45.62 16.65 45.62 15.34C45.62 13.94 45.02 12.59 43.95 11.41Z" fill="white" />
+                  </svg>
+                </div>
+                <div className="flex items-center text-white">
+                  <span className="text-[18px] font-bold tracking-tight">Google</span>
+                </div>
+                <div className="flex items-center gap-2 text-white">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="white"/>
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="white"/>
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="white"/>
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="white"/>
+                  </svg>
+                </div>
+                <div className="flex items-center gap-2 text-white">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 0C5.37 0 0 5.37 0 12C0 18.63 5.37 24 12 24C18.63 24 24 18.63 24 12C24 5.37 18.63 0 12 0ZM17.57 8.15L15.77 16.77C15.64 17.37 15.27 17.52 14.77 17.24L11.77 15.06L10.32 16.44C10.17 16.59 10.05 16.71 9.77 16.71L9.97 13.63L15.42 8.73C15.67 8.51 15.37 8.38 15.04 8.60L8.32 12.85L5.37 11.92C4.77 11.73 4.76 11.31 5.49 11.03L16.81 6.90C17.31 6.72 17.75 7.04 17.57 8.15Z" fill="white"/>
+                  </svg>
+                </div>
+                <div className="flex items-center gap-2 text-white">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" fill="white"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-      </section>
 
-      {/* Pricing Section */}
-      <section className="w-full py-16 md:py-24 border-t border-white/5">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Simple Pricing</h2>
-            <p className="text-white/60 text-lg">Choose the plan that fits your needs</p>
+          {/* Corporate Supporters Badge */}
+          <div className="flex justify-center mt-6">
+            <div className="flex items-center gap-2 bg-[#252527] px-4 py-2 rounded-full border border-white/5">
+              <span className="text-[11px] text-[#8A8E91] font-medium">Corporate Supporters:</span>
+              <Info className="w-3 h-3 text-[#8A8E91]" />
+            </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
-            {/* Free */}
-            <div className="p-8 rounded-2xl bg-white/5 border border-white/10 flex flex-col">
-              <h3 className="text-2xl font-bold text-white mb-2">Free</h3>
-              <p className="text-white/60 text-sm mb-6">Perfect for getting started</p>
-              <div className="mb-6">
-                <span className="text-4xl font-bold text-white">$0</span>
-                <span className="text-white/60 text-sm">/month</span>
+        </section>
+
+        {/* Pagination Dots */}
+        <section className="w-full flex justify-center py-6">
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-1.5 bg-[#8A8E91] rounded-full"></div>
+            <div className="w-1.5 h-1.5 bg-[#3A3B3D] rounded-full"></div>
+            <div className="w-1.5 h-1.5 bg-[#3A3B3D] rounded-full"></div>
+            <div className="w-1.5 h-1.5 bg-[#3A3B3D] rounded-full"></div>
+          </div>
+        </section>
+
+        {/* Pricing Cards - Horizontal Scroll */}
+        <section className="w-full overflow-x-auto scrollbar-hide pb-4">
+          <div className="flex gap-4 px-4 w-max">
+            {/* Free Plan */}
+            <div className="w-[280px] bg-[#28292B] rounded-[24px] p-5 flex-shrink-0">
+              <div className="flex items-center gap-1.5 mb-4">
+                <div className="w-2 h-2 rounded-full bg-[#3A3B3D]"></div>
+                <div className="w-2 h-2 rounded-full bg-[#3A3B3D]"></div>
+                <div className="w-2 h-2 rounded-full bg-[#3A3B3D]"></div>
               </div>
-              <ul className="space-y-3 mb-8 flex-1">
-                {["1 Website", "1 GB Storage", "Basic Support", "Sycord Branding"].map((item, i) => (
-                  <li key={i} className="flex items-center gap-3 text-white/80 text-sm">
-                    <Check className="w-4 h-4 text-green-400" />
-                    {item}
-                  </li>
-                ))}
+              <span className="text-[24px] font-bold text-[#6B6E71] block mb-4">Free</span>
+              <p className="text-[#8A8E91] text-xs mb-4">Perfect for getting started</p>
+              <ul className="space-y-2 mb-4">
+                <li className="flex items-center gap-2">
+                  <Check className="w-3.5 h-3.5 text-[#6B6E71]" />
+                  <span className="text-white/80 text-xs">1 Website</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-3.5 h-3.5 text-[#6B6E71]" />
+                  <span className="text-white/80 text-xs">1 GB Storage</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-3.5 h-3.5 text-[#6B6E71]" />
+                  <span className="text-white/80 text-xs">Basic Templates</span>
+                </li>
               </ul>
               <Button 
                 asChild
-                className="w-full bg-white/10 text-white hover:bg-white/20 rounded-lg h-10"
+                className="w-full bg-[#3A3B3D] hover:bg-[#4A4B4D] text-white h-10 rounded-xl text-sm min-h-[44px]"
               >
-                <Link href="/signup">Start Free</Link>
+                <Link href="/login">Get Started</Link>
               </Button>
             </div>
 
-            {/* Pro */}
-            <div className="p-8 rounded-2xl bg-blue-500/10 border border-blue-500/50 flex flex-col ring-1 ring-blue-500/50 md:scale-105">
-              <div className="flex items-center gap-2 mb-4">
-                <Zap className="w-4 h-4 text-blue-400" />
-                <span className="text-xs font-semibold text-blue-400 uppercase tracking-wide">Most Popular</span>
+            {/* Professional Plan */}
+            <div className="w-[280px] bg-[#1F2022] rounded-[24px] p-5 flex-shrink-0 border border-yellow-500/30">
+              <div className="flex items-center gap-2 mb-3">
+                <Zap className="w-4 h-4 text-yellow-500" />
+                <span className="text-[10px] font-semibold text-yellow-500 uppercase tracking-wider">Popular</span>
               </div>
-              <h3 className="text-2xl font-bold text-white mb-2">Pro</h3>
-              <p className="text-white/60 text-sm mb-6">For growing creators</p>
-              <div className="mb-6">
-                <span className="text-4xl font-bold text-white">$9</span>
-                <span className="text-white/60 text-sm">/month</span>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[24px] font-bold text-white">Pro</span>
+                <div className="text-right">
+                  <span className="text-xl font-bold text-white">$9</span>
+                  <span className="text-[#8A8E91] text-xs">/mo</span>
+                </div>
               </div>
-              <ul className="space-y-3 mb-8 flex-1">
-                {["Unlimited Sites", "50 GB Storage", "Priority Support", "Custom Domain"].map((item, i) => (
-                  <li key={i} className="flex items-center gap-3 text-white/80 text-sm">
-                    <Check className="w-4 h-4 text-green-400" />
-                    {item}
-                  </li>
-                ))}
+              <p className="text-[#8A8E91] text-xs mb-4">For growing businesses</p>
+              <ul className="space-y-2 mb-4">
+                <li className="flex items-center gap-2">
+                  <Check className="w-3.5 h-3.5 text-green-500" />
+                  <span className="text-white/80 text-xs">Unlimited Sites</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-3.5 h-3.5 text-green-500" />
+                  <span className="text-white/80 text-xs">50 GB Storage</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-3.5 h-3.5 text-green-500" />
+                  <span className="text-white/80 text-xs">AI Builder</span>
+                </li>
               </ul>
               <Button 
                 asChild
-                className="w-full bg-blue-500 text-white hover:bg-blue-600 rounded-lg h-10 font-semibold"
+                className="w-full bg-white hover:bg-white/90 text-[#18191B] h-10 rounded-xl text-sm font-semibold min-h-[44px]"
               >
-                <Link href="/signup">Upgrade to Pro</Link>
+                <Link href="/login">Upgrade</Link>
               </Button>
             </div>
 
-            {/* Ultra */}
-            <div className="p-8 rounded-2xl bg-white/5 border border-white/10 flex flex-col">
-              <h3 className="text-2xl font-bold text-white mb-2">Ultra</h3>
-              <p className="text-white/60 text-sm mb-6">For enterprises</p>
-              <div className="mb-6">
-                <span className="text-4xl font-bold text-white">$29</span>
-                <span className="text-white/60 text-sm">/month</span>
+            {/* Ultra Plan */}
+            <div className="w-[280px] bg-[#18191B] rounded-[24px] p-5 flex-shrink-0 border border-[#3A3B3D]">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[24px] font-bold text-white">Ultra</span>
+                <div className="text-right">
+                  <span className="text-xl font-bold text-white">$29</span>
+                  <span className="text-[#8A8E91] text-xs">/mo</span>
+                </div>
               </div>
-              <ul className="space-y-3 mb-8 flex-1">
-                {["Everything in Pro", "500 GB Storage", "24/7 Support", "API Access"].map((item, i) => (
-                  <li key={i} className="flex items-center gap-3 text-white/80 text-sm">
-                    <Check className="w-4 h-4 text-green-400" />
-                    {item}
-                  </li>
-                ))}
+              <p className="text-[#8A8E91] text-xs mb-4">For enterprises</p>
+              <ul className="space-y-2 mb-4">
+                <li className="flex items-center gap-2">
+                  <Check className="w-3.5 h-3.5 text-green-500" />
+                  <span className="text-white/80 text-xs">Everything in Pro</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-3.5 h-3.5 text-green-500" />
+                  <span className="text-white/80 text-xs">500 GB Storage</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-3.5 h-3.5 text-green-500" />
+                  <span className="text-white/80 text-xs">Priority Support</span>
+                </li>
               </ul>
               <Button 
                 asChild
                 variant="outline"
-                className="w-full border border-white/20 text-white hover:bg-white/5 rounded-lg h-10"
+                className="w-full border-[#3A3B3D] hover:bg-[#28292B] text-white h-10 rounded-xl text-sm min-h-[44px]"
               >
-                <Link href="/contact">Contact Sales</Link>
+                <Link href="/login">Contact</Link>
               </Button>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* CTA Section */}
-      <section className="w-full py-16 md:py-24 border-t border-white/5">
-        <div className="max-w-3xl mx-auto text-center px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">Ready to build your website?</h2>
-          <p className="text-white/60 text-lg mb-8">Join thousands of creators already building with Sycord.</p>
-          <Button 
-            asChild
-            className="bg-white text-[#0F0F11] hover:bg-white/90 font-semibold px-8 h-12 rounded-full text-base"
-          >
-            <Link href="/signup">Get Started Free</Link>
-          </Button>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="w-full border-t border-white/5 bg-white/2.5">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
-            <div>
-              <h4 className="text-white font-semibold mb-4">Product</h4>
-              <ul className="space-y-2">
-                <li><Link href="#" className="text-white/60 hover:text-white text-sm transition">Features</Link></li>
-                <li><Link href="#" className="text-white/60 hover:text-white text-sm transition">Pricing</Link></li>
-                <li><Link href="#" className="text-white/60 hover:text-white text-sm transition">Templates</Link></li>
-              </ul>
+        {/* Features Section */}
+        <section className="w-full px-4 py-8">
+          <h2 className="text-lg font-bold text-white text-center mb-6">Why Choose Sycord?</h2>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-[#28292B] rounded-2xl p-4 flex flex-col items-center text-center">
+              <div className="w-10 h-10 bg-[#3A3B3D] rounded-xl flex items-center justify-center mb-2">
+                <Zap className="w-5 h-5 text-yellow-500" />
+              </div>
+              <h3 className="text-white font-semibold text-xs mb-0.5">Lightning Fast</h3>
+              <p className="text-[#8A8E91] text-[10px]">Build in minutes</p>
             </div>
-            <div>
-              <h4 className="text-white font-semibold mb-4">Company</h4>
-              <ul className="space-y-2">
-                <li><Link href="#" className="text-white/60 hover:text-white text-sm transition">About</Link></li>
-                <li><Link href="#" className="text-white/60 hover:text-white text-sm transition">Blog</Link></li>
-                <li><Link href="#" className="text-white/60 hover:text-white text-sm transition">Careers</Link></li>
-              </ul>
+            <div className="bg-[#28292B] rounded-2xl p-4 flex flex-col items-center text-center">
+              <div className="w-10 h-10 bg-[#3A3B3D] rounded-xl flex items-center justify-center mb-2">
+                <Globe className="w-5 h-5 text-blue-500" />
+              </div>
+              <h3 className="text-white font-semibold text-xs mb-0.5">Global CDN</h3>
+              <p className="text-[#8A8E91] text-[10px]">Fast everywhere</p>
             </div>
-            <div>
-              <h4 className="text-white font-semibold mb-4">Legal</h4>
-              <ul className="space-y-2">
-                <li><Link href="#" className="text-white/60 hover:text-white text-sm transition">Privacy</Link></li>
-                <li><Link href="#" className="text-white/60 hover:text-white text-sm transition">Terms</Link></li>
-                <li><Link href="#" className="text-white/60 hover:text-white text-sm transition">Cookie Policy</Link></li>
-              </ul>
+            <div className="bg-[#28292B] rounded-2xl p-4 flex flex-col items-center text-center">
+              <div className="w-10 h-10 bg-[#3A3B3D] rounded-xl flex items-center justify-center mb-2">
+                <Shield className="w-5 h-5 text-green-500" />
+              </div>
+              <h3 className="text-white font-semibold text-xs mb-0.5">Secure</h3>
+              <p className="text-[#8A8E91] text-[10px]">Enterprise-grade</p>
             </div>
-            <div>
-              <h4 className="text-white font-semibold mb-4">Connect</h4>
-              <ul className="space-y-2">
-                <li><Link href="#" className="text-white/60 hover:text-white text-sm transition">Twitter</Link></li>
-                <li><Link href="#" className="text-white/60 hover:text-white text-sm transition">GitHub</Link></li>
-                <li><Link href="#" className="text-white/60 hover:text-white text-sm transition">Discord</Link></li>
-              </ul>
+            <div className="bg-[#28292B] rounded-2xl p-4 flex flex-col items-center text-center">
+              <div className="w-10 h-10 bg-[#3A3B3D] rounded-xl flex items-center justify-center mb-2">
+                <Sparkles className="w-5 h-5 text-purple-500" />
+              </div>
+              <h3 className="text-white font-semibold text-xs mb-0.5">AI Powered</h3>
+              <p className="text-[#8A8E91] text-[10px]">Smart automation</p>
             </div>
           </div>
-          <div className="border-t border-white/5 pt-8 flex flex-col md:flex-row items-center justify-between">
-            <div className="flex items-center gap-2 mb-4 md:mb-0">
-              <Image src="/logo.png" alt="Sycord" width={24} height={24} />
-              <span className="text-white/60 text-sm">© 2024 Sycord. All rights reserved.</span>
+        </section>
+
+        {/* Footer */}
+        <footer className="w-full border-t border-white/5 mt-8 py-8 px-4">
+          <div className="max-w-md mx-auto">
+            <div className="flex items-center gap-2 mb-6">
+              <Image src="/logo.png" alt="Sycord" width={20} height={20} />
+              <span className="text-white font-bold">Sycord</span>
+            </div>
+            <div className="grid grid-cols-2 gap-6 text-sm mb-6">
+              <div>
+                <h4 className="text-white font-semibold mb-2">Product</h4>
+                <ul className="space-y-1 text-[#8A8E91] text-xs">
+                  <li><Link href="#" className="hover:text-white transition">Features</Link></li>
+                  <li><Link href="#" className="hover:text-white transition">Pricing</Link></li>
+                  <li><Link href="#" className="hover:text-white transition">Templates</Link></li>
+                </ul>
+              </div>
+              <div>
+                <h4 className="text-white font-semibold mb-2">Company</h4>
+                <ul className="space-y-1 text-[#8A8E91] text-xs">
+                  <li><Link href="#" className="hover:text-white transition">About</Link></li>
+                  <li><Link href="#" className="hover:text-white transition">Blog</Link></li>
+                  <li><Link href="#" className="hover:text-white transition">Contact</Link></li>
+                </ul>
+              </div>
+            </div>
+            <div className="text-center border-t border-white/5 pt-4">
+              <p className="text-[#8A8E91] text-xs">© 2024 Sycord. All rights reserved.</p>
             </div>
           </div>
-        </div>
-      </footer>
+        </footer>
+      </main>
     </div>
   )
 }
