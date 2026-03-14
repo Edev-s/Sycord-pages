@@ -9,12 +9,13 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-[#18191B] flex flex-col items-center overflow-x-hidden font-sans">
       {/* Header */}
-      <header className="w-full px-4 py-6 flex items-center justify-between z-20 sticky top-0 bg-[#18191B]/95 backdrop-blur-sm border-b border-white/5">
+      <header className="w-full px-4 py-6 flex items-center justify-between z-20 sticky top-0 bg-[#18191B]/95 backdrop-blur-sm">
         <div className="flex items-center gap-3">
           <Image src="/logo.png" alt="Sycord Logo" width={28} height={28} className="opacity-90" />
           <span className="text-lg font-bold text-white tracking-tight">Sycord</span>
         </div>
-        <div>
+        <div className="flex items-center gap-4">
+          <Link href="/login" className="text-[#8A8E91] text-sm font-medium hover:text-white transition">Bejelentkezés</Link>
           <Button 
             asChild 
             className="bg-white text-[#18191B] hover:bg-white/90 text-sm font-semibold px-5 h-11 rounded-lg min-h-[44px]"
@@ -26,10 +27,10 @@ export default function LandingPage() {
 
       {/* Hero Section */}
       <main className="w-full flex-1 flex flex-col">
-        <section className="w-full px-5 pt-10 pb-6 relative min-h-[320px] overflow-hidden">
-          {/* Text Content */}
-          <div className="relative z-10 max-w-[280px]">
-            <h1 className="text-[36px] font-bold leading-[1.15] tracking-tight mb-8">
+        <section className="w-full px-5 pt-10 pb-10 relative min-h-[560px] overflow-hidden">
+          {/* Text Content and Get started button */}
+          <div className="relative z-10">
+            <h1 className="text-[36px] font-bold leading-[1.15] tracking-tight">
               <span className="text-white">Create </span>
               <span className="text-[#8A8E91]">your</span>
               <br />
@@ -38,24 +39,40 @@ export default function LandingPage() {
               <br />
               <span className="text-white">minute!</span>
             </h1>
-            <Button 
-              asChild
-              className="bg-[#6B6E71] hover:bg-[#5A5D60] text-white text-[14px] font-medium px-6 h-11 rounded-xl min-w-[44px] min-h-[44px]"
-            >
-              <Link href="/login">Get started</Link>
-            </Button>
+            <div className="mt-8">
+              <Button 
+                asChild
+                className="bg-[#6B6E71] hover:bg-[#5A5D60] text-white text-[14px] font-medium px-6 h-11 rounded-xl min-w-[44px] min-h-[44px]"
+              >
+                <Link href="/login">Get started</Link>
+              </Button>
+            </div>
           </div>
 
-          {/* Phone Mockup - Half visible, positioned at right edge */}
+          {/* Phone Mockup – right side, preserving the source image's 1:2.17 aspect ratio
+              (phone-mockup.png: 1179×2556 px).
+
+              Layout maths (for typical ~390 px mobile viewport):
+              • Container 320×750 px with objectPosition:'left top'.
+              • Because container h/w (2.34) > image h/w (2.17), the image is
+                WIDTH-LIMITED: rendered at 320×694 inside the 320×750 container
+                (56 px blank at the bottom).
+              • The PNG has a dark-background region covering the top ~31.8 % of
+                the image (rendered top 220 px) that blends with the page colour.
+                Shifting the container 190 px above the section top (-top-[190px])
+                and letting overflow-hidden clip it causes the visible metallic rim
+                to appear from ~section y=30 (upper-right of the hero).
+              • Right offset 145 px = container width (320) − target visible width
+                (~175 px ≈ 45 % of viewport), keeping the right portion off-screen. */}
           <div 
-            className="absolute top-4 -right-[120px] w-[280px] h-[380px] pointer-events-none z-0"
-            style={{ transform: 'rotate(12deg)' }}
+            className="absolute -top-[190px] -right-[145px] w-[320px] h-[750px] pointer-events-none z-0"
           >
             <Image
               src="/phone-mockup.png"
               alt="Phone Mockup"
               fill
-              className="object-contain object-left"
+              className="object-contain"
+              style={{ objectPosition: 'left top' }}
               priority
             />
           </div>
