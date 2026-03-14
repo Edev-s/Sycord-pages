@@ -9,7 +9,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-[#18191B] flex flex-col items-center overflow-x-hidden font-sans">
       {/* Header */}
-      <header className="w-full px-4 py-6 flex items-center justify-between z-20 sticky top-0 bg-[#18191B]/95 backdrop-blur-sm border-b border-white/5">
+      <header className="w-full px-4 py-6 flex items-center justify-between z-20 sticky top-0 bg-[#18191B]/95 backdrop-blur-sm">
         <div className="flex items-center gap-3">
           <Image src="/logo.png" alt="Sycord Logo" width={28} height={28} className="opacity-90" />
           <span className="text-lg font-bold text-white tracking-tight">Sycord</span>
@@ -28,7 +28,7 @@ export default function LandingPage() {
       {/* Hero Section */}
       <main className="w-full flex-1 flex flex-col">
         <section className="w-full px-5 pt-10 pb-10 relative min-h-[560px] overflow-hidden">
-          {/* Text Content – no max-w so "website under 5" fits on its explicit line */}
+          {/* Text Content and Get started button */}
           <div className="relative z-10">
             <h1 className="text-[36px] font-bold leading-[1.15] tracking-tight">
               <span className="text-white">Create </span>
@@ -39,16 +39,14 @@ export default function LandingPage() {
               <br />
               <span className="text-white">minute!</span>
             </h1>
-          </div>
-
-          {/* Get started button - anchored to bottom of hero to match design */}
-          <div className="absolute bottom-10 left-5 z-10">
-            <Button 
-              asChild
-              className="bg-[#6B6E71] hover:bg-[#5A5D60] text-white text-[14px] font-medium px-6 h-11 rounded-xl min-w-[44px] min-h-[44px]"
-            >
-              <Link href="/login">Get started</Link>
-            </Button>
+            <div className="mt-8">
+              <Button 
+                asChild
+                className="bg-[#6B6E71] hover:bg-[#5A5D60] text-white text-[14px] font-medium px-6 h-11 rounded-xl min-w-[44px] min-h-[44px]"
+              >
+                <Link href="/login">Get started</Link>
+              </Button>
+            </div>
           </div>
 
           {/* Phone Mockup – right side, preserving the source image's 1:2.17 aspect ratio
