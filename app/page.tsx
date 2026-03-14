@@ -3,7 +3,7 @@
 import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
-import { Info, Check, Zap, Globe, Shield, Sparkles, ArrowRight, Layers, MousePointerClick } from "lucide-react"
+import { Check, Zap, Sparkles, ArrowRight, Construction } from "lucide-react"
 
 export default function LandingPage() {
   return (
@@ -125,53 +125,16 @@ export default function LandingPage() {
             <p className="text-sm md:text-base text-[#8A8E91] text-center mb-10 md:mb-12 max-w-xl mx-auto">
               Everything you need to build and launch your website in minutes
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-              <div className="bg-[#252527] rounded-2xl p-5 md:p-6 border border-white/5 hover:border-white/10 transition-colors">
-                <div className="w-11 h-11 bg-yellow-500/10 rounded-xl flex items-center justify-center mb-4">
-                  <Zap className="w-5 h-5 text-yellow-500" />
-                </div>
-                <h3 className="text-white font-semibold text-sm md:text-base mb-2">Lightning Fast</h3>
-                <p className="text-[#8A8E91] text-xs md:text-sm">Build your website in under 5 minutes with our AI-powered builder</p>
-              </div>
-              
-              <div className="bg-[#252527] rounded-2xl p-5 md:p-6 border border-white/5 hover:border-white/10 transition-colors">
-                <div className="w-11 h-11 bg-blue-500/10 rounded-xl flex items-center justify-center mb-4">
-                  <Globe className="w-5 h-5 text-blue-500" />
-                </div>
-                <h3 className="text-white font-semibold text-sm md:text-base mb-2">Global CDN</h3>
-                <p className="text-[#8A8E91] text-xs md:text-sm">Your website loads fast everywhere with our global content delivery</p>
-              </div>
-              
-              <div className="bg-[#252527] rounded-2xl p-5 md:p-6 border border-white/5 hover:border-white/10 transition-colors">
-                <div className="w-11 h-11 bg-green-500/10 rounded-xl flex items-center justify-center mb-4">
-                  <Shield className="w-5 h-5 text-green-500" />
-                </div>
-                <h3 className="text-white font-semibold text-sm md:text-base mb-2">Enterprise Secure</h3>
-                <p className="text-[#8A8E91] text-xs md:text-sm">SSL certificates and enterprise-grade security included by default</p>
-              </div>
-              
-              <div className="bg-[#252527] rounded-2xl p-5 md:p-6 border border-white/5 hover:border-white/10 transition-colors">
-                <div className="w-11 h-11 bg-purple-500/10 rounded-xl flex items-center justify-center mb-4">
-                  <Sparkles className="w-5 h-5 text-purple-500" />
-                </div>
-                <h3 className="text-white font-semibold text-sm md:text-base mb-2">AI Powered</h3>
-                <p className="text-[#8A8E91] text-xs md:text-sm">Intelligent recommendations to help you create better websites</p>
-              </div>
-              
-              <div className="bg-[#252527] rounded-2xl p-5 md:p-6 border border-white/5 hover:border-white/10 transition-colors">
-                <div className="w-11 h-11 bg-orange-500/10 rounded-xl flex items-center justify-center mb-4">
-                  <MousePointerClick className="w-5 h-5 text-orange-500" />
-                </div>
-                <h3 className="text-white font-semibold text-sm md:text-base mb-2">No Code Required</h3>
-                <p className="text-[#8A8E91] text-xs md:text-sm">Drag and drop interface makes it easy for anyone to build</p>
-              </div>
-              
-              <div className="bg-[#252527] rounded-2xl p-5 md:p-6 border border-white/5 hover:border-white/10 transition-colors">
-                <div className="w-11 h-11 bg-cyan-500/10 rounded-xl flex items-center justify-center mb-4">
-                  <Layers className="w-5 h-5 text-cyan-500" />
-                </div>
-                <h3 className="text-white font-semibold text-sm md:text-base mb-2">Easy Migration</h3>
-                <p className="text-[#8A8E91] text-xs md:text-sm">Seamlessly migrate from other platforms to Sycord</p>
+            <div className="overflow-x-auto scrollbar-hide pb-4">
+              <div className="flex gap-4 md:gap-6 w-max md:w-full md:grid md:grid-cols-3 px-0">
+                {[1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="w-64 sm:w-72 md:w-auto h-72 sm:h-80 md:h-96 flex-shrink-0 bg-[#6B6E71]/40 rounded-3xl flex items-center justify-center"
+                  >
+                    <Construction className="w-10 h-10 text-[#8A8E91]/60" />
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -279,14 +242,14 @@ export default function LandingPage() {
             
             {/* Desktop Layout - 3 Column Grid */}
             <div className="hidden md:grid grid-cols-3 gap-6 max-w-5xl mx-auto">
-              {/* Free Plan */}
+              {/* Sycord Plan */}
               <div className="bg-[#1F2022] rounded-2xl p-8 border border-white/5 flex flex-col">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-2 h-2 rounded-full bg-[#3A3B3D]"></div>
                   <div className="w-2 h-2 rounded-full bg-[#3A3B3D]"></div>
                   <div className="w-2 h-2 rounded-full bg-[#3A3B3D]"></div>
                 </div>
-                <h3 className="text-2xl font-bold text-[#6B6E71] mb-2">Free</h3>
+                <h3 className="text-2xl font-bold text-[#6B6E71] mb-2">Sycord</h3>
                 <p className="text-[#8A8E91] text-sm mb-6">Perfect for getting started</p>
                 <div className="mb-6">
                   <span className="text-3xl font-bold text-white">$0</span>
@@ -314,7 +277,7 @@ export default function LandingPage() {
                 </ul>
               </div>
 
-              {/* Pro Plan - Featured */}
+              {/* Sycord+ Plan - Featured */}
               <div className="bg-[#18191B] rounded-2xl p-8 border-2 border-yellow-500/40 flex flex-col relative">
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-yellow-500/10 border border-yellow-500/30 rounded-full px-4 py-1">
                   <span className="text-yellow-500 text-xs font-semibold">Most Popular</span>
@@ -322,7 +285,7 @@ export default function LandingPage() {
                 <div className="flex items-center gap-2 mb-4 mt-2">
                   <Zap className="w-4 h-4 text-yellow-500" />
                 </div>
-                <h3 className="text-2xl font-bold text-white mb-2">Pro</h3>
+                <h3 className="text-2xl font-bold text-white mb-2">Sycord+</h3>
                 <p className="text-[#8A8E91] text-sm mb-6">For growing businesses</p>
                 <div className="mb-6">
                   <span className="text-3xl font-bold text-white">$9</span>
@@ -350,12 +313,12 @@ export default function LandingPage() {
                 </ul>
               </div>
 
-              {/* Ultra Plan */}
+              {/* Sycord Enterprise Plan */}
               <div className="bg-[#1F2022] rounded-2xl p-8 border border-white/5 flex flex-col">
                 <div className="flex items-center gap-2 mb-4">
                   <Sparkles className="w-4 h-4 text-purple-500" />
                 </div>
-                <h3 className="text-2xl font-bold text-white mb-2">Ultra</h3>
+                <h3 className="text-2xl font-bold text-white mb-2">Sycord Enterprise</h3>
                 <p className="text-[#8A8E91] text-sm mb-6">For enterprises</p>
                 <div className="mb-6">
                   <span className="text-3xl font-bold text-white">$29</span>
@@ -371,7 +334,7 @@ export default function LandingPage() {
                 <ul className="space-y-3 flex-1">
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
-                    <span className="text-white/80 text-sm">Everything in Pro</span>
+                    <span className="text-white/80 text-sm">Everything in Sycord+</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
@@ -388,14 +351,14 @@ export default function LandingPage() {
             {/* Mobile Layout - Horizontal Scroll */}
             <div className="md:hidden overflow-x-auto scrollbar-hide pb-4">
               <div className="flex gap-4 w-max px-0">
-                {/* Free Plan */}
+                {/* Sycord Plan */}
                 <div className="w-72 bg-[#1F2022] rounded-2xl p-5 flex-shrink-0 border border-white/5">
                   <div className="flex items-center gap-1.5 mb-4">
                     <div className="w-2 h-2 rounded-full bg-[#3A3B3D]"></div>
                     <div className="w-2 h-2 rounded-full bg-[#3A3B3D]"></div>
                     <div className="w-2 h-2 rounded-full bg-[#3A3B3D]"></div>
                   </div>
-                  <h3 className="text-xl font-bold text-[#6B6E71] mb-1">Free</h3>
+                  <h3 className="text-xl font-bold text-[#6B6E71] mb-1">Sycord</h3>
                   <p className="text-[#8A8E91] text-xs mb-4">Getting started</p>
                   <div className="mb-4">
                     <span className="text-2xl font-bold text-white">$0</span>
@@ -423,13 +386,13 @@ export default function LandingPage() {
                   </ul>
                 </div>
 
-                {/* Pro Plan */}
+                {/* Sycord+ Plan */}
                 <div className="w-72 bg-[#18191B] rounded-2xl p-5 flex-shrink-0 border-2 border-yellow-500/40">
                   <div className="flex items-center gap-1 mb-3">
                     <Zap className="w-3.5 h-3.5 text-yellow-500" />
                     <span className="text-[9px] font-semibold text-yellow-500">Popular</span>
                   </div>
-                  <h3 className="text-xl font-bold text-white mb-1">Pro</h3>
+                  <h3 className="text-xl font-bold text-white mb-1">Sycord+</h3>
                   <p className="text-[#8A8E91] text-xs mb-4">Growing business</p>
                   <div className="mb-4">
                     <span className="text-2xl font-bold text-white">$9</span>
@@ -457,12 +420,12 @@ export default function LandingPage() {
                   </ul>
                 </div>
 
-                {/* Ultra Plan */}
+                {/* Sycord Enterprise Plan */}
                 <div className="w-72 bg-[#1F2022] rounded-2xl p-5 flex-shrink-0 border border-white/5">
                   <div className="flex items-center gap-1 mb-3">
                     <Sparkles className="w-3.5 h-3.5 text-purple-500" />
                   </div>
-                  <h3 className="text-xl font-bold text-white mb-1">Ultra</h3>
+                  <h3 className="text-xl font-bold text-white mb-1">Sycord Enterprise</h3>
                   <p className="text-[#8A8E91] text-xs mb-4">Enterprises</p>
                   <div className="mb-4">
                     <span className="text-2xl font-bold text-white">$29</span>
@@ -478,7 +441,7 @@ export default function LandingPage() {
                   <ul className="space-y-2">
                     <li className="flex items-center gap-2">
                       <Check className="w-3 h-3 text-green-500 flex-shrink-0" />
-                      <span className="text-white/80 text-xs">Everything in Pro</span>
+                      <span className="text-white/80 text-xs">Everything in Sycord+</span>
                     </li>
                     <li className="flex items-center gap-2">
                       <Check className="w-3 h-3 text-green-500 flex-shrink-0" />
