@@ -2,8 +2,38 @@
 
 import Link from "next/link"
 import Image from "next/image"
+import { useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Check, Zap, Sparkles, ArrowRight, Construction } from "lucide-react"
+
+function useScrollReveal() {
+  const ref = useRef<HTMLElement>(null)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          el.classList.add("scroll-visible")
+          observer.unobserve(el)
+        }
+      },
+      { threshold: 0.15 }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+  return ref
+}
+
+function RevealSection({ children, className = "", id }: { children: React.ReactNode; className?: string; id?: string }) {
+  const ref = useScrollReveal()
+  return (
+    <section ref={ref} id={id} className={`scroll-hidden ${className}`}>
+      {children}
+    </section>
+  )
+}
 
 export default function LandingPage() {
   return (
@@ -16,7 +46,7 @@ export default function LandingPage() {
         </div>
         <Button 
           asChild 
-          className="bg-white text-[#18191B] hover:bg-white/90 text-xs md:text-sm font-semibold px-6 md:px-8 h-9 md:h-11 rounded-full min-h-[44px]"
+          className="bg-white text-[#18191B] hover:bg-white/90 text-xs md:text-sm font-semibold px-4 md:px-6 h-8 md:h-9 rounded-full"
         >
           <Link href="/login">Kezdés</Link>
         </Button>
@@ -26,7 +56,7 @@ export default function LandingPage() {
       <main className="w-full flex-1 flex flex-col">
         
         {/* Hero Section */}
-        <section className="w-full px-4 md:px-8 pt-8 md:pt-16 pb-8 md:pb-12">
+        <RevealSection className="w-full px-4 md:px-8 pt-8 md:pt-16 pb-8 md:pb-12">
           <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center gap-8 md:gap-12">
             <div className="flex-1 max-w-2xl">
               <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold leading-tight tracking-tight mb-6">
@@ -116,10 +146,10 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
-        </section>
+        </RevealSection>
 
         {/* Features Section */}
-        <section className="w-full px-4 md:px-8 py-8 md:py-16 relative">
+        <RevealSection className="w-full px-4 md:px-8 py-8 md:py-16 relative">
           <div className="max-w-6xl mx-auto">
             <h2 className="text-xl md:text-3xl font-bold text-white text-center mb-4 md:mb-2">Why Choose Sycord?</h2>
             <p className="text-sm md:text-base text-[#8A8E91] text-center mb-10 md:mb-12 max-w-xl mx-auto">
@@ -138,102 +168,32 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
-        </section>
+        </RevealSection>
 
         {/* Corporate Supporters Section */}
-        <section className="w-full py-10 md:py-16 border-t border-b border-white/5 bg-[#1F1F21]">
+        <RevealSection className="w-full py-10 md:py-16 border-t border-b border-white/5 bg-[#1F1F21]">
           <div className="max-w-6xl mx-auto px-4 md:px-8">
             <p className="text-center text-[#8A8E91] text-xs md:text-sm font-medium mb-8">Trusted by leading companies</p>
-            
-            {/* Desktop Layout - Static Grid */}
-            <div className="hidden md:grid grid-cols-5 gap-6 items-center justify-center mb-4">
-              <div className="flex items-center gap-2 justify-center">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
-                  <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12C2 16.42 4.868 20.166 8.839 21.503C9.339 21.594 9.52 21.288 9.52 21.025C9.52 20.79 9.512 20.165 9.507 19.336C6.726 19.938 6.139 17.994 6.139 17.994C5.684 16.84 5.03 16.533 5.03 16.533C4.126 15.915 5.099 15.928 5.099 15.928C6.1 16.001 6.626 16.96 6.626 16.96C7.514 18.483 8.956 18.043 9.543 17.789C9.633 17.127 9.898 16.688 10.194 16.44C7.973 16.188 5.638 15.332 5.638 11.478C5.638 10.378 6.031 9.479 6.674 8.784C6.57 8.532 6.224 7.508 6.772 6.111C6.772 6.111 7.616 5.842 9.49 7.109C10.293 6.886 11.152 6.775 12.002 6.771C12.852 6.775 13.711 6.886 14.515 7.109C16.388 5.842 17.23 6.111 17.23 6.111C17.78 7.508 17.435 8.532 17.331 8.784C17.975 9.479 18.366 10.378 18.366 11.478C18.366 15.344 16.027 16.185 13.801 16.432C14.169 16.748 14.498 17.371 14.498 18.324C14.498 19.689 14.485 20.79 14.485 21.025C14.485 21.29 14.664 21.6 15.17 21.501C19.135 20.163 22 16.418 22 12C22 6.477 17.523 2 12 2Z" fill="white"/>
-                </svg>
-                <span className="text-white text-sm font-medium">GitHub</span>
-              </div>
-              
-              <div className="flex items-center justify-center">
-                <svg width="36" height="24" viewBox="0 0 64 42" fill="white" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M43.95 11.41C42.84 5.01 37.3 0 30.63 0C25.4 0 20.89 3.09 18.66 7.64C18.12 7.55 17.57 7.5 17 7.5C10.65 7.5 5.5 12.65 5.5 19C5.5 19.33 5.52 19.65 5.54 19.98C2.33 21.6 0.13 24.96 0.13 28.84C0.13 34.45 4.68 39 10.29 39H43.71C49.23 39 53.71 34.52 53.71 29C53.71 23.86 49.83 19.6 44.86 19.06C45.33 17.9 45.62 16.65 45.62 15.34C45.62 13.94 45.02 12.59 43.95 11.41Z" fill="white" />
-                </svg>
-              </div>
-              
-              <div className="flex items-center justify-center">
-                <span className="text-white text-lg font-bold">Google</span>
-              </div>
-              
-              <div className="flex items-center justify-center">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 0C5.37 0 0 5.37 0 12C0 18.63 5.37 24 12 24C18.63 24 24 18.63 24 12C24 5.37 18.63 0 12 0ZM17.57 8.15L15.77 16.77C15.64 17.37 15.27 17.52 14.77 17.24L11.77 15.06L10.32 16.44C10.17 16.59 10.05 16.71 9.77 16.71L9.97 13.63L15.42 8.73C15.67 8.51 15.37 8.38 15.04 8.60L8.32 12.85L5.37 11.92C4.77 11.73 4.76 11.31 5.49 11.03L16.81 6.90C17.31 6.72 17.75 7.04 17.57 8.15Z" fill="white"/>
-                </svg>
-              </div>
-              
-              <div className="flex items-center justify-center">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" fill="white"/>
-                </svg>
-              </div>
-            </div>
-
-            {/* Mobile Layout - Scrollable Marquee */}
-            <div className="md:hidden overflow-x-auto scrollbar-hide">
-              <div className="flex animate-marquee gap-8 px-4">
-                {/* First set */}
-                <div className="flex items-center gap-8 flex-shrink-0">
-                  <div className="flex items-center gap-2">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
-                      <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12C2 16.42 4.868 20.166 8.839 21.503C9.339 21.594 9.52 21.288 9.52 21.025C9.52 20.79 9.512 20.165 9.507 19.336C6.726 19.938 6.139 17.994 6.139 17.994C5.684 16.84 5.03 16.533 5.03 16.533C4.126 15.915 5.099 15.928 5.099 15.928C6.1 16.001 6.626 16.96 6.626 16.96C7.514 18.483 8.956 18.043 9.543 17.789C9.633 17.127 9.898 16.688 10.194 16.44C7.973 16.188 5.638 15.332 5.638 11.478C5.638 10.378 6.031 9.479 6.674 8.784C6.57 8.532 6.224 7.508 6.772 6.111C6.772 6.111 7.616 5.842 9.49 7.109C10.293 6.886 11.152 6.775 12.002 6.771C12.852 6.775 13.711 6.886 14.515 7.109C16.388 5.842 17.23 6.111 17.23 6.111C17.78 7.508 17.435 8.532 17.331 8.784C17.975 9.479 18.366 10.378 18.366 11.478C18.366 15.344 16.027 16.185 13.801 16.432C14.169 16.748 14.498 17.371 14.498 18.324C14.498 19.689 14.485 20.79 14.485 21.025C14.485 21.29 14.664 21.6 15.17 21.501C19.135 20.163 22 16.418 22 12C22 6.477 17.523 2 12 2Z" fill="white"/>
-                    </svg>
-                    <span className="text-white text-xs font-medium">GitHub</span>
+            <div className="relative overflow-hidden">
+              <div className="absolute left-0 top-0 bottom-0 w-16 bg-gradient-to-r from-[#1F1F21] to-transparent z-10"></div>
+              <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-[#1F1F21] to-transparent z-10"></div>
+              <div className="flex animate-marquee gap-6">
+                {[...Array(2)].map((_, setIdx) => (
+                  <div key={setIdx} className="flex items-center gap-6 flex-shrink-0">
+                    {["GitHub", "Google", "Vercel", "Stripe", "Linear"].map((name) => (
+                      <span key={`${setIdx}-${name}`} className="text-white/60 text-sm md:text-base font-semibold tracking-wide whitespace-nowrap px-5 py-2 rounded-full border border-white/10 bg-white/[0.03]">
+                        {name}
+                      </span>
+                    ))}
                   </div>
-                  
-                  <svg width="32" height="20" viewBox="0 0 64 42" fill="white" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M43.95 11.41C42.84 5.01 37.3 0 30.63 0C25.4 0 20.89 3.09 18.66 7.64C18.12 7.55 17.57 7.5 17 7.5C10.65 7.5 5.5 12.65 5.5 19C5.5 19.33 5.52 19.65 5.54 19.98C2.33 21.6 0.13 24.96 0.13 28.84C0.13 34.45 4.68 39 10.29 39H43.71C49.23 39 53.71 34.52 53.71 29C53.71 23.86 49.83 19.6 44.86 19.06C45.33 17.9 45.62 16.65 45.62 15.34C45.62 13.94 45.02 12.59 43.95 11.41Z" fill="white" />
-                  </svg>
-                  
-                  <span className="text-white font-bold text-sm">Google</span>
-                  
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 0C5.37 0 0 5.37 0 12C0 18.63 5.37 24 12 24C18.63 24 24 18.63 24 12C24 5.37 18.63 0 12 0ZM17.57 8.15L15.77 16.77C15.64 17.37 15.27 17.52 14.77 17.24L11.77 15.06L10.32 16.44C10.17 16.59 10.05 16.71 9.77 16.71L9.97 13.63L15.42 8.73C15.67 8.51 15.37 8.38 15.04 8.60L8.32 12.85L5.37 11.92C4.77 11.73 4.76 11.31 5.49 11.03L16.81 6.90C17.31 6.72 17.75 7.04 17.57 8.15Z" fill="white"/>
-                  </svg>
-                  
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" fill="white"/>
-                  </svg>
-                </div>
-                
-                {/* Duplicate for seamless loop */}
-                <div className="flex items-center gap-8 flex-shrink-0">
-                  <div className="flex items-center gap-2">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
-                      <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12C2 16.42 4.868 20.166 8.839 21.503C9.339 21.594 9.52 21.288 9.52 21.025C9.52 20.79 9.512 20.165 9.507 19.336C6.726 19.938 6.139 17.994 6.139 17.994C5.684 16.84 5.03 16.533 5.03 16.533C4.126 15.915 5.099 15.928 5.099 15.928C6.1 16.001 6.626 16.96 6.626 16.96C7.514 18.483 8.956 18.043 9.543 17.789C9.633 17.127 9.898 16.688 10.194 16.44C7.973 16.188 5.638 15.332 5.638 11.478C5.638 10.378 6.031 9.479 6.674 8.784C6.57 8.532 6.224 7.508 6.772 6.111C6.772 6.111 7.616 5.842 9.49 7.109C10.293 6.886 11.152 6.775 12.002 6.771C12.852 6.775 13.711 6.886 14.515 7.109C16.388 5.842 17.23 6.111 17.23 6.111C17.78 7.508 17.435 8.532 17.331 8.784C17.975 9.479 18.366 10.378 18.366 11.478C18.366 15.344 16.027 16.185 13.801 16.432C14.169 16.748 14.498 17.371 14.498 18.324C14.498 19.689 14.485 20.79 14.485 21.025C14.485 21.29 14.664 21.6 15.17 21.501C19.135 20.163 22 16.418 22 12C22 6.477 17.523 2 12 2Z" fill="white"/>
-                    </svg>
-                    <span className="text-white text-xs font-medium">GitHub</span>
-                  </div>
-                  
-                  <svg width="32" height="20" viewBox="0 0 64 42" fill="white" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M43.95 11.41C42.84 5.01 37.3 0 30.63 0C25.4 0 20.89 3.09 18.66 7.64C18.12 7.55 17.57 7.5 17 7.5C10.65 7.5 5.5 12.65 5.5 19C5.5 19.33 5.52 19.65 5.54 19.98C2.33 21.6 0.13 24.96 0.13 28.84C0.13 34.45 4.68 39 10.29 39H43.71C49.23 39 53.71 34.52 53.71 29C53.71 23.86 49.83 19.6 44.86 19.06C45.33 17.9 45.62 16.65 45.62 15.34C45.62 13.94 45.02 12.59 43.95 11.41Z" fill="white" />
-                  </svg>
-                  
-                  <span className="text-white font-bold text-sm">Google</span>
-                  
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 0C5.37 0 0 5.37 0 12C0 18.63 5.37 24 12 24C18.63 24 24 18.63 24 12C24 5.37 18.63 0 12 0ZM17.57 8.15L15.77 16.77C15.64 17.37 15.27 17.52 14.77 17.24L11.77 15.06L10.32 16.44C10.17 16.59 10.05 16.71 9.77 16.71L9.97 13.63L15.42 8.73C15.67 8.51 15.37 8.38 15.04 8.60L8.32 12.85L5.37 11.92C4.77 11.73 4.76 11.31 5.49 11.03L16.81 6.90C17.31 6.72 17.75 7.04 17.57 8.15Z" fill="white"/>
-                  </svg>
-                  
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" fill="white"/>
-                  </svg>
-                </div>
+                ))}
               </div>
             </div>
           </div>
-        </section>
+        </RevealSection>
 
         {/* Pricing Section */}
-        <section id="pricing" className="w-full px-4 md:px-8 py-12 md:py-20">
+        <RevealSection id="pricing" className="w-full px-4 md:px-8 py-12 md:py-20">
           <div className="max-w-6xl mx-auto">
             <h2 className="text-2xl md:text-4xl font-bold text-white text-center mb-3">Simple, Transparent Pricing</h2>
             <p className="text-sm md:text-base text-[#8A8E91] text-center mb-10 md:mb-12 max-w-xl mx-auto">
@@ -456,10 +416,10 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
-        </section>
+        </RevealSection>
 
         {/* CTA Section */}
-        <section className="w-full px-4 md:px-8 py-12 md:py-16">
+        <RevealSection className="w-full px-4 md:px-8 py-12 md:py-16">
           <div className="max-w-2xl mx-auto bg-[#252527] border border-white/10 rounded-2xl p-8 md:p-12 text-center relative overflow-hidden">
             {/* Decorative background illustration */}
             <svg className="absolute -right-10 -top-10 w-40 h-40 opacity-[0.06]" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -487,58 +447,53 @@ export default function LandingPage() {
               </Button>
             </div>
           </div>
-        </section>
+        </RevealSection>
       </main>
 
       {/* Footer */}
       <footer className="w-full border-t border-white/5 bg-[#1F1F21] mt-8 md:mt-16">
-        <div className="max-w-6xl mx-auto px-4 md:px-8 py-10 md:py-16">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 md:gap-12 mb-8">
-            <div>
-              <h3 className="text-white font-semibold text-sm mb-4">Product</h3>
-              <ul className="space-y-2">
-                <li><Link href="#" className="text-[#8A8E91] hover:text-white text-xs md:text-sm transition-colors">Features</Link></li>
-                <li><Link href="#" className="text-[#8A8E91] hover:text-white text-xs md:text-sm transition-colors">Pricing</Link></li>
-                <li><Link href="#" className="text-[#8A8E91] hover:text-white text-xs md:text-sm transition-colors">Security</Link></li>
-                <li><Link href="#" className="text-[#8A8E91] hover:text-white text-xs md:text-sm transition-colors">Status</Link></li>
-              </ul>
+        <div className="max-w-6xl mx-auto px-4 md:px-8 py-10 md:py-14">
+          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-10 md:gap-16 mb-10">
+            <div className="flex-shrink-0">
+              <div className="flex items-center gap-2 mb-3">
+                <Image src="/logo.png" alt="Sycord Logo" width={24} height={24} className="opacity-90" />
+                <span className="text-white font-bold text-base tracking-tight">Sycord</span>
+              </div>
+              <p className="text-[#8A8E91] text-xs max-w-[200px]">Build stunning websites in minutes. No coding required.</p>
             </div>
-            
-            <div>
-              <h3 className="text-white font-semibold text-sm mb-4">Company</h3>
-              <ul className="space-y-2">
-                <li><Link href="#" className="text-[#8A8E91] hover:text-white text-xs md:text-sm transition-colors">About</Link></li>
-                <li><Link href="#" className="text-[#8A8E91] hover:text-white text-xs md:text-sm transition-colors">Blog</Link></li>
-                <li><Link href="#" className="text-[#8A8E91] hover:text-white text-xs md:text-sm transition-colors">Careers</Link></li>
-                <li><Link href="#" className="text-[#8A8E91] hover:text-white text-xs md:text-sm transition-colors">Contact</Link></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h3 className="text-white font-semibold text-sm mb-4">Legal</h3>
-              <ul className="space-y-2">
-                <li><Link href="#" className="text-[#8A8E91] hover:text-white text-xs md:text-sm transition-colors">Privacy</Link></li>
-                <li><Link href="#" className="text-[#8A8E91] hover:text-white text-xs md:text-sm transition-colors">Terms</Link></li>
-                <li><Link href="#" className="text-[#8A8E91] hover:text-white text-xs md:text-sm transition-colors">Cookies</Link></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h3 className="text-white font-semibold text-sm mb-4">Connect</h3>
-              <ul className="space-y-2">
-                <li><Link href="#" className="text-[#8A8E91] hover:text-white text-xs md:text-sm transition-colors">Twitter</Link></li>
-                <li><Link href="#" className="text-[#8A8E91] hover:text-white text-xs md:text-sm transition-colors">GitHub</Link></li>
-                <li><Link href="#" className="text-[#8A8E91] hover:text-white text-xs md:text-sm transition-colors">Discord</Link></li>
-              </ul>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-8 md:gap-14">
+              <div>
+                <h3 className="text-white/50 text-[11px] font-semibold uppercase tracking-widest mb-3">Product</h3>
+                <ul className="space-y-2">
+                  <li><Link href="#" className="text-[#8A8E91] hover:text-white text-xs transition-colors">Features</Link></li>
+                  <li><Link href="#pricing" className="text-[#8A8E91] hover:text-white text-xs transition-colors">Pricing</Link></li>
+                  <li><Link href="#" className="text-[#8A8E91] hover:text-white text-xs transition-colors">Security</Link></li>
+                </ul>
+              </div>
+              <div>
+                <h3 className="text-white/50 text-[11px] font-semibold uppercase tracking-widest mb-3">Company</h3>
+                <ul className="space-y-2">
+                  <li><Link href="#" className="text-[#8A8E91] hover:text-white text-xs transition-colors">About</Link></li>
+                  <li><Link href="#" className="text-[#8A8E91] hover:text-white text-xs transition-colors">Blog</Link></li>
+                  <li><Link href="#" className="text-[#8A8E91] hover:text-white text-xs transition-colors">Contact</Link></li>
+                </ul>
+              </div>
+              <div>
+                <h3 className="text-white/50 text-[11px] font-semibold uppercase tracking-widest mb-3">Legal</h3>
+                <ul className="space-y-2">
+                  <li><Link href="#" className="text-[#8A8E91] hover:text-white text-xs transition-colors">Privacy</Link></li>
+                  <li><Link href="#" className="text-[#8A8E91] hover:text-white text-xs transition-colors">Terms</Link></li>
+                </ul>
+              </div>
             </div>
           </div>
-          
-          <div className="border-t border-white/5 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <Image src="/logo.png" alt="Sycord Logo" width={20} height={20} className="opacity-90" />
-              <span className="text-white font-semibold text-xs md:text-sm">Sycord © 2024. All rights reserved.</span>
+          <div className="border-t border-white/5 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <span className="text-[#8A8E91] text-[11px]">© {new Date().getFullYear()} Sycord. All rights reserved.</span>
+            <div className="flex items-center gap-4">
+              <Link href="#" className="text-[#8A8E91] hover:text-white text-[11px] transition-colors">Twitter</Link>
+              <Link href="#" className="text-[#8A8E91] hover:text-white text-[11px] transition-colors">GitHub</Link>
+              <Link href="#" className="text-[#8A8E91] hover:text-white text-[11px] transition-colors">Discord</Link>
             </div>
-            <span className="text-[#8A8E91] text-xs">Made with care for creators and businesses</span>
           </div>
         </div>
       </footer>
