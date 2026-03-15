@@ -262,14 +262,7 @@ function drawPageFooter(
   if (sigBmp) {
     const drawH = 22
     const drawW = (sigBmp.width / sigBmp.height) * drawH
-
-    ctx.save()
     ctx.drawImage(sigBmp, PAGE_LEFT, footerY + 6, drawW, drawH)
-    ctx.globalCompositeOperation = "source-atop"
-    ctx.fillStyle = "#000000"
-    ctx.fillRect(PAGE_LEFT, footerY + 6, drawW, drawH)
-    ctx.globalCompositeOperation = "source-over"
-    ctx.restore()
   }
 
   /* Name and title below signature */
@@ -365,35 +358,42 @@ function paginateBlocks(blocks: ContentBlock[]): ContentBlock[][] {
   return pages
 }
 
-/* ── Load the signature SVG as an ImageBitmap via an offscreen canvas ── */
+/* ── Load the signature image as an ImageBitmap ── */
+const SIGNATURE_URL =
+  "https://github.com/user-attachments/assets/fcbee10a-8765-443c-962d-2558bcd6d26d"
+
 async function loadSignature(): Promise<ImageBitmap | null> {
-  try {
-    return await new Promise<ImageBitmap | null>((resolve) => {
-      const img = new Image()
-      img.onload = async () => {
-        /* Render the SVG to a temporary canvas so we get a raster bitmap */
-        const c = document.createElement("canvas")
-        c.width = img.naturalWidth || 320
-        c.height = img.naturalHeight || 100
-        const cx = c.getContext("2d")!
-        cx.drawImage(img, 0, 0, c.width, c.height)
-        try {
-          const bmp = await createImageBitmap(c)
-          resolve(bmp)
-        } catch {
-          resolve(null)
+  /* Try loading from each source in order: remote PNG, local SVG fallback */
+  const sources = [SIGNATURE_URL, "/signature.svg"]
+
+  for (const src of sources) {
+    try {
+      const bmp = await new Promise<ImageBitmap | null>((resolve) => {
+        const img = new Image()
+        img.crossOrigin = "anonymous"
+        img.onload = async () => {
+          const c = document.createElement("canvas")
+          c.width = img.naturalWidth || 320
+          c.height = img.naturalHeight || 100
+          const cx = c.getContext("2d")!
+          cx.drawImage(img, 0, 0, c.width, c.height)
+          try {
+            resolve(await createImageBitmap(c))
+          } catch {
+            resolve(null)
+          }
         }
-      }
-      img.onerror = () => {
-        console.error("Failed to load signature image")
-        resolve(null)
-      }
-      img.src = "/signature.svg"
-    })
-  } catch (err) {
-    console.error("Failed to load signature:", err)
-    return null
+        img.onerror = () => resolve(null)
+        img.src = src
+      })
+      if (bmp) return bmp
+    } catch {
+      /* try next source */
+    }
   }
+
+  console.error("Failed to load signature from any source")
+  return null
 }
 
 /* ── Main: generate A4 pages and trigger downloads ── */
