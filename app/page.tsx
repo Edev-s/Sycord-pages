@@ -4,7 +4,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
-import { Check, Zap, Sparkles, ArrowRight, Construction } from "lucide-react"
+import { Check, Zap, Sparkles, ArrowRight } from "lucide-react"
 
 function useScrollReveal() {
   const ref = useRef<HTMLElement>(null)
@@ -154,12 +154,21 @@ export default function LandingPage() {
             </p>
             <div className="overflow-x-auto scrollbar-hide pb-4">
               <div className="flex gap-4 md:gap-6 w-max md:w-full md:grid md:grid-cols-3 px-0">
-                {[1, 2, 3].map((i) => (
+                {[
+                  { src: "https://github.com/user-attachments/assets/6f4659c9-0989-47c0-b282-731ae5961df7", alt: "Best AI model on the market — Gemini 3.1" },
+                  { src: "https://github.com/user-attachments/assets/95665e35-5f9c-4a6d-9255-8a5b9dfd5d01", alt: "Why Choose Sycord — Feature 2" },
+                  { src: "https://github.com/user-attachments/assets/9c1a2ed9-1179-4e69-9c24-40058dc0e53d", alt: "Why Choose Sycord — Feature 3" },
+                ].map((img, i) => (
                   <div
                     key={i}
-                    className="w-64 sm:w-72 md:w-auto h-72 sm:h-80 md:h-96 flex-shrink-0 bg-[#6B6E71]/40 rounded-3xl flex items-center justify-center"
+                    className="w-64 sm:w-72 md:w-auto h-72 sm:h-80 md:h-96 flex-shrink-0 rounded-3xl overflow-hidden"
                   >
-                    <Construction className="w-10 h-10 text-[#8A8E91]/60" />
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={img.src}
+                      alt={img.alt}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                 ))}
               </div>
