@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback } from "react"
+import { useCallback, useState } from "react"
 import { Download } from "lucide-react"
 
 /* ── plain-text version of every ToS section (used by the A4 renderer) ── */
@@ -79,7 +79,7 @@ const sections = [
   {
     title: "8. Rendelkezésre Állás és Felelősségkorlátozás",
     items: [
-      '8.1 Rendelkezésre állás: A Sycord törekszik a Szolgáltatás folyamatos elérhetőségére, azonban nem garantál 100%-os üzemidőt. Karbantartási szünetek előfordulhatnak.',
+      "8.1 Rendelkezésre állás: A Sycord törekszik a Szolgáltatás folyamatos elérhetőségére, azonban nem garantál 100%-os üzemidőt. Karbantartási szünetek előfordulhatnak.",
       '8.2 "Ahogy van" állapot: A Szolgáltatás "ahogy van" ("as is") és "ahogy elérhető" ("as available") alapon kerül nyújtásra, kifejezett vagy hallgatólagos garancia nélkül.',
       "8.3 AI pontosság: Az AI által generált tartalom hibákat tartalmazhat. A Sycord nem garantálja a generált kód helyességét, biztonságát vagy harmadik fél jogainak megsértésének hiányát. A Felhasználó felelős a generált tartalom áttekintéséért és használatáért.",
       "8.4 Felelősségkorlátozás: A Sycord maximális felelőssége nem haladhatja meg a Felhasználó által az utolsó 12 hónapban ténylegesen kifizetett előfizetési díjak összegét. Közvetett, következményi vagy különleges károkért a Sycord nem vállal felelősséget.",
@@ -127,18 +127,28 @@ const sections = [
 
 /* ── A4 dimensions at 96 DPI ── */
 const A4_W = 794
-const PAGE_TOP = 60
-const PAGE_BOTTOM = 60
+const A4_H = 1123
+const PAGE_TOP = 50
+const PAGE_BOTTOM = 50
 const PAGE_LEFT = 60
 const PAGE_RIGHT = 60
 const CONTENT_W = A4_W - PAGE_LEFT - PAGE_RIGHT
+const LOGO_SIZE = 28
+const HEADER_GAP = 8
+const DPR = 2
 
-/* ── Canvas text helpers ── */
+/* ── Font settings ── */
+const bodyFont = "11.5px Inter, system-ui, sans-serif"
+const sectionTitleFont = "bold 14px Inter, system-ui, sans-serif"
+const lineHeight = 17
+const sectionGap = 18
+const itemGap = 5
+
+/* ── Canvas text helper ── */
 function wrapText(
   ctx: CanvasRenderingContext2D,
   text: string,
   maxWidth: number,
-  lineHeight: number,
 ): string[] {
   const words = text.split(" ")
   const lines: string[] = []
@@ -156,190 +166,314 @@ function wrapText(
   return lines
 }
 
-/**
- * Draws the full letterhead, ToS body, signature & URL reference onto a
- * canvas, then triggers a PNG download.  All rendering is done with the
- * native Canvas 2D API so there are no cross-origin or DOM-serialization
- * issues.
- */
-async function generateA4Image() {
-  /* ── Pre-load logo as ImageBitmap ── */
-  const logoResp = await fetch("/logo.png")
-  const logoBlob = await logoResp.blob()
-  const logoBmp = await createImageBitmap(logoBlob)
+/* ── Represents a renderable block that can be placed on a page ── */
+interface ContentBlock {
+  type: "title" | "section-title" | "item" | "gap" | "signature" | "url"
+  height: number
+  text?: string
+  lines?: string[]
+}
 
-  /* ── First pass: measure total height ── */
-  const measure = document.createElement("canvas")
-  const mCtx = measure.getContext("2d")!
-  measure.width = A4_W
+/* ── Measure all content blocks ── */
+function measureBlocks(ctx: CanvasRenderingContext2D): ContentBlock[] {
+  const blocks: ContentBlock[] = []
 
-  let totalH = PAGE_TOP
-
-  // letterhead height
-  const LOGO_SIZE = 32
-  const HEADER_GAP = 8
-  totalH += LOGO_SIZE + 20 // logo row + gap below
-  totalH += 2 // separator line
-  totalH += 24 // gap after separator
-
-  // title + date
-  mCtx.font = "bold 22px Inter, system-ui, sans-serif"
-  totalH += 28 // title line height
-  totalH += 18 // date
-  totalH += 20 // gap
-
-  const bodyFont = "12px Inter, system-ui, sans-serif"
-  const bodyBold = "bold 12px Inter, system-ui, sans-serif"
-  const sectionTitleFont = "bold 15px Inter, system-ui, sans-serif"
-  const lineHeight = 18
-  const sectionGap = 22
-  const itemGap = 6
+  /* Title + date */
+  blocks.push({ type: "title", height: 28 + 16 + 16, text: "title" })
 
   for (const sec of sections) {
-    mCtx.font = sectionTitleFont
-    totalH += 20 + 10 // section title + gap
+    /* Section title */
+    blocks.push({
+      type: "section-title",
+      height: 18 + 8,
+      text: sec.title,
+    })
+
     for (const item of sec.items) {
-      mCtx.font = bodyFont
-      const lines = wrapText(mCtx, item, CONTENT_W, lineHeight)
-      totalH += lines.length * lineHeight + itemGap
+      ctx.font = bodyFont
+      const lines = wrapText(ctx, item, CONTENT_W)
+      blocks.push({
+        type: "item",
+        height: lines.length * lineHeight + itemGap,
+        lines,
+      })
     }
-    totalH += sectionGap
+
+    /* Gap after section */
+    blocks.push({ type: "gap", height: sectionGap })
   }
 
-  // signature block
-  totalH += 40 // gap before signature
-  totalH += 60 // signature image area
-  totalH += 16 // name text
-  totalH += 14 // title text
-  totalH += 30 // gap
+  /* Signature block */
+  blocks.push({ type: "signature", height: 140 })
 
-  // URL reference line
-  totalH += 16
-  totalH += PAGE_BOTTOM
+  /* URL reference */
+  blocks.push({ type: "url", height: 20 })
 
-  /* ── Second pass: actual draw ── */
-  const canvas = document.createElement("canvas")
-  const dpr = 2 // retina sharpness
-  canvas.width = A4_W * dpr
-  canvas.height = totalH * dpr
-  const ctx = canvas.getContext("2d")!
-  ctx.scale(dpr, dpr)
+  return blocks
+}
 
-  // white background
-  ctx.fillStyle = "#ffffff"
-  ctx.fillRect(0, 0, A4_W, totalH)
-
+/* ── Draw the letterhead on every page ── */
+function drawLetterhead(
+  ctx: CanvasRenderingContext2D,
+  logoBmp: ImageBitmap,
+): number {
   let y = PAGE_TOP
 
-  /* ── Letterhead ── */
   ctx.drawImage(logoBmp, PAGE_LEFT, y, LOGO_SIZE, LOGO_SIZE)
-  ctx.font = "bold 18px Inter, system-ui, sans-serif"
+  ctx.font = "bold 16px Inter, system-ui, sans-serif"
   ctx.fillStyle = "#18191B"
   ctx.textBaseline = "middle"
   ctx.fillText("Sycord", PAGE_LEFT + LOGO_SIZE + HEADER_GAP, y + LOGO_SIZE / 2)
   ctx.textBaseline = "alphabetic"
-  y += LOGO_SIZE + 12
+  y += LOGO_SIZE + 10
 
-  // separator
   ctx.strokeStyle = "#e2e2e2"
   ctx.lineWidth = 1
   ctx.beginPath()
   ctx.moveTo(PAGE_LEFT, y)
   ctx.lineTo(A4_W - PAGE_RIGHT, y)
   ctx.stroke()
-  y += 24
-
-  /* ── Title ── */
-  ctx.font = "bold 22px Inter, system-ui, sans-serif"
-  ctx.fillStyle = "#18191B"
-  ctx.fillText("Általános Szerződési Feltételek", PAGE_LEFT, y)
-  y += 28
-
-  ctx.font = "11px Inter, system-ui, sans-serif"
-  ctx.fillStyle = "#6b7280"
-  ctx.fillText("Hatálybalépés: 2026.03.15.", PAGE_LEFT, y)
   y += 20
 
-  /* ── Body ── */
-  for (const sec of sections) {
-    ctx.font = sectionTitleFont
-    ctx.fillStyle = "#18191B"
-    ctx.fillText(sec.title, PAGE_LEFT, y + 16)
-    y += 20 + 10
+  return y
+}
 
-    for (const item of sec.items) {
+/* ── Draw page number at the bottom ── */
+function drawPageNumber(
+  ctx: CanvasRenderingContext2D,
+  pageNum: number,
+  totalPages: number,
+) {
+  ctx.font = "9px Inter, system-ui, sans-serif"
+  ctx.fillStyle = "#9ca3af"
+  const text = `${pageNum} / ${totalPages}`
+  const w = ctx.measureText(text).width
+  ctx.fillText(text, A4_W / 2 - w / 2, A4_H - 30)
+}
+
+/* ── Draw a single content block and return new Y position ── */
+function drawBlock(
+  ctx: CanvasRenderingContext2D,
+  block: ContentBlock,
+  y: number,
+  sigBmp: ImageBitmap | null,
+): number {
+  switch (block.type) {
+    case "title": {
+      ctx.font = "bold 20px Inter, system-ui, sans-serif"
+      ctx.fillStyle = "#18191B"
+      ctx.fillText("Általános Szerződési Feltételek", PAGE_LEFT, y + 16)
+      y += 28
+
+      ctx.font = "10px Inter, system-ui, sans-serif"
+      ctx.fillStyle = "#6b7280"
+      ctx.fillText("Hatálybalépés: 2026.03.15.", PAGE_LEFT, y + 10)
+      y += 16 + 16
+      break
+    }
+    case "section-title": {
+      ctx.font = sectionTitleFont
+      ctx.fillStyle = "#18191B"
+      ctx.fillText(block.text!, PAGE_LEFT, y + 14)
+      y += 18 + 8
+      break
+    }
+    case "item": {
       ctx.font = bodyFont
       ctx.fillStyle = "#374151"
-      const lines = wrapText(ctx, item, CONTENT_W, lineHeight)
-      for (const line of lines) {
-        ctx.fillText(line, PAGE_LEFT, y + 12)
+      for (const line of block.lines!) {
+        ctx.fillText(line, PAGE_LEFT, y + 11)
         y += lineHeight
       }
       y += itemGap
+      break
     }
-    y += sectionGap
+    case "gap": {
+      y += sectionGap
+      break
+    }
+    case "signature": {
+      y += 16
+
+      /* Draw the uploaded signature image in black */
+      if (sigBmp) {
+        /* Draw signature, keeping aspect ratio, max 160px wide, ~60px tall */
+        const sigW = 160
+        const sigH = (sigBmp.height / sigBmp.width) * sigW
+        const drawH = Math.min(sigH, 60)
+        const drawW = (sigBmp.width / sigBmp.height) * drawH
+
+        /* Draw the signature image, then overlay with black using composite */
+        ctx.save()
+        ctx.drawImage(sigBmp, PAGE_LEFT, y, drawW, drawH)
+        /* Tint to pure black: draw a black rect over it using source-atop */
+        ctx.globalCompositeOperation = "source-atop"
+        ctx.fillStyle = "#000000"
+        ctx.fillRect(PAGE_LEFT, y, drawW, drawH)
+        ctx.globalCompositeOperation = "source-over"
+        ctx.restore()
+        y += drawH + 8
+      } else {
+        y += 8
+      }
+
+      /* Separator line under signature */
+      ctx.strokeStyle = "#d1d5db"
+      ctx.lineWidth = 0.5
+      ctx.beginPath()
+      ctx.moveTo(PAGE_LEFT, y)
+      ctx.lineTo(PAGE_LEFT + 160, y)
+      ctx.stroke()
+      y += 6
+
+      ctx.font = "bold 10px Inter, system-ui, sans-serif"
+      ctx.fillStyle = "#18191B"
+      ctx.fillText("Márton Dávid", PAGE_LEFT, y + 10)
+      y += 14
+
+      ctx.font = "10px Inter, system-ui, sans-serif"
+      ctx.fillStyle = "#6b7280"
+      ctx.fillText("Alapító, Sycord", PAGE_LEFT, y + 10)
+      y += 30
+      break
+    }
+    case "url": {
+      ctx.font = "9px Inter, system-ui, sans-serif"
+      ctx.fillStyle = "#9ca3af"
+      const urlText = "sycord.com/tos"
+      ctx.fillText(
+        urlText,
+        A4_W - PAGE_RIGHT - ctx.measureText(urlText).width,
+        y + 10,
+      )
+      y += 20
+      break
+    }
+  }
+  return y
+}
+
+/* ── Distribute blocks across pages ── */
+function paginateBlocks(blocks: ContentBlock[]): ContentBlock[][] {
+  const letterheadH = LOGO_SIZE + 10 + 1 + 20 // ~59px
+  const pageFooterH = 30 // page number area
+  const usableH = A4_H - PAGE_TOP - letterheadH - PAGE_BOTTOM - pageFooterH
+
+  const pages: ContentBlock[][] = [[]]
+  let currentPageH = 0
+
+  for (let i = 0; i < blocks.length; i++) {
+    const block = blocks[i]
+
+    if (currentPageH + block.height <= usableH) {
+      pages[pages.length - 1].push(block)
+      currentPageH += block.height
+    } else {
+      /* Start a new page */
+      pages.push([block])
+      currentPageH = block.height
+    }
   }
 
-  /* ── Signature block ── */
-  y += 20
+  return pages
+}
 
-  // Draw the signature as stylised text (cursive)
-  ctx.font = "italic 36px 'Brush Script MT', 'Segoe Script', cursive"
-  ctx.fillStyle = "#4a5568"
-  ctx.fillText("Márton", PAGE_LEFT, y + 36)
-  y += 60
+/* ── Load the signature SVG as a black ImageBitmap ── */
+async function loadSignature(): Promise<ImageBitmap | null> {
+  try {
+    const resp = await fetch("/signature.svg")
+    const svgText = await resp.text()
+    const blob = new Blob([svgText], { type: "image/svg+xml" })
+    return await createImageBitmap(blob)
+  } catch (err) {
+    console.error("Failed to load signature:", err)
+    return null
+  }
+}
 
-  // Separator line under signature
-  ctx.strokeStyle = "#d1d5db"
-  ctx.lineWidth = 0.5
-  ctx.beginPath()
-  ctx.moveTo(PAGE_LEFT, y)
-  ctx.lineTo(PAGE_LEFT + 160, y)
-  ctx.stroke()
-  y += 6
+/* ── Main: generate A4 pages and trigger downloads ── */
+async function generateA4Pages() {
+  /* Load assets */
+  const logoResp = await fetch("/logo.png")
+  const logoBlob = await logoResp.blob()
+  const logoBmp = await createImageBitmap(logoBlob)
+  const sigBmp = await loadSignature()
 
-  ctx.font = "bold 11px Inter, system-ui, sans-serif"
-  ctx.fillStyle = "#18191B"
-  ctx.fillText("Márton Dávid", PAGE_LEFT, y + 12)
-  y += 16
+  /* Measure blocks using a temporary canvas */
+  const tmp = document.createElement("canvas")
+  tmp.width = A4_W
+  const tmpCtx = tmp.getContext("2d")!
+  const blocks = measureBlocks(tmpCtx)
 
-  ctx.font = "11px Inter, system-ui, sans-serif"
-  ctx.fillStyle = "#6b7280"
-  ctx.fillText("Alapító, Sycord", PAGE_LEFT, y + 10)
-  y += 30
+  /* Paginate */
+  const pages = paginateBlocks(blocks)
 
-  /* ── URL reference ── */
-  ctx.font = "10px Inter, system-ui, sans-serif"
-  ctx.fillStyle = "#9ca3af"
-  ctx.fillText("sycord.com/tos", A4_W - PAGE_RIGHT - ctx.measureText("sycord.com/tos").width, y + 10)
-  y += 16
+  /* Render and download each page */
+  for (let p = 0; p < pages.length; p++) {
+    const canvas = document.createElement("canvas")
+    canvas.width = A4_W * DPR
+    canvas.height = A4_H * DPR
+    const ctx = canvas.getContext("2d")!
+    ctx.scale(DPR, DPR)
 
-  /* ── Trigger download ── */
-  canvas.toBlob((blob) => {
-    if (!blob) return
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = "Sycord_ASZF.png"
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-  }, "image/png")
+    /* White background */
+    ctx.fillStyle = "#ffffff"
+    ctx.fillRect(0, 0, A4_W, A4_H)
+
+    /* Letterhead */
+    let y = drawLetterhead(ctx, logoBmp)
+
+    /* Draw content blocks */
+    for (const block of pages[p]) {
+      y = drawBlock(ctx, block, y, sigBmp)
+    }
+
+    /* Page number */
+    drawPageNumber(ctx, p + 1, pages.length)
+
+    /* Download */
+    await new Promise<void>((resolve) => {
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          console.error(`Failed to generate page ${p + 1}`)
+          resolve()
+          return
+        }
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement("a")
+        a.href = url
+        a.download = `Sycord_ASZF_${p + 1}.png`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+        /* Small delay between downloads so the browser handles them */
+        setTimeout(resolve, 300)
+      }, "image/png")
+    })
+  }
 }
 
 export default function TosDownloadButton() {
-  const handleDownload = useCallback(() => {
-    generateA4Image()
+  const [downloading, setDownloading] = useState(false)
+
+  const handleDownload = useCallback(async () => {
+    setDownloading(true)
+    try {
+      await generateA4Pages()
+    } finally {
+      setDownloading(false)
+    }
   }, [])
 
   return (
     <button
       onClick={handleDownload}
-      className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-white text-xs font-medium transition-colors cursor-pointer"
+      disabled={downloading}
+      className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-white text-xs font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-wait"
     >
       <Download className="w-3.5 h-3.5" />
-      Letöltés képként (A4)
+      {downloading ? "Letöltés..." : "Letöltés képként (A4)"}
     </button>
   )
 }
