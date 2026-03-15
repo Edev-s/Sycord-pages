@@ -68,10 +68,7 @@ export default function LandingPage() {
                 <br />
                 <span className="text-white">minute!</span>
               </h1>
-              <p className="text-sm md:text-base text-[#8A8E91] mb-6 md:mb-8 max-w-md">
-                Build stunning websites with AI-powered tools. No coding skills required. Start your free website today.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-6 md:mt-8">
                 <Button 
                   asChild
                   className="bg-white text-[#18191B] hover:bg-white/90 text-sm font-semibold px-6 md:px-8 h-11 md:h-12 rounded-full min-h-[44px] flex items-center gap-2"
@@ -170,21 +167,45 @@ export default function LandingPage() {
           </div>
         </RevealSection>
 
-        {/* Corporate Supporters Section */}
+        {/* Powered By Section */}
         <RevealSection className="w-full py-10 md:py-16 border-t border-b border-white/5 bg-[#1F1F21]">
           <div className="max-w-6xl mx-auto px-4 md:px-8">
-            <p className="text-center text-[#8A8E91] text-xs md:text-sm font-medium mb-8">Trusted by leading companies</p>
+            <p className="text-center text-[#8A8E91] text-xs md:text-sm font-medium mb-8">Powered by</p>
             <div className="relative overflow-hidden">
               <div className="absolute left-0 top-0 bottom-0 w-16 bg-gradient-to-r from-[#1F1F21] to-transparent z-10"></div>
               <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-[#1F1F21] to-transparent z-10"></div>
-              <div className="flex animate-marquee gap-6">
+              <div className="flex animate-marquee gap-8">
                 {[...Array(2)].map((_, setIdx) => (
-                  <div key={setIdx} className="flex items-center gap-6 flex-shrink-0">
-                    {["GitHub", "Google", "Vercel", "Stripe", "Linear"].map((name) => (
-                      <span key={`${setIdx}-${name}`} className="text-white/60 text-sm md:text-base font-semibold tracking-wide whitespace-nowrap px-5 py-2 rounded-full border border-white/10 bg-white/[0.03]">
-                        {name}
-                      </span>
-                    ))}
+                  <div key={setIdx} className="flex items-center gap-8 flex-shrink-0">
+                    {/* Sycord */}
+                    <div className="flex items-center gap-2.5 px-5 py-2.5 rounded-full border border-white/10 bg-white/[0.03] group hover:bg-white/[0.06] transition-colors">
+                      <svg className="w-5 h-5 text-white/70 group-hover:text-white transition-colors" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="3" y="3" width="18" height="18" rx="4" stroke="currentColor" strokeWidth="1.5"/>
+                        <path d="M8 12L11 15L16 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      <span className="text-white/60 text-sm font-semibold tracking-wide whitespace-nowrap group-hover:text-white/80 transition-colors">Sycord</span>
+                    </div>
+                    {/* Gemini */}
+                    <div className="flex items-center gap-2.5 px-5 py-2.5 rounded-full border border-white/10 bg-white/[0.03] group hover:bg-white/[0.06] transition-colors">
+                      <svg className="w-5 h-5 text-blue-400/70 group-hover:text-blue-400 transition-colors" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2C12 2 14.5 7 17 9.5C19.5 12 22 12 22 12C22 12 19.5 12 17 14.5C14.5 17 12 22 12 22C12 22 9.5 17 7 14.5C4.5 12 2 12 2 12C2 12 4.5 12 7 9.5C9.5 7 12 2 12 2Z" fill="currentColor" opacity="0.15" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+                      </svg>
+                      <span className="text-white/60 text-sm font-semibold tracking-wide whitespace-nowrap group-hover:text-white/80 transition-colors">Gemini</span>
+                    </div>
+                    {/* GitHub */}
+                    <div className="flex items-center gap-2.5 px-5 py-2.5 rounded-full border border-white/10 bg-white/[0.03] group hover:bg-white/[0.06] transition-colors">
+                      <svg className="w-5 h-5 text-white/70 group-hover:text-white transition-colors" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.17 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.167 22 16.418 22 12c0-5.523-4.477-10-10-10z"/>
+                      </svg>
+                      <span className="text-white/60 text-sm font-semibold tracking-wide whitespace-nowrap group-hover:text-white/80 transition-colors">GitHub</span>
+                    </div>
+                    {/* Production */}
+                    <div className="flex items-center gap-2.5 px-5 py-2.5 rounded-full border border-white/10 bg-white/[0.03] group hover:bg-white/[0.06] transition-colors">
+                      <svg className="w-5 h-5 text-green-400/70 group-hover:text-green-400 transition-colors" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="currentColor" opacity="0.15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      <span className="text-white/60 text-sm font-semibold tracking-wide whitespace-nowrap group-hover:text-white/80 transition-colors">Production</span>
+                    </div>
                   </div>
                 ))}
               </div>
