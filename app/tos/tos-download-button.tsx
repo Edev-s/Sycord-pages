@@ -145,7 +145,7 @@ const sectionGap = 18
 const itemGap = 5
 
 /* ── Footer constants ── */
-const SIGNER_NAME = "Márton Dávid"
+const SIGNER_NAME = "Dávid Márton"
 const SIGNER_TITLE = "Alapító, Sycord"
 const TOS_URL = "sycord.com/tos"
 

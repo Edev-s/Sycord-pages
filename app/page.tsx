@@ -422,7 +422,7 @@ export default function LandingPage() {
                   variant="outline"
                   className="w-full border-white/20 hover:bg-white/5 text-white mb-6 h-10 rounded-full"
                 >
-                  <Link href="/login">Contact Sales</Link>
+                  <Link href="/contact">Contact Sales</Link>
                 </Button>
                 <ul className="space-y-3 flex-1">
                   <li className="flex items-center gap-2">
@@ -529,7 +529,7 @@ export default function LandingPage() {
                     variant="outline"
                     className="w-full border-white/20 hover:bg-white/5 text-white text-xs h-9 rounded-full mb-4"
                   >
-                    <Link href="/login">Contact</Link>
+                    <Link href="/contact">Contact</Link>
                   </Button>
                   <ul className="space-y-2">
                     <li className="flex items-center gap-2">
@@ -606,9 +606,9 @@ export default function LandingPage() {
               <div>
                 <h3 className="text-white/50 text-[11px] font-semibold uppercase tracking-widest mb-3">Company</h3>
                 <ul className="space-y-2">
-                  <li><Link href="#" className="text-[#8A8E91] hover:text-white text-xs transition-colors">About</Link></li>
+                  <li><Link href="/about" className="text-[#8A8E91] hover:text-white text-xs transition-colors">About</Link></li>
                   <li><Link href="#" className="text-[#8A8E91] hover:text-white text-xs transition-colors">Blog</Link></li>
-                  <li><Link href="#" className="text-[#8A8E91] hover:text-white text-xs transition-colors">Contact</Link></li>
+                  <li><Link href="/contact" className="text-[#8A8E91] hover:text-white text-xs transition-colors">Contact</Link></li>
                 </ul>
               </div>
               <div>
