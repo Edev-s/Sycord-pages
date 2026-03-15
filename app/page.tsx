@@ -168,48 +168,160 @@ export default function LandingPage() {
         </RevealSection>
 
         {/* Powered By Section */}
-        <RevealSection className="w-full py-10 md:py-16 border-t border-b border-white/5 bg-[#1F1F21]">
-          <div className="max-w-6xl mx-auto px-4 md:px-8">
-            <p className="text-center text-[#8A8E91] text-xs md:text-sm font-medium mb-8">Powered by</p>
-            <div className="relative overflow-hidden">
-              <div className="absolute left-0 top-0 bottom-0 w-16 bg-gradient-to-r from-[#1F1F21] to-transparent z-10"></div>
-              <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-[#1F1F21] to-transparent z-10"></div>
-              <div className="flex animate-marquee gap-8">
-                {[...Array(2)].map((_, setIdx) => (
-                  <div key={setIdx} className="flex items-center gap-8 flex-shrink-0">
-                    {/* Sycord */}
-                    <div className="flex items-center gap-2.5 px-5 py-2.5 rounded-full border border-white/10 bg-white/[0.03] group hover:bg-white/[0.06] transition-colors">
-                      <svg className="w-5 h-5 text-white/70 group-hover:text-white transition-colors" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <rect x="3" y="3" width="18" height="18" rx="4" stroke="currentColor" strokeWidth="1.5"/>
-                        <path d="M8 12L11 15L16 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                      <span className="text-white/60 text-sm font-semibold tracking-wide whitespace-nowrap group-hover:text-white/80 transition-colors">Sycord</span>
-                    </div>
-                    {/* Gemini */}
-                    <div className="flex items-center gap-2.5 px-5 py-2.5 rounded-full border border-white/10 bg-white/[0.03] group hover:bg-white/[0.06] transition-colors">
-                      <svg className="w-5 h-5 text-blue-400/70 group-hover:text-blue-400 transition-colors" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 2C12 2 14.5 7 17 9.5C19.5 12 22 12 22 12C22 12 19.5 12 17 14.5C14.5 17 12 22 12 22C12 22 9.5 17 7 14.5C4.5 12 2 12 2 12C2 12 4.5 12 7 9.5C9.5 7 12 2 12 2Z" fill="currentColor" opacity="0.15" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
-                      </svg>
-                      <span className="text-white/60 text-sm font-semibold tracking-wide whitespace-nowrap group-hover:text-white/80 transition-colors">Gemini</span>
-                    </div>
-                    {/* GitHub */}
-                    <div className="flex items-center gap-2.5 px-5 py-2.5 rounded-full border border-white/10 bg-white/[0.03] group hover:bg-white/[0.06] transition-colors">
-                      <svg className="w-5 h-5 text-white/70 group-hover:text-white transition-colors" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.17 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.167 22 16.418 22 12c0-5.523-4.477-10-10-10z"/>
-                      </svg>
-                      <span className="text-white/60 text-sm font-semibold tracking-wide whitespace-nowrap group-hover:text-white/80 transition-colors">GitHub</span>
-                    </div>
-                    {/* Production */}
-                    <div className="flex items-center gap-2.5 px-5 py-2.5 rounded-full border border-white/10 bg-white/[0.03] group hover:bg-white/[0.06] transition-colors">
-                      <svg className="w-5 h-5 text-green-400/70 group-hover:text-green-400 transition-colors" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="currentColor" opacity="0.15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                      <span className="text-white/60 text-sm font-semibold tracking-wide whitespace-nowrap group-hover:text-white/80 transition-colors">Production</span>
+        <RevealSection className="w-full py-14 md:py-20 border-t border-b border-white/5 bg-[#1F1F21] overflow-hidden">
+          <div className="max-w-5xl mx-auto px-4 md:px-8">
+            <p className="text-center text-[#8A8E91] text-xs md:text-sm font-medium mb-4">Powered by</p>
+            <h2 className="text-center text-white text-lg md:text-2xl font-bold mb-12 md:mb-16">The technologies behind Sycord</h2>
+
+            {/* Desktop: orbital layout with connecting illustration */}
+            <div className="relative hidden md:block">
+              {/* Central connecting SVG illustration */}
+              <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 800 320" fill="none" xmlns="http://www.w3.org/2000/svg">
+                {/* Connecting lines between cards */}
+                <line x1="200" y1="160" x2="400" y2="160" stroke="white" strokeOpacity="0.06" strokeWidth="1" strokeDasharray="6 4" className="animate-dash"/>
+                <line x1="400" y1="160" x2="600" y2="160" stroke="white" strokeOpacity="0.06" strokeWidth="1" strokeDasharray="6 4" className="animate-dash"/>
+                <line x1="300" y1="80" x2="500" y2="80" stroke="white" strokeOpacity="0.04" strokeWidth="1" strokeDasharray="4 6" className="animate-dash"/>
+                <line x1="300" y1="240" x2="500" y2="240" stroke="white" strokeOpacity="0.04" strokeWidth="1" strokeDasharray="4 6" className="animate-dash"/>
+                {/* Orbiting dots */}
+                <circle cx="400" cy="160" r="2.5" fill="white" opacity="0.15" className="animate-orbit"/>
+                <circle cx="400" cy="160" r="2" fill="#60A5FA" opacity="0.2" className="animate-orbit-reverse"/>
+              </svg>
+
+              <div className="grid grid-cols-4 gap-6 relative z-10">
+                {/* Sycord */}
+                <div className="animate-float-1 group">
+                  <div className="bg-[#252527] rounded-2xl p-6 border border-white/[0.08] hover:border-white/20 transition-all duration-500 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                    <div className="relative z-10">
+                      <div className="w-14 h-14 rounded-xl bg-white/[0.06] flex items-center justify-center mb-4 relative">
+                        <div className="absolute inset-0 rounded-xl bg-white/[0.08] animate-pulse-glow"></div>
+                        <svg className="w-7 h-7 text-white relative z-10" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <rect x="2" y="2" width="20" height="20" rx="6" stroke="currentColor" strokeWidth="1.5"/>
+                          <path d="M7 12.5L10.5 16L17 8.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </div>
+                      <h3 className="text-white font-bold text-base mb-1.5">Sycord</h3>
+                      <p className="text-[#6B6E71] text-xs leading-relaxed">Platform & Editor</p>
                     </div>
                   </div>
-                ))}
+                </div>
+
+                {/* Gemini */}
+                <div className="animate-float-2 group">
+                  <div className="bg-[#252527] rounded-2xl p-6 border border-white/[0.08] hover:border-blue-500/30 transition-all duration-500 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/[0.06] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                    <div className="relative z-10">
+                      <div className="w-14 h-14 rounded-xl bg-blue-500/[0.08] flex items-center justify-center mb-4 relative">
+                        <div className="absolute inset-0 rounded-xl bg-blue-400/[0.1] animate-pulse-glow"></div>
+                        <svg className="w-7 h-7 text-blue-400 relative z-10" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M12 2C12 2 15 8 18 10.5C21 13 22 12 22 12C22 12 21 13 18 13.5C15 14 12 22 12 22C12 22 9 14 6 13.5C3 13 2 12 2 12C2 12 3 13 6 10.5C9 8 12 2 12 2Z" fill="currentColor" opacity="0.2" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+                        </svg>
+                      </div>
+                      <h3 className="text-white font-bold text-base mb-1.5">Gemini</h3>
+                      <p className="text-[#6B6E71] text-xs leading-relaxed">AI Engine</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* GitHub */}
+                <div className="animate-float-3 group">
+                  <div className="bg-[#252527] rounded-2xl p-6 border border-white/[0.08] hover:border-white/20 transition-all duration-500 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                    <div className="relative z-10">
+                      <div className="w-14 h-14 rounded-xl bg-white/[0.06] flex items-center justify-center mb-4 relative">
+                        <div className="absolute inset-0 rounded-xl bg-white/[0.08] animate-pulse-glow"></div>
+                        <svg className="w-7 h-7 text-white relative z-10" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.17 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.167 22 16.418 22 12c0-5.523-4.477-10-10-10z"/>
+                        </svg>
+                      </div>
+                      <h3 className="text-white font-bold text-base mb-1.5">GitHub</h3>
+                      <p className="text-[#6B6E71] text-xs leading-relaxed">Source & Deploy</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Production */}
+                <div className="animate-float-4 group">
+                  <div className="bg-[#252527] rounded-2xl p-6 border border-white/[0.08] hover:border-green-500/30 transition-all duration-500 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-green-500/[0.06] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                    <div className="relative z-10">
+                      <div className="w-14 h-14 rounded-xl bg-green-500/[0.08] flex items-center justify-center mb-4 relative">
+                        <div className="absolute inset-0 rounded-xl bg-green-400/[0.1] animate-pulse-glow"></div>
+                        <svg className="w-7 h-7 text-green-400 relative z-10" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="currentColor" opacity="0.2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </div>
+                      <h3 className="text-white font-bold text-base mb-1.5">Production</h3>
+                      <p className="text-[#6B6E71] text-xs leading-relaxed">Live Hosting</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Decorative background glow spots */}
+              <div className="absolute top-1/2 left-1/4 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-blue-500/[0.04] rounded-full blur-3xl pointer-events-none"></div>
+              <div className="absolute top-1/2 right-1/4 translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-green-500/[0.04] rounded-full blur-3xl pointer-events-none"></div>
+            </div>
+
+            {/* Mobile: horizontal scroll cards */}
+            <div className="md:hidden overflow-x-auto scrollbar-hide pb-4">
+              <div className="flex gap-4 w-max px-0">
+                {/* Sycord */}
+                <div className="w-44 animate-float-1">
+                  <div className="bg-[#252527] rounded-2xl p-5 border border-white/[0.08]">
+                    <div className="w-12 h-12 rounded-xl bg-white/[0.06] flex items-center justify-center mb-3 relative">
+                      <div className="absolute inset-0 rounded-xl bg-white/[0.08] animate-pulse-glow"></div>
+                      <svg className="w-6 h-6 text-white relative z-10" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="2" y="2" width="20" height="20" rx="6" stroke="currentColor" strokeWidth="1.5"/>
+                        <path d="M7 12.5L10.5 16L17 8.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+                    <h3 className="text-white font-bold text-sm mb-1">Sycord</h3>
+                    <p className="text-[#6B6E71] text-[11px]">Platform & Editor</p>
+                  </div>
+                </div>
+                {/* Gemini */}
+                <div className="w-44 animate-float-2">
+                  <div className="bg-[#252527] rounded-2xl p-5 border border-white/[0.08]">
+                    <div className="w-12 h-12 rounded-xl bg-blue-500/[0.08] flex items-center justify-center mb-3 relative">
+                      <div className="absolute inset-0 rounded-xl bg-blue-400/[0.1] animate-pulse-glow"></div>
+                      <svg className="w-6 h-6 text-blue-400 relative z-10" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2C12 2 15 8 18 10.5C21 13 22 12 22 12C22 12 21 13 18 13.5C15 14 12 22 12 22C12 22 9 14 6 13.5C3 13 2 12 2 12C2 12 3 13 6 10.5C9 8 12 2 12 2Z" fill="currentColor" opacity="0.2" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+                    <h3 className="text-white font-bold text-sm mb-1">Gemini</h3>
+                    <p className="text-[#6B6E71] text-[11px]">AI Engine</p>
+                  </div>
+                </div>
+                {/* GitHub */}
+                <div className="w-44 animate-float-3">
+                  <div className="bg-[#252527] rounded-2xl p-5 border border-white/[0.08]">
+                    <div className="w-12 h-12 rounded-xl bg-white/[0.06] flex items-center justify-center mb-3 relative">
+                      <div className="absolute inset-0 rounded-xl bg-white/[0.08] animate-pulse-glow"></div>
+                      <svg className="w-6 h-6 text-white relative z-10" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.17 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.167 22 16.418 22 12c0-5.523-4.477-10-10-10z"/>
+                      </svg>
+                    </div>
+                    <h3 className="text-white font-bold text-sm mb-1">GitHub</h3>
+                    <p className="text-[#6B6E71] text-[11px]">Source & Deploy</p>
+                  </div>
+                </div>
+                {/* Production */}
+                <div className="w-44 animate-float-4">
+                  <div className="bg-[#252527] rounded-2xl p-5 border border-white/[0.08]">
+                    <div className="w-12 h-12 rounded-xl bg-green-500/[0.08] flex items-center justify-center mb-3 relative">
+                      <div className="absolute inset-0 rounded-xl bg-green-400/[0.1] animate-pulse-glow"></div>
+                      <svg className="w-6 h-6 text-green-400 relative z-10" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="currentColor" opacity="0.2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+                    <h3 className="text-white font-bold text-sm mb-1">Production</h3>
+                    <p className="text-[#6B6E71] text-[11px]">Live Hosting</p>
+                  </div>
+                </div>
               </div>
             </div>
+
           </div>
         </RevealSection>
 
