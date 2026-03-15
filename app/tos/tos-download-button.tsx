@@ -144,6 +144,11 @@ const lineHeight = 17
 const sectionGap = 18
 const itemGap = 5
 
+/* ── Footer constants ── */
+const SIGNER_NAME = "Márton Dávid"
+const SIGNER_TITLE = "Alapító, Sycord"
+const TOS_URL = "sycord.com/tos"
+
 /* ── Canvas text helper ── */
 function wrapText(
   ctx: CanvasRenderingContext2D,
@@ -168,7 +173,7 @@ function wrapText(
 
 /* ── Represents a renderable block that can be placed on a page ── */
 interface ContentBlock {
-  type: "title" | "section-title" | "item" | "gap" | "signature" | "url"
+  type: "title" | "section-title" | "item" | "gap"
   height: number
   text?: string
   lines?: string[]
@@ -203,12 +208,6 @@ function measureBlocks(ctx: CanvasRenderingContext2D): ContentBlock[] {
     blocks.push({ type: "gap", height: sectionGap })
   }
 
-  /* Signature block */
-  blocks.push({ type: "signature", height: 140 })
-
-  /* URL reference */
-  blocks.push({ type: "url", height: 20 })
-
   return blocks
 }
 
@@ -238,17 +237,64 @@ function drawLetterhead(
   return y
 }
 
-/* ── Draw page number at the bottom ── */
-function drawPageNumber(
+/* ── Height reserved for the footer (signature + name + page number) ── */
+const FOOTER_H = 56
+
+/* ── Draw page footer with signature, name, URL, and page number ── */
+function drawPageFooter(
   ctx: CanvasRenderingContext2D,
+  sigBmp: ImageBitmap | null,
   pageNum: number,
   totalPages: number,
 ) {
-  ctx.font = "9px Inter, system-ui, sans-serif"
+  const footerY = A4_H - FOOTER_H
+
+  /* Separator line above footer */
+  ctx.strokeStyle = "#e2e2e2"
+  ctx.lineWidth = 0.5
+  ctx.beginPath()
+  ctx.moveTo(PAGE_LEFT, footerY)
+  ctx.lineTo(A4_W - PAGE_RIGHT, footerY)
+  ctx.stroke()
+
+  /* Signature image (left side) + name/title below */
+  let nameX = PAGE_LEFT
+  if (sigBmp) {
+    const drawH = 22
+    const drawW = (sigBmp.width / sigBmp.height) * drawH
+
+    ctx.save()
+    ctx.drawImage(sigBmp, PAGE_LEFT, footerY + 6, drawW, drawH)
+    ctx.globalCompositeOperation = "source-atop"
+    ctx.fillStyle = "#000000"
+    ctx.fillRect(PAGE_LEFT, footerY + 6, drawW, drawH)
+    ctx.globalCompositeOperation = "source-over"
+    ctx.restore()
+  }
+
+  /* Name and title below signature */
+  ctx.font = "bold 8px Inter, system-ui, sans-serif"
+  ctx.fillStyle = "#18191B"
+  ctx.fillText(SIGNER_NAME, nameX, footerY + 38)
+
+  ctx.font = "8px Inter, system-ui, sans-serif"
+  ctx.fillStyle = "#6b7280"
+  ctx.fillText(` – ${SIGNER_TITLE}`, nameX + ctx.measureText(SIGNER_NAME).width, footerY + 38)
+
+  /* Page number centered */
+  ctx.font = "8px Inter, system-ui, sans-serif"
   ctx.fillStyle = "#9ca3af"
-  const text = `${pageNum} / ${totalPages}`
-  const w = ctx.measureText(text).width
-  ctx.fillText(text, A4_W / 2 - w / 2, A4_H - 30)
+  const pageText = `${pageNum} / ${totalPages}`
+  const pw = ctx.measureText(pageText).width
+  ctx.fillText(pageText, A4_W / 2 - pw / 2, footerY + 38)
+
+  /* URL on the right side */
+  ctx.fillStyle = "#9ca3af"
+  ctx.fillText(
+    TOS_URL,
+    A4_W - PAGE_RIGHT - ctx.measureText(TOS_URL).width,
+    footerY + 38,
+  )
 }
 
 /* ── Draw a single content block and return new Y position ── */
@@ -256,7 +302,6 @@ function drawBlock(
   ctx: CanvasRenderingContext2D,
   block: ContentBlock,
   y: number,
-  sigBmp: ImageBitmap | null,
 ): number {
   switch (block.type) {
     case "title": {
@@ -292,63 +337,6 @@ function drawBlock(
       y += sectionGap
       break
     }
-    case "signature": {
-      y += 16
-
-      /* Draw the uploaded signature image in black */
-      if (sigBmp) {
-        /* Draw signature, keeping aspect ratio, max 160px wide, ~60px tall */
-        const sigW = 160
-        const sigH = (sigBmp.height / sigBmp.width) * sigW
-        const drawH = Math.min(sigH, 60)
-        const drawW = (sigBmp.width / sigBmp.height) * drawH
-
-        /* Draw the signature image, then overlay with black using composite */
-        ctx.save()
-        ctx.drawImage(sigBmp, PAGE_LEFT, y, drawW, drawH)
-        /* Tint to pure black: draw a black rect over it using source-atop */
-        ctx.globalCompositeOperation = "source-atop"
-        ctx.fillStyle = "#000000"
-        ctx.fillRect(PAGE_LEFT, y, drawW, drawH)
-        ctx.globalCompositeOperation = "source-over"
-        ctx.restore()
-        y += drawH + 8
-      } else {
-        y += 8
-      }
-
-      /* Separator line under signature */
-      ctx.strokeStyle = "#d1d5db"
-      ctx.lineWidth = 0.5
-      ctx.beginPath()
-      ctx.moveTo(PAGE_LEFT, y)
-      ctx.lineTo(PAGE_LEFT + 160, y)
-      ctx.stroke()
-      y += 6
-
-      ctx.font = "bold 10px Inter, system-ui, sans-serif"
-      ctx.fillStyle = "#18191B"
-      ctx.fillText("Márton Dávid", PAGE_LEFT, y + 10)
-      y += 14
-
-      ctx.font = "10px Inter, system-ui, sans-serif"
-      ctx.fillStyle = "#6b7280"
-      ctx.fillText("Alapító, Sycord", PAGE_LEFT, y + 10)
-      y += 30
-      break
-    }
-    case "url": {
-      ctx.font = "9px Inter, system-ui, sans-serif"
-      ctx.fillStyle = "#9ca3af"
-      const urlText = "sycord.com/tos"
-      ctx.fillText(
-        urlText,
-        A4_W - PAGE_RIGHT - ctx.measureText(urlText).width,
-        y + 10,
-      )
-      y += 20
-      break
-    }
   }
   return y
 }
@@ -356,8 +344,7 @@ function drawBlock(
 /* ── Distribute blocks across pages ── */
 function paginateBlocks(blocks: ContentBlock[]): ContentBlock[][] {
   const letterheadH = LOGO_SIZE + 10 + 1 + 20 // ~59px
-  const pageFooterH = 30 // page number area
-  const usableH = A4_H - PAGE_TOP - letterheadH - PAGE_BOTTOM - pageFooterH
+  const usableH = A4_H - PAGE_TOP - letterheadH - FOOTER_H
 
   const pages: ContentBlock[][] = [[]]
   let currentPageH = 0
@@ -378,13 +365,31 @@ function paginateBlocks(blocks: ContentBlock[]): ContentBlock[][] {
   return pages
 }
 
-/* ── Load the signature SVG as a black ImageBitmap ── */
+/* ── Load the signature SVG as an ImageBitmap via an offscreen canvas ── */
 async function loadSignature(): Promise<ImageBitmap | null> {
   try {
-    const resp = await fetch("/signature.svg")
-    const svgText = await resp.text()
-    const blob = new Blob([svgText], { type: "image/svg+xml" })
-    return await createImageBitmap(blob)
+    return await new Promise<ImageBitmap | null>((resolve) => {
+      const img = new Image()
+      img.onload = async () => {
+        /* Render the SVG to a temporary canvas so we get a raster bitmap */
+        const c = document.createElement("canvas")
+        c.width = img.naturalWidth || 320
+        c.height = img.naturalHeight || 100
+        const cx = c.getContext("2d")!
+        cx.drawImage(img, 0, 0, c.width, c.height)
+        try {
+          const bmp = await createImageBitmap(c)
+          resolve(bmp)
+        } catch {
+          resolve(null)
+        }
+      }
+      img.onerror = () => {
+        console.error("Failed to load signature image")
+        resolve(null)
+      }
+      img.src = "/signature.svg"
+    })
   } catch (err) {
     console.error("Failed to load signature:", err)
     return null
@@ -425,11 +430,11 @@ async function generateA4Pages() {
 
     /* Draw content blocks */
     for (const block of pages[p]) {
-      y = drawBlock(ctx, block, y, sigBmp)
+      y = drawBlock(ctx, block, y)
     }
 
-    /* Page number */
-    drawPageNumber(ctx, p + 1, pages.length)
+    /* Footer with signature on every page */
+    drawPageFooter(ctx, sigBmp, p + 1, pages.length)
 
     /* Download */
     await new Promise<void>((resolve) => {
