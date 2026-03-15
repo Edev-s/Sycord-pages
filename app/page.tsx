@@ -615,7 +615,7 @@ export default function LandingPage() {
                 <h3 className="text-white/50 text-[11px] font-semibold uppercase tracking-widest mb-3">Legal</h3>
                 <ul className="space-y-2">
                   <li><Link href="/pap" className="text-[#8A8E91] hover:text-white text-xs transition-colors">Privacy</Link></li>
-                  <li><Link href="#" className="text-[#8A8E91] hover:text-white text-xs transition-colors">Terms</Link></li>
+                  <li><Link href="/tos" className="text-[#8A8E91] hover:text-white text-xs transition-colors">Terms</Link></li>
                 </ul>
               </div>
             </div>
