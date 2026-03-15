@@ -1,5 +1,6 @@
 import Link from "next/link"
 import Image from "next/image"
+import TosDownloadButton from "./tos-download-button"
 
 export const metadata = {
   title: "Általános Szerződési Feltételek – Sycord",
@@ -20,7 +21,10 @@ export default function TermsOfServicePage() {
       {/* Content */}
       <main className="w-full flex-1 flex flex-col items-center px-4 md:px-8 py-10 md:py-16">
         <article className="max-w-3xl w-full">
-          <h1 className="text-2xl md:text-4xl font-bold text-white mb-2">Általános Szerződési Feltételek</h1>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2">
+            <h1 className="text-2xl md:text-4xl font-bold text-white">Általános Szerződési Feltételek</h1>
+            <TosDownloadButton />
+          </div>
           <p className="text-[#8A8E91] text-xs mb-10">Hatálybalépés: 2026.03.15.</p>
 
           {/* 1 */}

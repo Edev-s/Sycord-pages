@@ -1,0 +1,345 @@
+"use client"
+
+import { useCallback } from "react"
+import { Download } from "lucide-react"
+
+/* ── plain-text version of every ToS section (used by the A4 renderer) ── */
+const sections = [
+  {
+    title: "1. Bevezető Rendelkezések",
+    items: [
+      '1.1 Szolgáltató: A Sycord platformot (a továbbiakban: "Szolgáltatás") a Sycord üzemelteti. Kapcsolat: admin@sycord.com.',
+      "1.2 Tárgy: A jelen Általános Szerződési Feltételek (ÁSZF) szabályozzák a Sycord AI-alapú weboldalkészítő platform használatát, beleértve a weboldal-szerkesztést, tárhelyszolgáltatást, mesterséges intelligencia alapú kódgenerálást, GitHub-integrációt és domain-kezelést.",
+      "1.3 Elfogadás: A Szolgáltatás használatával — ideértve a regisztrációt, bejelentkezést vagy bármely funkció igénybevételét — a Felhasználó elfogadja a jelen ÁSZF-et és az Adatvédelmi Irányelveket.",
+      "1.4 Módosítás: A Sycord fenntartja a jogot a jelen feltételek egyoldalú módosítására. A változásokról a felhasználók a platformon keresztül értesítést kapnak. A Szolgáltatás további használata a módosított feltételek elfogadásának minősül.",
+      "1.5 Hatály: A jelen ÁSZF 2026. március 15-től hatályos és visszavonásig érvényes.",
+    ],
+  },
+  {
+    title: "2. A Szolgáltatás Leírása",
+    items: [
+      "2.1 Weboldalkészítés: A Sycord lehetőséget biztosít weboldalak létrehozására, szerkesztésére és közzétételére vizuális szerkesztő és AI-alapú kódgenerátor segítségével, kódolási ismeretek nélkül.",
+      "2.2 AI Kódgenerálás: A platform Google Gemini és DeepSeek mesterséges intelligencia modelleket használ HTML, CSS és TypeScript kód automatikus generálásához. A felhasználói promptok feldolgozásra kerülnek ezen külső AI szolgáltatók által.",
+      "2.3 Tárhelyszolgáltatás: Az elkészült weboldalak a Sycord infrastruktúráján kerülnek közzétételre, egyedi aldomain (*.sycord.com) vagy egyéni domain alatt.",
+      "2.4 GitHub Integráció: A weboldalak forráskódja GitHub repositorykba kerül telepítésre automatikus deployment folyamattal.",
+      "2.5 Firebase Szinkronizáció: A szerkesztési adatok valós időben szinkronizálódnak Firebase infrastruktúrán keresztül, biztosítva az azonnali frissítéseket.",
+      "2.6 Tartalomszűrés: A platform automatikus tartalommoderációt alkalmaz (szűrőrendszer) a nem megfelelő tartalmak kiszűrésére.",
+    ],
+  },
+  {
+    title: "3. Regisztráció és Fiókkezelés",
+    items: [
+      "3.1 Regisztráció: A Szolgáltatás igénybevételéhez Google-fiókkal történő bejelentkezés szükséges (Google OAuth). A regisztráció során a Sycord hozzáfér a felhasználó nevéhez, e-mail címéhez és profilképéhez.",
+      "3.2 Hitelesség: A Felhasználó szavatolja, hogy a megadott adatok valósak és naprakészek. Hamis adatok megadása a fiók azonnali felfüggesztéséhez vezethet.",
+      "3.3 Munkamenet: A bejelentkezési munkamenetek JWT tokeneken alapulnak, 30 napos lejárattal. A Sycord verzióalapú munkamenet-érvénytelenítést alkalmaz az egyidejű munkamenetek megakadályozására.",
+      "3.4 Fiókbiztonság: A Felhasználó felelős a fiókjához tartozó Google-fiók biztonságáért. A Sycord nem vállal felelősséget illetéktelen hozzáférésből eredő károkért.",
+      "3.5 Korhatár: A Szolgáltatás kizárólag 16 éven felüli személyek számára érhető el. 16 év alatti felhasználó észlelése esetén a fiók azonnali törlésre kerül.",
+    ],
+  },
+  {
+    title: "4. Előfizetési Csomagok és Díjszabás",
+    items: [
+      "4.1 Ingyenes csomag (Sycord): 1 weboldal, 1 GB tárhely, alap sablonok. Korlátozott funkciókészlet, AI-szerkesztő nem elérhető.",
+      "4.2 Sycord+ ($9/hó): Korlátlan weboldalak, 50 GB tárhely, AI Builder hozzáférés, 1 egyéni domain.",
+      "4.3 Sycord Enterprise ($29/hó): A Sycord+ csomag minden funkciója, 500 GB tárhely, korlátlan egyéni domain, prioritásos ügyfélszolgálat.",
+      "4.4 Árváltoztatás: A Sycord fenntartja az árak módosításának jogát. Az érvényes számlázási ciklus végéig a korábbi ár érvényes marad.",
+      "4.5 Előfizetés kezelése: Az előfizetési státusz az adminisztrációs rendszeren keresztül kerül kezelésre. A Felhasználó az előfizetés lemondását az ügyfélszolgálaton keresztül kérelmezheti.",
+    ],
+  },
+  {
+    title: "5. Felhasználói Tartalom és Szellemi Tulajdon",
+    items: [
+      "5.1 Felhasználói tartalom: A Felhasználó által feltöltött vagy generált tartalmak (szövegek, képek, kódok, elrendezések) a Felhasználó tulajdonát képezik.",
+      "5.2 Licenc a Sycord részére: A tartalom feltöltésével a Felhasználó nem kizárólagos, visszavonható licencet ad a Sycordnak a tartalom tárolására, megjelenítésére és a Szolgáltatás működtetéséhez szükséges technikai feldolgozására.",
+      "5.3 AI-generált tartalom: Az AI által generált kód (HTML, CSS, TypeScript) a Felhasználó rendelkezésére áll. A Sycord nem vállal garanciát az AI-generált kód pontosságára, biztonságára vagy harmadik fél szellemi tulajdonjogának megsértésének hiányára.",
+      "5.4 Platform szellemi tulajdona: A Sycord márkanév, logó, forráskód, felhasználói felület és dizájn a Sycord kizárólagos szellemi tulajdonát képezik.",
+      "5.5 Adminisztrátori hozzáférés: Fontos: A felhasználói tartalmak technikai okokból nem titkosított formában tárolódnak, és a rendszeradminisztrátorok számára hozzáférhetőek hibaelhárítás és karbantartás céljából.",
+    ],
+  },
+  {
+    title: "6. Elfogadható Használat és Tiltott Tevékenységek",
+    items: [
+      "6.1 Elfogadható használat: A Szolgáltatás kizárólag jogszerű célokra, weboldalak létrehozására és közzétételére használható.",
+      "6.2 Tiltott tartalmak: Tilos bármilyen jogellenes, sértő, obszcén, gyűlöletkeltő, fenyegető, zaklatásnak minősülő, szerzői jogot sértő vagy mások személyiségi jogait sértő tartalom feltöltése vagy generálása.",
+      "6.3 Technikai visszaélések: Tilos a platform biztonsági rendszereinek megkerülése, API-k visszaélésszerű használata, automatizált tömeges lekérdezések végrehajtása, vagy a rendszer túlterhelésére irányuló bármely tevékenység.",
+      "6.4 AI visszaélés: Tilos az AI-szerkesztő használata rosszindulatú kód (malware, phishing oldalak, adatgyűjtő scriptek) generálására, vagy harmadik fél jogait sértő tartalom előállítására.",
+      "6.5 Következmények: A jelen szabályok megsértése a fiók azonnali felfüggesztéséhez vagy végleges törléséhez vezethet, a Sycord egyoldalú döntése alapján, előzetes értesítés nélkül.",
+    ],
+  },
+  {
+    title: "7. AI Szolgáltatások és Harmadik Felek",
+    items: [
+      "7.1 AI szolgáltatók: A Sycord a Google Gemini (2.0 Flash / 3.1 Pro) és DeepSeek mesterséges intelligencia modelleket használja. A felhasználói promptok és projektadatok továbbításra kerülnek ezen szolgáltatók felé a kódgenerálás érdekében.",
+      "7.2 Adatfelhasználás: Az AI szolgáltatók felé továbbított adatok nem kerülnek felhasználásra modell-tanítási célokra (ez a beállítás explicit módon le van tiltva a rendszerben).",
+      "7.3 Google Cloud Platform: Az adatok a Google Cloud Platform és Firebase szerverein kerülnek tárolásra és feldolgozásra, az érvényes adatfeldolgozási megállapodásoknak (DPA) megfelelően.",
+      "7.4 GitHub: A weboldalak forráskódja a Sycord GitHub szervezetén belüli repositorykba kerül telepítésre. A GitHub saját felhasználási feltételei és adatvédelmi szabályzata külön alkalmazandó.",
+      "7.5 Felelősség: A Sycord nem vállal felelősséget a harmadik fél szolgáltatók (Google, GitHub, DeepSeek) rendszereinek kieséséért, adatvédelmi incidenseiért vagy szolgáltatás-változásaiért.",
+    ],
+  },
+  {
+    title: "8. Rendelkezésre Állás és Felelősségkorlátozás",
+    items: [
+      '8.1 Rendelkezésre állás: A Sycord törekszik a Szolgáltatás folyamatos elérhetőségére, azonban nem garantál 100%-os üzemidőt. Karbantartási szünetek előfordulhatnak.',
+      '8.2 "Ahogy van" állapot: A Szolgáltatás "ahogy van" ("as is") és "ahogy elérhető" ("as available") alapon kerül nyújtásra, kifejezett vagy hallgatólagos garancia nélkül.',
+      "8.3 AI pontosság: Az AI által generált tartalom hibákat tartalmazhat. A Sycord nem garantálja a generált kód helyességét, biztonságát vagy harmadik fél jogainak megsértésének hiányát. A Felhasználó felelős a generált tartalom áttekintéséért és használatáért.",
+      "8.4 Felelősségkorlátozás: A Sycord maximális felelőssége nem haladhatja meg a Felhasználó által az utolsó 12 hónapban ténylegesen kifizetett előfizetési díjak összegét. Közvetett, következményi vagy különleges károkért a Sycord nem vállal felelősséget.",
+      "8.5 Adatvesztés: A Sycord nem vállal felelősséget a Felhasználó által feltöltött tartalmak elvesztéséért. A Felhasználó felelős a saját tartalmai rendszeres mentéséért.",
+    ],
+  },
+  {
+    title: "9. Fiók Felfüggesztése és Megszüntetése",
+    items: [
+      "9.1 Felhasználó általi megszüntetés: A Felhasználó bármikor kérelmezheti fiókja törlését az admin@sycord.com címen.",
+      "9.2 Sycord általi felfüggesztés: A Sycord jogosult a fiók azonnali felfüggesztésére vagy törlésére a jelen ÁSZF megsértése, jogellenes tevékenység vagy a platform integritását veszélyeztető magatartás esetén.",
+      "9.3 Adattörlés: A fiók megszüntetését követően a felhasználói adatok 30 napon belül törlésre kerülnek az éles adatbázisokból. A Firebase valós idejű adatok azonnal törlődnek. Biztonsági mentésekben az adatok további 60 napig maradhatnak.",
+      "9.4 Közzétett weboldalak: A fiók törlése után az összes közzétett weboldal és a hozzájuk tartozó domain-konfigurációk deaktiválásra kerülnek.",
+    ],
+  },
+  {
+    title: "10. Adatvédelem",
+    items: [
+      "10.1 Adatkezelés: A személyes adatok kezelésére vonatkozó részletes szabályokat az Adatvédelmi Irányelvek tartalmazzák, amelyek a jelen ÁSZF elválaszthatatlan részét képezik.",
+      "10.2 Gyűjtött adatok: Google-fiókadatok (név, e-mail, profilkép), IP-cím, munkamenet-adatok, feltöltött tartalmak és AI-promptok.",
+      "10.3 GDPR megfelelőség: Az adatkezelés a GDPR (Általános Adatvédelmi Rendelet) 6. cikkében meghatározott jogalapoknak megfelelően történik.",
+      "10.4 Felhasználói felelősség: Amennyiben a Felhasználó a saját weboldalán látogatói adatokat gyűjt, a Felhasználó minősül adatkezelőnek, a Sycord pedig adatfeldolgozónak ezen adatok tekintetében. A Felhasználó köteles biztosítani a saját adatkezelésének jogszerűségét.",
+    ],
+  },
+  {
+    title: "11. Domain-kezelés és Tárhely",
+    items: [
+      "11.1 Aldomain: Minden közzétett weboldal alapértelmezetten egy *.sycord.com aldomain alatt érhető el.",
+      "11.2 Egyéni domain: A Sycord+ és Enterprise csomagok esetén a Felhasználó egyéni domaint csatlakoztathat. A domain regisztrációs és megújítási díjai a Felhasználót terhelik.",
+      "11.3 Tárhelykorlátok: A tárhelyhasználat az előfizetési csomagnak megfelelő korlátokhoz kötött. A korlát túllépése a további feltöltések letiltásához vezethet.",
+      "11.4 Aldomain fenntartás: A Sycord fenntartja a jogot az aldomain visszavonására, amennyiben az sértő, megtévesztő vagy jogsértő tartalmat tartalmaz.",
+    ],
+  },
+  {
+    title: "12. Záró Rendelkezések",
+    items: [
+      "12.1 Irányadó jog: A jelen ÁSZF-re a magyar jog az irányadó. Jogviták esetén a magyar bíróságok illetékesek.",
+      "12.2 Részleges érvénytelenség: Amennyiben a jelen ÁSZF bármely rendelkezése érvénytelennek vagy végrehajthatatlannak bizonyul, az nem érinti a többi rendelkezés érvényességét.",
+      "12.3 Teljes megállapodás: A jelen ÁSZF, az Adatvédelmi Irányelvekkel együtt, a Felek közötti teljes megállapodást képezi a Szolgáltatás használatával kapcsolatban.",
+      "12.4 Kapcsolat: Kérdések, észrevételek vagy panaszok esetén forduljon hozzánk: admin@sycord.com.",
+      "12.5 Verzió: Jelen dokumentum verziószáma: 1.0 – Utolsó frissítés: 2026.03.15.",
+    ],
+  },
+]
+
+/* ── A4 dimensions at 96 DPI ── */
+const A4_W = 794
+const PAGE_TOP = 60
+const PAGE_BOTTOM = 60
+const PAGE_LEFT = 60
+const PAGE_RIGHT = 60
+const CONTENT_W = A4_W - PAGE_LEFT - PAGE_RIGHT
+
+/* ── Canvas text helpers ── */
+function wrapText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+  lineHeight: number,
+): string[] {
+  const words = text.split(" ")
+  const lines: string[] = []
+  let cur = ""
+  for (const w of words) {
+    const test = cur ? `${cur} ${w}` : w
+    if (ctx.measureText(test).width > maxWidth) {
+      if (cur) lines.push(cur)
+      cur = w
+    } else {
+      cur = test
+    }
+  }
+  if (cur) lines.push(cur)
+  return lines
+}
+
+/**
+ * Draws the full letterhead, ToS body, signature & URL reference onto a
+ * canvas, then triggers a PNG download.  All rendering is done with the
+ * native Canvas 2D API so there are no cross-origin or DOM-serialization
+ * issues.
+ */
+async function generateA4Image() {
+  /* ── Pre-load logo as ImageBitmap ── */
+  const logoResp = await fetch("/logo.png")
+  const logoBlob = await logoResp.blob()
+  const logoBmp = await createImageBitmap(logoBlob)
+
+  /* ── First pass: measure total height ── */
+  const measure = document.createElement("canvas")
+  const mCtx = measure.getContext("2d")!
+  measure.width = A4_W
+
+  let totalH = PAGE_TOP
+
+  // letterhead height
+  const LOGO_SIZE = 32
+  const HEADER_GAP = 8
+  totalH += LOGO_SIZE + 20 // logo row + gap below
+  totalH += 2 // separator line
+  totalH += 24 // gap after separator
+
+  // title + date
+  mCtx.font = "bold 22px Inter, system-ui, sans-serif"
+  totalH += 28 // title line height
+  totalH += 18 // date
+  totalH += 20 // gap
+
+  const bodyFont = "12px Inter, system-ui, sans-serif"
+  const bodyBold = "bold 12px Inter, system-ui, sans-serif"
+  const sectionTitleFont = "bold 15px Inter, system-ui, sans-serif"
+  const lineHeight = 18
+  const sectionGap = 22
+  const itemGap = 6
+
+  for (const sec of sections) {
+    mCtx.font = sectionTitleFont
+    totalH += 20 + 10 // section title + gap
+    for (const item of sec.items) {
+      mCtx.font = bodyFont
+      const lines = wrapText(mCtx, item, CONTENT_W, lineHeight)
+      totalH += lines.length * lineHeight + itemGap
+    }
+    totalH += sectionGap
+  }
+
+  // signature block
+  totalH += 40 // gap before signature
+  totalH += 60 // signature image area
+  totalH += 16 // name text
+  totalH += 14 // title text
+  totalH += 30 // gap
+
+  // URL reference line
+  totalH += 16
+  totalH += PAGE_BOTTOM
+
+  /* ── Second pass: actual draw ── */
+  const canvas = document.createElement("canvas")
+  const dpr = 2 // retina sharpness
+  canvas.width = A4_W * dpr
+  canvas.height = totalH * dpr
+  const ctx = canvas.getContext("2d")!
+  ctx.scale(dpr, dpr)
+
+  // white background
+  ctx.fillStyle = "#ffffff"
+  ctx.fillRect(0, 0, A4_W, totalH)
+
+  let y = PAGE_TOP
+
+  /* ── Letterhead ── */
+  ctx.drawImage(logoBmp, PAGE_LEFT, y, LOGO_SIZE, LOGO_SIZE)
+  ctx.font = "bold 18px Inter, system-ui, sans-serif"
+  ctx.fillStyle = "#18191B"
+  ctx.textBaseline = "middle"
+  ctx.fillText("Sycord", PAGE_LEFT + LOGO_SIZE + HEADER_GAP, y + LOGO_SIZE / 2)
+  ctx.textBaseline = "alphabetic"
+  y += LOGO_SIZE + 12
+
+  // separator
+  ctx.strokeStyle = "#e2e2e2"
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  ctx.moveTo(PAGE_LEFT, y)
+  ctx.lineTo(A4_W - PAGE_RIGHT, y)
+  ctx.stroke()
+  y += 24
+
+  /* ── Title ── */
+  ctx.font = "bold 22px Inter, system-ui, sans-serif"
+  ctx.fillStyle = "#18191B"
+  ctx.fillText("Általános Szerződési Feltételek", PAGE_LEFT, y)
+  y += 28
+
+  ctx.font = "11px Inter, system-ui, sans-serif"
+  ctx.fillStyle = "#6b7280"
+  ctx.fillText("Hatálybalépés: 2026.03.15.", PAGE_LEFT, y)
+  y += 20
+
+  /* ── Body ── */
+  for (const sec of sections) {
+    ctx.font = sectionTitleFont
+    ctx.fillStyle = "#18191B"
+    ctx.fillText(sec.title, PAGE_LEFT, y + 16)
+    y += 20 + 10
+
+    for (const item of sec.items) {
+      ctx.font = bodyFont
+      ctx.fillStyle = "#374151"
+      const lines = wrapText(ctx, item, CONTENT_W, lineHeight)
+      for (const line of lines) {
+        ctx.fillText(line, PAGE_LEFT, y + 12)
+        y += lineHeight
+      }
+      y += itemGap
+    }
+    y += sectionGap
+  }
+
+  /* ── Signature block ── */
+  y += 20
+
+  // Draw the signature as stylised text (cursive)
+  ctx.font = "italic 36px 'Brush Script MT', 'Segoe Script', cursive"
+  ctx.fillStyle = "#4a5568"
+  ctx.fillText("Márton", PAGE_LEFT, y + 36)
+  y += 60
+
+  // Separator line under signature
+  ctx.strokeStyle = "#d1d5db"
+  ctx.lineWidth = 0.5
+  ctx.beginPath()
+  ctx.moveTo(PAGE_LEFT, y)
+  ctx.lineTo(PAGE_LEFT + 160, y)
+  ctx.stroke()
+  y += 6
+
+  ctx.font = "bold 11px Inter, system-ui, sans-serif"
+  ctx.fillStyle = "#18191B"
+  ctx.fillText("Márton Dávid", PAGE_LEFT, y + 12)
+  y += 16
+
+  ctx.font = "11px Inter, system-ui, sans-serif"
+  ctx.fillStyle = "#6b7280"
+  ctx.fillText("Alapító, Sycord", PAGE_LEFT, y + 10)
+  y += 30
+
+  /* ── URL reference ── */
+  ctx.font = "10px Inter, system-ui, sans-serif"
+  ctx.fillStyle = "#9ca3af"
+  ctx.fillText("sycord.com/tos", A4_W - PAGE_RIGHT - ctx.measureText("sycord.com/tos").width, y + 10)
+  y += 16
+
+  /* ── Trigger download ── */
+  canvas.toBlob((blob) => {
+    if (!blob) return
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "Sycord_ASZF.png"
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }, "image/png")
+}
+
+export default function TosDownloadButton() {
+  const handleDownload = useCallback(() => {
+    generateA4Image()
+  }, [])
+
+  return (
+    <button
+      onClick={handleDownload}
+      className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-white text-xs font-medium transition-colors cursor-pointer"
+    >
+      <Download className="w-3.5 h-3.5" />
+      Letöltés képként (A4)
+    </button>
+  )
+}
