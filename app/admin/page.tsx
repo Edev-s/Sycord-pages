@@ -9,6 +9,17 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import { Textarea } from "@/components/ui/textarea"
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
+import { Switch } from "@/components/ui/switch"
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import Image from "next/image"
 import Link from "next/link"
 import {
@@ -46,7 +57,12 @@ import {
   ArrowRight,
   ArrowDown,
   Ban,
-  UserCheck
+  UserCheck,
+  Settings,
+  User,
+  ChevronDown,
+  Calendar,
+  ExternalLink
 } from "lucide-react"
 
 const availableIcons = [
@@ -76,6 +92,16 @@ interface User {
   websites: Array<{ id: string; businessName: string; subdomain: string }>
 }
 
+const tabs = [
+  { id: "overview" as const, label: "Overview", icon: BarChart3 },
+  { id: "users" as const, label: "Users", icon: Users },
+  { id: "server" as const, label: "Server", icon: Server },
+  { id: "tickets" as const, label: "Tickets", icon: AlertCircle },
+  { id: "paptos" as const, label: "Legal", icon: BookOpen },
+]
+
+type TabId = "overview" | "users" | "server" | "tickets" | "paptos"
+
 export default function AdminPage() {
   const router = useRouter()
   const { data: session } = useSession()
@@ -84,8 +110,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true)
   const [updatingUser, setUpdatingUser] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<"overview" | "users" | "server" | "tickets" | "paptos">("overview")
+  const [activeTab, setActiveTab] = useState<TabId>("overview")
   const [monitors, setMonitors] = useState<any[]>([])
   const [monitorsLoading, setMonitorsLoading] = useState(false)
   const [editingIcon, setEditingIcon] = useState<string | null>(null)
@@ -339,531 +364,557 @@ export default function AdminPage() {
     }
   }
 
-  if (!session?.user?.email?.includes("dmarton336@gmail.com")) {
-    return null
-  }
+  const userInitials = session?.user?.name
+    ?.split(" ")
+    .map((n: string) => n[0])
+    .join("")
+    .toUpperCase() || "A"
+
+  const blockedCount = users.filter(u => u.isBlocked).length
 
   return (
-    <div className="min-h-screen bg-background relative">
-      {/* Mobile Navigation Controls */}
-      <div className="fixed top-4 left-4 z-30 md:hidden">
-        <Button
-          variant="secondary"
-          size="icon"
-          onClick={() => router.push("/dashboard")}
-          className="shadow-lg bg-background/60 backdrop-blur-md border border-border text-foreground hover:bg-accent hover:text-accent-foreground"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-      </div>
-
-      <div className="fixed top-4 right-4 z-50 md:hidden">
-        <Button
-          variant="secondary"
-          size="icon"
-          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className="shadow-lg bg-background/60 backdrop-blur-md border border-border text-foreground hover:bg-accent hover:text-accent-foreground"
-        >
-          {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </Button>
-      </div>
-
-      {/* Sidebar */}
-      <aside
-        className={`fixed inset-y-0 left-0 z-40 w-56 transform transition-transform duration-300 ease-in-out md:translate-x-0 ${
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } backdrop-blur-xl bg-sidebar border-r border-sidebar-border flex flex-col`}
-      >
-        <div className="p-6 flex flex-col h-full">
-          <div className="flex items-center gap-2 mb-8 text-sidebar-foreground">
-            <Shield className="h-6 w-6 text-primary" />
-            <span className="font-bold text-lg truncate">Admin Panel</span>
-          </div>
-
-          <nav className="flex-1 space-y-2">
-            <button
-              onClick={() => { setActiveTab("overview"); setIsSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group ${
-                activeTab === "overview"
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              }`}
-            >
-              <BarChart3 className="h-5 w-5" />
-              <span className="font-medium text-sm">Overview</span>
-            </button>
-            <button
-              onClick={() => { setActiveTab("users"); setIsSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group ${
-                activeTab === "users"
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              }`}
-            >
-              <Users className="h-5 w-5" />
-              <span className="font-medium text-sm">Users</span>
-            </button>
-            <button
-              onClick={() => { setActiveTab("server"); setIsSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group ${
-                activeTab === "server"
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              }`}
-            >
-              <Server className="h-5 w-5" />
-              <span className="font-medium text-sm">Server</span>
-            </button>
-            <button
-              onClick={() => { setActiveTab("tickets"); setIsSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group ${
-                activeTab === "tickets"
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              }`}
-            >
-              <AlertCircle className="h-5 w-5" />
-              <span className="font-medium text-sm">Tickets</span>
-            </button>
-            <button
-              onClick={() => { setActiveTab("paptos"); setIsSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group ${
-                activeTab === "paptos"
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              }`}
-            >
-              <BookOpen className="h-5 w-5" />
-              <span className="font-medium text-sm">PAP & TOS</span>
-            </button>
-          </nav>
-
-          <div className="mt-auto pt-6 border-t border-sidebar-border space-y-2">
-             <Button
-              variant="ghost"
-              className="w-full justify-start text-sidebar-foreground/70 hover:text-sidebar-accent-foreground hover:bg-sidebar-accent gap-3 px-4"
-              onClick={() => router.push("/dashboard")}
-            >
-              <ArrowLeft className="h-5 w-5" />
-              <span className="font-medium text-sm">Back to Dashboard</span>
-            </Button>
-            <Button
-              variant="ghost"
-              className="w-full justify-start text-destructive/70 hover:text-destructive hover:bg-destructive/10 gap-3 px-4"
-              onClick={() => signOut({ callbackUrl: "/" })}
-            >
-              <LogOut className="h-5 w-5" />
-              <span className="font-medium text-sm">Sign Out</span>
-            </Button>
-          </div>
-        </div>
-      </aside>
-
-      <main className="transition-all duration-300 md:ml-56 min-h-screen flex flex-col">
-        <div className="container mx-auto px-4 py-8 max-w-7xl">
-
-          {/* Header */}
-          <div className="flex items-center justify-between mb-8 pb-4 border-b border-border">
-            <div className="flex items-center gap-3">
-              <Image src="/logo.png" alt="Sycord" width={32} height={32} />
-              <div>
-                <h1 className="text-xl font-bold text-foreground">Admin Panel</h1>
-                <p className="text-xs text-muted-foreground">Manage users, servers, and platform settings</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 px-3 py-1">
-                v1.0.0
+    <div className="min-h-screen bg-background">
+      {/* Header - matching dashboard style */}
+      <header className="border-b border-border sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50">
+        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-4 md:gap-6">
+            <Link href="/dashboard" className="flex items-center gap-2">
+              <Image src="/logo.png" alt="Logo" width={28} height={28} />
+              <span className="text-lg font-semibold text-foreground">Sycord</span>
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 bg-primary/5 text-primary border-primary/20 font-semibold">
+                Admin
               </Badge>
-              <div className="flex items-center gap-2 pl-3 border-l border-border">
-                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Shield className="h-4 w-4 text-primary" />
-                </div>
-                <span className="text-sm font-medium text-foreground hidden sm:inline">{session?.user?.name}</span>
-              </div>
-            </div>
+            </Link>
+
+            {/* Desktop Navigation Tabs */}
+            <nav className="hidden md:flex items-center gap-1">
+              {tabs.map((tab) => {
+                const Icon = tab.icon
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                      activeTab === tab.id
+                        ? "text-foreground bg-accent"
+                        : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {tab.label}
+                  </button>
+                )
+              })}
+            </nav>
           </div>
 
-          {/* Overview Tab */}
-          {activeTab === "overview" && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <Card className="border-border shadow-sm hover:shadow-md transition-shadow">
-                  <CardContent className="flex items-center gap-4 p-4">
-                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <Users className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Total Users</p>
-                      <p className="text-2xl font-bold text-foreground">{users.length}</p>
-                      <p className="text-[10px] text-muted-foreground">Registered accounts</p>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-border shadow-sm hover:shadow-md transition-shadow">
-                  <CardContent className="flex items-center gap-4 p-4">
-                    <div className="h-10 w-10 rounded-lg bg-yellow-500/10 flex items-center justify-center flex-shrink-0">
-                      <Zap className="h-5 w-5 text-yellow-500" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Premium / Subscribers</p>
-                      <p className="text-2xl font-bold text-foreground">{users.filter((u) => u.isPremium).length}</p>
-                      <p className="text-[10px] text-muted-foreground">Active subscriptions</p>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-border shadow-sm hover:shadow-md transition-shadow">
-                  <CardContent className="flex items-center gap-4 p-4">
-                    <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-                      <Globe2 className="h-5 w-5 text-blue-500" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Websites</p>
-                      <p className="text-2xl font-bold text-foreground">
-                        {users.reduce((acc, u) => acc + u.projectCount, 0)}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">Total created</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          )}
-
-          {/* Users Tab */}
-          {activeTab === "users" && (
-             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="relative">
-                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search by email, name, or user ID..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-11 h-12 bg-card border-border rounded-xl shadow-sm"
-                  />
+          <div className="flex items-center gap-2">
+            {/* Mobile Navigation */}
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="md:hidden">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-72">
+                <div className="flex items-center gap-2 mb-6 mt-4">
+                  <Image src="/logo.png" alt="Logo" width={28} height={28} />
+                  <span className="text-lg font-semibold">Admin Panel</span>
                 </div>
-
-                {loading ? (
-                  <div className="flex flex-col items-center justify-center py-16">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
-                    <p className="text-muted-foreground">Fetching user data...</p>
-                  </div>
-                ) : filteredUsers.length === 0 ? (
-                  <div className="text-center py-16 bg-card border border-dashed border-border rounded-xl">
-                    <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-lg font-semibold">No users found</p>
-                    <p className="text-muted-foreground text-sm">Try adjusting your search criteria</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {filteredUsers.map((user) => (
-                      <Card
-                        key={user.userId}
-                        className="border-border hover:border-primary/30 transition-all shadow-sm hover:shadow-md"
+                <nav className="flex flex-col gap-1">
+                  {tabs.map((tab) => {
+                    const Icon = tab.icon
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors text-left ${
+                          activeTab === tab.id
+                            ? "text-foreground bg-accent"
+                            : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                        }`}
                       >
-                        <CardContent className="p-6">
-                          <div className="flex flex-col md:flex-row gap-6">
-                            <div className="flex items-start gap-4 flex-1 min-w-0">
-                              {/* Profile Avatar */}
-                              <div className="h-12 w-12 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
-                                <span className="text-lg font-bold text-primary">
-                                  {user.name.charAt(0).toUpperCase()}
-                                </span>
-                              </div>
-
-                              <div className="flex-1 space-y-3 min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <h3 className="font-bold text-lg text-foreground">{user.name}</h3>
-                                  {user.email === "dmarton336@gmail.com" ? (
-                                    <Badge className="bg-primary/10 text-primary border-primary/20">Admin</Badge>
-                                  ) : (
-                                    <Badge variant="outline" className="text-muted-foreground">User</Badge>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                  <Mail className="h-3.5 w-3.5 flex-shrink-0" />
-                                  <span className="truncate">{user.email}</span>
-                                </div>
-
-                                {user.websites.length > 0 && (
-                                  <div className="pt-1">
-                                    <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">Websites</p>
-                                    <div className="flex flex-wrap gap-2">
-                                      {user.websites.map((website) => (
-                                        <a
-                                          key={website.id}
-                                          href={`https://${website.subdomain}.pages.dev`}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="flex items-center gap-2 bg-secondary/50 hover:bg-secondary border border-border rounded-md px-3 py-1.5 text-xs transition-colors"
-                                        >
-                                          <Globe2 className="h-3 w-3 text-muted-foreground" />
-                                          <span className="font-medium">{website.businessName}</span>
-                                          <span className="text-muted-foreground opacity-50">({website.subdomain})</span>
-                                        </a>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="flex md:flex-col items-end gap-3 border-t md:border-t-0 md:border-l border-border pt-4 md:pt-0 md:pl-6 min-w-[180px]">
-                              {/* Blocked Badge */}
-                              {user.isBlocked && (
-                                <Badge className="bg-red-500/10 text-red-500 border-red-500/20 w-full justify-center">
-                                  <Ban className="h-3 w-3 mr-1" /> Blocked
-                                </Badge>
-                              )}
-                              <div className="w-full">
-                                <p className="text-xs text-muted-foreground mb-1.5">Subscription</p>
-                                <select
-                                  value={user.subscription || (user.isPremium ? "Sycord+" : "Free")}
-                                  onChange={(e) => saveSubscription(user.userId, e.target.value)}
-                                  disabled={updatingUser === user.userId}
-                                  className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
-                                >
-                                  <option value="Free">Free</option>
-                                  <option value="Sycord+">Sycord+</option>
-                                  <option value="Sycord Enterprise">Sycord Enterprise</option>
-                                </select>
-                              </div>
-                              <Button
-                                size="sm"
-                                variant={user.isBlocked ? "default" : "outline"}
-                                className={`w-full ${user.isBlocked ? 'bg-green-600 hover:bg-green-700 text-white' : 'text-red-500 border-red-500/30 hover:bg-red-500/10'}`}
-                                onClick={() => toggleBlock(user.userId, user.isBlocked)}
-                                disabled={updatingUser === user.userId}
-                              >
-                                {user.isBlocked ? (
-                                  <><UserCheck className="h-4 w-4 mr-2" /> Unblock</>
-                                ) : (
-                                  <><Ban className="h-4 w-4 mr-2" /> Block</>
-                                )}
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
-                                onClick={() => deleteUser(user.userId, user.name)}
-                                disabled={updatingUser === user.userId}
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Delete
-                              </Button>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                        <Icon className="h-5 w-5" />
+                        {tab.label}
+                      </button>
+                    )
+                  })}
+                  <div className="border-t border-border mt-4 pt-4">
+                    <button
+                      onClick={() => router.push("/dashboard")}
+                      className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 w-full text-left"
+                    >
+                      <ArrowLeft className="h-5 w-5" />
+                      Back to Dashboard
+                    </button>
                   </div>
-                )}
-             </div>
-          )}
+                </nav>
+              </SheetContent>
+            </Sheet>
 
-          {/* Server Tab (Monitors) */}
-          {activeTab === "server" && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              {monitorsLoading ? (
-                <div className="flex flex-col items-center justify-center py-16">
-                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mb-4"></div>
-                  <p className="text-muted-foreground text-sm">Loading monitors...</p>
-                </div>
-              ) : monitors.length === 0 ? (
-                <div className="text-center py-16 bg-card border border-dashed border-border rounded-xl">
-                  <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-lg font-medium">No monitors found</p>
-                  <p className="text-muted-foreground text-sm">Check your Cronitor configuration.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {monitors.map((monitor) => (
-                    <Card
-                      key={monitor.id}
-                      className="border-border hover:border-primary/30 transition-all shadow-sm hover:shadow-md"
-                    >
-                      <CardContent className="p-5">
-                        <div className="flex items-start gap-4 mb-4">
-                          <div className={`mt-1 w-3 h-3 rounded-full flex-shrink-0 ${monitor.statusCode === 200 ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]'}`} />
-                          <div className="min-w-0 flex-1">
-                            <p className="font-semibold text-foreground truncate">{monitor.name}</p>
-                            <p className="text-xs text-muted-foreground font-mono truncate">{monitor.id}</p>
-                            <Badge
-                              variant="outline"
-                              className={`mt-2 text-xs ${monitor.statusCode === 200 ? 'border-green-500/30 text-green-500' : 'border-red-500/30 text-red-500'}`}
-                            >
-                              {monitor.statusCode === 200 ? 'Online' : 'Offline'}
-                            </Badge>
+            {/* User Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-9 w-9 rounded-full p-0">
+                  <Avatar className="h-9 w-9">
+                    <AvatarImage src={session?.user?.image || ""} alt={session?.user?.name || ""} />
+                    <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">{userInitials}</AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end" forceMount>
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">{session?.user?.name}</p>
+                    <p className="text-xs leading-none text-muted-foreground">{session?.user?.email}</p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => router.push("/dashboard")}>
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  <span>Dashboard</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => signOut({ callbackUrl: "/" })}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Sign Out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="container mx-auto px-4 py-6 md:py-8 max-w-7xl">
+
+        {/* Overview Tab */}
+        {activeTab === "overview" && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Overview</h2>
+              <p className="text-sm text-muted-foreground">Platform statistics at a glance</p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className="border-border">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Users className="h-4 w-4 text-primary" />
+                    </div>
+                  </div>
+                  <p className="text-2xl font-bold text-foreground">{users.length}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Total Users</p>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="h-9 w-9 rounded-lg bg-yellow-500/10 flex items-center justify-center">
+                      <Zap className="h-4 w-4 text-yellow-500" />
+                    </div>
+                  </div>
+                  <p className="text-2xl font-bold text-foreground">{users.filter((u) => u.isPremium).length}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Premium Subscribers</p>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="h-9 w-9 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                      <Globe2 className="h-4 w-4 text-blue-500" />
+                    </div>
+                  </div>
+                  <p className="text-2xl font-bold text-foreground">
+                    {users.reduce((acc, u) => acc + u.projectCount, 0)}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">Total Websites</p>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="h-9 w-9 rounded-lg bg-red-500/10 flex items-center justify-center">
+                      <Ban className="h-4 w-4 text-red-500" />
+                    </div>
+                  </div>
+                  <p className="text-2xl font-bold text-foreground">{blockedCount}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Blocked Users</p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
+
+        {/* Users Tab */}
+        {activeTab === "users" && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">Users</h2>
+                <p className="text-sm text-muted-foreground">{users.length} registered accounts</p>
+              </div>
+              <div className="relative w-full sm:w-72">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search users..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 h-9 bg-background border-border text-sm"
+                />
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-16">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-3" />
+                <p className="text-sm text-muted-foreground">Loading users...</p>
+              </div>
+            ) : filteredUsers.length === 0 ? (
+              <div className="text-center py-16 border border-dashed border-border rounded-lg">
+                <Users className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+                <p className="text-sm font-medium text-foreground">No users found</p>
+                <p className="text-xs text-muted-foreground mt-1">Try adjusting your search</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredUsers.map((user) => (
+                  <Card key={user.userId} className="border-border overflow-hidden">
+                    <CardContent className="p-0">
+                      <div className="flex flex-col lg:flex-row">
+                        {/* User Info */}
+                        <div className="flex-1 p-4 sm:p-5">
+                          <div className="flex items-start gap-3">
+                            <Avatar className="h-10 w-10 flex-shrink-0">
+                              <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
+                                {user.name.charAt(0).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h3 className="text-sm font-semibold text-foreground">{user.name}</h3>
+                                {user.email === "dmarton336@gmail.com" && (
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 bg-primary/5 text-primary border-primary/20">Admin</Badge>
+                                )}
+                                {user.isPremium && (
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 bg-yellow-500/10 text-yellow-500 border-yellow-500/20">
+                                    {user.subscription === "Sycord Enterprise" ? "Enterprise" : "Sycord+"}
+                                  </Badge>
+                                )}
+                                {user.isBlocked && (
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 bg-red-500/10 text-red-500 border-red-500/20">Blocked</Badge>
+                                )}
+                              </div>
+
+                              <div className="flex items-center gap-1.5 mt-1">
+                                <Mail className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                <span className="text-xs text-muted-foreground truncate">{user.email}</span>
+                              </div>
+
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <Calendar className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                <span className="text-xs text-muted-foreground">Joined {formatDate(user.createdAt)}</span>
+                              </div>
+
+                              {/* Websites */}
+                              {user.websites.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5 mt-3">
+                                  {user.websites.map((website) => (
+                                    <a
+                                      key={website.id}
+                                      href={`https://${website.subdomain}.pages.dev`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1.5 bg-accent/50 hover:bg-accent border border-border rounded-md px-2 py-1 text-xs transition-colors group"
+                                    >
+                                      <Globe2 className="h-3 w-3 text-muted-foreground" />
+                                      <span className="font-medium text-foreground">{website.businessName}</span>
+                                      <ExternalLink className="h-2.5 w-2.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    </a>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
 
-                        <div className="border-t border-border pt-4">
-                          {editingIcon === monitor.id ? (
-                            <div className="flex flex-col gap-3 bg-muted/30 p-4 rounded-lg border border-border">
-                              <div className="flex items-center justify-between">
-                                <p className="text-sm font-medium text-foreground">Choose Icon</p>
-                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setEditingIcon(null)}>
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </div>
+                        {/* Actions Panel */}
+                        <div className="flex flex-row lg:flex-col items-center lg:items-stretch gap-3 p-4 sm:p-5 border-t lg:border-t-0 lg:border-l border-border bg-accent/20 lg:w-52">
+                          {/* Subscription */}
+                          <div className="flex-1 lg:flex-none w-full">
+                            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Plan</label>
+                            <select
+                              value={user.subscription || (user.isPremium ? "Sycord+" : "Free")}
+                              onChange={(e) => saveSubscription(user.userId, e.target.value)}
+                              disabled={updatingUser === user.userId}
+                              className="w-full h-8 rounded-md border border-border bg-background px-2.5 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 focus:ring-offset-background disabled:opacity-50 transition-colors"
+                            >
+                              <option value="Free">Free</option>
+                              <option value="Sycord+">Sycord+</option>
+                              <option value="Sycord Enterprise">Enterprise</option>
+                            </select>
+                          </div>
 
-                              {/* Preset Icons */}
-                              <div>
-                                <p className="text-xs text-muted-foreground mb-2">Preset Icons</p>
-                                <div className="flex flex-wrap gap-2">
-                                  {availableIcons.map((item) => {
-                                    const Icon = item.icon
-                                    return (
-                                      <button
-                                        key={item.name}
-                                        onClick={() => updateMonitorIcon(monitor.id, item.name, 'preset')}
-                                        className={`p-2.5 rounded-lg hover:bg-accent transition-colors ${
-                                          monitor.providerIcon === item.name && monitor.iconType !== 'custom'
-                                            ? 'bg-accent text-accent-foreground ring-2 ring-primary'
-                                            : 'text-muted-foreground hover:text-foreground'
-                                        }`}
-                                        title={item.name}
-                                      >
-                                        <Icon className="h-5 w-5" />
-                                      </button>
-                                    )
-                                  })}
-                                </div>
-                              </div>
+                          {/* Block Toggle */}
+                          <div className="flex items-center gap-2 lg:pt-1">
+                            <Switch
+                              checked={user.isBlocked}
+                              onCheckedChange={() => toggleBlock(user.userId, user.isBlocked)}
+                              disabled={updatingUser === user.userId}
+                              className={user.isBlocked ? "data-[state=checked]:bg-red-500" : ""}
+                            />
+                            <span className="text-xs text-muted-foreground whitespace-nowrap">
+                              {user.isBlocked ? "Blocked" : "Active"}
+                            </span>
+                          </div>
 
-                              {/* Custom Icon Upload */}
-                              <div className="border-t border-border pt-3">
-                                <p className="text-xs text-muted-foreground mb-2">Custom Icon (PNG/JPG, max 1MB)</p>
-                                <label
-                                  htmlFor={`icon-upload-${monitor.id}`}
-                                  className="flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-lg cursor-pointer hover:bg-primary/90 transition-colors text-sm font-medium"
-                                >
-                                  {uploadingIcon === monitor.id ? (
-                                    <>
-                                      <Loader2 className="h-4 w-4 animate-spin" />
-                                      Uploading...
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Upload className="h-4 w-4" />
-                                      Upload Image
-                                    </>
-                                  )}
-                                  <input
-                                    type="file"
-                                    id={`icon-upload-${monitor.id}`}
-                                    className="hidden"
-                                    accept="image/*"
-                                    onChange={(e) => handleIconUpload(monitor.id, e)}
-                                    disabled={uploadingIcon === monitor.id}
-                                  />
-                                </label>
-                              </div>
-                            </div>
-                          ) : (
+                          {/* Delete */}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 px-2.5 text-destructive/70 hover:text-destructive hover:bg-destructive/10 text-xs"
+                            onClick={() => deleteUser(user.userId, user.name)}
+                            disabled={updatingUser === user.userId}
+                          >
+                            <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                            Delete
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Server Tab */}
+        {activeTab === "server" && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Server Monitors</h2>
+              <p className="text-sm text-muted-foreground">Service status and configuration</p>
+            </div>
+
+            {monitorsLoading ? (
+              <div className="flex flex-col items-center justify-center py-16">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-3" />
+                <p className="text-sm text-muted-foreground">Loading monitors...</p>
+              </div>
+            ) : monitors.length === 0 ? (
+              <div className="text-center py-16 border border-dashed border-border rounded-lg">
+                <Server className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+                <p className="text-sm font-medium text-foreground">No monitors found</p>
+                <p className="text-xs text-muted-foreground mt-1">Check your Cronitor configuration</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {monitors.map((monitor) => (
+                  <Card key={monitor.id} className="border-border">
+                    <CardContent className="p-5">
+                      <div className="flex items-start gap-3 mb-4">
+                        <div className={`mt-0.5 h-2.5 w-2.5 rounded-full flex-shrink-0 ${
+                          monitor.statusCode === 200
+                            ? 'bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.4)]'
+                            : 'bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.4)]'
+                        }`} />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-foreground truncate">{monitor.name}</p>
+                          <p className="text-[11px] text-muted-foreground font-mono truncate mt-0.5">{monitor.id}</p>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] px-1.5 py-0 h-5 flex-shrink-0 ${
+                            monitor.statusCode === 200
+                              ? 'border-green-500/30 text-green-500 bg-green-500/5'
+                              : 'border-red-500/30 text-red-500 bg-red-500/5'
+                          }`}
+                        >
+                          {monitor.statusCode === 200 ? 'Online' : 'Offline'}
+                        </Badge>
+                      </div>
+
+                      <div className="border-t border-border pt-4">
+                        {editingIcon === monitor.id ? (
+                          <div className="space-y-3 bg-accent/30 p-3 rounded-lg border border-border">
                             <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2.5 px-3 py-1.5 bg-background border border-border rounded-lg">
-                                {monitor.iconType === 'custom' ? (
-                                  <img
-                                    src={monitor.providerIcon}
-                                    alt="Custom icon"
-                                    className="h-5 w-5 object-contain"
-                                  />
-                                ) : (
-                                  (() => {
-                                    const iconName = monitor.providerIcon || "Server"
-                                    const iconEntry = availableIcons.find(i => i.name.toLowerCase() === iconName.toLowerCase())
-                                    const Icon = iconEntry ? iconEntry.icon : Server
-                                    return <Icon className="h-5 w-5 text-muted-foreground" />
-                                  })()
-                                )}
-                                <span className="text-sm font-medium text-foreground">
-                                  {monitor.iconType === 'custom' ? 'Custom' : (monitor.providerIcon || "Server")}
-                                </span>
-                              </div>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setEditingIcon(monitor.id)}
-                                className="whitespace-nowrap"
-                              >
-                                <ImageIcon className="h-4 w-4 mr-2" />
-                                Change Icon
+                              <p className="text-xs font-medium text-foreground">Choose Icon</p>
+                              <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setEditingIcon(null)}>
+                                <X className="h-3.5 w-3.5" />
                               </Button>
                             </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
 
-          {/* Tickets Tab */}
-          {activeTab === "tickets" && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="flex flex-col items-center justify-center py-20">
-                <AlertCircle className="h-16 w-16 text-muted-foreground/30 mb-4" />
-                <h3 className="text-lg font-semibold text-foreground">Tickets</h3>
-                <p className="text-muted-foreground text-sm">Support ticket system coming soon.</p>
+                            <div>
+                              <p className="text-[11px] text-muted-foreground mb-2">Presets</p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {availableIcons.map((item) => {
+                                  const Icon = item.icon
+                                  return (
+                                    <button
+                                      key={item.name}
+                                      onClick={() => updateMonitorIcon(monitor.id, item.name, 'preset')}
+                                      className={`p-2 rounded-md transition-colors ${
+                                        monitor.providerIcon === item.name && monitor.iconType !== 'custom'
+                                          ? 'bg-accent text-foreground ring-1.5 ring-primary'
+                                          : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                                      }`}
+                                      title={item.name}
+                                    >
+                                      <Icon className="h-4 w-4" />
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            </div>
+
+                            <div className="border-t border-border pt-3">
+                              <p className="text-[11px] text-muted-foreground mb-2">Custom (PNG/JPG, max 1MB)</p>
+                              <label
+                                htmlFor={`icon-upload-${monitor.id}`}
+                                className="flex items-center justify-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-md cursor-pointer hover:bg-primary/90 transition-colors text-xs font-medium"
+                              >
+                                {uploadingIcon === monitor.id ? (
+                                  <>
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    Uploading...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Upload className="h-3.5 w-3.5" />
+                                    Upload Image
+                                  </>
+                                )}
+                                <input
+                                  type="file"
+                                  id={`icon-upload-${monitor.id}`}
+                                  className="hidden"
+                                  accept="image/*"
+                                  onChange={(e) => handleIconUpload(monitor.id, e)}
+                                  disabled={uploadingIcon === monitor.id}
+                                />
+                              </label>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 px-2.5 py-1.5 bg-accent/30 border border-border rounded-md">
+                              {monitor.iconType === 'custom' ? (
+                                <img
+                                  src={monitor.providerIcon}
+                                  alt="Custom icon"
+                                  className="h-4 w-4 object-contain"
+                                />
+                              ) : (
+                                (() => {
+                                  const iconName = monitor.providerIcon || "Server"
+                                  const iconEntry = availableIcons.find(i => i.name.toLowerCase() === iconName.toLowerCase())
+                                  const Icon = iconEntry ? iconEntry.icon : Server
+                                  return <Icon className="h-4 w-4 text-muted-foreground" />
+                                })()
+                              )}
+                              <span className="text-xs font-medium text-foreground">
+                                {monitor.iconType === 'custom' ? 'Custom' : (monitor.providerIcon || "Server")}
+                              </span>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setEditingIcon(monitor.id)}
+                              className="h-8 text-xs text-muted-foreground hover:text-foreground"
+                            >
+                              <ImageIcon className="h-3.5 w-3.5 mr-1.5" />
+                              Change
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
+            )}
+          </div>
+        )}
+
+        {/* Tickets Tab */}
+        {activeTab === "tickets" && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Tickets</h2>
+              <p className="text-sm text-muted-foreground">Support ticket management</p>
             </div>
-          )}
-
-          {/* PAP & TOS Tab */}
-          {activeTab === "paptos" && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card className="border-border shadow-sm">
-                  <CardHeader>
-                    <CardTitle className="text-lg">Privacy Policy (Adatvédelmi Irányelvek)</CardTitle>
-                    <CardDescription>Edit and manage the platform privacy policy.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <Textarea
-                      className="font-mono text-xs min-h-[300px] bg-background/50 leading-relaxed"
-                      value={privacyPolicy}
-                      onChange={(e) => setPrivacyPolicy(e.target.value)}
-                    />
-                    <Button
-                      onClick={() => toast.success("Privacy policy saved")}
-                      className="w-full sm:w-auto"
-                    >
-                      <Save className="h-4 w-4 mr-2" />
-                      Save
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-border shadow-sm">
-                  <CardHeader>
-                    <CardTitle className="text-lg">Terms of Service (ÁSZF)</CardTitle>
-                    <CardDescription>Edit and manage the platform terms of service.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <Textarea
-                      className="font-mono text-xs min-h-[300px] bg-background/50 leading-relaxed"
-                      value={termsOfService}
-                      onChange={(e) => setTermsOfService(e.target.value)}
-                    />
-                    <Button
-                      onClick={() => toast.success("Terms of service saved")}
-                      className="w-full sm:w-auto"
-                    >
-                      <Save className="h-4 w-4 mr-2" />
-                      Save
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
+            <div className="flex flex-col items-center justify-center py-20 border border-dashed border-border rounded-lg">
+              <AlertCircle className="h-10 w-10 text-muted-foreground/30 mb-3" />
+              <p className="text-sm font-medium text-foreground">Coming soon</p>
+              <p className="text-xs text-muted-foreground mt-1">Support ticket system is under development</p>
             </div>
-          )}
+          </div>
+        )}
 
-        </div>
+        {/* PAP & TOS Tab */}
+        {activeTab === "paptos" && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Legal Documents</h2>
+              <p className="text-sm text-muted-foreground">Privacy policy and terms of service</p>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card className="border-border">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-semibold">Privacy Policy</CardTitle>
+                  <CardDescription className="text-xs">Adatvédelmi Irányelvek</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Textarea
+                    className="font-mono text-xs min-h-[280px] bg-accent/20 border-border leading-relaxed resize-none"
+                    value={privacyPolicy}
+                    onChange={(e) => setPrivacyPolicy(e.target.value)}
+                  />
+                  <Button
+                    onClick={() => toast.success("Privacy policy saved")}
+                    size="sm"
+                    className="h-8 text-xs"
+                  >
+                    <Save className="h-3.5 w-3.5 mr-1.5" />
+                    Save Changes
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-semibold">Terms of Service</CardTitle>
+                  <CardDescription className="text-xs">ÁSZF</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Textarea
+                    className="font-mono text-xs min-h-[280px] bg-accent/20 border-border leading-relaxed resize-none"
+                    value={termsOfService}
+                    onChange={(e) => setTermsOfService(e.target.value)}
+                  />
+                  <Button
+                    onClick={() => toast.success("Terms of service saved")}
+                    size="sm"
+                    className="h-8 text-xs"
+                  >
+                    <Save className="h-3.5 w-3.5 mr-1.5" />
+                    Save Changes
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
+
       </main>
     </div>
   )
