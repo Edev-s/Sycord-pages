@@ -57,7 +57,7 @@ export default function LandingPage() {
         
         {/* Hero Section */}
         <RevealSection className="w-full px-4 md:px-8 pt-8 md:pt-16 pb-8 md:pb-12">
-          <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center gap-8 md:gap-12">
+          <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-start gap-8 md:gap-12">
             <div className="flex-1 max-w-2xl">
               <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold leading-tight tracking-tight mb-6">
                 <span className="text-white">Create </span>
