@@ -22,6 +22,6 @@ export async function GET() {
     })
   } catch (error) {
     console.error("[v0] User status error:", error)
-    return NextResponse.json({ isBlocked: false, subscription: "Free" })
+    return NextResponse.json({ isBlocked: false, subscription: "Free", isPremium: false })
   }
 }

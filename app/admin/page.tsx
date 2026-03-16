@@ -296,13 +296,6 @@ export default function AdminPage() {
     })
   }
 
-  const handleSubscriptionChange = (userId: string, currentIsPremium: boolean, newValue: string) => {
-    const newIsPremium = newValue !== "Free"
-    if (newIsPremium !== currentIsPremium) {
-      togglePremium(userId, currentIsPremium)
-    }
-  }
-
   const toggleBlock = async (userId: string, isBlocked: boolean) => {
     try {
       setUpdatingUser(userId)
