@@ -32,6 +32,7 @@ function DashboardContent() {
   const [deletingDeployments, setDeletingDeployments] = useState<Set<string>>(new Set())
   const [flaggedDeployments, setFlaggedDeployments] = useState<Set<string>>(new Set())
   const [debugError, setDebugError] = useState<string | null>(null)
+  const [userStatus, setUserStatus] = useState<{ isBlocked: boolean; subscription: string; isPremium: boolean }>({ isBlocked: false, subscription: "Free", isPremium: false })
 
   // Check for auto-open modal query param and errors
   useEffect(() => {
@@ -71,6 +72,24 @@ function DashboardContent() {
 
     if (status === "authenticated") {
       fetchProjects()
+    }
+  }, [status])
+
+  useEffect(() => {
+    async function checkUserStatus() {
+      try {
+        const response = await fetch("/api/user/status")
+        if (response.ok) {
+          const data = await response.json()
+          setUserStatus(data)
+        }
+      } catch (error) {
+        console.error("Error checking user status:", error)
+      }
+    }
+
+    if (status === "authenticated") {
+      checkUserStatus()
     }
   }, [status])
 
@@ -157,6 +176,38 @@ function DashboardContent() {
     )
   }
 
+  // Blocked user screen
+  if (userStatus.isBlocked) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="max-w-md w-full text-center space-y-6">
+          <div className="h-20 w-20 rounded-full bg-red-500/10 flex items-center justify-center mx-auto">
+            <TriangleAlert className="h-10 w-10 text-red-500" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground mb-2">Account Unavailable</h1>
+            <p className="text-muted-foreground">
+              Sycord is currently not available for you. Please contact support for assistance.
+            </p>
+          </div>
+          <div className="pt-4 space-y-3">
+            <a href="mailto:admin@sycord.com" className="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-6 py-3 text-sm font-medium hover:bg-primary/90 transition-colors">
+              Contact Support
+            </a>
+            <div>
+              <button
+                onClick={() => signOut({ callbackUrl: "/" })}
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <>
       <div className="min-h-screen bg-background md:ml-16">
@@ -166,6 +217,11 @@ function DashboardContent() {
               <Link href="/" className="flex items-center gap-2">
                 <Image src="/logo.png" alt="Logo" width={32} height={32} />
                 <span className="text-xl font-semibold text-foreground">Sycord</span>
+                {userStatus.isPremium && (
+                  <span className="ml-1 px-1.5 py-0.5 text-[10px] font-bold bg-yellow-500/20 text-yellow-500 rounded-full border border-yellow-500/30">
+                    {userStatus.subscription === "Sycord Enterprise" ? "Enterprise" : "+"}
+                  </span>
+                )}
               </Link>
               <nav className="hidden md:flex items-center gap-6">
                 <Link href="/dashboard" className="text-sm text-foreground font-medium">

@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import { Textarea } from "@/components/ui/textarea"
+import Image from "next/image"
+import Link from "next/link"
 import {
   AlertCircle,
   Users,
@@ -42,7 +44,9 @@ import {
   FileJson,
   BrainCircuit,
   ArrowRight,
-  ArrowDown
+  ArrowDown,
+  Ban,
+  UserCheck
 } from "lucide-react"
 
 const availableIcons = [
@@ -65,6 +69,8 @@ interface User {
   name: string
   projectCount: number
   isPremium: boolean
+  isBlocked: boolean
+  subscription: string
   ip: string
   createdAt: string
   websites: Array<{ id: string; businessName: string; subdomain: string }>
@@ -297,6 +303,49 @@ export default function AdminPage() {
     }
   }
 
+  const toggleBlock = async (userId: string, isBlocked: boolean) => {
+    try {
+      setUpdatingUser(userId)
+      const response = await fetch(`/api/admin/users/${userId}/block`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isBlocked: !isBlocked }),
+      })
+
+      if (!response.ok) throw new Error("Failed to update block status")
+
+      setUsers(users.map((user) => (user.userId === userId ? { ...user, isBlocked: !isBlocked } : user)))
+      toast.success(`User ${!isBlocked ? "blocked" : "unblocked"} successfully`)
+    } catch (error) {
+      console.error("[v0] Error updating block status:", error)
+      toast.error("Failed to update block status")
+    } finally {
+      setUpdatingUser(null)
+    }
+  }
+
+  const saveSubscription = async (userId: string, subscription: string) => {
+    try {
+      setUpdatingUser(userId)
+      const response = await fetch(`/api/admin/users/${userId}/subscription`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subscription }),
+      })
+
+      if (!response.ok) throw new Error("Failed to update subscription")
+
+      const isPremium = subscription !== "Free"
+      setUsers(users.map((user) => (user.userId === userId ? { ...user, subscription, isPremium } : user)))
+      toast.success(`Subscription updated to ${subscription}`)
+    } catch (error) {
+      console.error("[v0] Error updating subscription:", error)
+      toast.error("Failed to update subscription")
+    } finally {
+      setUpdatingUser(null)
+    }
+  }
+
   if (!session?.user?.email?.includes("dmarton336@gmail.com")) {
     return null
   }
@@ -420,23 +469,24 @@ export default function AdminPage() {
       <main className="transition-all duration-300 md:ml-56 min-h-screen flex flex-col">
         <div className="container mx-auto px-4 py-8 max-w-7xl">
 
-          {/* Header Card */}
-          <div className="relative rounded-xl overflow-hidden bg-card border border-border shadow-sm group mb-8">
-            <div className="h-32 bg-gradient-to-r from-primary/20 to-purple-600/20 w-full" />
-            <div className="absolute top-20 left-6">
-               <div className="w-24 h-24 rounded-full border-4 border-background bg-muted overflow-hidden flex items-center justify-center">
-                  <Shield className="h-10 w-10 text-primary" />
-               </div>
-            </div>
-            <div className="pt-14 pb-6 px-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-              <div className="mt-2">
-                 <h2 className="text-2xl font-bold">Admin Dashboard</h2>
-                 <p className="text-muted-foreground text-sm">Manage users, servers, and platform settings</p>
+          {/* Header */}
+          <div className="flex items-center justify-between mb-8 pb-4 border-b border-border">
+            <div className="flex items-center gap-3">
+              <Image src="/logo.png" alt="Sycord" width={32} height={32} />
+              <div>
+                <h1 className="text-xl font-bold text-foreground">Admin Panel</h1>
+                <p className="text-xs text-muted-foreground">Manage users, servers, and platform settings</p>
               </div>
-              <div className="flex gap-2">
-                  <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 px-3 py-1">
-                    v1.0.0
-                  </Badge>
+            </div>
+            <div className="flex items-center gap-3">
+              <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 px-3 py-1">
+                v1.0.0
+              </Badge>
+              <div className="flex items-center gap-2 pl-3 border-l border-border">
+                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Shield className="h-4 w-4 text-primary" />
+                </div>
+                <span className="text-sm font-medium text-foreground hidden sm:inline">{session?.user?.name}</span>
               </div>
             </div>
           </div>
@@ -568,11 +618,17 @@ export default function AdminPage() {
                             </div>
 
                             <div className="flex md:flex-col items-end gap-3 border-t md:border-t-0 md:border-l border-border pt-4 md:pt-0 md:pl-6 min-w-[180px]">
+                              {/* Blocked Badge */}
+                              {user.isBlocked && (
+                                <Badge className="bg-red-500/10 text-red-500 border-red-500/20 w-full justify-center">
+                                  <Ban className="h-3 w-3 mr-1" /> Blocked
+                                </Badge>
+                              )}
                               <div className="w-full">
                                 <p className="text-xs text-muted-foreground mb-1.5">Subscription</p>
                                 <select
-                                  value={user.isPremium ? "Sycord+" : "Free"}
-                                  onChange={(e) => handleSubscriptionChange(user.userId, user.isPremium, e.target.value)}
+                                  value={user.subscription || (user.isPremium ? "Sycord+" : "Free")}
+                                  onChange={(e) => saveSubscription(user.userId, e.target.value)}
                                   disabled={updatingUser === user.userId}
                                   className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
                                 >
@@ -581,6 +637,19 @@ export default function AdminPage() {
                                   <option value="Sycord Enterprise">Sycord Enterprise</option>
                                 </select>
                               </div>
+                              <Button
+                                size="sm"
+                                variant={user.isBlocked ? "default" : "outline"}
+                                className={`w-full ${user.isBlocked ? 'bg-green-600 hover:bg-green-700 text-white' : 'text-red-500 border-red-500/30 hover:bg-red-500/10'}`}
+                                onClick={() => toggleBlock(user.userId, user.isBlocked)}
+                                disabled={updatingUser === user.userId}
+                              >
+                                {user.isBlocked ? (
+                                  <><UserCheck className="h-4 w-4 mr-2" /> Unblock</>
+                                ) : (
+                                  <><Ban className="h-4 w-4 mr-2" /> Block</>
+                                )}
+                              </Button>
                               <Button
                                 size="sm"
                                 variant="ghost"
