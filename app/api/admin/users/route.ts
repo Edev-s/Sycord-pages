@@ -22,6 +22,8 @@ export async function GET() {
             name: user.name || "Unknown",
             projectCount: userProjects.length,
             isPremium: user.isPremium || false,
+            isBlocked: user.isBlocked || false,
+            subscription: user.subscription || "Free",
             // Assuming first project might have IP or user doc has IP (which it does in auth.ts)
             ip: user.user?.ip || "Unknown",
             createdAt: user.createdAt || new Date().toISOString(),
