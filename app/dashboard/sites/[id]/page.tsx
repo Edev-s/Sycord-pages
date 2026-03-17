@@ -1068,11 +1068,15 @@ export default function SiteSettingsPage() {
                   onSave={async (code, elements) => {
                     setBuilderElements(elements)
                     if (!id) return
-                    await fetch(`/api/projects/${id}`, {
+                    const res = await fetch(`/api/projects/${id}`, {
                       method: "PATCH",
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({ builderCode: code, builderElements: elements }),
                     })
+                    if (!res.ok) {
+                      const err = await res.text().catch(() => "Unknown error")
+                      throw new Error(err || `Save failed with status ${res.status}`)
+                    }
                   }}
                 />
               </div>

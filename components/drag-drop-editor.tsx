@@ -1087,7 +1087,9 @@ const CATEGORIES = [...new Set(CATALOG.map(c => c.category))]
 const getCatalogByType = (type: string) => CATALOG.find(c => c.type === type)
 
 function generateId() {
-  return `el_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
+  return typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `el_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`
 }
 
 // ─── Code Generator ────────────────────────────────────────────────────────────
@@ -1362,13 +1364,16 @@ export default function DragDropEditor({ projectId, initialElements = [], onSave
 
   const selectedElement = elements.find(el => el.id === selectedId) ?? null
 
+  const HISTORY_MAX = 50
+
   // Push to history
   const pushHistory = useCallback((newElements: CanvasElement[]) => {
     setHistory(prev => {
       const trimmed = prev.slice(0, historyIndex + 1)
-      return [...trimmed, newElements]
+      const next = [...trimmed, newElements]
+      return next.length > HISTORY_MAX ? next.slice(next.length - HISTORY_MAX) : next
     })
-    setHistoryIndex(prev => prev + 1)
+    setHistoryIndex(prev => Math.min(prev + 1, HISTORY_MAX - 1))
   }, [historyIndex])
 
   const undo = useCallback(() => {
