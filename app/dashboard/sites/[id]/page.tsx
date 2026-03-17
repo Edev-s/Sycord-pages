@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import AIWebsiteBuilder, { type GeneratedPage } from "@/components/ai-website-builder"
+import DragDropEditor, { type CanvasElement } from "@/components/drag-drop-editor"
 import {
   Trash2,
   Plus,
@@ -47,6 +48,7 @@ import {
   Code,
   Lock,
   Database,
+  LayoutGrid,
 } from "lucide-react"
 import { currencySymbols } from "@/lib/webshop-types"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -409,7 +411,7 @@ export default function SiteSettingsPage() {
   const [productError, setProductError] = useState<string | null>(null)
 
   const [activeTab, setActiveTab] = useState<
-    "styles" | "preview" | "items" | "payments" | "ai" | "pages" | "orders" | "customers" | "analytics" | "discount"
+    "styles" | "items" | "payments" | "ai" | "pages" | "orders" | "customers" | "analytics" | "discount" | "builder"
   >("styles")
   const [selectedStyle, setSelectedStyle] = useState<string | null>(null)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
@@ -456,6 +458,9 @@ export default function SiteSettingsPage() {
   
   // Selected page for preview in Pages tab
   const [selectedPage, setSelectedPage] = useState<GeneratedPage | null>(null)
+
+  // Drag-and-drop builder canvas elements
+  const [builderElements, setBuilderElements] = useState<CanvasElement[]>([])
 
   // Deployment State
   const [isDeploying, setIsDeploying] = useState(false)
@@ -907,7 +912,7 @@ export default function SiteSettingsPage() {
       title: "Home",
       items: [
         { id: "styles", label: "Overview", icon: Layout },
-        { id: "preview", label: "Preview", icon: Eye },
+        { id: "builder", label: "Builder", icon: LayoutGrid },
         { id: "ai", label: "AI Builder", icon: Zap },
         { id: "pages", label: "Pages", icon: FileText },
         { id: "items", label: "Items", icon: ShoppingCart, requiresDatabase: true },
@@ -1019,8 +1024,8 @@ export default function SiteSettingsPage() {
           </div>
         </header>
 
-        <main className={cn("flex-1 relative", (activeTab === "ai" || activeTab === "preview") ? "p-0 overflow-hidden" : "overflow-y-auto overflow-x-hidden p-4 md:p-6 lg:p-8 custom-scrollbar")}>
-          <div className={cn("mx-auto", (activeTab === "ai" || activeTab === "preview") ? "h-full w-full max-w-none p-0 pb-0 space-y-0" : "max-w-6xl space-y-8 pb-[100px]")}>
+        <main className={cn("flex-1 relative", (activeTab === "ai" || activeTab === "builder") ? "p-0 overflow-hidden" : "overflow-y-auto overflow-x-hidden p-4 md:p-6 lg:p-8 custom-scrollbar")}>
+          <div className={cn("mx-auto", (activeTab === "ai" || activeTab === "builder") ? "h-full w-full max-w-none p-0 pb-0 space-y-0" : "max-w-6xl space-y-8 pb-[100px]")}>
 
             <AnimatePresence>
               {isSidebarOpen && (
@@ -1054,38 +1059,26 @@ export default function SiteSettingsPage() {
               )}
             </AnimatePresence>
 
-            {/* TAB CONTENT: PREVIEW */}
-            {activeTab === "preview" && (
+            {/* TAB CONTENT: DRAG-AND-DROP BUILDER */}
+            {activeTab === "builder" && (
               <div className="h-full w-full flex flex-col">
-                {(previewUrl || generatedPages?.some(p => p.name === 'index.html')) ? (
-                  <SitePreviewDashboard
-                    url={previewUrl || ""}
-                    siteName={project?.businessName}
-                    isLive={!!previewUrl}
-                    fallbackHtml={!previewUrl ? generatedPages?.find(p => p.name === 'index.html')?.code : undefined}
-                    className="flex-1 h-full"
-                  />
-                ) : (
-                  <div className="flex flex-col items-center justify-center flex-1 gap-4 text-center px-6"
-                    style={{ background: "#1a1a1c" }}
-                  >
-                    <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: "#252527" }}>
-                      <Globe className="h-7 w-7 text-zinc-500" />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-base font-semibold text-zinc-200">No deployment yet</p>
-                      <p className="text-sm text-zinc-500 max-w-xs">Deploy your site first to see a live preview here.</p>
-                    </div>
-                    <Button
-                      size="sm"
-                      className="mt-2 font-semibold"
-                      onClick={() => setActiveTab("styles")}
-                    >
-                      <Rocket className="h-4 w-4 mr-2" />
-                      Go to Overview
-                    </Button>
-                  </div>
-                )}
+                <DragDropEditor
+                  projectId={id}
+                  initialElements={builderElements}
+                  onSave={async (code, elements) => {
+                    setBuilderElements(elements)
+                    if (!id) return
+                    const res = await fetch(`/api/projects/${id}`, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ builderCode: code, builderElements: elements }),
+                    })
+                    if (!res.ok) {
+                      const err = await res.text().catch(() => "Unknown error")
+                      throw new Error(err || `Save failed with status ${res.status}`)
+                    }
+                  }}
+                />
               </div>
             )}
 
