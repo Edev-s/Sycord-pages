@@ -47,6 +47,7 @@ import {
   Code,
   Lock,
   Database,
+  Upload,
 } from "lucide-react"
 import { currencySymbols } from "@/lib/webshop-types"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -1092,163 +1093,261 @@ export default function SiteSettingsPage() {
             {/* TAB CONTENT: STYLES / OVERVIEW */}
             {activeTab === "styles" && (() => {
               return (
-                <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
 
                     {/* ══════════════════════════════════════════════════════════════
-                        PRIMARY PREVIEW CARD (4:3) - matches photo exactly
+                        TOP ROW: System Status + Live Site Preview
                        ══════════════════════════════════════════════════════════════ */}
-                    <div
-                      className="relative w-full overflow-hidden rounded-[20px]"
-                      style={{ background: "#252527", aspectRatio: "4/3", border: "1px solid rgba(255,255,255,0.08)" }}
-                    >
-                      {/* Live iframe preview */}
-                      {previewUrl ? (
-                        <iframe
-                          src={previewUrl}
-                          title={`Preview of ${displayUrl}`}
-                          className="absolute inset-0 w-[1440px] h-[1080px] border-0 origin-top-left pointer-events-none select-none"
-                          style={{ transform: "scale(0.28)" }}
-                          sandbox="allow-same-origin allow-scripts allow-forms"
-                          tabIndex={-1}
-                        />
-                      ) : (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-                          <div
-                            className="w-14 h-14 rounded-2xl flex items-center justify-center"
-                            style={{ background: "#2e2e30" }}
-                          >
-                            <Globe className="h-6 w-6 text-zinc-500" />
-                          </div>
-                          <p className="text-sm font-semibold text-zinc-300">No deployment yet</p>
-                          <p className="text-xs text-zinc-600 max-w-[200px] text-center">Deploy your site to see a live preview</p>
-                        </div>
-                      )}
-
-                      {/* Vignette overlay */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      {/* System Status Card */}
                       <div
-                        aria-hidden="true"
-                        className="absolute inset-0 pointer-events-none"
-                        style={{ background: "linear-gradient(to bottom, transparent 50%, rgba(28,28,30,0.7) 100%)" }}
-                      />
-
-                      {/* "Your site is now live!" banner */}
-                      {previewUrl && (
-                        <div
-                          className="absolute bottom-0 left-0"
-                          style={{ zIndex: 10 }}
-                        >
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "6px",
-                              padding: "10px 16px",
-                              borderTopRightRadius: "18px",
-                              background: "#22a846",
-                            }}
-                          >
-                            <CheckCircle2
-                              aria-hidden="true"
-                              style={{ width: "13px", height: "13px", color: "rgba(255,255,255,0.85)", flexShrink: 0 }}
+                        className="rounded-2xl p-6 flex flex-col justify-between"
+                        style={{ background: "#252527", border: "1px solid rgba(255,255,255,0.08)" }}
+                      >
+                        <div>
+                          <div className="flex items-center gap-2 mb-4">
+                            <span
+                              className="w-2 h-2 rounded-full"
+                              style={{ background: previewUrl ? "#a0a0a0" : "#555" }}
                             />
-                            <span style={{ fontSize: "12.5px", fontWeight: 700, color: "#ffffff", lineHeight: 1.2, whiteSpace: "nowrap" }}>
-                              Your site is now live!
+                            <span className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
+                              System Status
                             </span>
                           </div>
+                          <h2 className="text-2xl font-bold text-zinc-100 mb-2">
+                            {previewUrl ? "Site is Live" : "Not Deployed"}
+                          </h2>
+                          <p className="text-sm text-zinc-500">
+                            {previewUrl
+                              ? "Your site is globally available and performing optimally."
+                              : "Deploy your site to make it available to the world."}
+                          </p>
                         </div>
-                      )}
-                    </div>
-
-                    {/* ══════════════════════════════════════════════════════════════
-                        DOMAIN ROW - icon square + domain + visit button
-                       ══════════════════════════════════════════════════════════════ */}
-                    <div className="flex items-center gap-3 px-1 py-1">
-                      {/* Favicon square */}
-                      <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                        style={{ background: "#2e2e30" }}
-                      >
-                        <Globe className="h-4 w-4 text-zinc-500" />
+                        <div className="flex items-center gap-6 mt-6">
+                          <div>
+                            <p className="text-xs text-zinc-500">Uptime</p>
+                            <p className="text-sm font-bold text-zinc-200">{previewUrl ? "99.98%" : "—"}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-zinc-500">Last Deploy</p>
+                            <p className="text-sm font-bold text-zinc-200">
+                              {project?.updatedAt
+                                ? new Date(project.updatedAt).toLocaleDateString()
+                                : "—"}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => previewUrl && window.open(previewUrl, "_blank")}
+                          disabled={!previewUrl}
+                          className="mt-5 flex items-center gap-2 h-10 px-5 rounded-lg text-sm font-semibold transition-opacity hover:opacity-85 active:opacity-70 disabled:opacity-40 disabled:cursor-not-allowed w-fit"
+                          style={{ background: "#3a3a3c", color: "#e4e4e7" }}
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                          Visit Site
+                        </button>
                       </div>
-                      {/* Domain */}
-                      <span className="flex-1 text-[14px] font-semibold text-zinc-100 truncate min-w-0">
-                        {displayUrl || "Not deployed"}
-                      </span>
-                      {/* Visit button */}
-                      <button
-                        onClick={() => previewUrl && window.open(previewUrl, "_blank")}
-                        disabled={!previewUrl}
-                        className="h-9 px-5 rounded-full text-[12px] font-semibold text-white shrink-0 transition-opacity hover:opacity-85 active:opacity-70 disabled:opacity-40 disabled:cursor-not-allowed"
-                        style={{ background: "#2e2e30" }}
+
+                      {/* Live Site Preview Card */}
+                      <div
+                        className="rounded-2xl overflow-hidden flex flex-col"
+                        style={{ background: "#252527", border: "1px solid rgba(255,255,255,0.08)" }}
                       >
-                        Visit Site
-                      </button>
+                        <div className="p-5 pb-3">
+                          <h3 className="text-base font-bold text-zinc-100">Live Site Preview</h3>
+                          <p className="text-xs text-zinc-500 mt-1 truncate">{displayUrl || "No deployment yet"}</p>
+                          {previewUrl && (
+                            <div className="flex items-center gap-2 mt-2.5">
+                              <span className="text-[11px] text-zinc-400 px-2 py-0.5 rounded-full" style={{ background: "#2e2e30" }}>SSL Active</span>
+                              <span className="text-[11px] text-zinc-400 px-2 py-0.5 rounded-full" style={{ background: "#2e2e30" }}>Edge Caching</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="relative flex-1 min-h-[180px]" style={{ background: "#1e1e20" }}>
+                          {previewUrl ? (
+                            <iframe
+                              src={previewUrl}
+                              title={`Preview of ${displayUrl}`}
+                              className="absolute inset-0 w-[1440px] h-[900px] border-0 origin-top-left pointer-events-none select-none"
+                              style={{ transform: "scale(0.28)" }}
+                              sandbox="allow-same-origin allow-scripts allow-forms"
+                              tabIndex={-1}
+                            />
+                          ) : (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                              <div
+                                className="w-12 h-12 rounded-2xl flex items-center justify-center"
+                                style={{ background: "#2e2e30" }}
+                              >
+                                <Globe className="h-5 w-5 text-zinc-500" />
+                              </div>
+                              <p className="text-xs text-zinc-600">Deploy to see a preview</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
 
                     {/* ══════════════════════════════════════════════════════════════
-                        QUICK ACTION BUTTONS
+                        QUICK ACTIONS
                        ══════════════════════════════════════════════════════════════ */}
-                    <div className="grid grid-cols-2 gap-2.5">
-                      <button
-                        onClick={() => setActiveTab("ai")}
-                        className="flex items-center gap-2.5 px-3.5 py-3 rounded-xl text-left transition-all hover:scale-[1.02] active:scale-[0.98]"
+                    <div>
+                      <div className="mb-3">
+                        <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">Management</p>
+                        <h3 className="text-lg font-bold text-zinc-100">Quick Actions</h3>
+                      </div>
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                        <button
+                          onClick={() => setActiveTab("pages")}
+                          className="rounded-2xl p-5 text-left transition-all hover:scale-[1.02] active:scale-[0.98]"
+                          style={{ background: "#252527", border: "1px solid rgba(255,255,255,0.08)" }}
+                        >
+                          <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4" style={{ background: "#2e2e30" }}>
+                            <FileText className="h-5 w-5 text-zinc-400" />
+                          </div>
+                          <p className="text-sm font-bold text-zinc-200">Edit Pages</p>
+                          <p className="text-xs text-zinc-500 mt-1">Update content, layouts, and site structure in the editor.</p>
+                        </button>
+                        <button
+                          onClick={() => databaseConnected && setActiveTab("items")}
+                          disabled={!databaseConnected}
+                          title={!databaseConnected ? "Connect a database to unlock" : undefined}
+                          className={cn(
+                            "rounded-2xl p-5 text-left transition-all",
+                            databaseConnected
+                              ? "hover:scale-[1.02] active:scale-[0.98]"
+                              : "opacity-50 cursor-not-allowed"
+                          )}
+                          style={{ background: "#252527", border: "1px solid rgba(255,255,255,0.08)" }}
+                        >
+                          <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4" style={{ background: "#2e2e30" }}>
+                            <Database className="h-5 w-5 text-zinc-400" />
+                          </div>
+                          <p className="text-sm font-bold text-zinc-200">Manage Data</p>
+                          <p className="text-xs text-zinc-500 mt-1">View and edit your collections, products, and user data.</p>
+                          {!databaseConnected && <Lock className="h-3 w-3 text-zinc-600 mt-2" />}
+                        </button>
+                        <button
+                          onClick={() => setActiveTab("analytics")}
+                          className="rounded-2xl p-5 text-left transition-all hover:scale-[1.02] active:scale-[0.98]"
+                          style={{ background: "#252527", border: "1px solid rgba(255,255,255,0.08)" }}
+                        >
+                          <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4" style={{ background: "#2e2e30" }}>
+                            <BarChart3 className="h-5 w-5 text-zinc-400" />
+                          </div>
+                          <p className="text-sm font-bold text-zinc-200">Analytics</p>
+                          <p className="text-xs text-zinc-500 mt-1">Track visitors, conversion rates, and traffic sources.</p>
+                        </button>
+                        <button
+                          onClick={() => databaseConnected && setActiveTab("payments")}
+                          disabled={!databaseConnected}
+                          title={!databaseConnected ? "Connect a database to unlock" : undefined}
+                          className={cn(
+                            "rounded-2xl p-5 text-left transition-all",
+                            databaseConnected
+                              ? "hover:scale-[1.02] active:scale-[0.98]"
+                              : "opacity-50 cursor-not-allowed"
+                          )}
+                          style={{ background: "#252527", border: "1px solid rgba(255,255,255,0.08)" }}
+                        >
+                          <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4" style={{ background: "#2e2e30" }}>
+                            <CreditCard className="h-5 w-5 text-zinc-400" />
+                          </div>
+                          <p className="text-sm font-bold text-zinc-200">Payments</p>
+                          <p className="text-xs text-zinc-500 mt-1">Review transactions, invoices, and payout settings.</p>
+                          {!databaseConnected && <Lock className="h-3 w-3 text-zinc-600 mt-2" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* ══════════════════════════════════════════════════════════════
+                        BOTTOM ROW: Recent Activity + Monthly Performance
+                       ══════════════════════════════════════════════════════════════ */}
+                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+                      {/* Recent Activity */}
+                      <div className="lg:col-span-3 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-lg font-bold text-zinc-100">Recent Activity</h3>
+                          <button
+                            onClick={() => setActiveTab("orders")}
+                            className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+                          >
+                            View All Logs
+                          </button>
+                        </div>
+                        <div className="space-y-2">
+                          {/* Activity items from logs or placeholder */}
+                          {previewUrl ? (
+                            <>
+                              <div
+                                className="flex items-center gap-4 rounded-xl px-4 py-3.5 transition-colors hover:bg-white/[0.02]"
+                                style={{ background: "#252527", border: "1px solid rgba(255,255,255,0.08)" }}
+                              >
+                                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "#2e2e30" }}>
+                                  <Upload className="h-4 w-4 text-zinc-400" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-semibold text-zinc-200">New deployment successful</p>
+                                  <p className="text-xs text-zinc-500">
+                                    Deployed &bull; {project?.updatedAt
+                                      ? new Date(project.updatedAt).toLocaleDateString()
+                                      : "recently"}
+                                  </p>
+                                </div>
+                                <ChevronRight className="h-4 w-4 text-zinc-600 shrink-0" />
+                              </div>
+                              {generatedPages.length > 0 && (
+                                <div
+                                  className="flex items-center gap-4 rounded-xl px-4 py-3.5 transition-colors hover:bg-white/[0.02]"
+                                  style={{ background: "#252527", border: "1px solid rgba(255,255,255,0.08)" }}
+                                >
+                                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "#2e2e30" }}>
+                                    <FileText className="h-4 w-4 text-zinc-400" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-semibold text-zinc-200">Pages updated</p>
+                                    <p className="text-xs text-zinc-500">{generatedPages.length} file{generatedPages.length !== 1 ? "s" : ""} in project</p>
+                                  </div>
+                                  <ChevronRight className="h-4 w-4 text-zinc-600 shrink-0" />
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <div
+                              className="flex items-center justify-center rounded-xl px-4 py-8"
+                              style={{ background: "#252527", border: "1px solid rgba(255,255,255,0.08)" }}
+                            >
+                              <p className="text-sm text-zinc-500">No activity yet. Deploy your site to get started.</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Monthly Performance */}
+                      <div
+                        className="lg:col-span-2 rounded-2xl p-5"
                         style={{ background: "#252527", border: "1px solid rgba(255,255,255,0.08)" }}
                       >
-                        <Sparkles className="h-4 w-4 text-zinc-400 shrink-0" />
-                        <div>
-                          <p className="text-[12px] font-semibold text-zinc-200">AI Redesign</p>
-                          <p className="text-[10px] text-zinc-500">Regenerate with AI</p>
+                        <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-3">Monthly Performance</p>
+                        <div className="flex items-baseline gap-2 mb-1">
+                          <span className="text-3xl font-bold text-zinc-100">{previewUrl ? "—" : "—"}</span>
+                          <span className="text-xs text-zinc-500">visitors</span>
                         </div>
-                      </button>
-                      <button
-                        onClick={() => setActiveTab("pages")}
-                        className="flex items-center gap-2.5 px-3.5 py-3 rounded-xl text-left transition-all hover:scale-[1.02] active:scale-[0.98]"
-                        style={{ background: "#252527", border: "1px solid rgba(255,255,255,0.08)" }}
-                      >
-                        <FileText className="h-4 w-4 text-zinc-400 shrink-0" />
-                        <div>
-                          <p className="text-[12px] font-semibold text-zinc-200">Edit Pages</p>
-                          <p className="text-[10px] text-zinc-500">Manage content</p>
+                        <p className="text-xs text-zinc-500 mb-5">Total unique visitors this billing cycle</p>
+                        {/* Placeholder bar chart */}
+                        <div className="flex items-end gap-1.5 h-20">
+                          {[35, 45, 30, 55, 40, 65, 80, 50, 70, 60, 45, 90].map((h, i) => (
+                            <div
+                              key={i}
+                              className="flex-1 rounded-sm transition-all"
+                              style={{
+                                height: `${h}%`,
+                                background: i >= 10 ? "#555" : "#3a3a3c",
+                              }}
+                            />
+                          ))}
                         </div>
-                      </button>
-                      <button
-                        onClick={() => databaseConnected && setActiveTab("items")}
-                        disabled={!databaseConnected}
-                        title={!databaseConnected ? "Connect a database to unlock" : undefined}
-                        className={cn(
-                          "flex items-center gap-2.5 px-3.5 py-3 rounded-xl text-left transition-all",
-                          databaseConnected
-                            ? "hover:scale-[1.02] active:scale-[0.98]"
-                            : "opacity-50 cursor-not-allowed"
-                        )}
-                        style={{ background: "#252527", border: "1px solid rgba(255,255,255,0.08)" }}
-                      >
-                        <ShoppingCart className="h-4 w-4 text-zinc-400 shrink-0" />
-                        <div className="flex-1">
-                          <p className="text-[12px] font-semibold text-zinc-200">Items</p>
-                          <p className="text-[10px] text-zinc-500">Add or edit items</p>
-                        </div>
-                        {!databaseConnected && <Lock className="h-3 w-3 text-zinc-600 shrink-0" />}
-                      </button>
-                      <button
-                        onClick={() => databaseConnected && setActiveTab("payments")}
-                        disabled={!databaseConnected}
-                        title={!databaseConnected ? "Connect a database to unlock" : undefined}
-                        className={cn(
-                          "flex items-center gap-2.5 px-3.5 py-3 rounded-xl text-left transition-all",
-                          databaseConnected
-                            ? "hover:scale-[1.02] active:scale-[0.98]"
-                            : "opacity-50 cursor-not-allowed"
-                        )}
-                        style={{ background: "#252527", border: "1px solid rgba(255,255,255,0.08)" }}
-                      >
-                        <CreditCard className="h-4 w-4 text-zinc-400 shrink-0" />
-                        <div className="flex-1">
-                          <p className="text-[12px] font-semibold text-zinc-200">Payments</p>
-                          <p className="text-[10px] text-zinc-500">Configure billing</p>
-                        </div>
-                        {!databaseConnected && <Lock className="h-3 w-3 text-zinc-600 shrink-0" />}
-                      </button>
+                      </div>
                     </div>
 
                 </div>
