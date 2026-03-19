@@ -915,7 +915,7 @@ export default function SiteSettingsPage() {
       title: "Home",
       items: [
         { id: "styles", label: "Overview", icon: Layout },
-        { id: "preview", label: "Site Preview", icon: Eye },
+        { id: "preview", label: "Preview", icon: Eye },
         { id: "edit-styles", label: "Styles", icon: Paintbrush },
         { id: "ai", label: "AI Builder", icon: Zap },
         { id: "pages", label: "Pages", icon: FileText },
