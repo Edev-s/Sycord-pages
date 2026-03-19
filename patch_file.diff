@@ -1,0 +1,36 @@
+--- app/dashboard/sites/[id]/page.tsx
++++ app/dashboard/sites/[id]/page.tsx
+@@ -1098,6 +1098,24 @@
+                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                   <h2 className="text-2xl font-bold tracking-tight">Efficiency-Focused Dashboard</h2>
+
++                  {/* DOMAIN ROW - icon square + domain + visit button */}
++                  <div className="flex items-center gap-3 px-1 py-1">
++                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-[#2e2e30]">
++                      <Globe className="h-4 w-4 text-zinc-500" />
++                    </div>
++                    <span className="flex-1 text-[14px] font-semibold text-zinc-100 truncate min-w-0">
++                      {displayUrl || "Not deployed"}
++                    </span>
++                    <button
++                      onClick={() => previewUrl && window.open(previewUrl, "_blank")}
++                      disabled={!previewUrl}
++                      className="h-9 px-5 rounded-full text-[12px] font-semibold text-white shrink-0 transition-opacity hover:opacity-85 active:opacity-70 disabled:opacity-40 disabled:cursor-not-allowed bg-[#2e2e30]"
++                    >
++                      Visit Site
++                    </button>
++                  </div>
++
++
+                   {/* Top Preview Section */}
+                   <div className="relative w-full rounded-2xl overflow-hidden bg-[#0a3f29] min-h-[400px] md:min-h-[500px] flex items-center justify-center p-4 md:p-12">
+
+@@ -1108,7 +1126,8 @@
+                           src={previewUrl}
+                           title={`Preview of ${displayUrl}`}
+-                          className="absolute inset-0 w-full h-full border-0 pointer-events-none select-none"
++                          className="absolute inset-0 w-[1440px] h-[1080px] border-0 origin-top-left pointer-events-none select-none"
++                          style={{ transform: "scale(0.55)" }}
+                           sandbox="allow-same-origin allow-scripts allow-forms"
+                           tabIndex={-1}
+                         />
