@@ -11,10 +11,17 @@ import {
   RefreshCw,
   Copy,
   Check,
+  Pencil,
+  PanelTop,
+  Image,
+  ShoppingBag,
+  PanelBottom,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 type DeviceMode = "desktop" | "mobile"
+
+export type EditableSection = "header" | "hero" | "products" | "footer"
 
 export interface SitePreviewDashboardProps {
   fallbackHtml?: string;
@@ -28,6 +35,8 @@ export interface SitePreviewDashboardProps {
   onClose?: () => void
   /** Optional class names for the root wrapper */
   className?: string
+  /** Called when user clicks an edit-section suggestion overlay */
+  onEditSection?: (section: EditableSection) => void
 }
 
 export function SitePreviewDashboard({
@@ -37,6 +46,7 @@ export function SitePreviewDashboard({
   onClose,
   className,
   fallbackHtml,
+  onEditSection,
 }: SitePreviewDashboardProps) {
   const [deviceMode, setDeviceMode] = useState<DeviceMode>("desktop")
   const [frameLoading, setFrameLoading] = useState(true)
@@ -44,6 +54,7 @@ export function SitePreviewDashboard({
   const [refreshKey, setRefreshKey] = useState(0)
   const [copied, setCopied] = useState(false)
   const [iframeScale, setIframeScale] = useState(1)
+  const [editMode, setEditMode] = useState(false)
   const viewportRef = useRef<HTMLDivElement>(null)
 
   const fullUrl = url.startsWith("http") ? url : `https://${url}`
@@ -181,6 +192,24 @@ export function SitePreviewDashboard({
         >
           <ExternalLink className="h-3.5 w-3.5" />
         </a>
+
+        {/* Edit mode toggle */}
+        {onEditSection && (
+          <button
+            onClick={() => setEditMode((v) => !v)}
+            aria-label={editMode ? "Exit edit mode" : "Edit sections"}
+            className={cn(
+              "h-8 px-3 rounded-lg flex items-center justify-center gap-1.5 text-xs font-semibold transition-colors shrink-0",
+              editMode
+                ? "text-white"
+                : "text-zinc-500 hover:text-zinc-200"
+            )}
+            style={{ background: editMode ? "#22a846" : "#252527" }}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{editMode ? "Editing" : "Edit"}</span>
+          </button>
+        )}
       </div>
 
       {/* ── Live banner (shown only when site is live) ── */}
@@ -241,6 +270,68 @@ export function SitePreviewDashboard({
                 }}
                 sandbox="allow-scripts"
               />
+            )}
+
+            {/* ── Edit-mode overlay: section suggestion zones ── */}
+            {editMode && onEditSection && (
+              <div className="absolute inset-0 z-20 flex flex-col" style={{ pointerEvents: "none" }}>
+                {/* Header zone */}
+                <button
+                  onClick={() => { onEditSection("header"); setEditMode(false) }}
+                  className="group relative flex items-center justify-center transition-all hover:bg-white/10"
+                  style={{ height: "8%", minHeight: "40px", pointerEvents: "auto", borderBottom: "2px dashed rgba(34,168,70,0.4)" }}
+                >
+                  <span
+                    className="flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold opacity-70 group-hover:opacity-100 transition-opacity"
+                    style={{ background: "#22a846", color: "#fff" }}
+                  >
+                    <PanelTop className="h-3.5 w-3.5" />
+                    Edit Header
+                  </span>
+                </button>
+                {/* Hero zone */}
+                <button
+                  onClick={() => { onEditSection("hero"); setEditMode(false) }}
+                  className="group relative flex items-center justify-center transition-all hover:bg-white/10"
+                  style={{ height: "30%", pointerEvents: "auto", borderBottom: "2px dashed rgba(34,168,70,0.4)" }}
+                >
+                  <span
+                    className="flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold opacity-70 group-hover:opacity-100 transition-opacity"
+                    style={{ background: "#22a846", color: "#fff" }}
+                  >
+                    <Image className="h-3.5 w-3.5" />
+                    Edit Hero Section
+                  </span>
+                </button>
+                {/* Products zone */}
+                <button
+                  onClick={() => { onEditSection("products"); setEditMode(false) }}
+                  className="group relative flex items-center justify-center transition-all hover:bg-white/10"
+                  style={{ flex: 1, pointerEvents: "auto", borderBottom: "2px dashed rgba(34,168,70,0.4)" }}
+                >
+                  <span
+                    className="flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold opacity-70 group-hover:opacity-100 transition-opacity"
+                    style={{ background: "#22a846", color: "#fff" }}
+                  >
+                    <ShoppingBag className="h-3.5 w-3.5" />
+                    Edit Products
+                  </span>
+                </button>
+                {/* Footer zone */}
+                <button
+                  onClick={() => { onEditSection("footer"); setEditMode(false) }}
+                  className="group relative flex items-center justify-center transition-all hover:bg-white/10"
+                  style={{ height: "10%", minHeight: "40px", pointerEvents: "auto" }}
+                >
+                  <span
+                    className="flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold opacity-70 group-hover:opacity-100 transition-opacity"
+                    style={{ background: "#22a846", color: "#fff" }}
+                  >
+                    <PanelBottom className="h-3.5 w-3.5" />
+                    Edit Footer
+                  </span>
+                </button>
+              </div>
             )}
           </div>
         ) : (
