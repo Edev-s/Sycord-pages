@@ -48,6 +48,12 @@ import {
   Lock,
   Database,
   Upload,
+  Paintbrush,
+  PanelTop,
+  Image,
+  ShoppingBag,
+  PanelBottom,
+  Check,
 } from "lucide-react"
 import { currencySymbols } from "@/lib/webshop-types"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -62,7 +68,7 @@ import {
 import { useSession, signOut } from "next-auth/react"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
-import { SitePreviewDashboard } from "@/components/site-preview-dashboard"
+import { SitePreviewDashboard, type EditableSection } from "@/components/site-preview-dashboard"
 
 const headerComponents = {
   simple: { name: "Simple", description: "A clean, minimalist header" },
@@ -410,11 +416,12 @@ export default function SiteSettingsPage() {
   const [productError, setProductError] = useState<string | null>(null)
 
   const [activeTab, setActiveTab] = useState<
-    "styles" | "preview" | "items" | "payments" | "ai" | "pages" | "orders" | "customers" | "analytics" | "discount"
+    "styles" | "preview" | "items" | "payments" | "ai" | "pages" | "orders" | "customers" | "analytics" | "discount" | "edit-styles"
   >("styles")
   const [selectedStyle, setSelectedStyle] = useState<string | null>(null)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop")
+  const [editingSection, setEditingSection] = useState<EditableSection>("header")
   const { data: session } = useSession()
 
   // Renamed to match the button name and be consistent
@@ -908,7 +915,8 @@ export default function SiteSettingsPage() {
       title: "Home",
       items: [
         { id: "styles", label: "Overview", icon: Layout },
-        { id: "preview", label: "Preview", icon: Eye },
+        { id: "preview", label: "Site Preview", icon: Eye },
+        { id: "edit-styles", label: "Styles", icon: Paintbrush },
         { id: "ai", label: "AI Builder", icon: Zap },
         { id: "pages", label: "Pages", icon: FileText },
         { id: "items", label: "Items", icon: ShoppingCart, requiresDatabase: true },
@@ -1065,6 +1073,10 @@ export default function SiteSettingsPage() {
                     isLive={!!previewUrl}
                     fallbackHtml={!previewUrl ? generatedPages?.find(p => p.name === 'index.html')?.code : undefined}
                     className="flex-1 h-full"
+                    onEditSection={(section) => {
+                      setEditingSection(section)
+                      setActiveTab("edit-styles")
+                    }}
                   />
                 ) : (
                   <div className="flex flex-col items-center justify-center flex-1 gap-4 text-center px-6"
@@ -1353,6 +1365,186 @@ export default function SiteSettingsPage() {
                 </div>
               )
             })()}
+
+            {/* TAB CONTENT: EDIT STYLES */}
+            {activeTab === "edit-styles" && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                {/* Section picker tabs */}
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-2xl font-bold text-zinc-100">Styles</h2>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="bg-white/5 border-white/10 hover:bg-white/10"
+                      onClick={() => setActiveTab("preview")}
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      Back to Preview
+                    </Button>
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    {([
+                      { id: "header" as EditableSection, label: "Header", icon: PanelTop },
+                      { id: "hero" as EditableSection, label: "Hero Section", icon: Image },
+                      { id: "products" as EditableSection, label: "Products", icon: ShoppingBag },
+                      { id: "footer" as EditableSection, label: "Footer", icon: PanelBottom },
+                    ]).map((s) => {
+                      const SIcon = s.icon
+                      return (
+                        <button
+                          key={s.id}
+                          onClick={() => setEditingSection(s.id)}
+                          className={cn(
+                            "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                            editingSection === s.id
+                              ? "text-white shadow-sm"
+                              : "text-zinc-400 hover:text-zinc-200 hover:bg-white/5"
+                          )}
+                          style={editingSection === s.id ? { background: "#22a846" } : { background: "#252527", border: "1px solid rgba(255,255,255,0.08)" }}
+                        >
+                          <SIcon className="h-4 w-4" />
+                          {s.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Section editing content */}
+                {editingSection === "header" && (
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-lg font-bold text-zinc-100 mb-1">Header Style</h3>
+                      <p className="text-sm text-zinc-500">Choose a layout for your site header and navigation.</p>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {Object.entries(headerComponents).map(([key, comp]) => (
+                        <button
+                          key={key}
+                          onClick={() => handleComponentSelect("header", key)}
+                          className={cn(
+                            "rounded-xl p-4 text-left transition-all hover:scale-[1.02] active:scale-[0.98]",
+                            settings?.header === key ? "ring-2 ring-[#22a846]" : ""
+                          )}
+                          style={{ background: "#252527", border: "1px solid rgba(255,255,255,0.08)" }}
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "#2e2e30" }}>
+                              <PanelTop className="h-4 w-4 text-zinc-400" />
+                            </div>
+                            {settings?.header === key && (
+                              <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "#22a846" }}>
+                                <Check className="h-3 w-3 text-white" />
+                              </div>
+                            )}
+                          </div>
+                          <p className="text-sm font-semibold text-zinc-200">{comp.name}</p>
+                          <p className="text-xs text-zinc-500 mt-1">{comp.description}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {editingSection === "hero" && (
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-lg font-bold text-zinc-100 mb-1">Hero Section</h3>
+                      <p className="text-sm text-zinc-500">Select a hero style for the top of your page.</p>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {Object.entries(heroComponents).map(([key, comp]) => (
+                        <button
+                          key={key}
+                          onClick={() => handleComponentSelect("hero", key)}
+                          className={cn(
+                            "rounded-xl p-4 text-left transition-all hover:scale-[1.02] active:scale-[0.98]",
+                            settings?.hero === key ? "ring-2 ring-[#22a846]" : ""
+                          )}
+                          style={{ background: "#252527", border: "1px solid rgba(255,255,255,0.08)" }}
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "#2e2e30" }}>
+                              <Image className="h-4 w-4 text-zinc-400" />
+                            </div>
+                            {settings?.hero === key && (
+                              <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "#22a846" }}>
+                                <Check className="h-3 w-3 text-white" />
+                              </div>
+                            )}
+                          </div>
+                          <p className="text-sm font-semibold text-zinc-200">{comp.name}</p>
+                          <p className="text-xs text-zinc-500 mt-1">{comp.description}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {editingSection === "products" && (
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-lg font-bold text-zinc-100 mb-1">Product Display</h3>
+                      <p className="text-sm text-zinc-500">Choose how products are shown on your site.</p>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {Object.entries(productComponents).map(([key, comp]) => (
+                        <button
+                          key={key}
+                          onClick={() => handleComponentSelect("products", key)}
+                          className={cn(
+                            "rounded-xl p-4 text-left transition-all hover:scale-[1.02] active:scale-[0.98]",
+                            settings?.products === key ? "ring-2 ring-[#22a846]" : ""
+                          )}
+                          style={{ background: "#252527", border: "1px solid rgba(255,255,255,0.08)" }}
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "#2e2e30" }}>
+                              <ShoppingBag className="h-4 w-4 text-zinc-400" />
+                            </div>
+                            {settings?.products === key && (
+                              <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "#22a846" }}>
+                                <Check className="h-3 w-3 text-white" />
+                              </div>
+                            )}
+                          </div>
+                          <p className="text-sm font-semibold text-zinc-200">{comp.name}</p>
+                          <p className="text-xs text-zinc-500 mt-1">{comp.description}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {editingSection === "footer" && (
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-lg font-bold text-zinc-100 mb-1">Footer</h3>
+                      <p className="text-sm text-zinc-500">Footer style options are coming soon. Use the AI Builder to generate and customize your footer.</p>
+                    </div>
+                    <div
+                      className="flex flex-col items-center justify-center rounded-xl px-4 py-12"
+                      style={{ background: "#252527", border: "1px solid rgba(255,255,255,0.08)" }}
+                    >
+                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style={{ background: "#2e2e30" }}>
+                        <PanelBottom className="h-6 w-6 text-zinc-500" />
+                      </div>
+                      <p className="text-sm font-semibold text-zinc-300 mb-1">Coming Soon</p>
+                      <p className="text-xs text-zinc-500 max-w-xs text-center">Footer customization is on the way. For now, use the AI Builder to generate your footer.</p>
+                      <Button
+                        size="sm"
+                        className="mt-4 font-semibold"
+                        onClick={() => setActiveTab("ai")}
+                      >
+                        <Zap className="h-4 w-4 mr-2" />
+                        Go to AI Builder
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* TAB CONTENT: ITEMS */}
             {activeTab === "items" && (
