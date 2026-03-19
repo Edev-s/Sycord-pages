@@ -1330,11 +1330,11 @@ export default function SiteSettingsPage() {
                       >
                         <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-3">Monthly Performance</p>
                         <div className="flex items-baseline gap-2 mb-1">
-                          <span className="text-3xl font-bold text-zinc-100">{previewUrl ? "—" : "—"}</span>
+                          <span className="text-3xl font-bold text-zinc-100">—</span>
                           <span className="text-xs text-zinc-500">visitors</span>
                         </div>
                         <p className="text-xs text-zinc-500 mb-5">Total unique visitors this billing cycle</p>
-                        {/* Placeholder bar chart */}
+                        {/* Placeholder bar chart — static preview, replace with real metrics */}
                         <div className="flex items-end gap-1.5 h-20">
                           {[35, 45, 30, 55, 40, 65, 80, 50, 70, 60, 45, 90].map((h, i) => (
                             <div
@@ -1342,7 +1342,7 @@ export default function SiteSettingsPage() {
                               className="flex-1 rounded-sm transition-all"
                               style={{
                                 height: `${h}%`,
-                                background: i >= 10 ? "#555" : "#3a3a3c",
+                                background: "#3a3a3c",
                               }}
                             />
                           ))}
