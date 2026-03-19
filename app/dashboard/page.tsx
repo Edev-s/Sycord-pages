@@ -322,7 +322,7 @@ function DashboardContent() {
           </div>
 
           {isLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-6">
               {[1, 2, 3].map((i) => (
                 <div key={i} className="border border-border rounded-lg overflow-hidden flex flex-col h-[300px]">
                    <Skeleton className="h-full w-full" />
@@ -343,7 +343,7 @@ function DashboardContent() {
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-6">
               {projects.map((project: any) => (
                 <div
                   key={project._id}
