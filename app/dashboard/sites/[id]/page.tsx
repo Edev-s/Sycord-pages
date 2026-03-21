@@ -497,6 +497,7 @@ export default function SiteSettingsPage() {
   const [inviteEmail, setInviteEmail] = useState("")
   const [inviteSent, setInviteSent] = useState(false)
   const [inviteRole, setInviteRole] = useState<"Editor" | "Viewer">("Editor")
+  const isValidInviteEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail)
 
   // Renamed to match the button name and be consistent
   const saving = isSaving
@@ -1229,9 +1230,9 @@ export default function SiteSettingsPage() {
 
                       {/* Action button */}
                       <button
-                        disabled={!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail)}
+                        disabled={!isValidInviteEmail}
                         onClick={() => {
-                          if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail)) setInviteSent(true)
+                          if (isValidInviteEmail) setInviteSent(true)
                         }}
                         className="w-full py-3 rounded-full bg-[#3a3a3c] hover:bg-[#4a4a4c] disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm font-medium text-foreground"
                       >
