@@ -1172,6 +1172,8 @@ export default function SiteSettingsPage() {
                 exit={{ opacity: 0 }}
                 className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md"
                 onClick={() => { setIsManageAccessOpen(false); setInviteSent(false); setInviteEmail(""); setInviteRole("Editor") }}
+              />
+              {/* Dialog card */}
               <motion.div
                 initial={{ opacity: 0, scale: 0.96, y: 16 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
