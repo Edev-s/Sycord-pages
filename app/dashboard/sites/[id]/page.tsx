@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import AIWebsiteBuilder, { type GeneratedPage } from "@/components/ai-website-builder"
+import DragDropBuilder from "@/components/drag-drop-builder"
+import type { BuilderProject } from "@/lib/builder-store"
 import {
   Trash2,
   Plus,
@@ -479,7 +481,7 @@ export default function SiteSettingsPage() {
   const [productError, setProductError] = useState<string | null>(null)
 
   const [activeTab, setActiveTab] = useState<
-    "overview" | "pages" | "ai" | "settings" | "items" | "promotions" | "payments" | "customers" | "posts" | "segments"
+    "overview" | "pages" | "ai" | "settings" | "items" | "promotions" | "payments" | "customers" | "posts" | "segments" | "builder"
   >("overview")
   const [selectedStyle, setSelectedStyle] = useState<string | null>(null)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
@@ -539,6 +541,10 @@ export default function SiteSettingsPage() {
   
   // Selected page for preview in Pages tab
   const [selectedPage, setSelectedPage] = useState<GeneratedPage | null>(null)
+
+  // Visual Builder State
+  const [builderProject, setBuilderProject] = useState<BuilderProject | undefined>(undefined)
+  const [builderSaveSuccess, setBuilderSaveSuccess] = useState(false)
 
   // Deployment State
   const [isDeploying, setIsDeploying] = useState(false)
@@ -623,6 +629,10 @@ export default function SiteSettingsPage() {
                 })),
               )
             }
+            // Load visual builder state if present
+            if (data.builderState) {
+              setBuilderProject(data.builderState as BuilderProject)
+            }
             setProjectLoading(false)
           })
           .catch((err) => {
@@ -680,6 +690,18 @@ export default function SiteSettingsPage() {
   const handleStyleSelect = (style: string) => {
     console.log("[v0] Selected style:", style)
     setSelectedStyle(style)
+  }
+
+  const handleBuilderSave = async (bp: BuilderProject) => {
+    const res = await fetch(`/api/projects/${id}/builder-state`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ builderState: bp }),
+    })
+    if (res.ok) {
+      setBuilderSaveSuccess(true)
+      setTimeout(() => setBuilderSaveSuccess(false), 2000)
+    }
   }
 
   const handleComponentSelect = async (componentType: string, componentValue: string) => {
@@ -1002,6 +1024,7 @@ export default function SiteSettingsPage() {
       title: null,
       items: [
         { id: "overview", label: "Overview", icon: Layout },
+        { id: "builder", label: "Builder", icon: Layers },
         { id: "pages", label: "Pages", icon: FileText },
         { id: "ai", label: "Syra", icon: Zap },
         { id: "settings", label: "Settings", icon: Settings },
@@ -1247,8 +1270,8 @@ export default function SiteSettingsPage() {
         </AnimatePresence>
 
 
-        <main className={cn("flex-1 relative", activeTab === "ai" ? "p-0 overflow-hidden" : "overflow-y-auto overflow-x-hidden p-4 md:p-6 lg:p-8 custom-scrollbar")}>
-          <div className={cn("mx-auto", activeTab === "ai" ? "h-full w-full max-w-none p-0 pb-0 space-y-0" : "max-w-6xl space-y-8 pb-8")}>
+        <main className={cn("flex-1 relative", (activeTab === "ai" || activeTab === "builder") ? "p-0 overflow-hidden" : "overflow-y-auto overflow-x-hidden p-4 md:p-6 lg:p-8 custom-scrollbar")}>
+          <div className={cn("mx-auto", (activeTab === "ai" || activeTab === "builder") ? "h-full w-full max-w-none p-0 pb-0 space-y-0" : "max-w-6xl space-y-8 pb-8")}>
 
             {/* TAB CONTENT: OVERVIEW */}
             {activeTab === "overview" && (() => {
@@ -1536,6 +1559,35 @@ export default function SiteSettingsPage() {
                         setGeneratedPages={setGeneratedPages}
                         autoFixLogs={autoFixLogs}
                         onDatabaseConnected={() => setDatabaseConnected(true)}
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center h-full">
+                      <AlertCircle className="h-6 w-6 text-destructive mr-2" />
+                      <span className="text-destructive">Project ID error</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* TAB CONTENT: VISUAL BUILDER */}
+            {activeTab === "builder" && (
+              <div className="h-full w-full flex flex-col">
+                <div className="flex-1 overflow-hidden relative">
+                  {id ? (
+                    <div className="absolute inset-0 flex flex-col">
+                      {builderSaveSuccess && (
+                        <div className="absolute top-2 right-4 z-50 text-xs text-green-600 dark:text-green-400 font-medium bg-green-50 dark:bg-green-950/30 px-3 py-1.5 rounded-full shadow animate-in fade-in slide-in-from-top-2">
+                          ✓ Builder saved
+                        </div>
+                      )}
+                      <DragDropBuilder
+                        projectId={id}
+                        projectName={project?.businessName ?? "My Website"}
+                        initialProject={builderProject}
+                        onSave={handleBuilderSave}
+                        embedded={true}
                       />
                     </div>
                   ) : (

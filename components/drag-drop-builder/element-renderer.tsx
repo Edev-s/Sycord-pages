@@ -1,6 +1,6 @@
 "use client"
 
-import React from "react"
+import React, { useCallback } from "react"
 import { useBuilderStore, type BuilderElement } from "@/lib/builder-store"
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
@@ -32,7 +32,15 @@ function ElementContent({ element }: { element: BuilderElement }) {
 
     case "button":
       return (
-        <button style={element.style as React.CSSProperties} className="cursor-pointer">
+        <button
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            ...(element.style as React.CSSProperties),
+          }}
+          className="cursor-pointer transition-opacity hover:opacity-90 focus:outline-none"
+        >
           {element.props.text ?? "Button"}
         </button>
       )
@@ -43,12 +51,21 @@ function ElementContent({ element }: { element: BuilderElement }) {
         <img
           src={element.props.src ?? "/placeholder.svg"}
           alt={element.props.alt ?? "Image"}
-          style={{ width: "100%", height: "auto", ...(element.style as React.CSSProperties) }}
+          style={{ width: "100%", height: "auto", display: "block", ...(element.style as React.CSSProperties) }}
         />
       )
 
     case "divider":
-      return <hr style={element.style as React.CSSProperties} />
+      return (
+        <hr
+          style={{
+            border: "none",
+            borderTop: "1px solid #e5e7eb",
+            margin: "16px 0",
+            ...(element.style as React.CSSProperties),
+          }}
+        />
+      )
 
     case "spacer":
       return (
@@ -94,6 +111,8 @@ function ElementContent({ element }: { element: BuilderElement }) {
             padding: "8px 12px",
             border: "1px solid #d1d5db",
             borderRadius: "6px",
+            fontSize: "14px",
+            outline: "none",
             ...(element.style as React.CSSProperties),
           }}
           readOnly
@@ -110,11 +129,90 @@ function ElementContent({ element }: { element: BuilderElement }) {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            borderRadius: "8px",
+            overflow: "hidden",
             ...(element.style as React.CSSProperties),
           }}
         >
-          <span style={{ color: "#fff", fontSize: "14px" }}>▶ Video</span>
+          <span style={{ color: "#fff", fontSize: "14px", opacity: 0.7 }}>▶ Video</span>
         </div>
+      )
+
+    case "navbar":
+      return (
+        <nav
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "16px 24px",
+            backgroundColor: "#1f2937",
+            color: "#ffffff",
+            ...(element.style as React.CSSProperties),
+          }}
+        >
+          <span style={{ fontWeight: 700, fontSize: "18px" }}>{element.props.text ?? "Brand"}</span>
+          <div style={{ display: "flex", gap: "24px", fontSize: "14px" }}>
+            <span>Home</span>
+            <span>About</span>
+            <span>Contact</span>
+          </div>
+        </nav>
+      )
+
+    case "hero":
+      return (
+        <div
+          style={{
+            padding: "80px 24px",
+            backgroundColor: "#6366f1",
+            color: "#ffffff",
+            textAlign: "center",
+            minHeight: "300px",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            ...(element.style as React.CSSProperties),
+          }}
+        >
+          <h1 style={{ fontSize: "48px", fontWeight: 800, margin: "0 0 16px 0" }}>
+            {element.props.text ?? "Hero Title"}
+          </h1>
+          <p style={{ fontSize: "18px", opacity: 0.85, margin: "0 0 32px 0", maxWidth: "600px" }}>
+            Your compelling subtitle goes here.
+          </p>
+          <button
+            style={{
+              padding: "14px 32px",
+              backgroundColor: "#ffffff",
+              color: "#6366f1",
+              borderRadius: "8px",
+              fontWeight: 600,
+              border: "none",
+              fontSize: "16px",
+              cursor: "pointer",
+            }}
+          >
+            Get Started
+          </button>
+        </div>
+      )
+
+    case "footer":
+      return (
+        <footer
+          style={{
+            padding: "32px 24px",
+            backgroundColor: "#1f2937",
+            color: "#9ca3af",
+            textAlign: "center",
+            fontSize: "14px",
+            ...(element.style as React.CSSProperties),
+          }}
+        >
+          {element.props.text ?? "© 2025 Your Company. All rights reserved."}
+        </footer>
       )
 
     default:
@@ -123,7 +221,7 @@ function ElementContent({ element }: { element: BuilderElement }) {
 }
 
 export function ElementRenderer({ element, pageId, depth = 0 }: ElementRendererProps) {
-  const { selectedElementId, selectElement, deleteElement, hoveredElementId, hoverElement } =
+  const { selectedElementId, selectElement, deleteElement, hoveredElementId, hoverElement, updateElement } =
     useBuilderStore()
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -139,7 +237,7 @@ export function ElementRenderer({ element, pageId, depth = 0 }: ElementRendererP
   const isSelected = selectedElementId === element.id
   const isHovered = hoveredElementId === element.id
 
-  const isContainer = ["container", "section", "navbar", "hero", "card", "grid", "columns", "form", "footer"].includes(
+  const isContainer = ["container", "section", "card", "grid", "columns", "form"].includes(
     element.type,
   )
 
@@ -153,6 +251,34 @@ export function ElementRenderer({ element, pageId, depth = 0 }: ElementRendererP
     deleteElement(pageId, element.id)
   }
 
+  // Corner resize handler
+  const handleResizePointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      e.stopPropagation()
+      e.preventDefault()
+      const el = e.currentTarget.parentElement as HTMLElement
+      if (!el) return
+      const startX = e.clientX
+      const startY = e.clientY
+      const startW = el.offsetWidth
+      const startH = el.offsetHeight
+
+      const onMove = (me: PointerEvent) => {
+        const newW = Math.max(40, startW + me.clientX - startX)
+        const newH = Math.max(20, startH + me.clientY - startY)
+        updateElement(pageId, element.id, {
+          style: { width: `${newW}px`, height: `${newH}px` },
+        })
+      }
+      const onUp = () => {
+        document.removeEventListener("pointermove", onMove)
+        document.removeEventListener("pointerup", onUp)
+      }
+      document.addEventListener("pointermove", onMove)
+      document.addEventListener("pointerup", onUp)
+    },
+    [pageId, element.id, updateElement],
+  )
   return (
     <div
       ref={setNodeRef}
@@ -178,7 +304,7 @@ export function ElementRenderer({ element, pageId, depth = 0 }: ElementRendererP
             {...attributes}
             {...listeners}
             className="cursor-grab active:cursor-grabbing flex items-center"
-            title="Drag"
+            title="Drag to reorder"
           >
             <GripVertical className="h-3 w-3 mr-1" />
           </span>
@@ -217,6 +343,19 @@ export function ElementRenderer({ element, pageId, depth = 0 }: ElementRendererP
         </div>
       ) : (
         <ElementContent element={element} />
+      )}
+
+      {/* Corner resize handle — shown only when selected */}
+      {isSelected && (
+        <div
+          className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize z-50 flex items-end justify-end"
+          onPointerDown={handleResizePointerDown}
+          title="Resize"
+        >
+          <svg width="10" height="10" viewBox="0 0 10 10" className="text-indigo-500 fill-current">
+            <path d="M10 0 L10 10 L0 10 Z" />
+          </svg>
+        </div>
       )}
     </div>
   )
