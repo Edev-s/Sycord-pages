@@ -317,17 +317,16 @@ const PLAN_CREDITS: Record<string, number> = {
   "Sycord+": 5,
   Sycord: 2,
 }
+const DEFAULT_PLAN_CREDIT = 2
+
+const PLAN_LABELS: Record<string, string> = {
+  "Sycord Enterprise": "Enterprise",
+  "Sycord+": "Sycord+",
+  Sycord: "Sycord",
+}
 
 const getPlanLabel = (subscription: string) =>
-  subscription === "Sycord Enterprise" ? "Enterprise" :
-  subscription === "Sycord+" ? "Sycord+" : "Sycord"
-
-const getPlanColor = (subscription: string) =>
-  subscription === "Sycord Enterprise"
-    ? "bg-yellow-500/20 text-yellow-400"
-    : subscription === "Sycord+"
-    ? "bg-purple-500/20 text-purple-400"
-    : "bg-zinc-500/20 text-zinc-400"
+  PLAN_LABELS[subscription] ?? "Sycord"
 
 // Extract SidebarContent to a separate component to avoid re-renders
 const SidebarContent = ({
@@ -347,7 +346,6 @@ const SidebarContent = ({
   const WebsiteIcon = getWebsiteIcon()
 
   const planLabel = getPlanLabel(subscription)
-  const planColor = getPlanColor(subscription)
 
   return (
     <div className="flex flex-col h-full p-4">
@@ -358,7 +356,7 @@ const SidebarContent = ({
         <span className="font-bold text-lg truncate">{project?.businessName || "Site Settings"}</span>
       </div>
 
-      <nav className="flex-1 space-y-6 overflow-y-auto pr-2 custom-scrollbar">
+      <nav className="flex-1 space-y-6 overflow-y-auto custom-scrollbar">
         {navGroups.map((group: any) => (
           <div key={group.title}>
             {group.title && (
@@ -382,7 +380,7 @@ const SidebarContent = ({
                     disabled={isLocked}
                     title={isLocked ? "Connect a database to unlock this feature" : undefined}
                     className={cn(
-                      "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group text-sm font-medium",
+                      "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 text-sm font-medium text-left",
                       isActive
                         ? "bg-primary text-primary-foreground shadow-sm"
                         : isLocked
@@ -391,7 +389,7 @@ const SidebarContent = ({
                     )}
                   >
                     <Icon className="h-4 w-4 flex-shrink-0" />
-                    <span className="truncate flex-1">{item.label}</span>
+                    <span className="truncate flex-1 text-left">{item.label}</span>
                     {isLocked && <Lock className="h-3 w-3 shrink-0 opacity-50" />}
                   </button>
                 )
@@ -411,7 +409,7 @@ const SidebarContent = ({
           <span className="flex-1 text-xs font-medium truncate text-foreground">
             {session?.user?.name || "User"}
           </span>
-          <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0", planColor)}>
+          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 bg-white/10 text-foreground">
             {planLabel}
           </span>
         </div>
@@ -429,15 +427,6 @@ const SidebarContent = ({
             <div className="h-full rounded-full bg-primary" style={{ width: "100%" }} />
           </div>
         </div>
-
-        <Button
-          variant="ghost"
-          className="w-full justify-start text-muted-foreground hover:text-foreground hover:bg-white/5 gap-3 px-3"
-          onClick={() => router.push("/dashboard")}
-        >
-          <ArrowLeft className="h-5 w-5" />
-          <span className="font-medium text-sm">Back to Dashboard</span>
-        </Button>
       </div>
     </div>
   )
@@ -656,7 +645,7 @@ export default function SiteSettingsPage() {
       .then((data) => {
         if (data.subscription) setSubscription(data.subscription)
       })
-      .catch(() => { console.warn("[Sycord] Failed to fetch user status; defaulting to Sycord plan.") })
+      .catch(() => { console.warn("[Sycord] Could not fetch user status from /api/user/status; defaulting to free Sycord plan credits.") })
   }, [])
 
   const handleStyleSelect = (style: string) => {
@@ -1015,7 +1004,7 @@ export default function SiteSettingsPage() {
       : []),
   ]
 
-  const planCredit = PLAN_CREDITS[subscription] ?? PLAN_CREDITS["Sycord"]
+  const planCredit = PLAN_CREDITS[subscription] ?? DEFAULT_PLAN_CREDIT
 
   const userInitials = session?.user?.name?.split(" ").map((n) => n[0]).join("").toUpperCase() || "U"
   const previewUrl = project?.cloudflareUrl || null
@@ -1050,8 +1039,13 @@ export default function SiteSettingsPage() {
         {/* Header */}
         <header className={cn("border-b border-white/10 bg-background/50 backdrop-blur-sm z-20 shrink-0")}>
           <div className="flex items-center justify-between h-14 px-4 md:px-6">
-            {/* Mobile: site name */}
-            <span className="font-semibold text-base truncate max-w-[160px] md:hidden">{project?.businessName}</span>
+            {/* Mobile: hamburger + site name */}
+            <div className="flex items-center gap-2 md:hidden">
+              <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(true)} className="-ml-2">
+                <Menu className="h-5 w-5" />
+              </Button>
+              <span className="font-semibold text-base truncate max-w-[140px]">{project?.businessName}</span>
+            </div>
 
             {/* Desktop: breadcrumb */}
             <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
@@ -1137,47 +1131,9 @@ export default function SiteSettingsPage() {
           )}
         </AnimatePresence>
 
-        {/* Mobile bottom tab bar */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 border-t border-white/10 bg-background/95 backdrop-blur-xl safe-area-pb">
-          <div className="flex overflow-x-auto scrollbar-none">
-            {/* Base tabs always shown */}
-            {[
-              { id: "overview", label: "Overview", icon: Layout },
-              { id: "pages", label: "Pages", icon: FileText },
-              { id: "ai", label: "Syra", icon: Zap },
-              { id: "settings", label: "Settings", icon: Settings },
-            ].map((tab) => {
-              const Icon = tab.icon
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={cn(
-                    "flex flex-col items-center gap-0.5 px-3 py-2.5 min-w-[60px] flex-1 flex-shrink-0 transition-colors",
-                    activeTab === tab.id ? "text-primary" : "text-muted-foreground"
-                  )}
-                >
-                  <Icon className="h-5 w-5" />
-                  <span className="text-[10px] font-medium leading-tight">{tab.label}</span>
-                </button>
-              )
-            })}
-            {/* "More" button to open sidebar for shop/blog tabs */}
-            {(siteType === "shop" || databaseConnected || siteType === "blog") && (
-              <button
-                onClick={() => setIsSidebarOpen(true)}
-                className="flex flex-col items-center gap-0.5 px-3 py-2.5 min-w-[60px] flex-shrink-0 text-muted-foreground"
-              >
-                <Menu className="h-5 w-5" />
-                <span className="text-[10px] font-medium leading-tight">More</span>
-              </button>
-            )}
-          </div>
-        </nav>
 
         <main className={cn("flex-1 relative", activeTab === "ai" ? "p-0 overflow-hidden" : "overflow-y-auto overflow-x-hidden p-4 md:p-6 lg:p-8 custom-scrollbar")}>
-          {/* pb-[120px] on mobile = bottom tab bar height (≈56px) + extra breathing room */}
-          <div className={cn("mx-auto", activeTab === "ai" ? "h-full w-full max-w-none p-0 pb-0 space-y-0" : "max-w-6xl space-y-8 pb-[120px] md:pb-8")}>
+          <div className={cn("mx-auto", activeTab === "ai" ? "h-full w-full max-w-none p-0 pb-0 space-y-0" : "max-w-6xl space-y-8 pb-8")}>
 
             {/* TAB CONTENT: OVERVIEW */}
             {activeTab === "overview" && (() => {
