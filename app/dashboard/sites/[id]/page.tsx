@@ -54,6 +54,7 @@ import {
   Wallet,
   BadgeCheck,
   Coins,
+  PenTool,
 } from "lucide-react"
 import { currencySymbols } from "@/lib/webshop-types"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -375,6 +376,11 @@ const SidebarContent = ({
                     key={item.id}
                     onClick={() => {
                       if (isLocked) return
+                      if (item.id === "editor") {
+                        router.push(`/dashboard/editor/${project?._id}`)
+                        setIsSidebarOpen(false)
+                        return
+                      }
                       setActiveTab(item.id)
                       setIsSidebarOpen(false)
                     }}
@@ -1002,6 +1008,7 @@ export default function SiteSettingsPage() {
       title: null,
       items: [
         { id: "overview", label: "Overview", icon: Layout },
+        { id: "editor", label: "Editor", icon: PenTool },
         { id: "pages", label: "Pages", icon: FileText },
         { id: "ai", label: "Syra", icon: Zap },
         { id: "settings", label: "Settings", icon: Settings },
