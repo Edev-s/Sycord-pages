@@ -375,7 +375,13 @@ export default function EditorPage() {
       <header className="flex items-center justify-between px-4 py-2.5 bg-[#1a1a1a] border-b border-white/10 z-50">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => isMobile ? setShowMobileMenu(!showMobileMenu) : router.push(`/dashboard/sites/${projectId}`)}
+            onClick={() => {
+              if (isMobile) {
+                setShowMobileMenu(!showMobileMenu)
+              } else {
+                router.push(`/dashboard/sites/${projectId}`)
+              }
+            }}
             className="p-1.5 text-white/60 hover:text-white rounded-lg hover:bg-white/5"
           >
             {isMobile ? <Menu className="size-5" /> : <ArrowLeft className="size-5" />}

@@ -18,6 +18,11 @@ function styleToCSS(style: Record<string, string | undefined>): string {
     .join("; ")
 }
 
+function getPageHref(page: EditorPage | undefined): string {
+  if (!page) return "#"
+  return page.slug === "index" ? "/" : `/${page.slug}.html`
+}
+
 function renderElement(el: EditorElement, pages: EditorPage[]): string {
   const style = styleToCSS(el.style as Record<string, string | undefined>)
 
@@ -29,10 +34,9 @@ function renderElement(el: EditorElement, pages: EditorPage[]): string {
     case "text":
       return `<p style="${style}">${escapeHtml(el.content)}</p>`
     case "button": {
-      const linkTo = el.linkTo
-      const page = linkTo ? pages.find((p) => p.id === linkTo) : null
-      const href = page ? `/${page.slug === "index" ? "" : page.slug + ".html"}` : "#"
-      if (linkTo && page) {
+      const linkedPage = el.linkTo ? pages.find((p) => p.id === el.linkTo) : undefined
+      const href = getPageHref(linkedPage)
+      if (linkedPage) {
         return `<a href="${href}" style="text-decoration: none;"><button style="${style}; cursor: pointer;">${escapeHtml(el.content)}</button></a>`
       }
       return `<button style="${style}; cursor: pointer;">${escapeHtml(el.content)}</button>`
@@ -79,7 +83,7 @@ function renderElement(el: EditorElement, pages: EditorPage[]): string {
       return `<nav style="${style}">
   <span style="font-weight: 700; font-size: 18px; color: #fff;">${escapeHtml(el.content)}</span>
   <div style="display: flex; gap: 16px;">
-    ${pages.filter((p) => !p.isHome).map((p) => `<a href="/${p.slug}.html" style="color: #ccc; text-decoration: none;">${escapeHtml(p.name)}</a>`).join("\n    ")}
+    ${pages.filter((p) => !p.isHome).map((p) => `<a href="${getPageHref(p)}" style="color: #ccc; text-decoration: none;">${escapeHtml(p.name)}</a>`).join("\n    ")}
   </div>
 </nav>`
     }
