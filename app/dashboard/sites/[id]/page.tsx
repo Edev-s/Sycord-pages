@@ -409,7 +409,7 @@ const SidebarContent = ({
       <div className="mt-4">
         <button
           onClick={onManageAccess}
-          className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-sm font-medium text-foreground"
+          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-full bg-white/5 hover:bg-white/10 transition-colors text-sm font-medium text-foreground"
         >
           <span className="h-7 w-7 rounded-full bg-purple-500 flex items-center justify-center text-[11px] font-bold text-white shrink-0">
             {userInitials.charAt(0)}
@@ -1161,110 +1161,83 @@ export default function SiteSettingsPage() {
           )}
         </AnimatePresence>
 
-        {/* Manage Access glassmorphism dialog */}
+        {/* Manage Access — sycord connect dialog */}
         <AnimatePresence>
           {isManageAccessOpen && (
             <>
-              {/* Backdrop — blurred + dark */}
+              {/* Backdrop */}
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md"
+                className="fixed inset-0 z-50 bg-black/80"
                 onClick={() => { setIsManageAccessOpen(false); setInviteSent(false); setInviteEmail(""); setInviteRole("Editor") }}
               />
               {/* Dialog card */}
               <motion.div
-                initial={{ opacity: 0, scale: 0.96, y: 16 }}
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.96, y: 16 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
                 transition={{ type: "spring", bounce: 0.2, duration: 0.35 }}
                 className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2"
               >
-                <div className="relative overflow-hidden rounded-2xl border border-white/20 bg-white/10 p-6 shadow-2xl backdrop-blur-2xl">
-                  {/* Decorative glow */}
-                  <div className="pointer-events-none absolute -top-20 -right-20 h-48 w-48 rounded-full bg-purple-500/20 blur-3xl" />
-                  <div className="pointer-events-none absolute -bottom-10 -left-10 h-32 w-32 rounded-full bg-primary/20 blur-2xl" />
+                <div className="rounded-3xl bg-[#1c1c1e] p-6 shadow-2xl">
+                  {/* Header */}
+                  <div className="flex items-center gap-2 mb-6">
+                    <BookOpen className="h-5 w-5 text-muted-foreground" />
+                    <span className="text-sm font-medium text-muted-foreground">sycord connect</span>
+                  </div>
 
-                  <div className="relative space-y-5">
-                    {/* Header */}
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-purple-500 flex items-center justify-center text-sm font-bold text-white shrink-0">
-                        {userInitials.charAt(0)}
-                      </div>
-                      <div>
-                        <h2 className="text-base font-semibold text-foreground">Manage access</h2>
-                        <p className="text-xs text-muted-foreground">Invite someone to co-manage this site</p>
-                      </div>
+                  {inviteSent ? (
+                    <div className="flex flex-col items-center gap-3 py-6 text-center">
+                      <CheckCircle2 className="h-10 w-10 text-green-400" />
+                      <p className="text-sm font-semibold text-foreground">Invite sent!</p>
+                      <p className="text-xs text-muted-foreground">{inviteEmail} will receive an email shortly.</p>
                       <button
-                        onClick={() => { setIsManageAccessOpen(false); setInviteSent(false); setInviteEmail(""); setInviteRole("Editor") }}
-                        className="ml-auto text-muted-foreground hover:text-foreground transition-colors"
-                        aria-label="Close"
+                        className="mt-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                        onClick={() => { setInviteSent(false); setInviteEmail(""); setInviteRole("Editor") }}
                       >
-                        ✕
+                        Invite another
                       </button>
                     </div>
-
-                    {inviteSent ? (
-                      <div className="flex flex-col items-center gap-2 py-4 text-center">
-                        <CheckCircle2 className="h-8 w-8 text-green-400" />
-                        <p className="text-sm font-medium text-foreground">Invite sent!</p>
-                        <p className="text-xs text-muted-foreground">{inviteEmail} will receive an email shortly.</p>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="mt-2 text-muted-foreground"
-                          onClick={() => { setInviteSent(false); setInviteEmail(""); setInviteRole("Editor") }}
-                        >
-                          Invite another
-                        </Button>
+                  ) : (
+                    <>
+                      {/* Two avatar circles */}
+                      <div className="flex items-center justify-center gap-6 mb-6">
+                        {/* Current user — filled purple */}
+                        <div className="h-16 w-16 rounded-full bg-purple-500 ring-4 ring-[#3a3a3c] flex items-center justify-center text-xl font-bold text-white shrink-0">
+                          {userInitials.charAt(0)}
+                        </div>
+                        {/* Invitee — empty placeholder */}
+                        <div className="h-16 w-16 rounded-full bg-[#3a3a3c] ring-4 ring-[#2a2a2c]" />
                       </div>
-                    ) : (
-                      <>
-                        {/* Email input */}
-                        <div className="space-y-2">
-                          <label className="text-xs font-medium text-muted-foreground">Email address</label>
-                          <Input
-                            type="email"
-                            placeholder="colleague@example.com"
-                            value={inviteEmail}
-                            onChange={(e) => setInviteEmail(e.target.value)}
-                            className="bg-white/10 border-white/20 placeholder:text-muted-foreground/50 text-foreground focus:border-primary/50"
-                          />
-                        </div>
 
-                        <div className="space-y-2">
-                          <label className="text-xs font-medium text-muted-foreground">Role</label>
-                          <div className="flex gap-2">
-                            {(["Editor", "Viewer"] as const).map((role) => (
-                              <button
-                                key={role}
-                                onClick={() => setInviteRole(role)}
-                                className={cn(
-                                  "flex-1 text-xs py-1.5 px-3 rounded-lg border transition-colors",
-                                  inviteRole === role
-                                    ? "border-primary/50 bg-primary/10 text-foreground"
-                                    : "border-white/10 bg-white/5 hover:bg-white/10 text-foreground/80 hover:text-foreground"
-                                )}
-                              >
-                                {role}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
+                      {/* Email input */}
+                      <Input
+                        type="email"
+                        placeholder=""
+                        value={inviteEmail}
+                        onChange={(e) => setInviteEmail(e.target.value)}
+                        className="bg-transparent border border-white/15 rounded-xl text-foreground placeholder:text-transparent focus:border-white/30 mb-4"
+                      />
 
-                        <Button
-                          className="w-full"
-                          disabled={!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail)}
-                          onClick={() => {
-                            if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail)) setInviteSent(true)
-                          }}
-                        >
-                          Send invite
-                        </Button>
-                      </>
-                    )}
-                  </div>
+                      {/* Permission description */}
+                      <p className="text-xs text-muted-foreground text-center mb-5 leading-relaxed">
+                        invited <strong className="text-foreground font-semibold">user can manage</strong> website, edit product(s) on websites and have full access on their website
+                      </p>
+
+                      {/* Action button */}
+                      <button
+                        disabled={!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail)}
+                        onClick={() => {
+                          if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail)) setInviteSent(true)
+                        }}
+                        className="w-full py-3 rounded-full bg-[#3a3a3c] hover:bg-[#4a4a4c] disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm font-medium text-foreground"
+                      >
+                        Send invite
+                      </button>
+                    </>
+                  )}
                 </div>
               </motion.div>
             </>
