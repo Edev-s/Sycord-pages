@@ -11,8 +11,8 @@ import {
   type DragStartEvent,
   type DragEndEvent,
 } from "@dnd-kit/core"
-import { useBuilderStore, type BuilderElement, type BuilderProject, type ProjectTheme } from "@/lib/builder-store"
-import { BuilderSidebar } from "./sidebar"
+import { useBuilderStore, generateId, type BuilderElement, type BuilderProject, type ProjectTheme } from "@/lib/builder-store"
+import { BuilderSidebar, PALETTE_ITEMS, type PaletteItem } from "./sidebar"
 import { BuilderCanvas } from "./canvas"
 import { PropertiesPanel } from "./properties-panel"
 import { PageFlow } from "./page-flow"
@@ -51,8 +51,25 @@ import {
   PanelLeftOpen,
   PanelRightClose,
   PanelRightOpen,
+  Menu,
+  Search,
+  Settings2,
+  LayoutGrid,
+  X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useSession } from "next-auth/react"
+
+// ── Mobile palette item categories ────────────────────────────────────────────
+const MOBILE_SMALL_ITEMS = PALETTE_ITEMS.filter((i) =>
+  ["Typography", "Interactive"].includes(i.category),
+)
+const MOBILE_MEDIUM_ITEMS = PALETTE_ITEMS.filter((i) =>
+  ["Layout", "Media"].includes(i.category),
+)
+const MOBILE_CIRCLE_ITEMS = PALETTE_ITEMS.filter((i) =>
+  ["Structural", "Decorative"].includes(i.category),
+)
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -327,6 +344,7 @@ export default function DragDropBuilder({
     selectedElementId,
     setCurrentPage,
     deletePage,
+    addElement,
     undo,
     redo,
     historyIndex,
@@ -349,7 +367,7 @@ export default function DragDropBuilder({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId])
 
-  // Panels
+  // Desktop panels
   const [showSidebar, setShowSidebar] = useState(true)
   const [showProperties, setShowProperties] = useState(true)
   const [deviceWidth, setDeviceWidth] = useState<DeviceWidth>("desktop")
@@ -359,6 +377,12 @@ export default function DragDropBuilder({
   const [themeOpen, setThemeOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [activeDragId, setActiveDragId] = useState<string | null>(null)
+
+  // Mobile-specific state
+  const [mobilePanelOpen, setMobilePanelOpen] = useState<"elements" | "properties" | null>(null)
+  const [mobileSearch, setMobileSearch] = useState("")
+  const { data: session } = useSession()
+  const userInitial = ((session?.user?.name ?? session?.user?.email ?? "U")[0] ?? "U").toUpperCase()
 
   // DnD sensors — support both mouse and touch
   const sensors = useSensors(
@@ -392,12 +416,276 @@ export default function DragDropBuilder({
     }
   }
 
+  // Mobile tap-to-add: creates and adds an element from the palette
+  const addMobileElement = useCallback(
+    (item: PaletteItem) => {
+      const newEl: BuilderElement = {
+        id: generateId(),
+        type: item.type,
+        props: { ...item.defaultProps },
+        style: { ...item.defaultStyle },
+        children: [],
+      }
+      addElement(currentPageId, newEl)
+    },
+    [addElement, currentPageId],
+  )
+
+  // Filtered palette items for mobile search
+  const filterItems = (items: PaletteItem[]) =>
+    mobileSearch
+      ? items.filter((i) => i.label.toLowerCase().includes(mobileSearch.toLowerCase()))
+      : items
+
   const currentPage = project.pages[currentPageId]
   const canUndo = historyIndex > 0
   const canRedo = historyIndex < history.length - 1
 
+  // Shared mobile header component
+  const MobileHeader = ({ onMenuClick }: { onMenuClick?: () => void }) => (
+    <header className="h-14 shrink-0 flex items-center justify-between px-4 border-b border-border bg-background z-30">
+      <button
+        onClick={onMenuClick}
+        className="p-1.5 rounded-lg hover:bg-accent transition-colors"
+        aria-label="Menu"
+      >
+        <Menu className="h-5 w-5 text-foreground" />
+      </button>
+      <span className="text-base font-semibold text-foreground truncate px-3 flex-1 min-w-0">
+        {projectName}
+      </span>
+      <div className="h-9 w-9 rounded-full bg-violet-600 flex items-center justify-center text-white font-bold text-sm shrink-0 select-none">
+        {userInitial}
+      </div>
+    </header>
+  )
+
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          MOBILE LAYOUT  (hidden on md and above)
+      ══════════════════════════════════════════════════════════════════════ */}
+      <div className="flex flex-col h-full md:hidden relative overflow-hidden">
+        <MobileHeader onMenuClick={() => setThemeOpen(true)} />
+
+        {/* ── Builder mode ─────────────────────────────────────────────────── */}
+        {viewMode === "builder" && (
+          <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+            {/* Canvas area */}
+            <div className="flex-1 overflow-auto bg-background px-4 pt-4 pb-2">
+              <div className="relative">
+                {/* The canvas wrapper — grey rounded card */}
+                <div className="rounded-2xl overflow-hidden bg-[#575757]">
+                  <BuilderCanvas deviceWidth="mobile" />
+                </div>
+                {/* "+" button on right edge, vertically centred */}
+                <button
+                  onClick={() => setMobilePanelOpen("elements")}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/3 h-10 w-10 rounded-full bg-[#323232] border-2 border-[#454545] flex items-center justify-center z-10 shadow-lg"
+                  aria-label="Add element"
+                >
+                  <Plus className="h-4 w-4 text-[#999]" />
+                </button>
+              </div>
+            </div>
+
+            {/* Bottom navigation */}
+            <div className="shrink-0 px-4 pb-4 bg-background">
+              <div className="bg-[#1c1c1e] rounded-3xl flex items-center justify-around px-3 py-3">
+                {/* Canvas */}
+                <button
+                  onClick={() => setMobilePanelOpen(null)}
+                  className={cn(
+                    "h-14 w-16 rounded-2xl flex items-center justify-center transition-colors",
+                    mobilePanelOpen === null ? "bg-[#3a3a3c]" : "bg-[#2c2c2e]",
+                  )}
+                  aria-label="Canvas"
+                >
+                  <Pencil className="h-5 w-5 text-[#8e8e93]" />
+                </button>
+                {/* Elements */}
+                <button
+                  onClick={() => setMobilePanelOpen("elements")}
+                  className={cn(
+                    "h-14 w-16 rounded-2xl flex items-center justify-center transition-colors",
+                    mobilePanelOpen === "elements" ? "bg-[#3a3a3c]" : "bg-[#2c2c2e]",
+                  )}
+                  aria-label="Elements"
+                >
+                  <LayoutGrid className="h-5 w-5 text-[#8e8e93]" />
+                </button>
+                {/* Flow */}
+                <button
+                  onClick={() => { setViewMode("flow"); setMobilePanelOpen(null) }}
+                  className="h-14 w-16 rounded-2xl bg-[#2c2c2e] flex items-center justify-center"
+                  aria-label="Flow"
+                >
+                  <GitBranch className="h-5 w-5 text-[#8e8e93]" />
+                </button>
+                {/* Settings */}
+                <button
+                  onClick={() => setExportOpen(true)}
+                  className="h-14 w-16 rounded-2xl bg-[#2c2c2e] flex items-center justify-center"
+                  aria-label="Settings"
+                >
+                  <Settings2 className="h-5 w-5 text-[#8e8e93]" />
+                </button>
+              </div>
+            </div>
+
+            <DragOverlay>
+              {activeDragId && (
+                <div className="bg-indigo-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg shadow-xl opacity-90 pointer-events-none">
+                  Moving element…
+                </div>
+              )}
+            </DragOverlay>
+          </DndContext>
+        )}
+
+        {/* ── Flow mode ────────────────────────────────────────────────────── */}
+        {viewMode === "flow" && (
+          <div className="flex flex-col flex-1 overflow-hidden">
+            {/* Flow diagram */}
+            <div className="flex-1 overflow-hidden">
+              <PageFlow />
+            </div>
+
+            {/* Page configuration bottom sheet */}
+            <div className="shrink-0 bg-[#1c1c1e] rounded-t-[28px] px-5 pt-4 pb-6 shadow-2xl">
+              <div className="w-10 h-1 rounded-full bg-[#3a3a3c] mx-auto mb-4" />
+              <h3 className="text-center text-base font-bold text-foreground mb-5">
+                Page configuration
+              </h3>
+
+              {/* select element dropdown */}
+              <div className="bg-[#2c2c2e] rounded-2xl px-4 py-3 flex items-center justify-between mb-4 border border-[#3a3a3c]">
+                <span className="text-sm font-medium text-foreground">select element</span>
+                <ChevronDown className="h-4 w-4 text-foreground" />
+              </div>
+
+              {/* Input fields placeholder group */}
+              <div className="bg-[#2c2c2e] rounded-2xl px-4 py-3 mb-4 space-y-3 border border-[#3a3a3c]">
+                <div className="h-8 rounded-xl bg-[#3a3a3c] w-2/3" />
+                <div className="h-8 rounded-xl bg-[#3a3a3c] w-2/3" />
+              </div>
+
+              {/* Redirect labels */}
+              <div className="space-y-3 px-1">
+                <p className="text-sm font-semibold text-foreground">redirect when clicked</p>
+                <p className="text-sm font-semibold text-foreground">redirect if</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Mobile Element Palette overlay ───────────────────────────────── */}
+        {mobilePanelOpen === "elements" && (
+          <div className="absolute inset-0 z-50 bg-background flex flex-col">
+            <MobileHeader onMenuClick={() => setMobilePanelOpen(null)} />
+
+            {/* Search bar */}
+            <div className="px-4 pt-4 pb-3 shrink-0">
+              <div className="h-12 rounded-2xl bg-[#2c2c2e] flex items-center px-4 gap-3">
+                <Search className="h-4 w-4 text-[#8e8e93] shrink-0" />
+                <input
+                  className="flex-1 bg-transparent text-sm text-foreground placeholder:text-[#8e8e93] outline-none"
+                  placeholder="Search elements…"
+                  value={mobileSearch}
+                  onChange={(e) => setMobileSearch(e.target.value)}
+                />
+                {mobileSearch && (
+                  <button onClick={() => setMobileSearch("")} className="shrink-0">
+                    <X className="h-4 w-4 text-[#8e8e93]" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Scrollable element grid */}
+            <div className="flex-1 overflow-y-auto mx-4 mb-4 bg-[#1c1c1e] rounded-3xl px-4 pt-4 pb-6">
+              {/* Small items — 4 per row (Typography + Interactive) */}
+              {filterItems(MOBILE_SMALL_ITEMS).length > 0 && (
+                <div className="mb-4">
+                  <div className="grid grid-cols-4 gap-3">
+                    {filterItems(MOBILE_SMALL_ITEMS).map((item) => {
+                      const Icon = item.icon
+                      return (
+                        <button
+                          key={item.type}
+                          onClick={() => { addMobileElement(item); setMobilePanelOpen(null) }}
+                          className="aspect-square rounded-2xl bg-[#2c2c2e] flex flex-col items-center justify-center gap-1 active:scale-95 transition-transform"
+                        >
+                          <Icon className="h-5 w-5 text-[#8e8e93]" />
+                          <span className="text-[9px] text-[#8e8e93] font-medium leading-tight text-center px-1">
+                            {item.label}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Medium items — 3 per row (Layout + Media) */}
+              {filterItems(MOBILE_MEDIUM_ITEMS).length > 0 && (
+                <div className="mb-4">
+                  <div className="grid grid-cols-3 gap-3">
+                    {filterItems(MOBILE_MEDIUM_ITEMS).map((item) => {
+                      const Icon = item.icon
+                      return (
+                        <button
+                          key={item.type}
+                          onClick={() => { addMobileElement(item); setMobilePanelOpen(null) }}
+                          className="h-16 rounded-2xl bg-[#2c2c2e] flex flex-col items-center justify-center gap-1.5 active:scale-95 transition-transform"
+                        >
+                          <Icon className="h-5 w-5 text-[#8e8e93]" />
+                          <span className="text-[9px] text-[#8e8e93] font-medium">{item.label}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Circle items — Structural + Decorative */}
+              {filterItems(MOBILE_CIRCLE_ITEMS).length > 0 && (
+                <div className="flex flex-wrap justify-center gap-3">
+                  {filterItems(MOBILE_CIRCLE_ITEMS).map((item) => {
+                    const Icon = item.icon
+                    return (
+                      <button
+                        key={item.type}
+                        onClick={() => { addMobileElement(item); setMobilePanelOpen(null) }}
+                        className="h-14 w-14 rounded-full bg-[#2c2c2e] flex flex-col items-center justify-center gap-0.5 active:scale-95 transition-transform"
+                      >
+                        <Icon className="h-5 w-5 text-[#8e8e93]" />
+                        <span className="text-[8px] text-[#8e8e93] font-medium">{item.label}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* Empty state */}
+              {filterItems(MOBILE_SMALL_ITEMS).length === 0 &&
+                filterItems(MOBILE_MEDIUM_ITEMS).length === 0 &&
+                filterItems(MOBILE_CIRCLE_ITEMS).length === 0 && (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <p className="text-sm text-[#8e8e93]">No elements found</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          DESKTOP LAYOUT  (hidden on mobile, shown md and above)
+      ══════════════════════════════════════════════════════════════════════ */}
+      <div className="hidden md:flex md:flex-col md:flex-1 md:overflow-hidden">
+
       {/* ── Toolbar ─────────────────────────────────────────────────────────── */}
       <header className="h-14 border-b border-border flex items-center px-3 gap-2 shrink-0 bg-background z-30">
         {/* Left group */}
@@ -623,7 +911,9 @@ export default function DragDropBuilder({
         </div>
       )}
 
-      {/* ── Dialogs ─────────────────────────────────────────────────────────── */}
+      </div>{/* end desktop layout */}
+
+      {/* ── Dialogs (shared between mobile and desktop) ──────────────────────── */}
       <AddPageDialog open={addPageOpen} onClose={() => setAddPageOpen(false)} />
       <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} />
       <ThemePanel open={themeOpen} onClose={() => setThemeOpen(false)} />

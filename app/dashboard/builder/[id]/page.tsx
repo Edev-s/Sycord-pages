@@ -82,8 +82,8 @@ export default function BuilderPage({ params }: BuilderPageProps) {
 
   return (
     <div className="relative h-screen flex flex-col">
-      {/* Back button — floating over the builder toolbar */}
-      <div className="absolute top-3 left-[280px] z-40 flex items-center gap-2 pointer-events-none">
+      {/* Back button — floating over the builder toolbar (desktop only) */}
+      <div className="hidden md:flex absolute top-3 left-[280px] z-40 items-center gap-2 pointer-events-none">
         <Link href="/dashboard" className="pointer-events-auto">
           <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-muted-foreground hover:text-foreground">
             <ArrowLeft className="h-3.5 w-3.5" />
