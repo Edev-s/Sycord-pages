@@ -392,7 +392,7 @@ const SidebarContent = ({
                     <Icon className="h-4 w-4 flex-shrink-0" />
                     <span className="truncate flex-1 text-left">{item.label}</span>
                     {item.badge && (
-                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-white/10 text-foreground/70 shrink-0">
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border border-white/25 bg-transparent text-foreground/70 shrink-0">
                         {item.badge}
                       </span>
                     )}
@@ -409,7 +409,7 @@ const SidebarContent = ({
       <div className="mt-4">
         <button
           onClick={onManageAccess}
-          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-full bg-white/5 hover:bg-white/10 transition-colors text-sm font-medium text-foreground"
+          className="inline-flex items-center gap-2.5 px-3 py-2 rounded-full bg-white/5 hover:bg-white/10 transition-colors text-sm font-medium text-foreground"
         >
           <span className="h-7 w-7 rounded-full bg-purple-500 flex items-center justify-center text-[11px] font-bold text-white shrink-0">
             {userInitials.charAt(0)}
@@ -1170,7 +1170,7 @@ export default function SiteSettingsPage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 z-50 bg-black/80"
+                className="fixed inset-0 z-50 bg-black/50 backdrop-blur-md"
                 onClick={() => { setIsManageAccessOpen(false); setInviteSent(false); setInviteEmail(""); setInviteRole("Editor") }}
               />
               {/* Dialog card */}
