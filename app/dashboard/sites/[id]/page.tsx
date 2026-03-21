@@ -342,6 +342,7 @@ const SidebarContent = ({
   subscription,
   planCredit,
   userInitials,
+  onManageAccess,
 }: any) => {
   const WebsiteIcon = getWebsiteIcon()
 
@@ -390,6 +391,11 @@ const SidebarContent = ({
                   >
                     <Icon className="h-4 w-4 flex-shrink-0" />
                     <span className="truncate flex-1 text-left">{item.label}</span>
+                    {item.badge && (
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-white/10 text-foreground/70 shrink-0">
+                        {item.badge}
+                      </span>
+                    )}
                     {isLocked && <Lock className="h-3 w-3 shrink-0 opacity-50" />}
                   </button>
                 )
@@ -399,11 +405,24 @@ const SidebarContent = ({
         ))}
       </nav>
 
+      {/* Manage Access button */}
+      <div className="mt-4">
+        <button
+          onClick={onManageAccess}
+          className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-sm font-medium text-foreground"
+        >
+          <span className="h-7 w-7 rounded-full bg-purple-500 flex items-center justify-center text-[11px] font-bold text-white shrink-0">
+            {userInitials.charAt(0)}
+          </span>
+          Manage access
+        </button>
+      </div>
+
       {/* Account + Plan + Credit */}
-      <div className="mt-auto pt-4 border-t border-white/10 space-y-3">
+      <div className="mt-3 pt-3 border-t border-white/10 space-y-3">
         {/* Account row */}
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5">
-          <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary shrink-0">
+          <div className="h-6 w-6 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-bold text-foreground shrink-0">
             {userInitials}
           </div>
           <span className="flex-1 text-xs font-medium truncate text-foreground">
@@ -469,6 +488,15 @@ export default function SiteSettingsPage() {
 
   // Subscription / plan
   const [subscription, setSubscription] = useState<string>("Sycord")
+
+  // Payout balance (fetched or 0)
+  const [payoutBalance, setPayoutBalance] = useState<number>(0)
+
+  // Manage access dialog
+  const [isManageAccessOpen, setIsManageAccessOpen] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState("")
+  const [inviteSent, setInviteSent] = useState(false)
+  const [inviteRole, setInviteRole] = useState<"Editor" | "Viewer">("Editor")
 
   // Renamed to match the button name and be consistent
   const saving = isSaving
@@ -996,7 +1024,7 @@ export default function SiteSettingsPage() {
             items: [
               { id: "items", label: "Products", icon: ShoppingCart },
               { id: "promotions", label: "Promotions", icon: TrendingUp },
-              { id: "payments", label: "Payouts", icon: Wallet },
+              { id: "payments", label: "Payouts", icon: Wallet, badge: `${payoutBalance} lei` },
               { id: "customers", label: "Client", icon: Users },
             ],
           },
@@ -1031,6 +1059,7 @@ export default function SiteSettingsPage() {
           subscription={subscription}
           planCredit={planCredit}
           userInitials={userInitials}
+          onManageAccess={() => setIsManageAccessOpen(true)}
         />
       </aside>
 
@@ -1125,8 +1154,117 @@ export default function SiteSettingsPage() {
                   subscription={subscription}
                   planCredit={planCredit}
                   userInitials={userInitials}
+                  onManageAccess={() => { setIsSidebarOpen(false); setIsManageAccessOpen(true) }}
                 />
               </motion.aside>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* Manage Access glassmorphism dialog */}
+        <AnimatePresence>
+          {isManageAccessOpen && (
+            <>
+              {/* Backdrop — blurred + dark */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md"
+                onClick={() => { setIsManageAccessOpen(false); setInviteSent(false); setInviteEmail(""); setInviteRole("Editor") }}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.96, y: 16 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.96, y: 16 }}
+                transition={{ type: "spring", bounce: 0.2, duration: 0.35 }}
+                className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2"
+              >
+                <div className="relative overflow-hidden rounded-2xl border border-white/20 bg-white/10 p-6 shadow-2xl backdrop-blur-2xl">
+                  {/* Decorative glow */}
+                  <div className="pointer-events-none absolute -top-20 -right-20 h-48 w-48 rounded-full bg-purple-500/20 blur-3xl" />
+                  <div className="pointer-events-none absolute -bottom-10 -left-10 h-32 w-32 rounded-full bg-primary/20 blur-2xl" />
+
+                  <div className="relative space-y-5">
+                    {/* Header */}
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full bg-purple-500 flex items-center justify-center text-sm font-bold text-white shrink-0">
+                        {userInitials.charAt(0)}
+                      </div>
+                      <div>
+                        <h2 className="text-base font-semibold text-foreground">Manage access</h2>
+                        <p className="text-xs text-muted-foreground">Invite someone to co-manage this site</p>
+                      </div>
+                      <button
+                        onClick={() => { setIsManageAccessOpen(false); setInviteSent(false); setInviteEmail(""); setInviteRole("Editor") }}
+                        className="ml-auto text-muted-foreground hover:text-foreground transition-colors"
+                        aria-label="Close"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    {inviteSent ? (
+                      <div className="flex flex-col items-center gap-2 py-4 text-center">
+                        <CheckCircle2 className="h-8 w-8 text-green-400" />
+                        <p className="text-sm font-medium text-foreground">Invite sent!</p>
+                        <p className="text-xs text-muted-foreground">{inviteEmail} will receive an email shortly.</p>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="mt-2 text-muted-foreground"
+                          onClick={() => { setInviteSent(false); setInviteEmail(""); setInviteRole("Editor") }}
+                        >
+                          Invite another
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Email input */}
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium text-muted-foreground">Email address</label>
+                          <Input
+                            type="email"
+                            placeholder="colleague@example.com"
+                            value={inviteEmail}
+                            onChange={(e) => setInviteEmail(e.target.value)}
+                            className="bg-white/10 border-white/20 placeholder:text-muted-foreground/50 text-foreground focus:border-primary/50"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium text-muted-foreground">Role</label>
+                          <div className="flex gap-2">
+                            {(["Editor", "Viewer"] as const).map((role) => (
+                              <button
+                                key={role}
+                                onClick={() => setInviteRole(role)}
+                                className={cn(
+                                  "flex-1 text-xs py-1.5 px-3 rounded-lg border transition-colors",
+                                  inviteRole === role
+                                    ? "border-primary/50 bg-primary/10 text-foreground"
+                                    : "border-white/10 bg-white/5 hover:bg-white/10 text-foreground/80 hover:text-foreground"
+                                )}
+                              >
+                                {role}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <Button
+                          className="w-full"
+                          disabled={!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail)}
+                          onClick={() => {
+                            if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail)) setInviteSent(true)
+                          }}
+                        >
+                          Send invite
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
             </>
           )}
         </AnimatePresence>
