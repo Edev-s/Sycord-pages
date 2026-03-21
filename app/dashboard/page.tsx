@@ -5,7 +5,7 @@ import Image from "next/image"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useSession, signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
-import { Settings, Plus, LogOut, User, Menu, TriangleAlert, Search, LayoutTemplate } from "lucide-react"
+import { Settings, Plus, LogOut, User, Menu, TriangleAlert, Search, LayoutTemplate, Blocks } from "lucide-react"
 import { useState, useEffect, Suspense } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import {
@@ -368,9 +368,15 @@ function DashboardContent() {
                       </div>
                       <h3 className="font-medium text-foreground mb-1">{project.businessName}</h3>
                       <p className="text-xs text-muted-foreground mb-4">Még nincs publikálva</p>
-                      <Button variant="outline" size="sm" onClick={() => router.push(`/dashboard/sites/${project._id}`)}>
-                        Szerkesztés
-                      </Button>
+                      <div className="flex flex-col gap-2 w-full max-w-[160px]">
+                        <Button variant="outline" size="sm" onClick={() => router.push(`/dashboard/sites/${project._id}`)}>
+                          Szerkesztés
+                        </Button>
+                        <Button size="sm" onClick={() => router.push(`/dashboard/builder/${project._id}`)}>
+                          <Blocks className="h-3.5 w-3.5 mr-1.5" />
+                          Visual Builder
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </div>

@@ -9,6 +9,7 @@ import {
   Sparkles,
   Zap,
   CheckCircle2,
+  Blocks,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
@@ -255,15 +256,26 @@ export function WebsitePreviewCard({
         </span>
 
         {/* Settings pill (Primary Action) */}
-        <Link href={`/dashboard/sites/${projectId}`} className="shrink-0">
-          <div
-            className="inline-flex items-center gap-1.5 px-3 h-8 rounded-full text-[11px] font-semibold text-white transition-opacity hover:opacity-85 active:opacity-70 cursor-pointer"
-            style={{ background: "#2e2e30" }}
-          >
-            <Edit2 className="h-3 w-3" aria-hidden="true" />
-            Settings
-          </div>
-        </Link>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Link href={`/dashboard/builder/${projectId}`}>
+            <div
+              className="inline-flex items-center gap-1.5 px-3 h-8 rounded-full text-[11px] font-semibold text-indigo-300 transition-opacity hover:opacity-85 active:opacity-70 cursor-pointer"
+              style={{ background: "#23234a" }}
+            >
+              <Blocks className="h-3 w-3" aria-hidden="true" />
+              Builder
+            </div>
+          </Link>
+          <Link href={`/dashboard/sites/${projectId}`}>
+            <div
+              className="inline-flex items-center gap-1.5 px-3 h-8 rounded-full text-[11px] font-semibold text-white transition-opacity hover:opacity-85 active:opacity-70 cursor-pointer"
+              style={{ background: "#2e2e30" }}
+            >
+              <Edit2 className="h-3 w-3" aria-hidden="true" />
+              Settings
+            </div>
+          </Link>
+        </div>
       </div>
 
       {/* ── Footer: name + live badge ── */}

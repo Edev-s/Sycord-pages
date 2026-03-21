@@ -12,6 +12,9 @@
     "@auth/core": "latest",
     "@aws-sdk/credential-providers": "latest",
     "@cfworker/json-schema": "latest",
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@emotion/is-prop-valid": "latest",
     "@google/generative-ai": "latest",
     "@hookform/resolvers": "^3.10.0",
@@ -46,6 +49,7 @@
     "@radix-ui/react-tooltip": "1.1.6",
     "@simplewebauthn/browser": "latest",
     "@simplewebauthn/server": "latest",
+    "@xyflow/react": "^12.10.1",
     "autoprefixer": "^10.4.20",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -56,6 +60,7 @@
     "form-data": "4.0.5",
     "gcp-metadata": "latest",
     "html-validator": "6.0.1",
+    "immer": "^11.1.4",
     "input-otp": "1.4.1",
     "kerberos": "latest",
     "lucide-react": "^0.454.0",
@@ -77,7 +82,8 @@
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^0.9.9",
-    "zod": "3.25.76"
+    "zod": "3.25.76",
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.9",
