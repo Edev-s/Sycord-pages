@@ -1215,10 +1215,11 @@ export default function SiteSettingsPage() {
                       {/* Email input */}
                       <Input
                         type="email"
-                        placeholder=""
+                        placeholder="colleague@example.com"
+                        aria-label="Invite by email address"
                         value={inviteEmail}
                         onChange={(e) => setInviteEmail(e.target.value)}
-                        className="bg-transparent border border-white/15 rounded-xl text-foreground placeholder:text-transparent focus:border-white/30 mb-4"
+                        className="bg-transparent border border-white/15 rounded-xl text-foreground placeholder:text-muted-foreground/40 focus:border-white/30 mb-4"
                       />
 
                       {/* Permission description */}
