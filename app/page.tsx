@@ -488,6 +488,7 @@ export default function LandingPage() {
                 <ul className="space-y-2">
                   <li><Link href="/pap" className="text-[#8A8E91] hover:text-white text-xs transition-colors">Privacy</Link></li>
                   <li><Link href="/tos" className="text-[#8A8E91] hover:text-white text-xs transition-colors">Terms</Link></li>
+                  <li><Link href="/business-report" className="text-[#8A8E91] hover:text-white text-xs transition-colors">Business Report</Link></li>
                 </ul>
               </div>
             </div>

@@ -4,10 +4,11 @@ import { useEffect, useState } from "react"
 import { useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Check, X, Zap, ArrowLeft } from "lucide-react"
+import { Check, X, Zap, ArrowLeft, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 
 interface SubscriptionTier {
   _id: string
@@ -29,6 +30,7 @@ export default function SubscriptionsPage() {
   const router = useRouter()
   const [tiers, setTiers] = useState<SubscriptionTier[]>([])
   const [loading, setLoading] = useState(true)
+  const [payingTier, setPayingTier] = useState<string | null>(null)
 
   useEffect(() => {
     fetchTiers()
@@ -45,6 +47,41 @@ export default function SubscriptionsPage() {
       console.error("[v0] Error fetching tiers:", error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handlePayPal = async (tier: SubscriptionTier) => {
+    if (status !== "authenticated") {
+      router.push("/login")
+      return
+    }
+    setPayingTier(tier._id)
+    try {
+      const res = await fetch("/api/paypal/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          planName: tier.name,
+          price: tier.price,
+      currency: tier.currency?.replace(/[^A-Z]/g, "") || "USD",
+        }),
+      })
+      const order = await res.json()
+      if (!res.ok) throw new Error(order.error || "Failed to create order")
+
+      // Find the PayPal approval URL and redirect
+      const approvalUrl = order.links?.find(
+        (l: { rel: string; href: string }) => l.rel === "approve"
+      )?.href
+      if (approvalUrl) {
+        window.location.href = approvalUrl
+      } else {
+        throw new Error("No PayPal approval URL received")
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "PayPal checkout failed")
+    } finally {
+      setPayingTier(null)
     }
   }
 
@@ -144,13 +181,41 @@ export default function SubscriptionsPage() {
                     </CardHeader>
 
                     <CardContent className="space-y-6">
-                      <Button
-                        className="w-full"
-                        variant={tier.isPopular ? "default" : "outline"}
-                        disabled={status === "unauthenticated"}
-                      >
-                        {tier.price === 0 ? "Current Plan" : "Upgrade"}
-                      </Button>
+                      {tier.price === 0 ? (
+                        <Button
+                          className="w-full"
+                          variant="outline"
+                          disabled
+                        >
+                          Current Plan
+                        </Button>
+                      ) : (
+                        <Button
+                          className="w-full gap-2"
+                          variant={tier.isPopular ? "default" : "outline"}
+                          disabled={payingTier === tier._id}
+                          onClick={() => handlePayPal(tier)}
+                        >
+                          {payingTier === tier._id ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Redirecting to PayPal…
+                            </>
+                          ) : (
+                            <>
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24"
+                                className="h-4 w-4 fill-current"
+                                aria-hidden="true"
+                              >
+                                <path d="M7.076 21.337H2.47a.641.641 0 01-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.9l-1.12 7.106zm14.146-14.42a3.35 3.35 0 00-.607-.541c1.379 4.729-1.68 7.789-6.188 7.789H12.16l-1.279 8.121H14.3c.524 0 .968-.382 1.05-.9l.04-.246.818-5.19.052-.285c.082-.517.526-.9 1.05-.9h.66c4.3 0 7.664-1.747 8.647-6.797.411-2.12.198-3.888-.948-5.051-.044-.046-.09-.09-.137-.134l-.259.134z" />
+                              </svg>
+                              Pay with PayPal — {tier.price > 0 ? `$${tier.price}` : "Free"}/mo
+                            </>
+                          )}
+                        </Button>
+                      )}
 
                       <div className="space-y-3">
                         <p className="text-xs font-semibold text-muted-foreground uppercase">What's included:</p>
