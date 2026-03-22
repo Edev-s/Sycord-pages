@@ -52,7 +52,11 @@ export default function LandingPage() {
       const approvalUrl = order.links?.find(
         (l: { rel: string; href: string }) => l.rel === "approve"
       )?.href
-      if (approvalUrl) window.location.href = approvalUrl
+      if (approvalUrl) {
+        window.location.href = approvalUrl
+      } else {
+        toast.error("PayPal did not return a checkout URL. Please try again.")
+      }
     } catch (err) {
       console.error("[paypal]", err)
       toast.error(err instanceof Error ? err.message : "PayPal checkout failed. Please try again.")
