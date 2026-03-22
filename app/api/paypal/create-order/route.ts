@@ -7,14 +7,12 @@ const PAYPAL_API_BASE =
 
 async function getAccessToken(): Promise<string> {
   const clientId = process.env.PAYPAL_API_KEY
-  if (!clientId) throw new Error("PAYPAL_API_KEY is not configured")
-  if (!clientId.includes(":")) {
-    throw new Error(
-      "PAYPAL_API_KEY must be formatted as 'ClientID:Secret' (colon-separated)"
-    )
-  }
+  const clientSecret = process.env.PAYPAL_CLIENT_SECRET
 
-  const credentials = Buffer.from(clientId).toString("base64")
+  if (!clientId) throw new Error("PAYPAL_API_KEY is not configured")
+  if (!clientSecret) throw new Error("PAYPAL_CLIENT_SECRET is not configured")
+
+  const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString("base64")
 
   const res = await fetch(`${PAYPAL_API_BASE}/v1/oauth2/token`, {
     method: "POST",
@@ -65,7 +63,7 @@ export async function POST(req: NextRequest) {
             description: `Sycord ${planName} Plan — Monthly Subscription`,
             amount: {
               currency_code: currency,
-              value: String(Number(price).toFixed(2)),
+              value: parseFloat(String(price)).toFixed(2),
             },
           },
         ],

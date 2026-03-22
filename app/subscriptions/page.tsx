@@ -63,7 +63,9 @@ export default function SubscriptionsPage() {
         body: JSON.stringify({
           planName: tier.name,
           price: tier.price,
-      currency: tier.currency?.replace(/[^A-Z]/g, "") || "USD",
+          currency: (["USD", "EUR", "GBP", "CAD", "AUD"] as string[]).includes(tier.currency ?? "")
+            ? tier.currency
+            : "USD",
         }),
       })
       const order = await res.json()
@@ -211,7 +213,7 @@ export default function SubscriptionsPage() {
                               >
                                 <path d="M7.076 21.337H2.47a.641.641 0 01-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.9l-1.12 7.106zm14.146-14.42a3.35 3.35 0 00-.607-.541c1.379 4.729-1.68 7.789-6.188 7.789H12.16l-1.279 8.121H14.3c.524 0 .968-.382 1.05-.9l.04-.246.818-5.19.052-.285c.082-.517.526-.9 1.05-.9h.66c4.3 0 7.664-1.747 8.647-6.797.411-2.12.198-3.888-.948-5.051-.044-.046-.09-.09-.137-.134l-.259.134z" />
                               </svg>
-                              Pay with PayPal — {tier.price > 0 ? `$${tier.price}` : "Free"}/mo
+                              Pay with PayPal — ${tier.price}/mo
                             </>
                           )}
                         </Button>
