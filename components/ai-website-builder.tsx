@@ -1123,8 +1123,8 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                         {step === 'appwrite_auth' && (
                             <div className="mt-4">
                                 <div className="flex items-center gap-2.5 py-3 mb-3 animate-in fade-in duration-300">
-                                    <Database className="h-3.5 w-3.5 shrink-0 animate-pulse text-[#FD366E]" />
-                                    <span className="text-sm text-zinc-400">Retrieving Appwrite data…</span>
+                                    <Database className="h-3.5 w-3.5 shrink-0 text-[#FD366E]" />
+                                    <span className="text-sm text-zinc-400">Connect your Appwrite project to continue</span>
                                 </div>
                                 <AppwriteConnectionCard
                                     projectId={projectId}
