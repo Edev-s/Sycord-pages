@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import {
@@ -12,6 +12,8 @@ import {
   ArrowLeft,
   Check,
   ImageIcon,
+  CheckCircle2,
+  ArrowRight,
 } from "lucide-react"
 import { themes } from "@/lib/webshop-types"
 import { toast } from "sonner"
@@ -19,8 +21,8 @@ import { toast } from "sonner"
 const steps = [
   { id: 1, name: "Type" },
   { id: 2, name: "Name" },
-  { id: 3, name: "Domain" },
-  { id: 4, name: "Style" },
+  { id: 3, name: "Previously managed" },
+  { id: 4, name: "Done" },
 ]
 
 const websiteTypes = [
@@ -32,60 +34,39 @@ const websiteTypes = [
   { id: "other", label: "Other", icon: HelpCircle, description: "Something else" },
 ]
 
+const experienceOptions = [
+  { id: "yes", label: "Yes, I have", description: "I've built or managed a website before" },
+  { id: "no", label: "No, this is my first", description: "I'm new to website building" },
+]
+
 export default function CreateProjectPage() {
   const router = useRouter()
   const { status } = useSession()
   const [currentStep, setCurrentStep] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
-  const [hasDomain, setHasDomain] = useState(false)
+  const [isSubmitted, setIsSubmitted] = useState(false)
+  const [createdProjectId, setCreatedProjectId] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     websiteType: "",
     businessName: "",
-    domain: "",
-    subdomain: "",
+    previouslyManaged: "",
     selectedStyle: "modern",
     status: "pending",
   })
-  const [suggestedDomains, setSuggestedDomains] = useState<string[]>([])
-  const [subdomainError, setSubdomainError] = useState("")
 
   if (status === "unauthenticated") {
     router.push("/login")
     return null
   }
 
-  const generateDomainSuggestions = (name: string) => {
-    if (!name.trim()) {
-      setSuggestedDomains([])
-      return
-    }
-    const slug = name
+  const generateSubdomain = (name: string) => {
+    return name
       .toLowerCase()
-      .replace(/\s+/g, "")
-      .replace(/[^a-z0-9]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9-]/g, "")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "")
       .substring(0, 20)
-    setSuggestedDomains([`${slug}.com`, `${slug}.hu`, `${slug}online.hu`])
-  }
-
-  const validateSubdomain = (value: string) => {
-    if (!value) {
-      setSubdomainError("Subdomain is required")
-      return false
-    }
-    if (value.length < 3) {
-      setSubdomainError("At least 3 characters")
-      return false
-    }
-    if (!/^[a-z0-9-]+$/.test(value)) {
-      setSubdomainError("Only lowercase letters, numbers and hyphens")
-      return false
-    }
-    if (value.startsWith("-") || value.endsWith("-")) {
-      setSubdomainError("Cannot start or end with a hyphen")
-      return false
-    }
-    setSubdomainError("")
-    return true
   }
 
   const isStepValid = () => {
@@ -95,9 +76,9 @@ export default function CreateProjectPage() {
       case 2:
         return !!formData.businessName
       case 3:
-        return hasDomain ? !!formData.domain : !!formData.subdomain && !subdomainError
+        return !!formData.previouslyManaged
       case 4:
-        return !!formData.selectedStyle
+        return true
       default:
         return false
     }
@@ -106,14 +87,16 @@ export default function CreateProjectPage() {
   const handleNext = () => {
     if (!isStepValid()) return
     if (currentStep < steps.length) {
-      setCurrentStep(currentStep + 1)
-    } else {
-      handleSubmit()
+      const nextStep = currentStep + 1
+      setCurrentStep(nextStep)
+      if (nextStep === 4) {
+        handleSubmit()
+      }
     }
   }
 
   const handleBack = () => {
-    if (currentStep > 1) {
+    if (currentStep > 1 && currentStep < 4) {
       setCurrentStep(currentStep - 1)
     } else {
       router.push("/dashboard")
@@ -126,12 +109,13 @@ export default function CreateProjectPage() {
 
     try {
       const theme = themes[formData.selectedStyle as keyof typeof themes]
+      const subdomain = generateSubdomain(formData.businessName)
 
       if (!formData.businessName || !formData.websiteType) {
         throw new Error("Business name and website type are required")
       }
-      if (!formData.domain && !formData.subdomain) {
-        throw new Error("Either a domain or subdomain is required")
+      if (!subdomain) {
+        throw new Error("Could not generate a valid subdomain from your business name")
       }
 
       const response = await fetch("/api/projects", {
@@ -140,8 +124,8 @@ export default function CreateProjectPage() {
         body: JSON.stringify({
           businessName: formData.businessName,
           websiteType: formData.websiteType,
-          domain: formData.domain || null,
-          subdomain: formData.subdomain || null,
+          domain: null,
+          subdomain: subdomain,
           theme: formData.selectedStyle,
           primaryColor: theme.primary,
           secondaryColor: theme.secondary,
@@ -159,6 +143,7 @@ export default function CreateProjectPage() {
       }
 
       const newProject = await response.json()
+      setCreatedProjectId(newProject._id)
 
       await fetch("/api/deploy", {
         method: "POST",
@@ -167,11 +152,13 @@ export default function CreateProjectPage() {
       }).catch((err) => console.error("Initial auto-deploy failed", err))
 
       toast.success("Project created successfully!")
-      router.push(`/dashboard/sites/${newProject._id}`)
+      setIsSubmitted(true)
+      setIsLoading(false)
     } catch (error) {
       console.error("Project creation error:", error)
       toast.error(error instanceof Error ? error.message : "Failed to create project")
       setIsLoading(false)
+      setCurrentStep(3)
     }
   }
 
@@ -239,13 +226,13 @@ export default function CreateProjectPage() {
                 onChange={(e) => {
                   const value = e.target.value
                   setFormData({ ...formData, businessName: value })
-                  generateDomainSuggestions(value)
                 }}
                 autoFocus
               />
               {formData.businessName && (
                 <p className="text-sm text-white/30 pl-1">
-                  Looks good! Press next to continue.
+                  Your site will be available at{" "}
+                  <span className="text-white/50">{generateSubdomain(formData.businessName)}.pages.dev</span>
                 </p>
               )}
             </div>
@@ -256,159 +243,98 @@ export default function CreateProjectPage() {
         return (
           <div className="flex flex-col h-full">
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white leading-tight mb-4">
-              Set up your
+              Have you previously
               <br />
-              domain....
+              managed a website?
             </h1>
-            <p className="text-sm text-white/40 mb-10 md:mb-12">
-              Choose how people will access your site
+            <p className="text-sm text-white/40 mb-10 md:mb-16">
+              This helps us tailor the experience for you
             </p>
 
-            <div className="max-w-xl space-y-6">
-              {/* Domain toggle */}
-              <div className="flex gap-3">
+            <div className="max-w-xl space-y-3">
+              {experienceOptions.map(({ id, label, description }) => (
                 <button
-                  onClick={() => {
-                    setHasDomain(false)
-                    setFormData({ ...formData, domain: "", subdomain: "" })
-                    setSubdomainError("")
-                  }}
-                  className={`flex-1 px-5 py-3 rounded-2xl text-sm font-medium transition-all ${
-                    !hasDomain
-                      ? "bg-white/15 text-white ring-1 ring-white/20"
-                      : "bg-white/[0.07] text-white/40 hover:bg-white/10 hover:text-white/60"
+                  key={id}
+                  onClick={() => setFormData({ ...formData, previouslyManaged: id })}
+                  className={`w-full px-6 py-5 rounded-2xl text-left transition-all duration-300 ${
+                    formData.previouslyManaged === id
+                      ? "bg-white/15 ring-2 ring-white/30 shadow-lg shadow-white/5"
+                      : "bg-white/[0.07] hover:bg-white/10"
                   }`}
                 >
-                  I don&apos;t have a domain
-                </button>
-                <button
-                  onClick={() => {
-                    setHasDomain(true)
-                    setFormData({ ...formData, domain: "", subdomain: "" })
-                    setSubdomainError("")
-                  }}
-                  className={`flex-1 px-5 py-3 rounded-2xl text-sm font-medium transition-all ${
-                    hasDomain
-                      ? "bg-white/15 text-white ring-1 ring-white/20"
-                      : "bg-white/[0.07] text-white/40 hover:bg-white/10 hover:text-white/60"
-                  }`}
-                >
-                  I have a domain
-                </button>
-              </div>
-
-              {!hasDomain ? (
-                <div className="space-y-4">
-                  <div className="px-5 py-4 rounded-2xl bg-white/[0.05] border border-white/10">
-                    <p className="text-xs text-white/30 mb-1">Your site URL</p>
-                    <p className="text-lg font-semibold text-white">
-                      {formData.subdomain || "yoursite"}.pages.dev
-                    </p>
-                  </div>
-                  <input
-                    type="text"
-                    className={`w-full px-5 py-4 rounded-2xl bg-white/[0.07] border-0 text-white placeholder:text-white/30 text-lg focus:outline-none focus:ring-2 focus:ring-white/20 transition-all ${
-                      subdomainError ? "ring-2 ring-red-500/50" : ""
+                  <span
+                    className={`text-base font-semibold block mb-1 transition-colors ${
+                      formData.previouslyManaged === id ? "text-white" : "text-white/60"
                     }`}
-                    placeholder="e.g. mytestsite"
-                    value={formData.subdomain}
-                    onChange={(e) => {
-                      const value = e.target.value.toLowerCase().trim()
-                      setFormData({ ...formData, subdomain: value, domain: "" })
-                      validateSubdomain(value)
-                    }}
-                    autoFocus
-                  />
-                  {subdomainError && (
-                    <p className="text-sm text-red-400 pl-1">{subdomainError}</p>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {suggestedDomains.length > 0 && (
-                    <>
-                      <p className="text-xs text-white/30">Suggested domains</p>
-                      <div className="space-y-2">
-                        {suggestedDomains.map((domain) => (
-                          <button
-                            key={domain}
-                            onClick={() =>
-                              setFormData({ ...formData, domain, subdomain: "" })
-                            }
-                            className={`w-full px-5 py-3 rounded-2xl text-left transition-all ${
-                              formData.domain === domain
-                                ? "bg-white/15 text-white ring-1 ring-white/20"
-                                : "bg-white/[0.07] text-white/60 hover:bg-white/10"
-                            }`}
-                          >
-                            {domain}
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  )}
-
-                  <div className="pt-2">
-                    <p className="text-xs text-white/30 mb-2">Custom domain</p>
-                    <input
-                      type="text"
-                      placeholder="e.g. mydomain.com"
-                      className="w-full px-5 py-4 rounded-2xl bg-white/[0.07] border-0 text-white placeholder:text-white/30 text-lg focus:outline-none focus:ring-2 focus:ring-white/20 transition-all"
-                      value={formData.domain}
-                      onChange={(e) => {
-                        const value = e.target.value.trim()
-                        setFormData({ ...formData, domain: value })
-                      }}
-                      autoFocus
-                    />
-                  </div>
-                </div>
-              )}
+                  >
+                    {label}
+                  </span>
+                  <span className="text-xs text-white/30">{description}</span>
+                </button>
+              ))}
             </div>
           </div>
         )
 
       case 4:
         return (
-          <div className="flex flex-col h-full">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white leading-tight mb-4">
-              Pick a style for
-              <br />
-              your website....
-            </h1>
-            <p className="text-sm text-white/40 mb-10 md:mb-12">
-              You can always change this later
-            </p>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 max-w-xl max-h-[50vh] overflow-y-auto custom-scrollbar pr-1">
-              {Object.entries(themes).map(([key, theme]) => (
+          <div className="flex flex-col items-center justify-center h-full text-center">
+            {isLoading && !isSubmitted ? (
+              <>
+                <div className="h-16 w-16 rounded-full border-2 border-white/10 border-t-white/60 animate-spin mb-8" />
+                <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">
+                  Setting things up...
+                </h1>
+                <p className="text-sm text-white/40 max-w-sm">
+                  We&apos;re creating your project and preparing everything for you.
+                </p>
+              </>
+            ) : isSubmitted ? (
+              <>
+                <div className="h-20 w-20 rounded-full bg-white/10 flex items-center justify-center mb-8">
+                  <CheckCircle2 className="h-10 w-10 text-white" />
+                </div>
+                <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white leading-tight mb-3">
+                  All done!
+                </h1>
+                <p className="text-sm text-white/40 max-w-sm mb-3">
+                  Your project <span className="text-white/70">{formData.businessName}</span> has been created
+                  and is ready to go.
+                </p>
+                <p className="text-xs text-white/30 mb-10">
+                  Available at{" "}
+                  <span className="text-white/50">{generateSubdomain(formData.businessName)}.pages.dev</span>
+                </p>
                 <button
-                  key={key}
-                  onClick={() => setFormData({ ...formData, selectedStyle: key })}
-                  className={`group p-4 rounded-2xl transition-all duration-300 ${
-                    formData.selectedStyle === key
-                      ? "bg-white/15 ring-2 ring-white/30 shadow-lg shadow-white/5"
-                      : "bg-white/[0.07] hover:bg-white/10"
-                  }`}
+                  onClick={() => {
+                    if (createdProjectId) {
+                      router.push(`/dashboard/sites/${createdProjectId}`)
+                    } else {
+                      router.push("/dashboard")
+                    }
+                  }}
+                  className="px-8 py-3 rounded-xl text-sm font-medium bg-white text-black hover:bg-white/90 shadow-lg shadow-white/10 transition-all duration-300 flex items-center gap-2"
                 >
-                  <div className="flex gap-1.5 h-8 rounded-lg overflow-hidden mb-3">
-                    <div className="flex-1 rounded-sm" style={{ backgroundColor: theme.primary }} />
-                    <div className="flex-1 rounded-sm" style={{ backgroundColor: theme.secondary }} />
-                    <div className="flex-1 rounded-sm" style={{ backgroundColor: theme.accent }} />
-                  </div>
-                  <h3
-                    className={`font-semibold text-sm text-left transition-colors ${
-                      formData.selectedStyle === key ? "text-white" : "text-white/60"
-                    }`}
-                  >
-                    {theme.name}
-                  </h3>
-                  <p className="text-xs text-white/30 text-left line-clamp-1 mt-0.5">
-                    {theme.description}
-                  </p>
+                  Go to your project
+                  <ArrowRight className="h-4 w-4" />
                 </button>
-              ))}
-            </div>
+              </>
+            ) : (
+              <>
+                <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">
+                  Something went wrong
+                </h1>
+                <p className="text-sm text-white/40 max-w-sm mb-8">
+                  There was an issue creating your project. Please try again.
+                </p>
+                <button
+                  onClick={() => setCurrentStep(3)}
+                  className="px-8 py-3 rounded-xl text-sm font-medium bg-white text-black hover:bg-white/90 transition-all"
+                >
+                  Go back
+                </button>
+              </>
+            )}
           </div>
         )
 
@@ -417,35 +343,29 @@ export default function CreateProjectPage() {
     }
   }
 
-  return (
-    <div className="fixed inset-0 bg-[#0c0c0e] overflow-hidden">
-      {/* Blue glow effect - bottom right */}
-      <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-blue-600/8 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-100px] right-[-50px] w-[300px] h-[300px] bg-blue-500/5 rounded-full blur-[80px] pointer-events-none" />
+  const showBottomNav = currentStep < 4
 
-      {/* Splash SVG decoration */}
-      <svg
-        className="absolute bottom-8 right-8 w-24 h-24 text-white/[0.03] pointer-events-none"
-        viewBox="0 0 120 120"
-        fill="currentColor"
-      >
-        <path d="M60 10c-5 15-20 25-30 40-8 12-10 28 0 40s30 18 45 10 25-25 20-45c-3-12-10-22-18-30S65 12 60 10z" />
-        <circle cx="35" cy="30" r="4" opacity="0.5" />
-        <circle cx="85" cy="25" r="3" opacity="0.4" />
-        <circle cx="25" cy="55" r="2.5" opacity="0.3" />
-      </svg>
+  return (
+    <div className="fixed inset-0 bg-[#0e0e10] overflow-hidden">
+      {/* Minimalist gradient - subtle blue glow at bottom */}
+      <div className="absolute bottom-0 left-0 right-0 h-[200px] bg-gradient-to-t from-blue-950/20 via-blue-950/5 to-transparent pointer-events-none" />
+      <div className="absolute bottom-0 right-0 w-[400px] h-[200px] bg-blue-600/[0.04] rounded-full blur-[100px] pointer-events-none" />
 
       {/* Main content */}
       <div className="relative h-full flex flex-col">
         {/* Top bar */}
         <div className="flex items-center justify-between px-6 sm:px-10 py-6">
-          <button
-            onClick={handleBack}
-            className="flex items-center gap-2 text-white/40 hover:text-white/70 transition-colors text-sm"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span className="hidden sm:inline">{currentStep === 1 ? "Dashboard" : "Back"}</span>
-          </button>
+          {currentStep < 4 ? (
+            <button
+              onClick={handleBack}
+              className="flex items-center gap-2 text-white/40 hover:text-white/70 transition-colors text-sm"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span className="hidden sm:inline">{currentStep === 1 ? "Dashboard" : "Back"}</span>
+            </button>
+          ) : (
+            <div />
+          )}
 
           {/* Step indicators */}
           <div className="flex items-center gap-2">
@@ -488,32 +408,30 @@ export default function CreateProjectPage() {
           {renderStepContent()}
         </div>
 
-        {/* Bottom navigation */}
-        <div className="px-6 sm:px-10 py-6 border-t border-white/[0.06]">
-          <div className="flex items-center justify-between max-w-xl">
-            <button
-              onClick={handleBack}
-              className="px-6 py-2.5 rounded-xl text-sm font-medium text-white/40 hover:text-white/70 transition-colors"
-            >
-              {currentStep === 1 ? "Cancel" : "Back"}
-            </button>
-            <button
-              onClick={handleNext}
-              disabled={!isStepValid() || isLoading}
-              className={`px-8 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 ${
-                isStepValid() && !isLoading
-                  ? "bg-white text-black hover:bg-white/90 shadow-lg shadow-white/10"
-                  : "bg-white/10 text-white/20 cursor-not-allowed"
-              }`}
-            >
-              {isLoading
-                ? "Creating..."
-                : currentStep === steps.length
-                  ? "Create Project"
-                  : "Next"}
-            </button>
+        {/* Bottom navigation - hidden on "Done" step */}
+        {showBottomNav && (
+          <div className="px-6 sm:px-10 py-6 border-t border-white/[0.06]">
+            <div className="flex items-center justify-between max-w-xl">
+              <button
+                onClick={handleBack}
+                className="px-6 py-2.5 rounded-xl text-sm font-medium text-white/40 hover:text-white/70 transition-colors"
+              >
+                {currentStep === 1 ? "Cancel" : "Back"}
+              </button>
+              <button
+                onClick={handleNext}
+                disabled={!isStepValid() || isLoading}
+                className={`px-8 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 ${
+                  isStepValid() && !isLoading
+                    ? "bg-white text-black hover:bg-white/90 shadow-lg shadow-white/10"
+                    : "bg-white/10 text-white/20 cursor-not-allowed"
+                }`}
+              >
+                {currentStep === 3 ? "Finish" : "Next"}
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   )
