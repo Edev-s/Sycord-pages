@@ -19,14 +19,12 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { WebsitePreviewCard } from "@/components/website-preview-card"
-import { CreateProjectModal } from "@/components/create-project-modal"
 import { Skeleton } from "@/components/ui/skeleton"
 
 function DashboardContent() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [isModalOpen, setIsModalOpen] = useState(false)
   const [projects, setProjects] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [deletingDeployments, setDeletingDeployments] = useState<Set<string>>(new Set())
@@ -48,12 +46,12 @@ function DashboardContent() {
     }
 
     if (openCreateModal === "true") {
-        setIsModalOpen(true)
         const newUrl = new URL(window.location.href)
         newUrl.searchParams.delete("open_create_modal")
         window.history.replaceState({}, "", newUrl.toString())
+        router.push("/dashboard/create")
     }
-  }, [searchParams])
+  }, [searchParams, router])
 
   useEffect(() => {
     async function fetchProjects() {
@@ -301,7 +299,7 @@ function DashboardContent() {
           <div className="flex flex-col gap-4 mb-6 md:mb-8">
             <div className="flex items-center justify-between">
               <h1 className="text-lg font-semibold text-foreground">Projektek</h1>
-              <Button onClick={() => setIsModalOpen(true)} className="w-auto">
+              <Button onClick={() => router.push("/dashboard/create")} className="w-auto">
                 <Plus className="h-4 w-4 mr-2" />
                 Új Projekt
               </Button>
@@ -336,7 +334,7 @@ function DashboardContent() {
                 <p className="text-sm text-muted-foreground mb-6">
                   Kezdje el első projektjét, és indítsa el weboldalát {"{"}name{"}"}.pages.dev címen
                 </p>
-                <Button onClick={() => setIsModalOpen(true)}>
+                <Button onClick={() => router.push("/dashboard/create")}>
                   <Plus className="h-4 w-4 mr-2" />
                   Első Projekt Létrehozása
                 </Button>
@@ -379,8 +377,6 @@ function DashboardContent() {
           )}
         </main>
       </div>
-
-      <CreateProjectModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
 
       {/* Debug Error Popup */}
       <Dialog open={!!debugError} onOpenChange={(open) => !open && setDebugError(null)}>
