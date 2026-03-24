@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import {
@@ -10,20 +10,13 @@ import {
   HelpCircle,
   Globe,
   ArrowLeft,
-  Check,
   ImageIcon,
   CheckCircle2,
   ArrowRight,
+  Sparkles,
 } from "lucide-react"
 import { themes } from "@/lib/webshop-types"
 import { toast } from "sonner"
-
-const steps = [
-  { id: 1, name: "Type" },
-  { id: 2, name: "Name" },
-  { id: 3, name: "Previously managed" },
-  { id: 4, name: "Done" },
-]
 
 const websiteTypes = [
   { id: "service", label: "Service", icon: Briefcase, description: "Business & services" },
@@ -46,6 +39,10 @@ export default function CreateProjectPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [createdProjectId, setCreatedProjectId] = useState<string | null>(null)
+  const [userPlan, setUserPlan] = useState<{ isPremium: boolean; subscription: string } | null>(null)
+  const [subdomainStatus, setSubdomainStatus] = useState<"idle" | "checking" | "available" | "taken">("idle")
+  const subdomainCheckTimer = useRef<NodeJS.Timeout | null>(null)
+  const [promoDismissed, setPromoDismissed] = useState(false)
   const [formData, setFormData] = useState({
     websiteType: "",
     businessName: "",
@@ -54,8 +51,30 @@ export default function CreateProjectPage() {
     status: "pending",
   })
 
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/login")
+    }
+  }, [status, router])
+
+  useEffect(() => {
+    async function fetchUserPlan() {
+      try {
+        const res = await fetch("/api/user/status")
+        if (res.ok) {
+          const data = await res.json()
+          setUserPlan({ isPremium: data.isPremium, subscription: data.subscription })
+        }
+      } catch (err) {
+        console.error("Failed to fetch user plan:", err)
+      }
+    }
+    if (status === "authenticated") {
+      fetchUserPlan()
+    }
+  }, [status])
+
   if (status === "unauthenticated") {
-    router.push("/login")
     return null
   }
 
@@ -69,38 +88,54 @@ export default function CreateProjectPage() {
       .substring(0, 20)
   }
 
-  const isStepValid = () => {
-    switch (currentStep) {
-      case 1:
-        return !!formData.websiteType
-      case 2:
-        return !!formData.businessName
-      case 3:
-        return !!formData.previouslyManaged
-      case 4:
-        return true
-      default:
-        return false
+  const checkSubdomainAvailability = (name: string) => {
+    const subdomain = generateSubdomain(name)
+    if (!subdomain || subdomain.length < 3) {
+      setSubdomainStatus("idle")
+      return
     }
-  }
 
-  const handleNext = () => {
-    if (!isStepValid()) return
-    if (currentStep < steps.length) {
-      const nextStep = currentStep + 1
-      setCurrentStep(nextStep)
-      if (nextStep === 4) {
-        handleSubmit()
+    setSubdomainStatus("checking")
+
+    if (subdomainCheckTimer.current) {
+      clearTimeout(subdomainCheckTimer.current)
+    }
+
+    subdomainCheckTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/check-subdomain?subdomain=${encodeURIComponent(subdomain)}`)
+        const data = await res.json()
+        setSubdomainStatus(data.available ? "available" : "taken")
+      } catch {
+        setSubdomainStatus("idle")
       }
-    }
+    }, 500)
   }
 
-  const handleBack = () => {
-    if (currentStep > 1 && currentStep < 4) {
-      setCurrentStep(currentStep - 1)
-    } else {
-      router.push("/dashboard")
+  const handleTypeSelect = (typeId: string) => {
+    setFormData({ ...formData, websiteType: typeId })
+    setTimeout(() => setCurrentStep(2), 350)
+  }
+
+  const handleNameSubmit = () => {
+    if (!formData.businessName.trim()) return
+    if (subdomainStatus === "taken") {
+      toast.error("That subdomain is already taken. Please choose a different name.")
+      return
     }
+    if (subdomainStatus === "checking") {
+      toast.error("Please wait while we check subdomain availability.")
+      return
+    }
+    setCurrentStep(3)
+  }
+
+  const handleExperienceSelect = (optionId: string) => {
+    setFormData({ ...formData, previouslyManaged: optionId })
+    setTimeout(() => {
+      setCurrentStep(4)
+      handleSubmit()
+    }, 350)
   }
 
   const handleSubmit = async () => {
@@ -162,7 +197,41 @@ export default function CreateProjectPage() {
     }
   }
 
+  // Show Sycord+ promotion for free users on first screen
+  const showPromotion = userPlan && !userPlan.isPremium && currentStep === 1 && !formData.websiteType && !promoDismissed
+
   const renderStepContent = () => {
+    if (showPromotion) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full text-center">
+          <div className="h-16 w-16 rounded-full bg-emerald-500/10 flex items-center justify-center mb-6">
+            <Sparkles className="h-8 w-8 text-emerald-400" />
+          </div>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white leading-tight mb-4">
+            Upgrade to Sycord+
+          </h1>
+          <p className="text-sm text-white/40 max-w-md mb-8">
+            Unlock unlimited websites, custom domains, premium templates, and priority support.
+            Take your projects to the next level.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={() => router.push("/subscriptions")}
+              className="px-8 py-3 rounded-xl text-sm font-medium bg-emerald-500 text-white hover:bg-emerald-400 shadow-lg shadow-emerald-500/20 transition-all duration-300"
+            >
+              View Plans
+            </button>
+            <button
+              onClick={() => setPromoDismissed(true)}
+              className="px-8 py-3 rounded-xl text-sm font-medium text-white/40 hover:text-white/70 transition-colors"
+            >
+              Continue with Free
+            </button>
+          </div>
+        </div>
+      )
+    }
+
     switch (currentStep) {
       case 1:
         return (
@@ -180,7 +249,7 @@ export default function CreateProjectPage() {
               {websiteTypes.map(({ id, label, icon: Icon }) => (
                 <button
                   key={id}
-                  onClick={() => setFormData({ ...formData, websiteType: id })}
+                  onClick={() => handleTypeSelect(id)}
                   className={`group relative aspect-[4/3] rounded-2xl transition-all duration-300 flex flex-col items-center justify-center gap-2 ${
                     formData.websiteType === id
                       ? "bg-white/15 ring-2 ring-white/30 shadow-lg shadow-white/5"
@@ -209,31 +278,55 @@ export default function CreateProjectPage() {
         return (
           <div className="flex flex-col h-full">
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white leading-tight mb-4">
-              What&apos;s the name of
+              How do we will call
               <br />
               your business?
             </h1>
-            <p className="text-sm text-white/40 mb-10 md:mb-16">
-              This will be displayed on your website
-            </p>
+            {formData.businessName ? (
+              <p className="text-sm mb-10 md:mb-16">
+                <span className="text-emerald-400 font-medium">Nice</span>{" "}
+                <span className="text-white/40">name!</span>
+              </p>
+            ) : (
+              <p className="text-sm text-white/40 mb-10 md:mb-16">
+                Type a name and press Enter
+              </p>
+            )}
 
-            <div className="max-w-xl space-y-4">
+            <div className="flex-1 flex flex-col items-center justify-center -mt-20">
               <input
                 type="text"
-                className="w-full px-5 py-4 rounded-2xl bg-white/[0.07] border-0 text-white placeholder:text-white/30 text-lg focus:outline-none focus:ring-2 focus:ring-white/20 transition-all"
-                placeholder="e.g. My Business"
+                className="w-full max-w-lg bg-transparent border-0 text-white/50 text-2xl sm:text-3xl text-center focus:outline-none placeholder:text-white/20"
+                placeholder="My Business"
                 value={formData.businessName}
                 onChange={(e) => {
                   const value = e.target.value
                   setFormData({ ...formData, businessName: value })
+                  checkSubdomainAvailability(value)
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleNameSubmit()
+                  }
                 }}
                 autoFocus
               />
               {formData.businessName && (
-                <p className="text-sm text-white/30 pl-1">
-                  Your site will be available at{" "}
-                  <span className="text-white/50">{generateSubdomain(formData.businessName)}.pages.dev</span>
-                </p>
+                <div className="mt-4">
+                  {subdomainStatus === "checking" && (
+                    <p className="text-xs text-white/30">Checking availability...</p>
+                  )}
+                  {subdomainStatus === "available" && (
+                    <p className="text-xs text-emerald-400/70">
+                      {generateSubdomain(formData.businessName)}.pages.dev is available
+                    </p>
+                  )}
+                  {subdomainStatus === "taken" && (
+                    <p className="text-xs text-red-400/70">
+                      {generateSubdomain(formData.businessName)}.pages.dev is already taken
+                    </p>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -255,7 +348,7 @@ export default function CreateProjectPage() {
               {experienceOptions.map(({ id, label, description }) => (
                 <button
                   key={id}
-                  onClick={() => setFormData({ ...formData, previouslyManaged: id })}
+                  onClick={() => handleExperienceSelect(id)}
                   className={`w-full px-6 py-5 rounded-2xl text-left transition-all duration-300 ${
                     formData.previouslyManaged === id
                       ? "bg-white/15 ring-2 ring-white/30 shadow-lg shadow-white/5"
@@ -343,95 +436,36 @@ export default function CreateProjectPage() {
     }
   }
 
-  const showBottomNav = currentStep < 4
-
   return (
-    <div className="fixed inset-0 bg-[#0e0e10] overflow-hidden">
-      {/* Minimalist gradient - subtle blue glow at bottom */}
-      <div className="absolute bottom-0 left-0 right-0 h-[200px] bg-gradient-to-t from-blue-950/20 via-blue-950/5 to-transparent pointer-events-none" />
-      <div className="absolute bottom-0 right-0 w-[400px] h-[200px] bg-blue-600/[0.04] rounded-full blur-[100px] pointer-events-none" />
+    <div className="fixed inset-0 bg-[#0a0a0c] overflow-hidden">
+      {/* Minimalist gradient - subtle blue glow at bottom, matching mockup */}
+      <div className="absolute bottom-0 left-0 right-0 h-[250px] bg-gradient-to-t from-[#0a1628]/40 via-[#0a1225]/15 to-transparent pointer-events-none" />
+      <div className="absolute bottom-0 right-1/3 w-[500px] h-[150px] bg-blue-600/[0.03] rounded-full blur-[120px] pointer-events-none" />
 
       {/* Main content */}
       <div className="relative h-full flex flex-col">
-        {/* Top bar */}
-        <div className="flex items-center justify-between px-6 sm:px-10 py-6">
-          {currentStep < 4 ? (
+        {/* Top bar - minimal, just back button */}
+        {currentStep < 4 && (
+          <div className="flex items-center px-6 sm:px-10 py-6">
             <button
-              onClick={handleBack}
-              className="flex items-center gap-2 text-white/40 hover:text-white/70 transition-colors text-sm"
+              onClick={() => {
+                if (currentStep > 1) {
+                  setCurrentStep(currentStep - 1)
+                } else {
+                  router.push("/dashboard")
+                }
+              }}
+              className="flex items-center gap-2 text-white/30 hover:text-white/60 transition-colors text-sm"
             >
               <ArrowLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">{currentStep === 1 ? "Dashboard" : "Back"}</span>
             </button>
-          ) : (
-            <div />
-          )}
-
-          {/* Step indicators */}
-          <div className="flex items-center gap-2">
-            {steps.map((step, index) => (
-              <div key={step.id} className="flex items-center gap-2">
-                <div
-                  className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-medium transition-all duration-300 ${
-                    currentStep > step.id
-                      ? "bg-white text-black"
-                      : currentStep === step.id
-                        ? "bg-white/20 text-white ring-1 ring-white/30"
-                        : "bg-white/[0.07] text-white/30"
-                  }`}
-                >
-                  {currentStep > step.id ? (
-                    <Check className="h-3.5 w-3.5" />
-                  ) : (
-                    step.id
-                  )}
-                </div>
-                {index < steps.length - 1 && (
-                  <div
-                    className={`hidden sm:block w-8 h-px transition-colors ${
-                      currentStep > step.id ? "bg-white/40" : "bg-white/10"
-                    }`}
-                  />
-                )}
-              </div>
-            ))}
           </div>
-
-          {/* Step label */}
-          <span className="text-xs text-white/30 min-w-[60px] text-right">
-            {currentStep}/{steps.length}
-          </span>
-        </div>
+        )}
 
         {/* Step content */}
         <div className="flex-1 overflow-y-auto px-6 sm:px-10 md:px-16 lg:px-24 py-6 sm:py-10">
           {renderStepContent()}
         </div>
-
-        {/* Bottom navigation - hidden on "Done" step */}
-        {showBottomNav && (
-          <div className="px-6 sm:px-10 py-6 border-t border-white/[0.06]">
-            <div className="flex items-center justify-between max-w-xl">
-              <button
-                onClick={handleBack}
-                className="px-6 py-2.5 rounded-xl text-sm font-medium text-white/40 hover:text-white/70 transition-colors"
-              >
-                {currentStep === 1 ? "Cancel" : "Back"}
-              </button>
-              <button
-                onClick={handleNext}
-                disabled={!isStepValid() || isLoading}
-                className={`px-8 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 ${
-                  isStepValid() && !isLoading
-                    ? "bg-white text-black hover:bg-white/90 shadow-lg shadow-white/10"
-                    : "bg-white/10 text-white/20 cursor-not-allowed"
-                }`}
-              >
-                {currentStep === 3 ? "Finish" : "Next"}
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )

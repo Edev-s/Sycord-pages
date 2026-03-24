@@ -214,12 +214,13 @@ function DashboardContent() {
             <div className="flex items-center gap-4 md:gap-8">
               <Link href="/" className="flex items-center gap-2">
                 <Image src="/logo.png" alt="Logo" width={32} height={32} />
-                <span className="text-xl font-semibold text-foreground">Sycord</span>
-                {userStatus.isPremium && (
-                  <span className="ml-1 px-1.5 py-0.5 text-[10px] font-bold bg-yellow-500/20 text-yellow-500 rounded-full border border-yellow-500/30">
-                    {userStatus.subscription === "Sycord Enterprise" ? "Enterprise" : "+"}
-                  </span>
-                )}
+                <span className="text-xl font-semibold text-foreground">
+                  {userStatus.isPremium
+                    ? userStatus.subscription === "Sycord Enterprise"
+                      ? "Sycord Enterprise"
+                      : "Sycord+"
+                    : "Sycord"}
+                </span>
               </Link>
               <nav className="hidden md:flex items-center gap-6">
                 <Link href="/dashboard" className="text-sm text-foreground font-medium">
