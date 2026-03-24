@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import {
@@ -13,7 +13,8 @@ import {
   ImageIcon,
   CheckCircle2,
   ArrowRight,
-  Sparkles,
+  Check,
+  Zap,
 } from "lucide-react"
 import { themes } from "@/lib/webshop-types"
 import { toast } from "sonner"
@@ -43,6 +44,7 @@ export default function CreateProjectPage() {
   const [subdomainStatus, setSubdomainStatus] = useState<"idle" | "checking" | "available" | "taken">("idle")
   const subdomainCheckTimer = useRef<NodeJS.Timeout | null>(null)
   const [promoDismissed, setPromoDismissed] = useState(false)
+  const [existingProjectCount, setExistingProjectCount] = useState<number | null>(null)
   const [formData, setFormData] = useState({
     websiteType: "",
     businessName: "",
@@ -60,13 +62,20 @@ export default function CreateProjectPage() {
   useEffect(() => {
     async function fetchUserPlan() {
       try {
-        const res = await fetch("/api/user/status")
-        if (res.ok) {
-          const data = await res.json()
+        const [statusRes, projectsRes] = await Promise.all([
+          fetch("/api/user/status"),
+          fetch("/api/projects"),
+        ])
+        if (statusRes.ok) {
+          const data = await statusRes.json()
           setUserPlan({ isPremium: data.isPremium, subscription: data.subscription })
         }
+        if (projectsRes.ok) {
+          const projects = await projectsRes.json()
+          setExistingProjectCount(Array.isArray(projects) ? projects.length : 0)
+        }
       } catch (err) {
-        console.error("Failed to fetch user plan:", err)
+        console.error("Failed to fetch user data:", err)
       }
     }
     if (status === "authenticated") {
@@ -197,35 +206,62 @@ export default function CreateProjectPage() {
     }
   }
 
-  // Show Sycord+ promotion for free users on first screen
-  const showPromotion = userPlan && !userPlan.isPremium && currentStep === 1 && !formData.websiteType && !promoDismissed
+  // Show upgrade notice for free users who already created their first project
+  const showUpgradeNotice = userPlan && !userPlan.isPremium && existingProjectCount !== null && existingProjectCount >= 1 && currentStep === 1 && !formData.websiteType && !promoDismissed
 
   const renderStepContent = () => {
-    if (showPromotion) {
+    if (showUpgradeNotice) {
       return (
-        <div className="flex flex-col items-center justify-center h-full text-center">
-          <div className="h-16 w-16 rounded-full bg-emerald-500/10 flex items-center justify-center mb-6">
-            <Sparkles className="h-8 w-8 text-emerald-400" />
-          </div>
+        <div className="flex flex-col h-full">
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white leading-tight mb-4">
-            Upgrade to Sycord+
+            oh no! you already
+            <br />
+            created your first
+            <br />
+            <span className="text-blue-400">free</span> project.
           </h1>
-          <p className="text-sm text-white/40 max-w-md mb-8">
-            Unlock unlimited websites, custom domains, premium templates, and priority support.
-            Take your projects to the next level.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <button
-              onClick={() => router.push("/subscriptions")}
-              className="px-8 py-3 rounded-xl text-sm font-medium bg-emerald-500 text-white hover:bg-emerald-400 shadow-lg shadow-emerald-500/20 transition-all duration-300"
-            >
-              View Plans
-            </button>
+
+          <div className="mt-10 sm:mt-16 max-w-sm">
+            <div className="rounded-2xl border border-yellow-500/30 bg-white/[0.04] p-6">
+              <div className="flex items-center gap-1.5 mb-3">
+                <Zap className="h-4 w-4 text-yellow-400" />
+                <span className="text-xs font-semibold text-yellow-400">Popular</span>
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-1">Sycord+</h2>
+              <p className="text-sm text-white/40 mb-4">Growing business</p>
+              <div className="mb-4">
+                <span className="text-3xl font-bold text-white">$9</span>
+                <span className="text-sm text-white/40">/mo</span>
+              </div>
+              <button
+                onClick={() => router.push("/subscriptions")}
+                className="w-full py-3 rounded-xl text-sm font-medium bg-white/10 text-white hover:bg-white/20 transition-all duration-300 mb-5"
+              >
+                Upgrade
+              </button>
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-yellow-400" />
+                  <span className="text-sm text-white/70">Unlimited Sites</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-yellow-400" />
+                  <span className="text-sm text-white/70">50 GB Storage</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-yellow-400" />
+                  <span className="text-sm text-white/70">AI Builder</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-8">
             <button
               onClick={() => setPromoDismissed(true)}
-              className="px-8 py-3 rounded-xl text-sm font-medium text-white/40 hover:text-white/70 transition-colors"
+              className="text-sm text-white/30 hover:text-white/60 transition-colors"
             >
-              Continue with Free
+              Continue with Free →
             </button>
           </div>
         </div>
@@ -274,7 +310,9 @@ export default function CreateProjectPage() {
           </div>
         )
 
-      case 2:
+      case 2: {
+        const selectedType = websiteTypes.find((t) => t.id === formData.websiteType)
+        const TypeIcon = selectedType?.icon
         return (
           <div className="flex flex-col h-full">
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white leading-tight mb-4">
@@ -294,6 +332,12 @@ export default function CreateProjectPage() {
             )}
 
             <div className="flex-1 flex flex-col items-center justify-center -mt-20">
+              {selectedType && TypeIcon && (
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.07] mb-4">
+                  <TypeIcon className="h-3.5 w-3.5 text-white/40" />
+                  <span className="text-xs text-white/40">{selectedType.label}</span>
+                </div>
+              )}
               <input
                 type="text"
                 className="w-full max-w-lg bg-transparent border-0 text-white/50 text-2xl sm:text-3xl text-center focus:outline-none placeholder:text-white/20"
@@ -331,6 +375,7 @@ export default function CreateProjectPage() {
             </div>
           </div>
         )
+      }
 
       case 3:
         return (
@@ -437,7 +482,7 @@ export default function CreateProjectPage() {
   }
 
   return (
-    <div className="fixed inset-0 bg-[#0a0a0c] overflow-hidden">
+    <div className="fixed inset-0 bg-[#101010] overflow-hidden">
       {/* Minimalist gradient - subtle blue glow at bottom, matching mockup */}
       <div className="absolute bottom-0 left-0 right-0 h-[250px] bg-gradient-to-t from-[#0a1628]/40 via-[#0a1225]/15 to-transparent pointer-events-none" />
       <div className="absolute bottom-0 right-1/3 w-[500px] h-[150px] bg-blue-600/[0.03] rounded-full blur-[120px] pointer-events-none" />
