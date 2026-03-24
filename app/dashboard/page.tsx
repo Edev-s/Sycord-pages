@@ -5,7 +5,7 @@ import Image from "next/image"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useSession, signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
-import { Settings, Plus, LogOut, User, Menu, TriangleAlert, Search, LayoutTemplate } from "lucide-react"
+import { Settings, Plus, LogOut, User, TriangleAlert, Search, LayoutTemplate, CreditCard } from "lucide-react"
 import { useState, useEffect, Suspense } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import {
@@ -17,7 +17,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { WebsitePreviewCard } from "@/components/website-preview-card"
 import { Skeleton } from "@/components/ui/skeleton"
 
@@ -121,47 +120,6 @@ function DashboardContent() {
       .join("")
       .toUpperCase() || "U"
 
-  const MobileNav = () => (
-    <Sheet>
-      <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="md:hidden">
-          <Menu className="h-5 w-5" />
-        </Button>
-      </SheetTrigger>
-      <SheetContent side="left" className="w-72">
-        <nav className="flex flex-col gap-4 mt-8">
-          <Link href="/dashboard" className="text-sm text-foreground font-medium px-4 py-2 hover:bg-accent rounded-md">
-            Áttekintés
-          </Link>
-          <Link
-            href="#"
-            className="text-sm text-muted-foreground hover:text-foreground px-4 py-2 hover:bg-accent rounded-md"
-          >
-            Projektek
-          </Link>
-          <Link
-            href="/subscriptions"
-            className="text-sm text-muted-foreground hover:text-foreground px-4 py-2 hover:bg-accent rounded-md"
-          >
-            Plans
-          </Link>
-          <Link
-            href="#"
-            className="text-sm text-muted-foreground hover:text-foreground px-4 py-2 hover:bg-accent rounded-md"
-          >
-            Analitika
-          </Link>
-          <Link
-            href="/dashboard/webshop-demo"
-            className="text-sm text-muted-foreground hover:text-foreground px-4 py-2 hover:bg-accent rounded-md"
-          >
-            Webshop Demo
-          </Link>
-        </nav>
-      </SheetContent>
-    </Sheet>
-  )
-
   const handleDeleteProject = async (projectId: string) => {
     // The actual API call is handled inside WebsitePreviewCard for now,
     // or we can move it here.
@@ -222,32 +180,8 @@ function DashboardContent() {
                     : "Sycord"}
                 </span>
               </Link>
-              <nav className="hidden md:flex items-center gap-6">
-                <Link href="/dashboard" className="text-sm text-foreground font-medium">
-                  Áttekintés
-                </Link>
-                <Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                  Projektek
-                </Link>
-                <Link
-                  href="/subscriptions"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Plans
-                </Link>
-                <Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                  Analitika
-                </Link>
-                <Link
-                  href="/dashboard/webshop-demo"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Webshop Demo
-                </Link>
-              </nav>
             </div>
             <div className="flex items-center gap-2 md:gap-3">
-              <MobileNav />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0">
@@ -268,6 +202,10 @@ function DashboardContent() {
                   <DropdownMenuItem>
                     <User className="mr-2 h-4 w-4" />
                     <span>Profil</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => router.push("/subscriptions")}>
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    <span>Plans</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem>
                     <Settings className="mr-2 h-4 w-4" />

@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Home, ShoppingCart, HelpCircle } from "lucide-react"
+import { Home, HelpCircle } from "lucide-react"
 import { useSession } from "next-auth/react"
 
 export function BottomMenu() {
@@ -13,7 +13,6 @@ export function BottomMenu() {
 
   const menuItems = [
     { href: "/dashboard", label: "Dashboard", icon: Home },
-    { href: "/subscriptions", label: "Plans", icon: ShoppingCart },
     { href: "#", label: "Help", icon: HelpCircle, disabled: true },
   ]
 

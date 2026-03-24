@@ -474,6 +474,10 @@ export default function AdminPage() {
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   <span>Dashboard</span>
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push("/subscriptions")}>
+                  <Zap className="mr-2 h-4 w-4" />
+                  <span>Plans</span>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => signOut({ callbackUrl: "/" })}
