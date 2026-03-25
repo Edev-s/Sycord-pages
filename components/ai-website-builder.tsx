@@ -866,6 +866,10 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
         setCurrentPlan("All files generated.")
         setActiveFile(undefined)
         setActiveFileUsedFor(undefined)
+        // Auto-deploy for testing when Appwrite is connected
+        if (requiresDatabase) {
+          handleDeploy()
+        }
         return
       }
 
@@ -1099,10 +1103,15 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                                 <div className="flex items-center gap-2.5">
                                     <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-zinc-500" />
                                     <span className="text-sm text-zinc-400 truncate">
-                                        {activeFile ? `Generating ${activeFile}` : 'Building your website…'}
+                                        {activeFile === 'src/appwrite.ts'
+                                          ? 'Retrieving Appwrite data…'
+                                          : activeFile ? `Generating ${activeFile}` : 'Building your website…'}
                                     </span>
                                 </div>
-                                {activeFileUsedFor && (
+                                {activeFile === 'src/appwrite.ts' && (
+                                    <p className="text-xs text-[#FD366E]/70 pl-6 leading-relaxed animate-pulse">Integrating Appwrite SDK with your project credentials</p>
+                                )}
+                                {activeFileUsedFor && activeFile !== 'src/appwrite.ts' && (
                                     <p className="text-xs text-zinc-600 pl-6 leading-relaxed">{activeFileUsedFor}</p>
                                 )}
                                 <div className="pl-6 space-y-1">
