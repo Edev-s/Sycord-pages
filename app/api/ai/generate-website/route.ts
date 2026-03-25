@@ -11,6 +11,8 @@ import {
 } from "@/lib/ai-memory"
 import { getSystemPrompts, getProjectPrompts } from "@/lib/ai-prompts"
 import { cacheGeneratedFile, getCachedFiles } from "@/lib/gemini-cache"
+import clientPromise from "@/lib/mongodb"
+import { ObjectId } from "mongodb"
 
 // API Configurations
 const GOOGLE_API_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
@@ -112,6 +114,23 @@ export async function POST(request: Request) {
        const memory = await getProjectPrompts(projectId);
        if (memory) {
           projectMemory = `\n\n[PROJECT MEMORY]\n${memory}\n`;
+       }
+
+       // Inject Appwrite context if connected
+       try {
+           const client = await clientPromise
+           const db = client.db()
+           const user = await db.collection("users").findOne(
+               { id: session.user.id, "projects._id": new ObjectId(projectId) },
+               { projection: { "projects.$": 1 } }
+           )
+
+           if (user?.projects?.[0]?.appwriteConnected) {
+               const { appwriteEndpoint, appwriteProjectId } = user.projects[0]
+               projectMemory += `\n\n[APPWRITE CONFIGURATION]\nThe user has connected their Appwrite database.\nYou must use these credentials when initializing the Appwrite client in the code:\n- Endpoint: ${appwriteEndpoint}\n- Project ID: ${appwriteProjectId}\n`
+           }
+       } catch (err) {
+           console.error("Error fetching project Appwrite details:", err)
        }
     }
 
