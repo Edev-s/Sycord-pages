@@ -140,10 +140,10 @@ CRITICAL APPWRITE RULES:
 3. src/appwrite.ts MUST export: client, account (new Account(client)), databases (new Databases(client)), ID.
 4. src/appwrite.ts MUST export database/collection ID constants (e.g. DATABASE_ID, COLLECTION_PRODUCTS).
 5. Components that display or manage data MUST import { databases, DATABASE_ID, COLLECTION_PRODUCTS } from '../appwrite' and use real SDK calls:
-   - List: databases.listDocuments(DATABASE_ID, COLLECTION_ID)
-   - Create: databases.createDocument(DATABASE_ID, COLLECTION_ID, ID.unique(), data)
-   - Update: databases.updateDocument(DATABASE_ID, COLLECTION_ID, documentId, data)
-   - Delete: databases.deleteDocument(DATABASE_ID, COLLECTION_ID, documentId)
+   - List: databases.listDocuments(DATABASE_ID, COLLECTION_PRODUCTS)
+   - Create: databases.createDocument(DATABASE_ID, COLLECTION_PRODUCTS, ID.unique(), data)
+   - Update: databases.updateDocument(DATABASE_ID, COLLECTION_PRODUCTS, documentId, data)
+   - Delete: databases.deleteDocument(DATABASE_ID, COLLECTION_PRODUCTS, documentId)
 6. For auth: import { account } from '../appwrite' and use account.createEmailPasswordSession(email, password), account.get(), account.deleteSession('current').
 7. Do NOT use mock/hardcoded data. ALL data operations MUST use real Appwrite SDK calls.
 8. Handle errors gracefully with try/catch and show user-friendly messages.
