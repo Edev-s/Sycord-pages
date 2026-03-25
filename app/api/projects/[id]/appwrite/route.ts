@@ -16,10 +16,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   const body = await request.json()
-  const { firebaseUid, firebaseEmail, firebaseDisplayName } = body
+  const { appwriteEndpoint, appwriteProjectId } = body
 
-  if (!firebaseUid || !firebaseEmail) {
-    return NextResponse.json({ message: "Missing Firebase user details" }, { status: 400 })
+  if (!appwriteEndpoint || !appwriteProjectId) {
+    return NextResponse.json({ message: "Missing Appwrite details" }, { status: 400 })
   }
 
   const client = await clientPromise
@@ -41,11 +41,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     },
     {
       $set: {
-        "projects.$.firebaseConnected": true,
-        "projects.$.firebaseUid": firebaseUid,
-        "projects.$.firebaseEmail": firebaseEmail,
-        "projects.$.firebaseDisplayName": firebaseDisplayName || null,
-        "projects.$.firebaseConnectedAt": new Date(),
+        "projects.$.appwriteConnected": true,
+        "projects.$.appwriteEndpoint": appwriteEndpoint,
+        "projects.$.appwriteProjectId": appwriteProjectId,
+        "projects.$.appwriteConnectedAt": new Date(),
         "projects.$.updatedAt": new Date(),
       },
     }
@@ -55,7 +54,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ message: "Project not found" }, { status: 404 })
   }
 
-  return NextResponse.json({ success: true, firebaseConnected: true })
+  return NextResponse.json({ success: true, appwriteConnected: true })
 }
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -87,8 +86,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   }
 
   return NextResponse.json({
-    firebaseConnected: project.firebaseConnected ?? false,
-    firebaseEmail: project.firebaseEmail ?? null,
-    firebaseDisplayName: project.firebaseDisplayName ?? null,
+    appwriteConnected: project.appwriteConnected ?? false,
+    appwriteEndpoint: project.appwriteEndpoint ?? null,
+    appwriteProjectId: project.appwriteProjectId ?? null,
   })
 }

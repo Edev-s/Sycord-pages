@@ -48,8 +48,6 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
-import { signInWithGoogle } from "@/lib/firebase-client"
-
 // Updated Models List — gemini-3.1-pro-preview is the default
 const MODELS = [
   { id: "gemini-3.1-pro-preview", name: "Gemini 3.1 Pro (Preview)", provider: "Google" },
@@ -65,7 +63,7 @@ const LOG_ERROR_PATTERNS   = ['error', 'fail', 'exception']
 // How long to wait after deploy before the first log check (build pipeline startup time)
 const DEPLOY_LOG_CHECK_DELAY_MS = 8000
 
-type Step = "idle" | "planning" | "needs_info" | "firebase_auth" | "coding" | "fixing" | "done"
+type Step = "idle" | "planning" | "needs_info" | "appwrite_auth" | "coding" | "fixing" | "done"
 
 interface Message {
   id: string
@@ -382,7 +380,7 @@ const HexagonIcon = ({ className }: { className?: string }) => (
     </svg>
 )
 
-const FirebaseConnectionCard = ({
+const AppwriteConnectionCard = ({
     projectId,
     onConnect,
 }: {
@@ -391,48 +389,35 @@ const FirebaseConnectionCard = ({
 }) => {
     const [isConnecting, setIsConnecting] = useState(false)
     const [connectError, setConnectError] = useState<string | null>(null)
-
-    const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
-    const projectDomain = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_DOMAIN
-    const proxyLoopDetected = !!authDomain && !!projectDomain && authDomain === projectDomain
-    // The exact URLs Google Cloud Console must have for the popup to work
-    const oauthRedirectUri = authDomain ? `https://${authDomain}/__/auth/handler` : null
-    const oauthJsOrigin   = authDomain ? `https://${authDomain}` : null
+    const [appwriteEndpoint, setAppwriteEndpoint] = useState("https://cloud.appwrite.io/v1")
+    const [appwriteProjectId, setAppwriteProjectId] = useState("")
 
     const handleConnect = async () => {
+        if (!appwriteEndpoint || !appwriteProjectId) {
+            setConnectError("Please provide both endpoint and project ID.")
+            return
+        }
+
         setIsConnecting(true)
         setConnectError(null)
         try {
-            const credential = await signInWithGoogle()
-            const user = credential.user
-
-            const res = await fetch(`/api/projects/${projectId}/firebase`, {
+            const res = await fetch(`/api/projects/${projectId}/appwrite`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    firebaseUid: user.uid,
-                    firebaseEmail: user.email,
-                    firebaseDisplayName: user.displayName,
+                    appwriteEndpoint,
+                    appwriteProjectId,
                 }),
             })
 
             if (!res.ok) {
                 const data = await res.json()
-                throw new Error(data.message || "Failed to save Firebase connection")
+                throw new Error(data.message || "Failed to save Appwrite connection")
             }
 
             onConnect()
         } catch (err: unknown) {
-            const firebaseErr = err as { code?: string; message?: string }
-            if (firebaseErr?.code === "auth/popup-closed-by-user" || firebaseErr?.code === "auth/cancelled-popup-request") {
-                setConnectError(null)
-            } else if (firebaseErr?.code === "auth/redirect-uri-mismatch") {
-                setConnectError(
-                    `redirect_uri_mismatch — open the debug panel below and add the listed Redirect URI to your Google Cloud OAuth client.`
-                )
-            } else {
-                setConnectError(firebaseErr?.message || "Connection failed. Please try again.")
-            }
+            setConnectError((err as Error).message || "Connection failed. Please try again.")
         } finally {
             setIsConnecting(false)
         }
@@ -441,27 +426,37 @@ const FirebaseConnectionCard = ({
     return (
         <div className="flex flex-col items-center justify-center py-6 gap-5 animate-in fade-in slide-in-from-bottom-2 duration-700">
             <div className="flex items-center gap-3 mb-2">
-                <HexagonIcon className="h-5 w-5 text-[#f97316]" />
+                <HexagonIcon className="h-5 w-5 text-[#f02e65]" />
                 <h3 className="text-base font-medium text-zinc-100">Let's connect you to a database</h3>
             </div>
             <p className="text-xs text-zinc-500 text-center max-w-xs -mt-2">
-                This project needs a database to store your items. Connect with Google to enable Firebase.
+                This project needs a database to store your items. Enter your Appwrite details to enable it.
             </p>
 
-            <div className="flex items-center justify-between p-4 rounded-2xl bg-[#1c1c1c] border border-white/5 w-full max-w-sm">
-                <div className="flex items-center gap-3">
-                    <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M11.603 21.056c.23.125.503.125.732 0l8.913-4.838a.333.333 0 0 0 .15-.357L17.765 2.112a.333.333 0 0 0-.585-.145l-4.717 6.945-2.03-3.61a.333.333 0 0 0-.585.003L2.618 15.86a.333.333 0 0 0 .154.357l8.831 4.839Z" fill="#FFCA28"/>
-                        <path d="m11.969 21.056 8.913-4.838a.333.333 0 0 0 .15-.357L17.765 2.112a.333.333 0 0 0-.585-.145L11.969 21.056Z" fill="#FFA000"/>
-                        <path d="M11.969 21.056 2.618 15.86a.333.333 0 0 1-.154-.357L8.985 3.033a.333.333 0 0 1 .585-.003L11.969 21.056Z" fill="#F57C00"/>
-                        <path d="M11.969 21.056 12.463 8.91l-2.03-3.61a.333.333 0 0 0-.585.003l-7.23 10.558 8.831 4.839a.5.5 0 0 0 .52 0Z" fill="#FF8A65"/>
-                    </svg>
-                    <span className="font-semibold text-white">Firebase</span>
+            <div className="flex flex-col gap-3 p-4 rounded-2xl bg-[#1c1c1c] border border-white/5 w-full max-w-sm">
+                <div className="flex flex-col gap-1">
+                    <label className="text-xs text-zinc-400 ml-1">Appwrite Endpoint</label>
+                    <Input
+                        value={appwriteEndpoint}
+                        onChange={(e) => setAppwriteEndpoint(e.target.value)}
+                        placeholder="https://cloud.appwrite.io/v1"
+                        className="bg-black/20 border-white/10 text-sm"
+                    />
                 </div>
+                <div className="flex flex-col gap-1">
+                    <label className="text-xs text-zinc-400 ml-1">Appwrite Project ID</label>
+                    <Input
+                        value={appwriteProjectId}
+                        onChange={(e) => setAppwriteProjectId(e.target.value)}
+                        placeholder="Project ID"
+                        className="bg-black/20 border-white/10 text-sm"
+                    />
+                </div>
+
                 <Button
                     onClick={handleConnect}
-                    disabled={isConnecting}
-                    className="bg-[#3c3c3e] text-white hover:bg-[#4c4c4e] rounded-full px-6 py-2 h-9 font-medium border-none"
+                    disabled={isConnecting || !appwriteEndpoint || !appwriteProjectId}
+                    className="bg-[#f02e65] text-white hover:bg-[#d81b60] rounded-xl w-full mt-2 h-10 font-medium border-none"
                 >
                     {isConnecting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Connect"}
                 </Button>
@@ -470,61 +465,6 @@ const FirebaseConnectionCard = ({
             {connectError && (
                 <p className="text-xs text-red-400 text-center max-w-xs">{connectError}</p>
             )}
-
-            {/* Debug panel — always available so operators can verify the required OAuth setup */}
-            <details className="w-full max-w-sm text-[10px] text-zinc-600 border border-white/5 rounded-xl px-3 py-2 bg-[#1c1c1c]">
-                <summary className="cursor-pointer text-zinc-500 font-mono select-none">
-                    {proxyLoopDetected || !projectDomain ? "⚠ " : ""}Firebase OAuth debug
-                </summary>
-                <div className="mt-2 flex flex-col gap-2 font-mono">
-
-                    {/* Env var status */}
-                    <div className="flex flex-col gap-1">
-                        <div>
-                            <span className="text-zinc-600">AUTH_DOMAIN: </span>
-                            <span className={authDomain ? "text-zinc-300" : "text-red-500"}>{authDomain || "(not set)"}</span>
-                        </div>
-                        <div>
-                            <span className="text-zinc-600">PROJECT_DOMAIN: </span>
-                            <span className={projectDomain ? "text-zinc-300" : "text-red-500"}>{projectDomain || "(not set)"}</span>
-                        </div>
-                    </div>
-
-                    {/* Proxy misconfiguration warnings */}
-                    {proxyLoopDetected && (
-                        <p className="text-red-400 leading-snug">
-                            AUTH_DOMAIN and PROJECT_DOMAIN are identical — the /__/auth proxy would loop back to itself (508).
-                            Set NEXT_PUBLIC_FIREBASE_PROJECT_DOMAIN to your {"<project-id>"}.firebaseapp.com hostname.
-                        </p>
-                    )}
-                    {!projectDomain && (
-                        <p className="text-amber-400 leading-snug">
-                            NEXT_PUBLIC_FIREBASE_PROJECT_DOMAIN is not set — the /__/auth proxy is disabled.
-                            Add this env var (e.g. my-project.firebaseapp.com) to enable Google Sign-In via popup.
-                        </p>
-                    )}
-
-                    {/* Google Cloud Console required setup */}
-                    {authDomain && (
-                        <div className="border-t border-white/5 pt-2 flex flex-col gap-1">
-                            <p className="text-zinc-500 mb-1">
-                                Google Cloud Console → APIs &amp; Services → Credentials → OAuth 2.0 Client must have:
-                            </p>
-                            <div>
-                                <span className="text-zinc-600">Authorized JavaScript origins:</span>
-                                <div className="mt-0.5 px-2 py-1 rounded bg-zinc-800 text-zinc-200 break-all select-all">{oauthJsOrigin ?? "(AUTH_DOMAIN not set)"}</div>
-                            </div>
-                            <div className="mt-1">
-                                <span className="text-zinc-600">Authorized redirect URIs:</span>
-                                <div className="mt-0.5 px-2 py-1 rounded bg-zinc-800 text-zinc-200 break-all select-all">{oauthRedirectUri ?? "(AUTH_DOMAIN not set)"}</div>
-                            </div>
-                            <p className="text-zinc-600 mt-1 leading-snug">
-                                Firebase Console → Authentication → Settings → Authorized domains must also include <span className="text-zinc-400">{authDomain}</span>.
-                            </p>
-                        </div>
-                    )}
-                </div>
-            </details>
         </div>
     )
 }
@@ -839,7 +779,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       // Check if database is required
       if (generatedInstruction.includes("## REQUIRES_DATABASE: true")) {
           setRequiresDatabase(true)
-          setStep("firebase_auth")
+          setStep("appwrite_auth")
           // We will wait for user to authenticate
       } else {
           setRequiresDatabase(false)
@@ -1151,9 +1091,9 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                             </div>
                         )}
 
-                        {step === 'firebase_auth' && (
+                        {step === 'appwrite_auth' && (
                             <div className="mt-4">
-                                <FirebaseConnectionCard
+                                <AppwriteConnectionCard
                                     projectId={projectId}
                                     onConnect={() => {
                                         onDatabaseConnected?.()
