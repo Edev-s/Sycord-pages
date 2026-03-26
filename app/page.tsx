@@ -206,7 +206,7 @@ export default function LandingPage() {
             <div className="flex-1 max-w-xl text-center md:text-left">
               {/* Badge */}
               <div className="inline-flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/25 rounded-full px-4 py-1.5 mb-6">
-                <Bot className="w-3.5 h-3.5 text-indigo-400" />
+                <Bot className="w-3.5 h-3.5 text-indigo-400" aria-hidden="true" />
                 <span className="text-indigo-300 text-xs font-medium tracking-wide">AI-Powered Website Builder</span>
               </div>
 
@@ -321,7 +321,7 @@ export default function LandingPage() {
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${item.iconBg}`}>
                       {item.icon}
                     </div>
-                    <span className="text-3xl font-black text-white/5 select-none">{item.step}</span>
+                    <span className="text-3xl font-black text-white/5 select-none" aria-hidden="true">{item.step}</span>
                   </div>
                   <div>
                     <h3 className="text-white font-semibold text-base mb-2">{item.title}</h3>
@@ -544,7 +544,7 @@ export default function LandingPage() {
 
               <div className="relative z-10">
                 <div className="inline-flex items-center gap-2 bg-indigo-600/15 border border-indigo-500/25 rounded-full px-4 py-1.5 mb-5">
-                  <Clock className="w-3.5 h-3.5 text-indigo-400" />
+                  <Clock className="w-3.5 h-3.5 text-indigo-400" aria-hidden="true" />
                   <span className="text-indigo-300 text-xs font-medium">Your website can be live in 5 minutes</span>
                 </div>
                 <h2 className="text-2xl md:text-4xl font-bold text-white mb-4">
