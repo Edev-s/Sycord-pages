@@ -373,15 +373,15 @@ export default function AdminPage() {
   const blockedCount = users.filter(u => u.isBlocked).length
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header - matching dashboard style */}
-      <header className="border-b border-border sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50">
+    <div className="min-h-screen bg-[#101010]">
+      {/* Header */}
+      <header className="border-b border-white/5 sticky top-0 bg-[#101010]/95 backdrop-blur-xl z-50">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4 md:gap-6">
             <Link href="/dashboard" className="flex items-center gap-2">
               <Image src="/logo.png" alt="Logo" width={28} height={28} />
-              <span className="text-lg font-semibold text-foreground">Sycord</span>
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 bg-primary/5 text-primary border-primary/20 font-semibold">
+              <span className="text-lg font-semibold text-white">Sycord</span>
+              <Badge variant="outline" className="text-[10px] px-2 py-0 h-5 bg-white/5 text-white/70 border-white/10 font-semibold rounded-full">
                 Admin
               </Badge>
             </Link>
@@ -394,10 +394,10 @@ export default function AdminPage() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                       activeTab === tab.id
-                        ? "text-foreground bg-accent"
-                        : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                        ? "text-white bg-white/10"
+                        : "text-white/40 hover:text-white/70 hover:bg-white/5"
                     }`}
                   >
                     <Icon className="h-4 w-4" />
@@ -416,10 +416,10 @@ export default function AdminPage() {
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-72">
+              <SheetContent side="left" className="w-72 bg-[#1a1a1a] border-white/5">
                 <div className="flex items-center gap-2 mb-6 mt-4">
                   <Image src="/logo.png" alt="Logo" width={28} height={28} />
-                  <span className="text-lg font-semibold">Admin Panel</span>
+                  <span className="text-lg font-semibold text-white">Admin Panel</span>
                 </div>
                 <nav className="flex flex-col gap-1">
                   {tabs.map((tab) => {
@@ -428,10 +428,10 @@ export default function AdminPage() {
                       <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors text-left ${
+                        className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors text-left ${
                           activeTab === tab.id
-                            ? "text-foreground bg-accent"
-                            : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                            ? "text-white bg-white/10"
+                            : "text-white/40 hover:text-white/70 hover:bg-white/5"
                         }`}
                       >
                         <Icon className="h-5 w-5" />
@@ -439,10 +439,10 @@ export default function AdminPage() {
                       </button>
                     )
                   })}
-                  <div className="border-t border-border mt-4 pt-4">
+                  <div className="border-t border-white/5 mt-4 pt-4">
                     <button
                       onClick={() => router.push("/dashboard")}
-                      className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 w-full text-left"
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-white/40 hover:text-white/70 hover:bg-white/5 w-full text-left"
                     >
                       <ArrowLeft className="h-5 w-5" />
                       Back to Dashboard
@@ -458,7 +458,7 @@ export default function AdminPage() {
                 <Button variant="ghost" className="relative h-9 w-9 rounded-full p-0">
                   <Avatar className="h-9 w-9">
                     <AvatarImage src={session?.user?.image || ""} alt={session?.user?.name || ""} />
-                    <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">{userInitials}</AvatarFallback>
+                    <AvatarFallback className="bg-purple-500 text-white text-xs font-semibold">{userInitials}</AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
@@ -473,6 +473,10 @@ export default function AdminPage() {
                 <DropdownMenuItem onClick={() => router.push("/dashboard")}>
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   <span>Dashboard</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push("/subscriptions")}>
+                  <Zap className="mr-2 h-4 w-4" />
+                  <span>Plans</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
@@ -495,60 +499,46 @@ export default function AdminPage() {
         {activeTab === "overview" && (
           <div className="space-y-6 animate-in fade-in duration-300">
             <div>
-              <h2 className="text-lg font-semibold text-foreground">Overview</h2>
-              <p className="text-sm text-muted-foreground">Platform statistics at a glance</p>
+              <h2 className="text-lg font-semibold text-white">Overview</h2>
+              <p className="text-sm text-white/40">Platform statistics at a glance</p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="border-border">
-                <CardContent className="p-5">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <Users className="h-4 w-4 text-primary" />
-                    </div>
+            <div className="overflow-x-auto scrollbar-hide pb-2">
+              <div className="flex gap-4 w-max md:w-full md:grid md:grid-cols-4">
+                <div className="w-40 md:w-auto rounded-2xl bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] p-5">
+                  <div className="h-9 w-9 rounded-xl bg-white/5 flex items-center justify-center mb-3">
+                    <Users className="h-4 w-4 text-white/60" />
                   </div>
-                  <p className="text-2xl font-bold text-foreground">{users.length}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Total Users</p>
-                </CardContent>
-              </Card>
+                  <p className="text-2xl font-bold text-white">{users.length}</p>
+                  <p className="text-xs text-white/30 mt-1">Total Users</p>
+                </div>
 
-              <Card className="border-border">
-                <CardContent className="p-5">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="h-9 w-9 rounded-lg bg-yellow-500/10 flex items-center justify-center">
-                      <Zap className="h-4 w-4 text-yellow-500" />
-                    </div>
+                <div className="w-40 md:w-auto rounded-2xl bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] p-5">
+                  <div className="h-9 w-9 rounded-xl bg-yellow-500/10 flex items-center justify-center mb-3">
+                    <Zap className="h-4 w-4 text-yellow-500" />
                   </div>
-                  <p className="text-2xl font-bold text-foreground">{users.filter((u) => u.isPremium).length}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Premium Subscribers</p>
-                </CardContent>
-              </Card>
+                  <p className="text-2xl font-bold text-white">{users.filter((u) => u.isPremium).length}</p>
+                  <p className="text-xs text-white/30 mt-1">Premium</p>
+                </div>
 
-              <Card className="border-border">
-                <CardContent className="p-5">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="h-9 w-9 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                      <Globe2 className="h-4 w-4 text-blue-500" />
-                    </div>
+                <div className="w-40 md:w-auto rounded-2xl bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] p-5">
+                  <div className="h-9 w-9 rounded-xl bg-blue-500/10 flex items-center justify-center mb-3">
+                    <Globe2 className="h-4 w-4 text-blue-500" />
                   </div>
-                  <p className="text-2xl font-bold text-foreground">
+                  <p className="text-2xl font-bold text-white">
                     {users.reduce((acc, u) => acc + u.projectCount, 0)}
                   </p>
-                  <p className="text-xs text-muted-foreground mt-1">Total Websites</p>
-                </CardContent>
-              </Card>
+                  <p className="text-xs text-white/30 mt-1">Websites</p>
+                </div>
 
-              <Card className="border-border">
-                <CardContent className="p-5">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="h-9 w-9 rounded-lg bg-red-500/10 flex items-center justify-center">
-                      <Ban className="h-4 w-4 text-red-500" />
-                    </div>
+                <div className="w-40 md:w-auto rounded-2xl bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] p-5">
+                  <div className="h-9 w-9 rounded-xl bg-red-500/10 flex items-center justify-center mb-3">
+                    <Ban className="h-4 w-4 text-red-500" />
                   </div>
-                  <p className="text-2xl font-bold text-foreground">{blockedCount}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Blocked Users</p>
-                </CardContent>
-              </Card>
+                  <p className="text-2xl font-bold text-white">{blockedCount}</p>
+                  <p className="text-xs text-white/30 mt-1">Blocked</p>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -558,139 +548,143 @@ export default function AdminPage() {
           <div className="space-y-6 animate-in fade-in duration-300">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <h2 className="text-lg font-semibold text-foreground">Users</h2>
-                <p className="text-sm text-muted-foreground">{users.length} registered accounts</p>
+                <h2 className="text-lg font-semibold text-white">Users</h2>
+                <p className="text-sm text-white/40">{users.length} registered accounts</p>
               </div>
               <div className="relative w-full sm:w-72">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
                 <Input
                   placeholder="Search users..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 h-9 bg-background border-border text-sm"
+                  className="pl-9 h-10 bg-white/[0.03] border-white/[0.06] text-sm text-white placeholder:text-white/30 rounded-xl focus:ring-white/10"
                 />
               </div>
             </div>
 
             {loading ? (
               <div className="flex flex-col items-center justify-center py-16">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-3" />
-                <p className="text-sm text-muted-foreground">Loading users...</p>
+                <Loader2 className="h-8 w-8 animate-spin text-white/30 mb-3" />
+                <p className="text-sm text-white/30">Loading users...</p>
               </div>
             ) : filteredUsers.length === 0 ? (
-              <div className="text-center py-16 border border-dashed border-border rounded-lg">
-                <Users className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
-                <p className="text-sm font-medium text-foreground">No users found</p>
-                <p className="text-xs text-muted-foreground mt-1">Try adjusting your search</p>
+              <div className="text-center py-16 rounded-2xl bg-white/[0.02] border border-dashed border-white/[0.06]">
+                <Users className="h-10 w-10 text-white/10 mx-auto mb-3" />
+                <p className="text-sm font-medium text-white/60">No users found</p>
+                <p className="text-xs text-white/30 mt-1">Try adjusting your search</p>
               </div>
             ) : (
               <div className="space-y-3">
                 {filteredUsers.map((user) => (
-                  <Card key={user.userId} className="border-border overflow-hidden">
-                    <CardContent className="p-0">
-                      <div className="flex flex-col lg:flex-row">
+                  <div key={user.userId} className="rounded-2xl bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] overflow-hidden">
+                    <div className="p-4 sm:p-5">
+                      <div className="flex items-start gap-4">
+                        {/* Avatar */}
+                        <Avatar className="h-12 w-12 flex-shrink-0">
+                          <AvatarFallback className="bg-white/5 text-white/60 text-sm font-semibold rounded-xl">
+                            {user.name.charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+
                         {/* User Info */}
-                        <div className="flex-1 p-4 sm:p-5">
-                          <div className="flex items-start gap-3">
-                            <Avatar className="h-10 w-10 flex-shrink-0">
-                              <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
-                                {user.name.charAt(0).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <h3 className="text-sm font-semibold text-foreground">{user.name}</h3>
-                                {user.email === "dmarton336@gmail.com" && (
-                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 bg-primary/5 text-primary border-primary/20">Admin</Badge>
-                                )}
-                                {user.isPremium && (
-                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 bg-yellow-500/10 text-yellow-500 border-yellow-500/20">
-                                    {user.subscription === "Sycord Enterprise" ? "Enterprise" : "Sycord+"}
-                                  </Badge>
-                                )}
-                                {user.isBlocked && (
-                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 bg-red-500/10 text-red-500 border-red-500/20">Blocked</Badge>
-                                )}
-                              </div>
-
-                              <div className="flex items-center gap-1.5 mt-1">
-                                <Mail className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                                <span className="text-xs text-muted-foreground truncate">{user.email}</span>
-                              </div>
-
-                              <div className="flex items-center gap-1.5 mt-0.5">
-                                <Calendar className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                                <span className="text-xs text-muted-foreground">Joined {formatDate(user.createdAt)}</span>
-                              </div>
-
-                              {/* Websites */}
-                              {user.websites.length > 0 && (
-                                <div className="flex flex-wrap gap-1.5 mt-3">
-                                  {user.websites.map((website) => (
-                                    <a
-                                      key={website.id}
-                                      href={`https://${website.subdomain}.pages.dev`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="inline-flex items-center gap-1.5 bg-accent/50 hover:bg-accent border border-border rounded-md px-2 py-1 text-xs transition-colors group"
-                                    >
-                                      <Globe2 className="h-3 w-3 text-muted-foreground" />
-                                      <span className="font-medium text-foreground">{website.businessName}</span>
-                                      <ExternalLink className="h-2.5 w-2.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                                    </a>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="text-sm font-semibold text-white">{user.name}</h3>
+                            {user.email === "dmarton336@gmail.com" && (
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 bg-white/5 text-white/50 border-white/10 rounded-full">Admin</Badge>
+                            )}
+                            {user.isPremium && (
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 bg-yellow-500/10 text-yellow-500 border-yellow-500/20 rounded-full">
+                                {user.subscription === "Sycord Enterprise" ? "Enterprise" : "Sycord+"}
+                              </Badge>
+                            )}
+                            {user.isBlocked && (
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 bg-red-500/10 text-red-500 border-red-500/20 rounded-full">Blocked</Badge>
+                            )}
                           </div>
+
+                          <p className="text-[11px] text-white/20 font-mono mt-0.5">#{user.userId.slice(-8)}</p>
+
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <Mail className="h-3 w-3 text-white/20 flex-shrink-0" />
+                            <span className="text-xs text-white/40 truncate">{user.email}</span>
+                          </div>
+
+                          {/* Websites */}
+                          {user.websites.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 mt-3">
+                              {user.websites.map((website) => (
+                                <a
+                                  key={website.id}
+                                  href={`https://${website.subdomain}.pages.dev`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1.5 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] rounded-lg px-2 py-1 text-xs transition-colors group"
+                                >
+                                  <Globe2 className="h-3 w-3 text-white/20" />
+                                  <span className="font-medium text-white/60">{website.businessName}</span>
+                                  <ExternalLink className="h-2.5 w-2.5 text-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </a>
+                              ))}
+                            </div>
+                          )}
                         </div>
 
-                        {/* Actions Panel */}
-                        <div className="flex flex-row lg:flex-col items-center lg:items-stretch gap-3 p-4 sm:p-5 border-t lg:border-t-0 lg:border-l border-border bg-accent/20 lg:w-52">
-                          {/* Subscription */}
-                          <div className="flex-1 lg:flex-none w-full">
-                            <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Plan</label>
-                            <select
-                              value={user.subscription || (user.isPremium ? "Sycord+" : "Free")}
-                              onChange={(e) => saveSubscription(user.userId, e.target.value)}
-                              disabled={updatingUser === user.userId}
-                              className="w-full h-8 rounded-md border border-border bg-background px-2.5 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 focus:ring-offset-background disabled:opacity-50 transition-colors"
-                            >
-                              <option value="Free">Free</option>
-                              <option value="Sycord+">Sycord+</option>
-                              <option value="Sycord Enterprise">Enterprise</option>
-                            </select>
-                          </div>
-
-                          {/* Block Toggle */}
-                          <div className="flex items-center gap-2 lg:pt-1">
-                            <Switch
-                              checked={user.isBlocked}
-                              onCheckedChange={() => toggleBlock(user.userId, user.isBlocked)}
-                              disabled={updatingUser === user.userId}
-                              className={user.isBlocked ? "data-[state=checked]:bg-red-500" : ""}
-                            />
-                            <span className="text-xs text-muted-foreground whitespace-nowrap">
-                              {user.isBlocked ? "Blocked" : "Active"}
-                            </span>
-                          </div>
-
-                          {/* Delete */}
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 px-2.5 text-destructive/70 hover:text-destructive hover:bg-destructive/10 text-xs"
-                            onClick={() => deleteUser(user.userId, user.name)}
-                            disabled={updatingUser === user.userId}
-                          >
-                            <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-                            Delete
-                          </Button>
+                        {/* Right side: joined date */}
+                        <div className="hidden sm:block text-right flex-shrink-0">
+                          <p className="text-[11px] text-white/20">joined:</p>
+                          <p className="text-xs text-white/40">{formatDate(user.createdAt)}</p>
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
+
+                      {/* Actions row */}
+                      <div className="flex items-center gap-3 mt-4 pt-3 border-t border-white/[0.04]">
+                        {/* Settings gear (plan selector) */}
+                        <div className="flex items-center gap-2">
+                          <div className="h-10 w-10 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center cursor-pointer hover:bg-white/[0.08] transition-colors group relative">
+                            <Settings className="h-4 w-4 text-white/40 group-hover:text-white/60" />
+                          </div>
+                          <select
+                            value={user.subscription || (user.isPremium ? "Sycord+" : "Free")}
+                            onChange={(e) => saveSubscription(user.userId, e.target.value)}
+                            disabled={updatingUser === user.userId}
+                            className="h-10 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 text-xs font-medium text-white/60 focus:outline-none focus:ring-1 focus:ring-white/10 disabled:opacity-50 transition-colors"
+                          >
+                            <option value="Free">Free</option>
+                            <option value="Sycord+">Sycord+</option>
+                            <option value="Sycord Enterprise">Enterprise</option>
+                          </select>
+                        </div>
+
+                        <div className="flex-1" />
+
+                        {/* Suspend button */}
+                        <Button
+                          variant="ghost"
+                          onClick={() => toggleBlock(user.userId, user.isBlocked)}
+                          disabled={updatingUser === user.userId}
+                          className={`h-10 px-5 rounded-xl text-xs font-medium border transition-colors ${
+                            user.isBlocked
+                              ? "bg-green-500/10 border-green-500/20 text-green-400 hover:bg-green-500/20 hover:text-green-300"
+                              : "bg-white/[0.03] border-white/[0.06] text-white/40 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20"
+                          }`}
+                        >
+                          {user.isBlocked ? "unsuspend user" : "suspend user"}
+                        </Button>
+
+                        {/* Delete */}
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-10 w-10 rounded-xl bg-white/[0.03] border border-white/[0.06] text-white/20 hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/20"
+                          onClick={() => deleteUser(user.userId, user.name)}
+                          disabled={updatingUser === user.userId}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
@@ -701,26 +695,25 @@ export default function AdminPage() {
         {activeTab === "server" && (
           <div className="space-y-6 animate-in fade-in duration-300">
             <div>
-              <h2 className="text-lg font-semibold text-foreground">Server Monitors</h2>
-              <p className="text-sm text-muted-foreground">Service status and configuration</p>
+              <h2 className="text-lg font-semibold text-white">Server Monitors</h2>
+              <p className="text-sm text-white/40">Service status and configuration</p>
             </div>
 
             {monitorsLoading ? (
               <div className="flex flex-col items-center justify-center py-16">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-3" />
-                <p className="text-sm text-muted-foreground">Loading monitors...</p>
+                <Loader2 className="h-8 w-8 animate-spin text-white/30 mb-3" />
+                <p className="text-sm text-white/30">Loading monitors...</p>
               </div>
             ) : monitors.length === 0 ? (
-              <div className="text-center py-16 border border-dashed border-border rounded-lg">
-                <Server className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
-                <p className="text-sm font-medium text-foreground">No monitors found</p>
-                <p className="text-xs text-muted-foreground mt-1">Check your Cronitor configuration</p>
+              <div className="text-center py-16 rounded-2xl bg-white/[0.02] border border-dashed border-white/[0.06]">
+                <Server className="h-10 w-10 text-white/10 mx-auto mb-3" />
+                <p className="text-sm font-medium text-white/60">No monitors found</p>
+                <p className="text-xs text-white/30 mt-1">Check your Cronitor configuration</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {monitors.map((monitor) => (
-                  <Card key={monitor.id} className="border-border">
-                    <CardContent className="p-5">
+                  <div key={monitor.id} className="rounded-2xl bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] p-5">
                       <div className="flex items-start gap-3 mb-4">
                         <div className={`mt-0.5 h-2.5 w-2.5 rounded-full flex-shrink-0 ${
                           monitor.statusCode === 200
@@ -728,12 +721,12 @@ export default function AdminPage() {
                             : 'bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.4)]'
                         }`} />
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold text-foreground truncate">{monitor.name}</p>
-                          <p className="text-[11px] text-muted-foreground font-mono truncate mt-0.5">{monitor.id}</p>
+                          <p className="text-sm font-semibold text-white truncate">{monitor.name}</p>
+                          <p className="text-[11px] text-white/30 font-mono truncate mt-0.5">{monitor.id}</p>
                         </div>
                         <Badge
                           variant="outline"
-                          className={`text-[10px] px-1.5 py-0 h-5 flex-shrink-0 ${
+                          className={`text-[10px] px-1.5 py-0 h-5 flex-shrink-0 rounded-full ${
                             monitor.statusCode === 200
                               ? 'border-green-500/30 text-green-500 bg-green-500/5'
                               : 'border-red-500/30 text-red-500 bg-red-500/5'
@@ -743,18 +736,18 @@ export default function AdminPage() {
                         </Badge>
                       </div>
 
-                      <div className="border-t border-border pt-4">
+                      <div className="border-t border-white/[0.04] pt-4">
                         {editingIcon === monitor.id ? (
-                          <div className="space-y-3 bg-accent/30 p-3 rounded-lg border border-border">
+                          <div className="space-y-3 bg-white/[0.03] p-3 rounded-xl border border-white/[0.06]">
                             <div className="flex items-center justify-between">
-                              <p className="text-xs font-medium text-foreground">Choose Icon</p>
-                              <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setEditingIcon(null)}>
+                              <p className="text-xs font-medium text-white">Choose Icon</p>
+                              <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-white/40 hover:text-white" onClick={() => setEditingIcon(null)}>
                                 <X className="h-3.5 w-3.5" />
                               </Button>
                             </div>
 
                             <div>
-                              <p className="text-[11px] text-muted-foreground mb-2">Presets</p>
+                              <p className="text-[11px] text-white/30 mb-2">Presets</p>
                               <div className="flex flex-wrap gap-1.5">
                                 {availableIcons.map((item) => {
                                   const Icon = item.icon
@@ -762,10 +755,10 @@ export default function AdminPage() {
                                     <button
                                       key={item.name}
                                       onClick={() => updateMonitorIcon(monitor.id, item.name, 'preset')}
-                                      className={`p-2 rounded-md transition-colors ${
+                                      className={`p-2 rounded-lg transition-colors ${
                                         monitor.providerIcon === item.name && monitor.iconType !== 'custom'
-                                          ? 'bg-accent text-foreground ring-1.5 ring-primary'
-                                          : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                                          ? 'bg-white/10 text-white ring-1 ring-white/20'
+                                          : 'text-white/30 hover:text-white/60 hover:bg-white/5'
                                       }`}
                                       title={item.name}
                                     >
@@ -776,11 +769,11 @@ export default function AdminPage() {
                               </div>
                             </div>
 
-                            <div className="border-t border-border pt-3">
-                              <p className="text-[11px] text-muted-foreground mb-2">Custom (PNG/JPG, max 1MB)</p>
+                            <div className="border-t border-white/[0.04] pt-3">
+                              <p className="text-[11px] text-white/30 mb-2">Custom (PNG/JPG, max 1MB)</p>
                               <label
                                 htmlFor={`icon-upload-${monitor.id}`}
-                                className="flex items-center justify-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-md cursor-pointer hover:bg-primary/90 transition-colors text-xs font-medium"
+                                className="flex items-center justify-center gap-2 px-3 py-2 bg-white/10 text-white rounded-lg cursor-pointer hover:bg-white/15 transition-colors text-xs font-medium"
                               >
                                 {uploadingIcon === monitor.id ? (
                                   <>
@@ -806,7 +799,7 @@ export default function AdminPage() {
                           </div>
                         ) : (
                           <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 px-2.5 py-1.5 bg-accent/30 border border-border rounded-md">
+                            <div className="flex items-center gap-2 px-2.5 py-1.5 bg-white/[0.03] border border-white/[0.06] rounded-lg">
                               {monitor.iconType === 'custom' ? (
                                 <img
                                   src={monitor.providerIcon}
@@ -818,10 +811,10 @@ export default function AdminPage() {
                                   const iconName = monitor.providerIcon || "Server"
                                   const iconEntry = availableIcons.find(i => i.name.toLowerCase() === iconName.toLowerCase())
                                   const Icon = iconEntry ? iconEntry.icon : Server
-                                  return <Icon className="h-4 w-4 text-muted-foreground" />
+                                  return <Icon className="h-4 w-4 text-white/40" />
                                 })()
                               )}
-                              <span className="text-xs font-medium text-foreground">
+                              <span className="text-xs font-medium text-white/60">
                                 {monitor.iconType === 'custom' ? 'Custom' : (monitor.providerIcon || "Server")}
                               </span>
                             </div>
@@ -829,7 +822,7 @@ export default function AdminPage() {
                               variant="ghost"
                               size="sm"
                               onClick={() => setEditingIcon(monitor.id)}
-                              className="h-8 text-xs text-muted-foreground hover:text-foreground"
+                              className="h-8 text-xs text-white/30 hover:text-white/60"
                             >
                               <ImageIcon className="h-3.5 w-3.5 mr-1.5" />
                               Change
@@ -837,8 +830,7 @@ export default function AdminPage() {
                           </div>
                         )}
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
                 ))}
               </div>
             )}
@@ -849,13 +841,13 @@ export default function AdminPage() {
         {activeTab === "tickets" && (
           <div className="space-y-6 animate-in fade-in duration-300">
             <div>
-              <h2 className="text-lg font-semibold text-foreground">Tickets</h2>
-              <p className="text-sm text-muted-foreground">Support ticket management</p>
+              <h2 className="text-lg font-semibold text-white">Tickets</h2>
+              <p className="text-sm text-white/40">Support ticket management</p>
             </div>
-            <div className="flex flex-col items-center justify-center py-20 border border-dashed border-border rounded-lg">
-              <AlertCircle className="h-10 w-10 text-muted-foreground/30 mb-3" />
-              <p className="text-sm font-medium text-foreground">Coming soon</p>
-              <p className="text-xs text-muted-foreground mt-1">Support ticket system is under development</p>
+            <div className="flex flex-col items-center justify-center py-20 rounded-2xl bg-white/[0.02] border border-dashed border-white/[0.06]">
+              <AlertCircle className="h-10 w-10 text-white/10 mb-3" />
+              <p className="text-sm font-medium text-white/60">Coming soon</p>
+              <p className="text-xs text-white/30 mt-1">Support ticket system is under development</p>
             </div>
           </div>
         )}
@@ -864,53 +856,49 @@ export default function AdminPage() {
         {activeTab === "paptos" && (
           <div className="space-y-6 animate-in fade-in duration-300">
             <div>
-              <h2 className="text-lg font-semibold text-foreground">Legal Documents</h2>
-              <p className="text-sm text-muted-foreground">Privacy policy and terms of service</p>
+              <h2 className="text-lg font-semibold text-white">Legal Documents</h2>
+              <p className="text-sm text-white/40">Privacy policy and terms of service</p>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="border-border">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-semibold">Privacy Policy</CardTitle>
-                  <CardDescription className="text-xs">Adatvédelmi Irányelvek</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <Textarea
-                    className="font-mono text-xs min-h-[280px] bg-accent/20 border-border leading-relaxed resize-none"
-                    value={privacyPolicy}
-                    onChange={(e) => setPrivacyPolicy(e.target.value)}
-                  />
-                  <Button
-                    onClick={() => toast.success("Privacy policy saved")}
-                    size="sm"
-                    className="h-8 text-xs"
-                  >
-                    <Save className="h-3.5 w-3.5 mr-1.5" />
-                    Save Changes
-                  </Button>
-                </CardContent>
-              </Card>
+              <div className="rounded-2xl bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] p-5 space-y-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-white">Privacy Policy</h3>
+                  <p className="text-xs text-white/30">Adatvédelmi Irányelvek</p>
+                </div>
+                <Textarea
+                  className="font-mono text-xs min-h-[280px] bg-white/[0.02] border-white/[0.06] text-white/70 leading-relaxed resize-none rounded-xl"
+                  value={privacyPolicy}
+                  onChange={(e) => setPrivacyPolicy(e.target.value)}
+                />
+                <Button
+                  onClick={() => toast.success("Privacy policy saved")}
+                  size="sm"
+                  className="h-8 text-xs bg-white/5 text-white/60 hover:bg-white/10 border border-white/[0.06] rounded-xl"
+                >
+                  <Save className="h-3.5 w-3.5 mr-1.5" />
+                  Save Changes
+                </Button>
+              </div>
 
-              <Card className="border-border">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-semibold">Terms of Service</CardTitle>
-                  <CardDescription className="text-xs">ÁSZF</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <Textarea
-                    className="font-mono text-xs min-h-[280px] bg-accent/20 border-border leading-relaxed resize-none"
-                    value={termsOfService}
-                    onChange={(e) => setTermsOfService(e.target.value)}
-                  />
-                  <Button
-                    onClick={() => toast.success("Terms of service saved")}
-                    size="sm"
-                    className="h-8 text-xs"
-                  >
-                    <Save className="h-3.5 w-3.5 mr-1.5" />
-                    Save Changes
-                  </Button>
-                </CardContent>
-              </Card>
+              <div className="rounded-2xl bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] p-5 space-y-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-white">Terms of Service</h3>
+                  <p className="text-xs text-white/30">ÁSZF</p>
+                </div>
+                <Textarea
+                  className="font-mono text-xs min-h-[280px] bg-white/[0.02] border-white/[0.06] text-white/70 leading-relaxed resize-none rounded-xl"
+                  value={termsOfService}
+                  onChange={(e) => setTermsOfService(e.target.value)}
+                />
+                <Button
+                  onClick={() => toast.success("Terms of service saved")}
+                  size="sm"
+                  className="h-8 text-xs bg-white/5 text-white/60 hover:bg-white/10 border border-white/[0.06] rounded-xl"
+                >
+                  <Save className="h-3.5 w-3.5 mr-1.5" />
+                  Save Changes
+                </Button>
+              </div>
             </div>
           </div>
         )}
