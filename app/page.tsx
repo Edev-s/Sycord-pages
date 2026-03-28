@@ -132,34 +132,73 @@ export default function LandingPage() {
         </RevealSection>
 
         {/* Features Section */}
-        <RevealSection className="w-full px-4 md:px-8 py-8 md:py-16 relative">
+        <RevealSection className="w-full px-0 md:px-8 py-6 md:py-16 relative">
           <div className="max-w-6xl mx-auto">
-            <h2 className="text-xl md:text-3xl font-bold text-white text-center mb-4 md:mb-2">Why Choose Sycord?</h2>
-            <p className="text-sm md:text-base text-[#8A8E91] text-center mb-10 md:mb-12 max-w-xl mx-auto">
+            {/* Desktop heading only */}
+            <h2 className="hidden md:block text-3xl font-bold text-white text-center mb-2">Why Choose Sycord?</h2>
+            <p className="hidden md:block text-base text-[#8A8E91] text-center mb-12 max-w-xl mx-auto">
               Everything you need to build and launch your website in minutes
             </p>
-            <div className="overflow-x-auto scrollbar-hide pb-4">
-              <div className="flex gap-4 md:gap-6 w-max md:w-full md:grid md:grid-cols-3 px-0">
+            
+            {/* Mobile carousel with feature cards */}
+            <div className="overflow-x-auto scrollbar-hide pb-6 md:pb-4">
+              <div className="flex gap-4 md:gap-6 w-max md:w-full md:grid md:grid-cols-3 px-4 md:px-0">
                 {[
-                  { src: "https://github.com/user-attachments/assets/6f4659c9-0989-47c0-b282-731ae5961df7", alt: "Best AI model on the market — Gemini 3.1" },
-                  { src: "https://github.com/user-attachments/assets/95665e35-5f9c-4a6d-9255-8a5b9dfd5d01", alt: "Why Choose Sycord — Feature 2" },
-                  { src: "https://github.com/user-attachments/assets/9c1a2ed9-1179-4e69-9c24-40058dc0e53d", alt: "Why Choose Sycord — Feature 3" },
+                  { 
+                    src: "https://github.com/user-attachments/assets/95665e35-5f9c-4a6d-9255-8a5b9dfd5d01", 
+                    alt: "Share feature", 
+                    label: "share it! better with friend" 
+                  },
+                  { 
+                    src: "https://github.com/user-attachments/assets/6f4659c9-0989-47c0-b282-731ae5961df7", 
+                    alt: "Best AI model on the market — Gemini 3.1", 
+                    label: "Best AI model on the market" 
+                  },
+                  { 
+                    src: "https://github.com/user-attachments/assets/9c1a2ed9-1179-4e69-9c24-40058dc0e53d", 
+                    alt: "Easy building feature", 
+                    label: "building never been this easy" 
+                  },
                 ].map((img, i) => (
                   <div
                     key={i}
-                    className="relative w-64 sm:w-72 md:w-auto h-72 sm:h-80 md:h-96 flex-shrink-0 rounded-3xl overflow-hidden"
+                    className="relative w-52 sm:w-64 md:w-auto h-64 sm:h-72 md:h-96 flex-shrink-0 rounded-2xl md:rounded-3xl overflow-hidden bg-[#0D1117]"
                   >
+                    {/* Status label on mobile */}
+                    <div className="absolute top-3 left-3 right-3 z-10 md:hidden">
+                      <span className="inline-block bg-[#1F2328]/90 text-white/80 text-xs px-3 py-1.5 rounded-full backdrop-blur-sm">
+                        {img.label}
+                      </span>
+                    </div>
                     <Image
                       src={img.src}
                       alt={img.alt}
                       fill
                       className="object-cover"
                       loading="lazy"
-                      sizes="(max-width: 640px) 256px, (max-width: 768px) 288px, 33vw"
+                      sizes="(max-width: 640px) 208px, (max-width: 768px) 256px, 33vw"
                     />
                   </div>
                 ))}
               </div>
+            </div>
+            
+            {/* Pagination dots - mobile only */}
+            <div className="flex justify-center gap-2 mt-4 md:hidden">
+              <div className="flex items-center gap-1">
+                <div className="w-6 h-2.5 rounded-full bg-[#4A4D50]"></div>
+                <div className="w-2.5 h-2.5 rounded-full bg-[#2A2D30]"></div>
+              </div>
+              <div className="w-2.5 h-2.5 rounded-full bg-[#2A2D30]"></div>
+              <div className="w-2.5 h-2.5 rounded-full bg-[#2A2D30]"></div>
+            </div>
+            
+            {/* Secondary feature blocks - mobile only */}
+            <div className="flex gap-3 mt-10 overflow-x-auto scrollbar-hide px-4 md:hidden">
+              <div className="w-36 h-32 flex-shrink-0 rounded-2xl bg-[#1A1C1E]"></div>
+              <div className="w-36 h-32 flex-shrink-0 rounded-2xl bg-[#1A1C1E]"></div>
+              <div className="w-36 h-32 flex-shrink-0 rounded-2xl bg-[#1A1C1E]"></div>
+              <div className="w-36 h-32 flex-shrink-0 rounded-2xl bg-[#1A1C1E]"></div>
             </div>
           </div>
         </RevealSection>
