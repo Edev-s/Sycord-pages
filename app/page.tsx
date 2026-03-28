@@ -45,10 +45,20 @@ function useCarouselIndex(count: number) {
     if (!el) return
 
     const onScroll = () => {
-      const scrollLeft = el.scrollLeft
-      const cardWidth = el.scrollWidth / count
-      const idx = Math.round(scrollLeft / cardWidth)
-      setActiveIndex(Math.min(idx, count - 1))
+      const viewportCenter = el.scrollLeft + el.clientWidth / 2
+      const cards = el.querySelectorAll("[data-carousel-card]")
+      let closestIdx = 0
+      let closestDist = Infinity
+      cards.forEach((card, i) => {
+        const cardEl = card as HTMLElement
+        const cardCenter = cardEl.offsetLeft + cardEl.offsetWidth / 2
+        const dist = Math.abs(viewportCenter - cardCenter)
+        if (dist < closestDist) {
+          closestDist = dist
+          closestIdx = i
+        }
+      })
+      setActiveIndex(closestIdx)
     }
 
     el.addEventListener("scroll", onScroll, { passive: true })
@@ -60,9 +70,21 @@ function useCarouselIndex(count: number) {
 
 export default function LandingPage() {
   const featureImages = [
-    { src: "https://github.com/user-attachments/assets/6f4659c9-0989-47c0-b282-731ae5961df7", alt: "Best AI model on the market — Gemini 3.1" },
-    { src: "https://github.com/user-attachments/assets/95665e35-5f9c-4a6d-9255-8a5b9dfd5d01", alt: "Why Choose Sycord — Feature 2" },
-    { src: "https://github.com/user-attachments/assets/9c1a2ed9-1179-4e69-9c24-40058dc0e53d", alt: "Why Choose Sycord — Feature 3" },
+    {
+      src: "https://github.com/user-attachments/assets/6f4659c9-0989-47c0-b282-731ae5961df7",
+      alt: "Best AI model on the market — Gemini 3.1",
+      label: "Best AI model on the market",
+    },
+    {
+      src: "https://github.com/user-attachments/assets/95665e35-5f9c-4a6d-9255-8a5b9dfd5d01",
+      alt: "Share it! better with friend",
+      label: "Share it! better with friend",
+    },
+    {
+      src: "https://github.com/user-attachments/assets/9c1a2ed9-1179-4e69-9c24-40058dc0e53d",
+      alt: "building never been this easy",
+      label: "building never been this easy",
+    },
   ]
   const { scrollRef: featuresScrollRef, activeIndex: featuresActiveIndex } = useCarouselIndex(featureImages.length)
 
@@ -221,27 +243,39 @@ export default function LandingPage() {
 
         {/* Features Section */}
         <div className="bg-[#141414]/95 rounded-t-[72px] rounded-b-[56px] -mt-12 pt-14 pb-10 md:bg-transparent md:rounded-none md:pt-0 md:mt-0 md:rounded-b-none md:pb-0 overflow-hidden">
-          <RevealSection className="w-full px-4 md:px-8 py-8 md:py-16 relative">
-            <div className="max-w-6xl mx-auto">
+          <RevealSection className="w-full py-8 md:py-16 md:px-8 relative">
+            <div className="max-w-6xl md:mx-auto">
               {/* Heading — desktop only; on mobile the cards speak for themselves */}
               <h2 className="hidden md:block text-xl md:text-3xl font-bold text-white text-center mb-4 md:mb-2">Why Choose Sycord?</h2>
               <p className="hidden md:block text-sm md:text-base text-[#8A8E91] text-center mb-10 md:mb-12 max-w-xl mx-auto">
                 Everything you need to build and launch your website in minutes
               </p>
-              <div ref={featuresScrollRef} className="overflow-x-auto scrollbar-hide pb-4">
-                <div className="flex gap-4 md:gap-6 w-max md:w-full md:grid md:grid-cols-3 px-0">
+
+              {/* Scroll container: snap-to-center on mobile, plain grid on desktop */}
+              <div
+                ref={featuresScrollRef}
+                className="overflow-x-scroll md:overflow-x-visible scrollbar-hide pb-4 md:pb-0 px-[12.5vw] md:px-0"
+                style={{ scrollSnapType: "x mandatory", scrollBehavior: "smooth" }}
+              >
+                <div className="flex gap-4 md:gap-6 w-max md:w-full md:grid md:grid-cols-3">
                   {featureImages.map((img, i) => (
                     <div
                       key={i}
-                      className="relative w-56 sm:w-64 md:w-auto h-64 sm:h-72 md:h-96 flex-shrink-0 rounded-3xl overflow-hidden"
+                      data-carousel-card
+                      className="relative w-[75vw] md:w-auto h-64 sm:h-72 md:h-96 flex-shrink-0 md:flex-shrink rounded-3xl overflow-hidden"
+                      style={{ scrollSnapAlign: "center" }}
                     >
+                      {/* Badge label — mobile only */}
+                      <div className="md:hidden absolute top-3 left-3 z-10 bg-black/55 backdrop-blur-md border border-white/10 text-white text-[11px] font-medium px-3 py-1.5 rounded-full whitespace-nowrap">
+                        {img.label}
+                      </div>
                       <Image
                         src={img.src}
                         alt={img.alt}
                         fill
                         className="object-cover"
                         loading="lazy"
-                        sizes="(max-width: 640px) 224px, (max-width: 768px) 256px, 33vw"
+                        sizes="(max-width: 640px) 75vw, (max-width: 768px) 80vw, 33vw"
                       />
                     </div>
                   ))}
