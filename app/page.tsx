@@ -175,7 +175,7 @@ export default function LandingPage() {
         
         {/* Features Section - overlaps the hero with frosted glass effect */}
         <div className="relative z-10 -mt-40 md:-mt-32">
-          <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-t-[48px] md:rounded-t-[72px] pt-14 pb-10 overflow-hidden">
+          <div className="bg-[#101010]/85 backdrop-blur-xl border border-white/10 rounded-t-[48px] md:rounded-t-[72px] pt-14 pb-10 overflow-hidden">
             <RevealSection className="w-full py-8 md:py-16 md:px-8 relative">
               <div className="max-w-6xl md:mx-auto">
                 {/* Heading — desktop only; on mobile the cards speak for themselves */}
