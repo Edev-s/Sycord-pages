@@ -95,7 +95,7 @@ export default function LandingPage() {
       <main className="w-full flex-1 flex flex-col">
 
         {/* ── Mobile Hero ── visible only on mobile */}
-        <section className="md:hidden relative w-full overflow-hidden min-h-[72vh] pb-16">
+        <section className="md:hidden relative w-full overflow-hidden min-h-[65vh] pb-48">
           {/* Metallic corrugated background */}
           <div
             className="absolute inset-0 bg-cover bg-center"
@@ -229,7 +229,7 @@ export default function LandingPage() {
         </RevealSection>
 
         {/* Features Section */}
-        <div className="bg-[#141414]/95 rounded-t-[72px] rounded-b-[56px] -mt-12 pt-14 pb-10 md:bg-transparent md:rounded-none md:pt-0 md:mt-0 md:rounded-b-none md:pb-0 overflow-hidden">
+        <div className="relative z-20 bg-[#141414] rounded-t-[56px] -mt-40 pt-14 pb-10 md:bg-transparent md:rounded-none md:pt-0 md:mt-0 md:rounded-b-none md:pb-0 overflow-hidden">
           <RevealSection className="w-full py-8 md:px-8 md:py-16 relative">
             <div className="max-w-6xl mx-auto">
               {/* Heading — desktop only; on mobile the cards speak for themselves */}
