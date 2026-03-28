@@ -45,10 +45,19 @@ function useCarouselIndex(count: number) {
     if (!el) return
 
     const onScroll = () => {
-      const scrollLeft = el.scrollLeft
-      const cardWidth = el.scrollWidth / count
-      const idx = Math.round(scrollLeft / cardWidth)
-      setActiveIndex(Math.min(idx, count - 1))
+      const viewportCenter = el.scrollLeft + el.clientWidth / 2
+      const children = Array.from(el.children) as HTMLElement[]
+      let closestIdx = 0
+      let closestDist = Infinity
+      children.forEach((child, i) => {
+        const childCenter = child.offsetLeft + child.offsetWidth / 2
+        const dist = Math.abs(childCenter - viewportCenter)
+        if (dist < closestDist) {
+          closestDist = dist
+          closestIdx = i
+        }
+      })
+      setActiveIndex(Math.min(closestIdx, count - 1))
     }
 
     el.addEventListener("scroll", onScroll, { passive: true })
@@ -60,9 +69,9 @@ function useCarouselIndex(count: number) {
 
 export default function LandingPage() {
   const featureImages = [
+    { src: "https://github.com/user-attachments/assets/95665e35-5f9c-4a6d-9255-8a5b9dfd5d01", alt: "Share it! Better with friends — Feature" },
     { src: "https://github.com/user-attachments/assets/6f4659c9-0989-47c0-b282-731ae5961df7", alt: "Best AI model on the market — Gemini 3.1" },
-    { src: "https://github.com/user-attachments/assets/95665e35-5f9c-4a6d-9255-8a5b9dfd5d01", alt: "Why Choose Sycord — Feature 2" },
-    { src: "https://github.com/user-attachments/assets/9c1a2ed9-1179-4e69-9c24-40058dc0e53d", alt: "Why Choose Sycord — Feature 3" },
+    { src: "https://github.com/user-attachments/assets/9c1a2ed9-1179-4e69-9c24-40058dc0e53d", alt: "Building has never been this easy — Feature" },
   ]
   const { scrollRef: featuresScrollRef, activeIndex: featuresActiveIndex } = useCarouselIndex(featureImages.length)
 
@@ -221,31 +230,51 @@ export default function LandingPage() {
 
         {/* Features Section */}
         <div className="bg-[#141414]/95 rounded-t-[72px] rounded-b-[56px] -mt-12 pt-14 pb-10 md:bg-transparent md:rounded-none md:pt-0 md:mt-0 md:rounded-b-none md:pb-0 overflow-hidden">
-          <RevealSection className="w-full px-4 md:px-8 py-8 md:py-16 relative">
+          <RevealSection className="w-full py-8 md:px-8 md:py-16 relative">
             <div className="max-w-6xl mx-auto">
               {/* Heading — desktop only; on mobile the cards speak for themselves */}
               <h2 className="hidden md:block text-xl md:text-3xl font-bold text-white text-center mb-4 md:mb-2">Why Choose Sycord?</h2>
               <p className="hidden md:block text-sm md:text-base text-[#8A8E91] text-center mb-10 md:mb-12 max-w-xl mx-auto">
                 Everything you need to build and launch your website in minutes
               </p>
-              <div ref={featuresScrollRef} className="overflow-x-auto scrollbar-hide pb-4">
-                <div className="flex gap-4 md:gap-6 w-max md:w-full md:grid md:grid-cols-3 px-0">
-                  {featureImages.map((img, i) => (
-                    <div
-                      key={i}
-                      className="relative w-56 sm:w-64 md:w-auto h-64 sm:h-72 md:h-96 flex-shrink-0 rounded-3xl overflow-hidden"
-                    >
-                      <Image
-                        src={img.src}
-                        alt={img.alt}
-                        fill
-                        className="object-cover"
-                        loading="lazy"
-                        sizes="(max-width: 640px) 224px, (max-width: 768px) 256px, 33vw"
-                      />
-                    </div>
-                  ))}
-                </div>
+
+              {/* Mobile: centered snap carousel — each card centres with ~55 px peek of neighbours */}
+              <div
+                ref={featuresScrollRef}
+                className="md:hidden overflow-x-auto scrollbar-hide pb-4 flex gap-4 snap-x snap-mandatory"
+                style={{ paddingLeft: "calc(50vw - 115px)", paddingRight: "calc(50vw - 115px)" }}
+              >
+                {featureImages.map((img, i) => (
+                  <div
+                    key={i}
+                    className="relative w-[230px] h-72 flex-shrink-0 rounded-3xl overflow-hidden snap-center"
+                  >
+                    <Image
+                      src={img.src}
+                      alt={img.alt}
+                      fill
+                      className="object-cover"
+                      loading="lazy"
+                      sizes="230px"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop: 3-column grid */}
+              <div className="hidden md:grid grid-cols-3 gap-6">
+                {featureImages.map((img, i) => (
+                  <div key={i} className="relative h-96 rounded-3xl overflow-hidden">
+                    <Image
+                      src={img.src}
+                      alt={img.alt}
+                      fill
+                      className="object-cover"
+                      loading="lazy"
+                      sizes="33vw"
+                    />
+                  </div>
+                ))}
               </div>
 
               {/* Carousel indicator dots — mobile only, state-driven */}
