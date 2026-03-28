@@ -109,16 +109,17 @@ export default function LandingPage() {
 
         {/* ── Hero Section (Mobile + Desktop) ── */}
         <section className="relative w-full overflow-visible min-h-[75vh] md:min-h-[70vh] pb-32 md:pb-40">
-          {/* Metallic corrugated background - fixed on mobile to cover entire viewport including status bar */}
-          <div
-            className="fixed md:absolute inset-0 bg-cover bg-center z-0"
-            style={{
-              backgroundImage:
-                "url('https://github.com/user-attachments/assets/2f738fc4-174b-45f8-9831-25fcf4fd788f')",
-            }}
+          {/* Metallic corrugated background - optimized with Next.js Image for instant loading */}
+          <Image
+            src="https://github.com/user-attachments/assets/2f738fc4-174b-45f8-9831-25fcf4fd788f"
+            alt=""
+            fill
+            priority
+            className="absolute inset-0 object-cover z-0"
+            sizes="100vw"
           />
           {/* Gradient overlay — darkens for legibility */}
-          <div className="fixed md:absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-transparent z-0" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-transparent z-0" />
 
           {/* Content */}
           <div className="relative z-10 flex flex-col justify-start h-full px-6 md:px-8 pt-12 md:pt-20 pb-12 max-w-6xl mx-auto">
