@@ -15,23 +15,24 @@ interface Transaction {
   name: string
   date: string
   amount: number
+  dateGroup: string
 }
 
 const mockTransactions: Transaction[] = [
-  { id: "1", type: "deduction", name: "Syra", date: "2026/08/7", amount: -0.10 },
-  { id: "2", type: "deduction", name: "Syra", date: "2026/08/7", amount: -0.10 },
-  { id: "3", type: "credit", name: "Syra", date: "2026/08/7", amount: 100 },
-  { id: "4", type: "deduction", name: "Syra", date: "2026/08/7", amount: -0.10 },
-  { id: "5", type: "deduction", name: "Syra", date: "2026/08/7", amount: -0.10 },
-  { id: "6", type: "deduction", name: "Syra", date: "2026/08/7", amount: -0.10 },
-  { id: "7", type: "deduction", name: "Syra", date: "2026/08/7", amount: -0.10 },
+  { id: "1", type: "deduction", name: "Syra", date: "2026/08/7", amount: -0.10, dateGroup: "2020.06.09" },
+  { id: "2", type: "deduction", name: "Syra", date: "2026/08/7", amount: -0.10, dateGroup: "2020.06.09" },
+  { id: "3", type: "credit", name: "Syra", date: "2026/08/7", amount: 100, dateGroup: "2020.06.09" },
+  { id: "4", type: "deduction", name: "Syra", date: "2026/08/7", amount: -0.10, dateGroup: "2020.06.09" },
+  { id: "5", type: "deduction", name: "Syra", date: "2026/08/7", amount: -0.10, dateGroup: "2020.06.09" },
+  { id: "6", type: "deduction", name: "Syra", date: "2026/08/7", amount: -0.10, dateGroup: "2020.06.09" },
+  { id: "7", type: "deduction", name: "Syra", date: "2026/08/7", amount: -0.10, dateGroup: "2020.06.09" },
 ]
 
 // Group transactions by date
 function groupTransactionsByDate(transactions: Transaction[]) {
   const grouped: { [key: string]: Transaction[] } = {}
   transactions.forEach((t) => {
-    const dateKey = "2020.06.09" // Mock date grouping - replace with real date logic
+    const dateKey = t.dateGroup
     if (!grouped[dateKey]) {
       grouped[dateKey] = []
     }
@@ -47,9 +48,9 @@ function TransactionItem({ transaction }: { transaction: Transaction }) {
     <div className="flex items-center justify-between py-4">
       <div className="flex items-center gap-4">
         {isCredit ? (
-          <CreditIcon size={40} variant="gray" />
+          <CreditIcon size={44} />
         ) : (
-          <DeductionIcon size={40} />
+          <DeductionIcon size={44} />
         )}
         <div>
           <p className="text-white font-medium text-base">{transaction.name}</p>
@@ -57,10 +58,10 @@ function TransactionItem({ transaction }: { transaction: Transaction }) {
         </div>
       </div>
       <div
-        className={`px-4 py-2 rounded-full text-sm font-medium ${
+        className={`px-5 py-2.5 rounded-full text-sm font-medium ${
           isCredit
             ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-            : "bg-[#2a2a2a] text-gray-300 border border-[#3a3a3a]"
+            : "bg-[#252525] text-gray-300 border border-[#353535]"
         }`}
       >
         {isCredit ? transaction.amount : transaction.amount.toFixed(2)}
@@ -98,7 +99,7 @@ export default function CreditsPage() {
   return (
     <div className="min-h-screen bg-[#101010]">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-[#101010]/80 backdrop-blur-xl border-b border-white/5">
+      <header className="sticky top-0 z-50 bg-[#101010]/90 backdrop-blur-xl border-b border-white/5">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link 
             href="/dashboard" 
@@ -117,20 +118,20 @@ export default function CreditsPage() {
 
       <main className="container mx-auto px-4 py-8 max-w-2xl">
         {/* Credit Balance Section */}
-        <div className="flex flex-col items-center justify-center py-12 md:py-16">
-          <div className="flex items-center gap-4">
-            <CreditIcon size={64} variant="gray" />
-            <span className="text-6xl md:text-7xl font-bold text-gray-500">{balance}</span>
+        <div className="flex flex-col items-center justify-center py-12 md:py-20">
+          <div className="flex items-center gap-5">
+            <CreditIcon size={72} />
+            <span className="text-6xl md:text-7xl font-bold text-[#5a5a5a]">{balance}</span>
           </div>
         </div>
 
         {/* Transaction List with Frosted Glass */}
-        <div className="bg-[#101010]/85 backdrop-blur-xl border border-white/10 rounded-t-[40px] md:rounded-t-[56px] pt-8 pb-6 px-6 md:px-8 -mx-4 md:mx-0">
-          {Object.entries(groupedTransactions).map(([date, transactions]) => (
-            <div key={date} className="mb-6 last:mb-0">
-              <h2 className="text-xl md:text-2xl font-bold text-white mb-4">{date}</h2>
+        <div className="bg-[#181818]/90 backdrop-blur-xl border border-white/5 rounded-t-[40px] md:rounded-t-[56px] pt-8 pb-6 px-6 md:px-8 -mx-4 md:mx-0 min-h-[60vh]">
+          {Object.entries(groupedTransactions).map(([date, txns]) => (
+            <div key={date} className="mb-8 last:mb-0">
+              <h2 className="text-xl md:text-2xl font-bold text-white mb-5">{date}</h2>
               <div className="divide-y divide-white/5">
-                {transactions.map((transaction) => (
+                {txns.map((transaction) => (
                   <TransactionItem key={transaction.id} transaction={transaction} />
                 ))}
               </div>

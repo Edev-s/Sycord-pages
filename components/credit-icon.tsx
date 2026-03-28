@@ -8,52 +8,46 @@ interface CreditIconProps {
   size?: number
 }
 
-// Main credit icon - gray star in rounded diamond outline
+// Main credit icon - gray star in rounded diamond outline (matches uploaded icon)
 export function CreditIcon({ className, variant = "gray", size = 48 }: CreditIconProps) {
-  const colors = {
-    gray: {
-      outline: "#5a5a5a",
-      star: "url(#grayGradient)",
-    },
-    blue: {
-      outline: "#3b82f6",
-      star: "#3b82f6",
-    },
-  }
-
-  const color = colors[variant]
-
+  // Generate unique ID for gradient to avoid conflicts when multiple icons are rendered
+  const gradientId = `starGradient-${Math.random().toString(36).substr(2, 9)}`
+  
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 48 48"
+      viewBox="0 0 100 100"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={cn("shrink-0", className)}
     >
       <defs>
-        <linearGradient id="grayGradient" x1="24" y1="14" x2="24" y2="34" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#6b6b6b" />
+        <linearGradient id={gradientId} x1="50" y1="25" x2="50" y2="75" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#7a7a7a" />
           <stop offset="1" stopColor="#4a4a4a" />
         </linearGradient>
       </defs>
-      {/* Rounded diamond outline - rotated square with rounded corners */}
+      {/* Rounded diamond outline - thick stroke matching uploaded icon */}
       <rect
-        x="24"
-        y="4"
-        width="28"
-        height="28"
-        rx="6"
-        transform="rotate(45 24 24)"
-        stroke={color.outline}
-        strokeWidth="3"
+        x="50"
+        y="10"
+        width="56"
+        height="56"
+        rx="12"
+        transform="rotate(45 50 50)"
+        stroke="#5a5a5a"
+        strokeWidth="6"
         fill="none"
       />
-      {/* Four-pointed star */}
+      {/* Four-pointed star with curved edges matching uploaded icon */}
       <path
-        d="M24 14 L26.5 21.5 L34 24 L26.5 26.5 L24 34 L21.5 26.5 L14 24 L21.5 21.5 Z"
-        fill={color.star}
+        d="M50 28 
+           C52 38, 62 48, 72 50 
+           C62 52, 52 62, 50 72 
+           C48 62, 38 52, 28 50 
+           C38 48, 48 38, 50 28 Z"
+        fill={`url(#${gradientId})`}
       />
     </svg>
   )
