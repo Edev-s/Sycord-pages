@@ -37,110 +37,111 @@ function RevealSection({ children, className = "", id }: { children: React.React
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-[#18191B] flex flex-col items-center overflow-x-hidden font-sans">
-      {/* Header */}
-      <header className="w-full px-4 md:px-8 py-4 md:py-6 flex items-center justify-between z-20 sticky top-0 bg-[#18191B]/95 backdrop-blur-sm border-b border-white/5">
-        <div className="flex items-center gap-2 md:gap-3">
-          <Image src="/logo.png" alt="Sycord Logo" width={28} height={28} className="opacity-90" priority />
-          <span className="text-base md:text-xl font-bold text-white tracking-tight">Sycord</span>
-        </div>
-        <Button 
-          asChild 
-          className="bg-white text-[#18191B] hover:bg-white/90 text-xs md:text-sm font-semibold px-4 md:px-6 h-8 md:h-9 rounded-full"
-        >
-          <Link href="/login">Kezdés</Link>
-        </Button>
-      </header>
-
+    <div className="min-h-screen bg-[#0a0a0a] flex flex-col items-center overflow-x-hidden font-sans">
       {/* Main Content */}
       <main className="w-full flex-1 flex flex-col">
         
         {/* Hero Section */}
-        <RevealSection className="w-full px-4 md:px-8 pt-8 md:pt-16 pb-8 md:pb-12">
-          <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-start gap-8 md:gap-12">
-            <div className="flex-1 max-w-2xl">
-              <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold leading-tight tracking-tight mb-6">
-                <span className="text-white">Create </span>
-                <span className="text-[#8A8E91]">your</span>
-                <br className="md:hidden" />
-                <span className="text-[#8A8E91]"> website </span>
-                <span className="text-white">under 5</span>
-                <br />
-                <span className="text-white">minute!</span>
-              </h1>
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-6 md:mt-8">
-                <Button 
-                  asChild
-                  className="bg-white text-[#18191B] hover:bg-white/90 text-sm font-semibold px-6 md:px-8 h-11 md:h-12 rounded-full min-h-[44px] flex items-center gap-2"
-                >
-                  <Link href="/login">
-                    Get started
-                    <ArrowRight className="w-4 h-4" />
-                  </Link>
-                </Button>
-                <Button 
-                  asChild
-                  variant="outline"
-                  className="border-white/20 text-white hover:bg-white/5 text-sm font-medium px-6 md:px-8 h-11 md:h-12 rounded-full min-h-[44px]"
-                >
-                  <Link href="#pricing">View pricing</Link>
-                </Button>
-              </div>
+        <RevealSection className="w-full relative min-h-[70vh] md:min-h-[65vh]">
+          {/* Diagonal Background with Metallic Stripes */}
+          <div className="absolute inset-0 overflow-hidden">
+            {/* Dark base */}
+            <div className="absolute inset-0 bg-[#0a0a0a]" />
+            {/* Diagonal metallic stripe background on left */}
+            <div 
+              className="absolute top-0 left-0 w-[60%] h-full origin-top-left"
+              style={{
+                clipPath: 'polygon(0 0, 100% 0, 70% 100%, 0 100%)',
+              }}
+            >
+              <Image
+                src="https://github.com/user-attachments/assets/ce4c62c7-1592-4542-a6ea-1dead982ad6a"
+                alt=""
+                fill
+                className="object-cover opacity-60"
+                priority
+              />
+              {/* Gradient overlay for smooth transition */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-[#0a0a0a]" />
             </div>
-            
-            {/* Hero Illustration */}
-            <div className="flex-1 hidden md:flex justify-center">
-              <div className="relative w-full max-w-md">
-                <svg viewBox="0 0 400 320" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto">
-                  {/* Browser window frame */}
-                  <rect x="40" y="30" width="320" height="240" rx="16" fill="#252527" stroke="#3A3B3D" strokeWidth="1.5"/>
-                  {/* Title bar */}
-                  <rect x="40" y="30" width="320" height="36" rx="16" fill="#2E2E30"/>
-                  <rect x="40" y="50" width="320" height="16" fill="#2E2E30"/>
-                  {/* Traffic lights */}
-                  <circle cx="62" cy="48" r="5" fill="#FF5F57"/>
-                  <circle cx="80" cy="48" r="5" fill="#FEBC2E"/>
-                  <circle cx="98" cy="48" r="5" fill="#28C840"/>
-                  {/* URL bar */}
-                  <rect x="120" y="41" width="160" height="14" rx="7" fill="#3A3B3D"/>
-                  {/* Content blocks - hero area */}
-                  <rect x="60" y="82" width="140" height="12" rx="6" fill="#4A4B4D"/>
-                  <rect x="60" y="102" width="100" height="8" rx="4" fill="#3A3B3D"/>
-                  <rect x="60" y="118" width="120" height="8" rx="4" fill="#3A3B3D"/>
-                  {/* CTA button illustration */}
-                  <rect x="60" y="140" width="80" height="24" rx="12" fill="white"/>
-                  {/* Image placeholder */}
-                  <rect x="220" y="82" width="120" height="90" rx="12" fill="#3A3B3D"/>
-                  <circle cx="280" cy="115" r="20" fill="#4A4B4D" opacity="0.5"/>
-                  <polygon points="270,125 290,110 280,130" fill="#6B6E71" opacity="0.5"/>
-                  {/* Card section */}
-                  <rect x="60" y="185" width="88" height="70" rx="10" fill="#2E2E30" stroke="#3A3B3D" strokeWidth="1"/>
-                  <rect x="156" y="185" width="88" height="70" rx="10" fill="#2E2E30" stroke="#3A3B3D" strokeWidth="1"/>
-                  <rect x="252" y="185" width="88" height="70" rx="10" fill="#2E2E30" stroke="#3A3B3D" strokeWidth="1"/>
-                  {/* Card icons */}
-                  <circle cx="82" cy="205" r="8" fill="#EAB308" opacity="0.3"/>
-                  <circle cx="178" cy="205" r="8" fill="#3B82F6" opacity="0.3"/>
-                  <circle cx="274" cy="205" r="8" fill="#22C55E" opacity="0.3"/>
-                  {/* Card text lines */}
-                  <rect x="72" y="222" width="60" height="5" rx="2.5" fill="#4A4B4D"/>
-                  <rect x="72" y="232" width="44" height="4" rx="2" fill="#3A3B3D"/>
-                  <rect x="168" y="222" width="60" height="5" rx="2.5" fill="#4A4B4D"/>
-                  <rect x="168" y="232" width="44" height="4" rx="2" fill="#3A3B3D"/>
-                  <rect x="264" y="222" width="60" height="5" rx="2.5" fill="#4A4B4D"/>
-                  <rect x="264" y="232" width="44" height="4" rx="2" fill="#3A3B3D"/>
-                  {/* Cursor */}
-                  <g transform="translate(170, 135)">
-                    <path d="M0 0L0 20L5.5 15L11 22L14 20.5L8.5 13.5L15 12L0 0Z" fill="white" stroke="#18191B" strokeWidth="1"/>
-                  </g>
-                  {/* Decorative sparkle */}
-                  <g transform="translate(340, 28)">
-                    <path d="M8 0L10 6L16 8L10 10L8 16L6 10L0 8L6 6Z" fill="#EAB308" opacity="0.6"/>
-                  </g>
-                  <g transform="translate(20, 70)">
-                    <path d="M6 0L7.5 4.5L12 6L7.5 7.5L6 12L4.5 7.5L0 6L4.5 4.5Z" fill="#A855F7" opacity="0.4"/>
-                  </g>
+          </div>
+
+          {/* Hero Content */}
+          <div className="relative z-10 max-w-6xl mx-auto px-6 md:px-12 pt-16 md:pt-24 pb-12 flex flex-col md:flex-row items-start gap-8 md:gap-12">
+            {/* Left Side - Text Content */}
+            <div className="flex-1 max-w-lg">
+              {/* Logo */}
+              <div className="flex items-center gap-3 mb-10">
+                <Image 
+                  src="/logo.png" 
+                  alt="Sycord Logo" 
+                  width={36} 
+                  height={36} 
+                  className="opacity-90" 
+                  priority 
+                />
+                <span className="text-2xl font-bold text-white tracking-tight">sycord</span>
+              </div>
+
+              {/* Headline */}
+              <h1 className="text-2xl md:text-3xl lg:text-4xl font-normal leading-snug tracking-tight mb-8">
+                <span className="text-[#8A8E91]">ship your website </span>
+                <span className="text-white font-semibold">under 5 minutes</span>
+              </h1>
+
+              {/* Tech Logos */}
+              <div className="flex items-center gap-6 mb-8">
+                {/* GitHub Logo */}
+                <svg className="h-6 w-auto text-[#6B6E71]" viewBox="0 0 98 24" fill="currentColor">
+                  <path fillRule="evenodd" clipRule="evenodd" d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+                  <path d="M33.6 19V5.4h3.9c2.7 0 4.2 1.35 4.2 3.6 0 1.5-.75 2.55-1.95 3.15l2.55 6.85h-2.4l-2.25-6.3h-1.65V19h-2.4zm2.4-8.4h1.35c1.35 0 1.95-.6 1.95-1.65 0-1.05-.6-1.65-1.95-1.65h-1.35v3.3zm7.8 8.4V5.4h2.4v5.7h.15c.45-.9 1.35-1.5 2.55-1.5 1.95 0 3.15 1.35 3.15 3.45V19h-2.4v-5.4c0-1.05-.6-1.65-1.5-1.65-1.05 0-1.95.75-1.95 1.95V19h-2.4zm12.15.15c-1.65 0-2.7-.9-2.7-2.25 0-1.5 1.2-2.1 3-2.4l2.1-.3v-.45c0-.75-.45-1.2-1.35-1.2-.9 0-1.35.45-1.5 1.05h-2.25c.15-1.65 1.5-2.7 3.75-2.7 2.4 0 3.75 1.2 3.75 3.15V19h-2.25v-1.2h-.15c-.45.9-1.35 1.35-2.4 1.35zm.75-1.8c1.05 0 1.8-.75 1.8-1.65v-.6l-1.65.3c-.9.15-1.35.45-1.35.9 0 .6.45.9 1.2 1.05zm6.3 1.65V5.4h2.4v5.7h.15c.45-.9 1.35-1.5 2.55-1.5 1.95 0 3.15 1.35 3.15 3.45V19h-2.4v-5.4c0-1.05-.6-1.65-1.5-1.65-1.05 0-1.95.75-1.95 1.95V19h-2.4z"/>
+                </svg>
+                {/* Google Logo */}
+                <svg className="h-5 w-auto text-[#6B6E71]" viewBox="0 0 74 24" fill="currentColor">
+                  <path d="M9.24 8.19v2.46h5.88c-.18 1.38-.64 2.39-1.34 3.1-.86.86-2.2 1.8-4.54 1.8-3.62 0-6.45-2.92-6.45-6.54s2.83-6.54 6.45-6.54c1.95 0 3.38.77 4.43 1.76L15.4 2.5C13.94 1.08 11.98 0 9.24 0 4.28 0 .11 4.04.11 9s4.17 9 9.13 9c2.68 0 4.7-.88 6.28-2.52 1.62-1.62 2.13-3.91 2.13-5.75 0-.57-.04-1.1-.13-1.54H9.24z"/>
+                  <path d="M25.03 6.19c-3.21 0-5.83 2.44-5.83 5.81 0 3.34 2.62 5.81 5.83 5.81s5.83-2.46 5.83-5.81c0-3.37-2.62-5.81-5.83-5.81zm0 9.33c-1.76 0-3.28-1.45-3.28-3.52 0-2.09 1.52-3.52 3.28-3.52s3.28 1.43 3.28 3.52c0 2.07-1.52 3.52-3.28 3.52z"/>
+                  <path d="M40.03 6.19c-3.21 0-5.83 2.44-5.83 5.81 0 3.34 2.62 5.81 5.83 5.81s5.83-2.46 5.83-5.81c0-3.37-2.62-5.81-5.83-5.81zm0 9.33c-1.76 0-3.28-1.45-3.28-3.52 0-2.09 1.52-3.52 3.28-3.52s3.28 1.43 3.28 3.52c0 2.07-1.52 3.52-3.28 3.52z"/>
+                  <path d="M54.95 6.19c-2.99 0-5.51 2.56-5.51 5.81 0 3.48 2.71 5.81 5.8 5.81 1.73 0 3.06-.77 3.87-1.56v1.28c0 2.23-1.35 3.55-3.51 3.55-1.72 0-2.74-1.17-3.15-2.15l-2.23.93c.68 1.44 2.49 3.21 5.38 3.21 3.21 0 5.75-2.02 5.75-6.21v-10.5h-2.4v1.28c-.73-.82-2.12-1.56-3.87-1.56l-.13.11zm.28 9.33c-1.72 0-3.32-1.45-3.32-3.52 0-2.09 1.6-3.52 3.32-3.52 1.68 0 3.24 1.45 3.24 3.54 0 2.06-1.56 3.5-3.24 3.5z"/>
+                  <path d="M68.03.79h-2.4v16.96h2.4V.79z"/>
+                  <path d="M73.89 15.52c-1.72 0-2.91-1.45-2.91-3.52s1.19-3.52 2.91-3.52c1.17 0 2.21.68 2.64 1.68l-2.11.88c-.26-.49-.75-.86-1.36-.86-.96 0-1.68.77-1.68 1.82s.72 1.82 1.68 1.82c.64 0 1.15-.41 1.41-.92l2.09.87c-.45 1.03-1.51 1.75-2.67 1.75z"/>
                 </svg>
               </div>
+
+              {/* CTA Button */}
+              <Button 
+                asChild
+                className="bg-[#3A3B3D] hover:bg-[#4A4B4D] text-white text-sm font-medium px-8 h-12 rounded-full min-h-[48px]"
+              >
+                <Link href="/login">Get started</Link>
+              </Button>
+            </div>
+            
+            {/* Right Side - Pixel Art Illustration */}
+            <div className="flex-1 hidden md:flex justify-center items-start pt-8">
+              <div className="relative w-full max-w-md">
+                <Image
+                  src="https://github.com/user-attachments/assets/49c718c0-b863-44b7-9e46-c7ae9d18206d"
+                  alt="Blueprint illustration"
+                  width={500}
+                  height={400}
+                  className="w-full h-auto"
+                  priority
+                />
+              </div>
+            </div>
+          </div>
+        </RevealSection>
+
+        {/* Three Cards Section */}
+        <RevealSection className="w-full px-6 md:px-12 py-16 md:py-24 bg-[#0a0a0a]">
+          <div className="max-w-5xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {[1, 2, 3].map((i) => (
+                <div 
+                  key={i}
+                  className="aspect-square bg-[#1a1a1c] rounded-3xl border border-[#2a2a2c] hover:border-[#3a3a3c] transition-colors"
+                />
+              ))}
             </div>
           </div>
         </RevealSection>
