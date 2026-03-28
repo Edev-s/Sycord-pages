@@ -76,7 +76,7 @@ export default function LandingPage() {
   const { scrollRef: featuresScrollRef, activeIndex: featuresActiveIndex } = useCarouselIndex(featureImages.length)
 
   return (
-    <div className="min-h-screen bg-[#101010] flex flex-col items-center overflow-x-hidden font-sans">
+    <div className="min-h-screen bg-[#101010] flex flex-col items-center overflow-x-hidden font-sans" style={{ marginTop: 'calc(-1 * env(safe-area-inset-top, 0px))', paddingTop: 'env(safe-area-inset-top, 0px)' }}>
       {/* Header — desktop only; mobile header lives inside the hero */}
       <header className="hidden md:flex w-full px-4 md:px-8 py-4 md:py-6 items-center justify-between z-20 sticky top-0 bg-[#101010]/95 backdrop-blur-sm border-b border-white/5">
         <div className="flex items-center gap-2 md:gap-3">
@@ -95,20 +95,21 @@ export default function LandingPage() {
       <main className="w-full flex-1 flex flex-col">
 
         {/* ── Mobile Hero ── visible only on mobile */}
-        <section className="md:hidden relative w-full overflow-hidden min-h-[65vh] pb-48">
-          {/* Metallic corrugated background */}
+        <section className="md:hidden relative w-full overflow-hidden min-h-[65vh] pb-48" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+          {/* Metallic corrugated background — extends into safe area */}
           <div
-            className="absolute inset-0 bg-cover bg-center"
+            className="absolute inset-x-0 bottom-0 bg-cover bg-center"
             style={{
+              top: 'calc(-1 * env(safe-area-inset-top, 0px))',
               backgroundImage:
                 "url('https://github.com/user-attachments/assets/2f738fc4-174b-45f8-9831-25fcf4fd788f')",
             }}
           />
           {/* Gradient overlay — darkens for legibility and blends into base */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/55 to-[#0f0f0f]" />
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-b from-black/75 via-black/55 to-[#0f0f0f]" style={{ top: 'calc(-1 * env(safe-area-inset-top, 0px))' }} />
 
           {/* Content */}
-          <div className="relative z-10 flex flex-col justify-start h-full px-6 pt-[calc(env(safe-area-inset-top,0px)+48px)] pb-12">
+          <div className="relative z-10 flex flex-col justify-start h-full px-6 pt-12 pb-12">
             {/* Brand */}
             <div className="flex items-center gap-3 mb-7">
               <Image
