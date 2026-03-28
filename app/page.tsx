@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import Image from "next/image"
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Check, Zap, Sparkles, ArrowRight } from "lucide-react"
 
@@ -35,11 +35,41 @@ function RevealSection({ children, className = "", id }: { children: React.React
   )
 }
 
+/** Tracks which card in a horizontally-scrolling container is centred. */
+function useCarouselIndex(count: number) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [activeIndex, setActiveIndex] = useState(0)
+
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+
+    const onScroll = () => {
+      const scrollLeft = el.scrollLeft
+      const cardWidth = el.scrollWidth / count
+      const idx = Math.round(scrollLeft / cardWidth)
+      setActiveIndex(Math.min(idx, count - 1))
+    }
+
+    el.addEventListener("scroll", onScroll, { passive: true })
+    return () => el.removeEventListener("scroll", onScroll)
+  }, [count])
+
+  return { scrollRef, activeIndex }
+}
+
 export default function LandingPage() {
+  const featureImages = [
+    { src: "https://github.com/user-attachments/assets/6f4659c9-0989-47c0-b282-731ae5961df7", alt: "Best AI model on the market — Gemini 3.1" },
+    { src: "https://github.com/user-attachments/assets/95665e35-5f9c-4a6d-9255-8a5b9dfd5d01", alt: "Why Choose Sycord — Feature 2" },
+    { src: "https://github.com/user-attachments/assets/9c1a2ed9-1179-4e69-9c24-40058dc0e53d", alt: "Why Choose Sycord — Feature 3" },
+  ]
+  const { scrollRef: featuresScrollRef, activeIndex: featuresActiveIndex } = useCarouselIndex(featureImages.length)
+
   return (
-    <div className="min-h-screen bg-[#18191B] flex flex-col items-center overflow-x-hidden font-sans">
-      {/* Header */}
-      <header className="w-full px-4 md:px-8 py-4 md:py-6 flex items-center justify-between z-20 sticky top-0 bg-[#18191B]/95 backdrop-blur-sm border-b border-white/5">
+    <div className="min-h-screen bg-[#101010] flex flex-col items-center overflow-x-hidden font-sans">
+      {/* Header — desktop only; mobile header lives inside the hero */}
+      <header className="hidden md:flex w-full px-4 md:px-8 py-4 md:py-6 items-center justify-between z-20 sticky top-0 bg-[#101010]/95 backdrop-blur-sm border-b border-white/5">
         <div className="flex items-center gap-2 md:gap-3">
           <Image src="/logo.png" alt="Sycord Logo" width={28} height={28} className="opacity-90" priority />
           <span className="text-base md:text-xl font-bold text-white tracking-tight">Sycord</span>
@@ -54,9 +84,53 @@ export default function LandingPage() {
 
       {/* Main Content */}
       <main className="w-full flex-1 flex flex-col">
-        
-        {/* Hero Section */}
-        <RevealSection className="w-full px-4 md:px-8 pt-8 md:pt-16 pb-8 md:pb-12">
+
+        {/* ── Mobile Hero ── visible only on mobile */}
+        <section className="md:hidden relative w-full overflow-hidden min-h-[58vh]">
+          {/* Metallic corrugated background */}
+          <div
+            className="absolute inset-0 bg-cover bg-center"
+            style={{
+              backgroundImage:
+                "url('https://github.com/user-attachments/assets/2f738fc4-174b-45f8-9831-25fcf4fd788f')",
+            }}
+          />
+          {/* Gradient overlay — darkens the bottom to blend into #101010 */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-[#101010]" />
+
+          {/* Content */}
+          <div className="relative z-10 flex flex-col justify-center h-full px-6 pt-14 pb-12">
+            {/* Brand */}
+            <div className="flex items-center gap-3 mb-8">
+              <Image
+                src="/logo.png"
+                alt="Sycord"
+                width={40}
+                height={40}
+                className="opacity-90"
+                priority
+              />
+              <span className="text-white text-3xl font-bold tracking-tight">sycord</span>
+            </div>
+
+            {/* Description */}
+            <p className="text-white text-[17px] font-medium leading-relaxed mb-8 max-w-xs">
+              Describe your idea, Sycord&apos;s AI designs, codes and deploys your website instantly.
+              No coding or design skills required.
+            </p>
+
+            {/* CTA */}
+            <Button
+              asChild
+              className="self-start bg-[#3A3B3D]/90 hover:bg-[#4A4B4D] text-white rounded-full px-8 h-12 text-sm font-medium border-0"
+            >
+              <Link href="/login">Get started</Link>
+            </Button>
+          </div>
+        </section>
+
+        {/* ── Desktop Hero ── hidden on mobile */}
+        <RevealSection className="hidden md:block w-full px-4 md:px-8 pt-8 md:pt-16 pb-8 md:pb-12">
           <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-start gap-8 md:gap-12">
             <div className="flex-1 max-w-2xl">
               <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold leading-tight tracking-tight mb-6">
@@ -130,7 +204,7 @@ export default function LandingPage() {
                   <rect x="264" y="232" width="44" height="4" rx="2" fill="#3A3B3D"/>
                   {/* Cursor */}
                   <g transform="translate(170, 135)">
-                    <path d="M0 0L0 20L5.5 15L11 22L14 20.5L8.5 13.5L15 12L0 0Z" fill="white" stroke="#18191B" strokeWidth="1"/>
+                    <path d="M0 0L0 20L5.5 15L11 22L14 20.5L8.5 13.5L15 12L0 0Z" fill="white" stroke="#101010" strokeWidth="1"/>
                   </g>
                   {/* Decorative sparkle */}
                   <g transform="translate(340, 28)">
@@ -148,17 +222,14 @@ export default function LandingPage() {
         {/* Features Section */}
         <RevealSection className="w-full px-4 md:px-8 py-8 md:py-16 relative">
           <div className="max-w-6xl mx-auto">
-            <h2 className="text-xl md:text-3xl font-bold text-white text-center mb-4 md:mb-2">Why Choose Sycord?</h2>
-            <p className="text-sm md:text-base text-[#8A8E91] text-center mb-10 md:mb-12 max-w-xl mx-auto">
+            {/* Heading — desktop only; on mobile the cards speak for themselves */}
+            <h2 className="hidden md:block text-xl md:text-3xl font-bold text-white text-center mb-4 md:mb-2">Why Choose Sycord?</h2>
+            <p className="hidden md:block text-sm md:text-base text-[#8A8E91] text-center mb-10 md:mb-12 max-w-xl mx-auto">
               Everything you need to build and launch your website in minutes
             </p>
-            <div className="overflow-x-auto scrollbar-hide pb-4">
+            <div ref={featuresScrollRef} className="overflow-x-auto scrollbar-hide pb-4">
               <div className="flex gap-4 md:gap-6 w-max md:w-full md:grid md:grid-cols-3 px-0">
-                {[
-                  { src: "https://github.com/user-attachments/assets/6f4659c9-0989-47c0-b282-731ae5961df7", alt: "Best AI model on the market — Gemini 3.1" },
-                  { src: "https://github.com/user-attachments/assets/95665e35-5f9c-4a6d-9255-8a5b9dfd5d01", alt: "Why Choose Sycord — Feature 2" },
-                  { src: "https://github.com/user-attachments/assets/9c1a2ed9-1179-4e69-9c24-40058dc0e53d", alt: "Why Choose Sycord — Feature 3" },
-                ].map((img, i) => (
+                {featureImages.map((img, i) => (
                   <div
                     key={i}
                     className="relative w-64 sm:w-72 md:w-auto h-72 sm:h-80 md:h-96 flex-shrink-0 rounded-3xl overflow-hidden"
@@ -175,11 +246,25 @@ export default function LandingPage() {
                 ))}
               </div>
             </div>
+
+            {/* Carousel indicator dots — mobile only, state-driven */}
+            <div className="flex md:hidden items-center justify-center gap-2 mt-5">
+              {featureImages.map((_, i) => (
+                <div
+                  key={i}
+                  className={`h-2 rounded-full transition-all duration-300 ${
+                    i === featuresActiveIndex
+                      ? "w-7 bg-white/60"
+                      : "w-2 bg-white/25"
+                  }`}
+                />
+              ))}
+            </div>
           </div>
         </RevealSection>
 
         {/* Supporters Section */}
-        <RevealSection className="w-full py-14 md:py-20 border-t border-b border-white/5 bg-[#1F1F21] overflow-hidden">
+        <RevealSection className="w-full py-14 md:py-20 border-t border-b border-white/5 bg-[#181818] overflow-hidden">
           <div className="max-w-5xl mx-auto px-4 md:px-8">
             <p className="text-center text-[#8A8E91] text-xs md:text-sm font-medium mb-4">Powered by</p>
             <h2 className="text-center text-white text-lg md:text-2xl font-bold mb-10 md:mb-14">The technologies behind Sycord</h2>
@@ -456,7 +541,7 @@ export default function LandingPage() {
       </main>
 
       {/* Footer */}
-      <footer className="w-full border-t border-white/5 bg-[#1F1F21] mt-8 md:mt-16">
+      <footer className="w-full border-t border-white/5 bg-[#181818] mt-8 md:mt-16">
         <div className="max-w-6xl mx-auto px-4 md:px-8 py-10 md:py-14">
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-10 md:gap-16 mb-10">
             <div className="flex-shrink-0">
