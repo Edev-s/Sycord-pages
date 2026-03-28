@@ -2,9 +2,10 @@
 
 import Link from "next/link"
 import Image from "next/image"
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Check, Zap, Sparkles, ArrowRight } from "lucide-react"
+import { Check, Zap, Sparkles, ArrowRight, Loader2 } from "lucide-react"
+import { toast } from "sonner"
 
 function useScrollReveal() {
   const ref = useRef<HTMLElement>(null)
@@ -36,6 +37,34 @@ function RevealSection({ children, className = "", id }: { children: React.React
 }
 
 export default function LandingPage() {
+  const [payingPlan, setPayingPlan] = useState<string | null>(null)
+
+  const handlePayPal = async (planName: string, price: number) => {
+    setPayingPlan(planName)
+    try {
+      const res = await fetch("/api/paypal/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planName, price, currency: "USD" }),
+      })
+      const order = await res.json()
+      if (!res.ok) throw new Error(order.error || "Failed to create order")
+      const approvalUrl = order.links?.find(
+        (l: { rel: string; href: string }) => l.rel === "approve"
+      )?.href
+      if (approvalUrl) {
+        window.location.href = approvalUrl
+      } else {
+        toast.error("PayPal did not return a checkout URL. Please try again.")
+      }
+    } catch (err) {
+      console.error("[paypal]", err)
+      toast.error(err instanceof Error ? err.message : "PayPal checkout failed. Please try again.")
+    } finally {
+      setPayingPlan(null)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#18191B] flex flex-col items-center overflow-x-hidden font-sans">
       {/* Header */}
@@ -256,11 +285,22 @@ export default function LandingPage() {
                   <span className="text-3xl font-bold text-white">$9</span>
                   <span className="text-[#8A8E91] text-sm">/month</span>
                 </div>
-                <Button 
-                  asChild
-                  className="w-full bg-white hover:bg-white/90 text-[#18191B] font-semibold mb-6 h-10 rounded-full"
+                <Button
+                  onClick={() => handlePayPal("Sycord+", 9)}
+                  disabled={payingPlan === "Sycord+"}
+                  className="w-full bg-white hover:bg-white/90 text-[#18191B] font-semibold mb-6 h-10 rounded-full gap-2"
                 >
-                  <Link href="/login">Upgrade Now</Link>
+                  {payingPlan === "Sycord+" ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Redirecting…
+                    </>
+                  ) : (
+                    <>
+                      <PayPalIcon className="w-4 h-4" />
+                      Pay with PayPal
+                    </>
+                  )}
                 </Button>
                 <ul className="space-y-3 flex-1">
                   <li className="flex items-center gap-2">
@@ -289,12 +329,23 @@ export default function LandingPage() {
                   <span className="text-3xl font-bold text-white">$29</span>
                   <span className="text-[#8A8E91] text-sm">/month</span>
                 </div>
-                <Button 
-                  asChild
+                <Button
+                  onClick={() => handlePayPal("Sycord Enterprise", 29)}
+                  disabled={payingPlan === "Sycord Enterprise"}
                   variant="outline"
-                  className="w-full border-white/20 hover:bg-white/5 text-white mb-6 h-10 rounded-full"
+                  className="w-full border-white/20 hover:bg-white/5 text-white mb-6 h-10 rounded-full gap-2"
                 >
-                  <Link href="/contact">Contact Sales</Link>
+                  {payingPlan === "Sycord Enterprise" ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Redirecting…
+                    </>
+                  ) : (
+                    <>
+                      <PayPalIcon className="w-4 h-4" />
+                      Pay with PayPal
+                    </>
+                  )}
                 </Button>
                 <ul className="space-y-3 flex-1">
                   <li className="flex items-center gap-2">
@@ -363,11 +414,17 @@ export default function LandingPage() {
                     <span className="text-2xl font-bold text-white">$9</span>
                     <span className="text-[#8A8E91] text-xs">/mo</span>
                   </div>
-                  <Button 
-                    asChild
-                    className="w-full bg-white hover:bg-white/90 text-[#18191B] text-xs h-9 rounded-full font-semibold mb-4"
+                  <Button
+                    onClick={() => handlePayPal("Sycord+", 9)}
+                    disabled={payingPlan === "Sycord+"}
+                    className="w-full bg-white hover:bg-white/90 text-[#18191B] text-xs h-9 rounded-full font-semibold mb-4 gap-1.5"
                   >
-                    <Link href="/login">Upgrade</Link>
+                    {payingPlan === "Sycord+" ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <PayPalIcon className="w-3.5 h-3.5" />
+                    )}
+                    Pay with PayPal
                   </Button>
                   <ul className="space-y-2">
                     <li className="flex items-center gap-2">
@@ -396,12 +453,18 @@ export default function LandingPage() {
                     <span className="text-2xl font-bold text-white">$29</span>
                     <span className="text-[#8A8E91] text-xs">/mo</span>
                   </div>
-                  <Button 
-                    asChild
+                  <Button
+                    onClick={() => handlePayPal("Sycord Enterprise", 29)}
+                    disabled={payingPlan === "Sycord Enterprise"}
                     variant="outline"
-                    className="w-full border-white/20 hover:bg-white/5 text-white text-xs h-9 rounded-full mb-4"
+                    className="w-full border-white/20 hover:bg-white/5 text-white text-xs h-9 rounded-full mb-4 gap-1.5"
                   >
-                    <Link href="/contact">Contact</Link>
+                    {payingPlan === "Sycord Enterprise" ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <PayPalIcon className="w-3.5 h-3.5" />
+                    )}
+                    Pay with PayPal
                   </Button>
                   <ul className="space-y-2">
                     <li className="flex items-center gap-2">
@@ -488,6 +551,7 @@ export default function LandingPage() {
                 <ul className="space-y-2">
                   <li><Link href="/pap" className="text-[#8A8E91] hover:text-white text-xs transition-colors">Privacy</Link></li>
                   <li><Link href="/tos" className="text-[#8A8E91] hover:text-white text-xs transition-colors">Terms</Link></li>
+                  <li><Link href="/business-report" className="text-[#8A8E91] hover:text-white text-xs transition-colors">Business Report</Link></li>
                 </ul>
               </div>
             </div>
@@ -503,5 +567,19 @@ export default function LandingPage() {
         </div>
       </footer>
     </div>
+  )
+}
+
+function PayPalIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      className={className}
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M7.076 21.337H2.47a.641.641 0 01-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.9l-1.12 7.106zm14.146-14.42a3.35 3.35 0 00-.607-.541c1.379 4.729-1.68 7.789-6.188 7.789H12.16l-1.279 8.121H14.3c.524 0 .968-.382 1.05-.9l.04-.246.818-5.19.052-.285c.082-.517.526-.9 1.05-.9h.66c4.3 0 7.664-1.747 8.647-6.797.411-2.12.198-3.888-.948-5.051-.044-.046-.09-.09-.137-.134l-.259.134z" />
+    </svg>
   )
 }
