@@ -42,91 +42,85 @@ export default function LandingPage() {
       <main className="w-full flex-1 flex flex-col">
         
         {/* Hero Section */}
-        <RevealSection className="w-full relative min-h-[85vh] md:min-h-[65vh]">
-          {/* Diagonal Background with Metallic Stripes */}
-          <div className="absolute inset-0 overflow-hidden">
-            {/* Dark base */}
+        <RevealSection className="w-full relative min-h-[70vh] sm:min-h-[60vh] md:min-h-[65vh]">
+          {/* Background Layer */}
+          <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
             <div className="absolute inset-0 bg-[#0a0a0a]" />
-            {/* Diagonal metallic stripe background on left */}
+            {/* Diagonal metallic texture */}
             <div 
-              className="absolute top-0 left-0 w-full md:w-[60%] h-[60%] md:h-full origin-top-left"
-              style={{
-                clipPath: 'polygon(0 0, 100% 0, 100% 70%, 0 100%)',
-              }}
+              className="absolute inset-0 md:w-[55%]"
+              style={{ clipPath: 'polygon(0 0, 100% 0, 85% 100%, 0 100%)' }}
             >
               <Image
                 src="https://github.com/user-attachments/assets/ce4c62c7-1592-4542-a6ea-1dead982ad6a"
                 alt=""
                 fill
-                className="object-cover opacity-50 md:opacity-60"
+                sizes="(max-width: 768px) 100vw, 55vw"
+                className="object-cover opacity-40 md:opacity-50"
                 priority
               />
-              {/* Gradient overlay for smooth transition */}
-              <div className="absolute inset-0 bg-gradient-to-b md:bg-gradient-to-r from-transparent via-transparent to-[#0a0a0a]" />
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#0a0a0a]/30 to-[#0a0a0a]" />
             </div>
           </div>
 
           {/* Hero Content */}
-          <div className="relative z-10 max-w-6xl mx-auto px-5 md:px-12 pt-12 md:pt-24 pb-8 md:pb-12 flex flex-col md:flex-row items-start gap-6 md:gap-12">
-            {/* Left Side - Text Content */}
-            <div className="flex-1 max-w-lg">
-              {/* Logo */}
-              <div className="flex items-center gap-2.5 md:gap-3 mb-6 md:mb-10">
-                <Image 
-                  src="/logo.png" 
-                  alt="Sycord Logo" 
-                  width={32} 
-                  height={32} 
-                  className="opacity-90 w-7 h-7 md:w-9 md:h-9" 
-                  priority 
-                />
-                <span className="text-xl md:text-2xl font-bold text-white tracking-tight">sycord</span>
+          <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 md:px-12 pt-10 sm:pt-16 md:pt-24 pb-10 md:pb-16">
+            <div className="flex flex-col md:flex-row items-start gap-8 md:gap-12">
+              {/* Text Content */}
+              <div className="flex-1 max-w-xl">
+                {/* Logo */}
+                <div className="flex items-center gap-2.5 mb-8 md:mb-10">
+                  <Image 
+                    src="/logo.png" 
+                    alt="Sycord" 
+                    width={36} 
+                    height={36} 
+                    className="w-8 h-8 md:w-9 md:h-9" 
+                    priority 
+                  />
+                  <span className="text-xl md:text-2xl font-bold text-white tracking-tight">
+                    sycord
+                  </span>
+                </div>
+
+                {/* Headline */}
+                <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.75rem] font-normal leading-tight tracking-tight mb-8 md:mb-10">
+                  <span className="text-[#9CA3AF]">ship your website </span>
+                  <span className="text-white font-semibold">under 5 minutes</span>
+                </h1>
+
+                {/* Trust Badges */}
+                <div className="flex items-center gap-5 mb-8 md:mb-10">
+                  <svg className="h-5 w-auto text-[#6B7280]" viewBox="0 0 24 24" fill="currentColor" aria-label="GitHub">
+                    <path fillRule="evenodd" clipRule="evenodd" d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+                  </svg>
+                  <svg className="h-5 w-auto text-[#6B7280]" viewBox="0 0 24 24" fill="currentColor" aria-label="Google Cloud">
+                    <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"/>
+                  </svg>
+                </div>
+
+                {/* CTA Button */}
+                <Button 
+                  asChild
+                  className="bg-[#3A3D40] hover:bg-[#4A4D50] text-white text-sm font-medium px-8 h-12 rounded-full transition-colors"
+                >
+                  <Link href="/login">Get started</Link>
+                </Button>
               </div>
-
-              {/* Headline */}
-              <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-normal leading-snug tracking-tight mb-6 md:mb-8">
-                <span className="text-[#8A8E91]">ship your website </span>
-                <span className="text-white font-semibold">under 5 minutes</span>
-              </h1>
-
-              {/* Tech Logos */}
-              <div className="flex items-center gap-4 md:gap-6 mb-6 md:mb-8">
-                {/* GitHub Logo */}
-                <svg className="h-5 md:h-6 w-auto text-[#6B6E71]" viewBox="0 0 98 24" fill="currentColor">
-                  <path fillRule="evenodd" clipRule="evenodd" d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
-                  <path d="M33.6 19V5.4h3.9c2.7 0 4.2 1.35 4.2 3.6 0 1.5-.75 2.55-1.95 3.15l2.55 6.85h-2.4l-2.25-6.3h-1.65V19h-2.4zm2.4-8.4h1.35c1.35 0 1.95-.6 1.95-1.65 0-1.05-.6-1.65-1.95-1.65h-1.35v3.3zm7.8 8.4V5.4h2.4v5.7h.15c.45-.9 1.35-1.5 2.55-1.5 1.95 0 3.15 1.35 3.15 3.45V19h-2.4v-5.4c0-1.05-.6-1.65-1.5-1.65-1.05 0-1.95.75-1.95 1.95V19h-2.4zm12.15.15c-1.65 0-2.7-.9-2.7-2.25 0-1.5 1.2-2.1 3-2.4l2.1-.3v-.45c0-.75-.45-1.2-1.35-1.2-.9 0-1.35.45-1.5 1.05h-2.25c.15-1.65 1.5-2.7 3.75-2.7 2.4 0 3.75 1.2 3.75 3.15V19h-2.25v-1.2h-.15c-.45.9-1.35 1.35-2.4 1.35zm.75-1.8c1.05 0 1.8-.75 1.8-1.65v-.6l-1.65.3c-.9.15-1.35.45-1.35.9 0 .6.45.9 1.2 1.05zm6.3 1.65V5.4h2.4v5.7h.15c.45-.9 1.35-1.5 2.55-1.5 1.95 0 3.15 1.35 3.15 3.45V19h-2.4v-5.4c0-1.05-.6-1.65-1.5-1.65-1.05 0-1.95.75-1.95 1.95V19h-2.4z"/>
-                </svg>
-                {/* Google Logo */}
-                <svg className="h-4 md:h-5 w-auto text-[#6B6E71]" viewBox="0 0 74 24" fill="currentColor">
-                  <path d="M9.24 8.19v2.46h5.88c-.18 1.38-.64 2.39-1.34 3.1-.86.86-2.2 1.8-4.54 1.8-3.62 0-6.45-2.92-6.45-6.54s2.83-6.54 6.45-6.54c1.95 0 3.38.77 4.43 1.76L15.4 2.5C13.94 1.08 11.98 0 9.24 0 4.28 0 .11 4.04.11 9s4.17 9 9.13 9c2.68 0 4.7-.88 6.28-2.52 1.62-1.62 2.13-3.91 2.13-5.75 0-.57-.04-1.1-.13-1.54H9.24z"/>
-                  <path d="M25.03 6.19c-3.21 0-5.83 2.44-5.83 5.81 0 3.34 2.62 5.81 5.83 5.81s5.83-2.46 5.83-5.81c0-3.37-2.62-5.81-5.83-5.81zm0 9.33c-1.76 0-3.28-1.45-3.28-3.52 0-2.09 1.52-3.52 3.28-3.52s3.28 1.43 3.28 3.52c0 2.07-1.52 3.52-3.28 3.52z"/>
-                  <path d="M40.03 6.19c-3.21 0-5.83 2.44-5.83 5.81 0 3.34 2.62 5.81 5.83 5.81s5.83-2.46 5.83-5.81c0-3.37-2.62-5.81-5.83-5.81zm0 9.33c-1.76 0-3.28-1.45-3.28-3.52 0-2.09 1.52-3.52 3.28-3.52s3.28 1.43 3.28 3.52c0 2.07-1.52 3.52-3.28 3.52z"/>
-                  <path d="M54.95 6.19c-2.99 0-5.51 2.56-5.51 5.81 0 3.48 2.71 5.81 5.8 5.81 1.73 0 3.06-.77 3.87-1.56v1.28c0 2.23-1.35 3.55-3.51 3.55-1.72 0-2.74-1.17-3.15-2.15l-2.23.93c.68 1.44 2.49 3.21 5.38 3.21 3.21 0 5.75-2.02 5.75-6.21v-10.5h-2.4v1.28c-.73-.82-2.12-1.56-3.87-1.56l-.13.11zm.28 9.33c-1.72 0-3.32-1.45-3.32-3.52 0-2.09 1.6-3.52 3.32-3.52 1.68 0 3.24 1.45 3.24 3.54 0 2.06-1.56 3.5-3.24 3.5z"/>
-                  <path d="M68.03.79h-2.4v16.96h2.4V.79z"/>
-                  <path d="M73.89 15.52c-1.72 0-2.91-1.45-2.91-3.52s1.19-3.52 2.91-3.52c1.17 0 2.21.68 2.64 1.68l-2.11.88c-.26-.49-.75-.86-1.36-.86-.96 0-1.68.77-1.68 1.82s.72 1.82 1.68 1.82c.64 0 1.15-.41 1.41-.92l2.09.87c-.45 1.03-1.51 1.75-2.67 1.75z"/>
-                </svg>
-              </div>
-
-              {/* CTA Button */}
-              <Button 
-                asChild
-                className="bg-[#3A3B3D] hover:bg-[#4A4B4D] text-white text-sm font-medium px-6 md:px-8 h-11 md:h-12 rounded-full min-h-[44px] md:min-h-[48px]"
-              >
-                <Link href="/login">Get started</Link>
-              </Button>
-            </div>
-            
-            {/* Right Side - Pixel Art Illustration */}
-            <div className="flex-1 hidden md:flex justify-center items-start pt-8">
-              <div className="relative w-full max-w-md">
-                <Image
-                  src="https://github.com/user-attachments/assets/49c718c0-b863-44b7-9e46-c7ae9d18206d"
-                  alt="Blueprint illustration"
-                  width={500}
-                  height={400}
-                  className="w-full h-auto"
-                  priority
-                />
+              
+              {/* Illustration - Desktop Only */}
+              <div className="hidden md:flex flex-1 justify-center items-center">
+                <div className="relative w-full max-w-md">
+                  <Image
+                    src="https://github.com/user-attachments/assets/49c718c0-b863-44b7-9e46-c7ae9d18206d"
+                    alt="Blueprint style illustration"
+                    width={500}
+                    height={400}
+                    sizes="(max-width: 768px) 0px, 400px"
+                    className="w-full h-auto"
+                    priority
+                  />
+                </div>
               </div>
             </div>
           </div>
