@@ -220,48 +220,50 @@ export default function LandingPage() {
         </RevealSection>
 
         {/* Features Section */}
-        <RevealSection className="w-full px-4 md:px-8 py-8 md:py-16 relative">
-          <div className="max-w-6xl mx-auto">
-            {/* Heading — desktop only; on mobile the cards speak for themselves */}
-            <h2 className="hidden md:block text-xl md:text-3xl font-bold text-white text-center mb-4 md:mb-2">Why Choose Sycord?</h2>
-            <p className="hidden md:block text-sm md:text-base text-[#8A8E91] text-center mb-10 md:mb-12 max-w-xl mx-auto">
-              Everything you need to build and launch your website in minutes
-            </p>
-            <div ref={featuresScrollRef} className="overflow-x-auto scrollbar-hide pb-4">
-              <div className="flex gap-4 md:gap-6 w-max md:w-full md:grid md:grid-cols-3 px-0">
-                {featureImages.map((img, i) => (
+        <div className="bg-[#141414] rounded-t-[48px] -mt-6 pt-10 md:bg-transparent md:rounded-none md:pt-0 md:mt-0">
+          <RevealSection className="w-full px-4 md:px-8 py-8 md:py-16 relative">
+            <div className="max-w-6xl mx-auto">
+              {/* Heading — desktop only; on mobile the cards speak for themselves */}
+              <h2 className="hidden md:block text-xl md:text-3xl font-bold text-white text-center mb-4 md:mb-2">Why Choose Sycord?</h2>
+              <p className="hidden md:block text-sm md:text-base text-[#8A8E91] text-center mb-10 md:mb-12 max-w-xl mx-auto">
+                Everything you need to build and launch your website in minutes
+              </p>
+              <div ref={featuresScrollRef} className="overflow-x-auto scrollbar-hide pb-4">
+                <div className="flex gap-4 md:gap-6 w-max md:w-full md:grid md:grid-cols-3 px-0">
+                  {featureImages.map((img, i) => (
+                    <div
+                      key={i}
+                      className="relative w-56 sm:w-64 md:w-auto h-64 sm:h-72 md:h-96 flex-shrink-0 rounded-3xl overflow-hidden"
+                    >
+                      <Image
+                        src={img.src}
+                        alt={img.alt}
+                        fill
+                        className="object-cover"
+                        loading="lazy"
+                        sizes="(max-width: 640px) 224px, (max-width: 768px) 256px, 33vw"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Carousel indicator dots — mobile only, state-driven */}
+              <div className="flex md:hidden items-center justify-center gap-2 mt-5">
+                {featureImages.map((_, i) => (
                   <div
                     key={i}
-                    className="relative w-64 sm:w-72 md:w-auto h-72 sm:h-80 md:h-96 flex-shrink-0 rounded-3xl overflow-hidden"
-                  >
-                    <Image
-                      src={img.src}
-                      alt={img.alt}
-                      fill
-                      className="object-cover"
-                      loading="lazy"
-                      sizes="(max-width: 640px) 256px, (max-width: 768px) 288px, 33vw"
-                    />
-                  </div>
+                    className={`h-2 rounded-full transition-all duration-300 ${
+                      i === featuresActiveIndex
+                        ? "w-8 bg-white/65"
+                        : "w-2.5 bg-white/25"
+                    }`}
+                  />
                 ))}
               </div>
             </div>
-
-            {/* Carousel indicator dots — mobile only, state-driven */}
-            <div className="flex md:hidden items-center justify-center gap-2 mt-5">
-              {featureImages.map((_, i) => (
-                <div
-                  key={i}
-                  className={`h-2 rounded-full transition-all duration-300 ${
-                    i === featuresActiveIndex
-                      ? "w-7 bg-white/60"
-                      : "w-2 bg-white/25"
-                  }`}
-                />
-              ))}
-            </div>
-          </div>
-        </RevealSection>
+          </RevealSection>
+        </div>
 
         {/* Supporters Section */}
         <RevealSection className="w-full py-14 md:py-20 border-t border-b border-white/5 bg-[#181818] overflow-hidden">
