@@ -254,3 +254,16 @@
 }
 
 .animate-dash { animation: dash-move 2s linear infinite; }
+
+/* ── Hero vertical stripe background ── */
+.hero-stripes {
+  background-image: repeating-linear-gradient(
+    90deg,
+    #12131A 0px,
+    #1B1C23 4px,
+    #1F2029 18px,
+    #1B1C23 30px,
+    #12131A 34px
+  );
+  background-size: 34px 100%;
+}

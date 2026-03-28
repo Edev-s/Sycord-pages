@@ -2,7 +2,8 @@
 
 import Link from "next/link"
 import Image from "next/image"
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
+import useEmblaCarousel from "embla-carousel-react"
 import { Button } from "@/components/ui/button"
 import { Check, Zap, Sparkles, ArrowRight } from "lucide-react"
 
@@ -36,6 +37,19 @@ function RevealSection({ children, className = "", id }: { children: React.React
 }
 
 export default function LandingPage() {
+  const [emblaRef, emblaApi] = useEmblaCarousel({ align: "center", containScroll: "trimSnaps" })
+  const [activeFeature, setActiveFeature] = useState(0)
+
+  useEffect(() => {
+    if (!emblaApi) return
+    const onSelect = () => setActiveFeature(emblaApi.selectedScrollSnap())
+    emblaApi.on("select", onSelect)
+    return () => { emblaApi.off("select", onSelect) }
+  }, [emblaApi])
+
+  const scrollToFeature = useCallback((index: number) => {
+    emblaApi?.scrollTo(index)
+  }, [emblaApi])
   return (
     <div className="min-h-screen bg-[#18191B] flex flex-col items-center overflow-x-hidden font-sans">
       {/* Header */}
@@ -56,22 +70,19 @@ export default function LandingPage() {
       <main className="w-full flex-1 flex flex-col">
         
         {/* Hero Section */}
-        <RevealSection className="w-full px-4 md:px-8 pt-8 md:pt-16 pb-8 md:pb-12">
+        <RevealSection className="w-full relative overflow-hidden">
+          {/* Vertical stripe background */}
+          <div className="absolute inset-0 hero-stripes opacity-90 pointer-events-none" aria-hidden="true" />
+          <div className="relative z-10 px-4 md:px-8 pt-8 md:pt-16 pb-8 md:pb-12">
           <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-start gap-8 md:gap-12">
             <div className="flex-1 max-w-2xl">
-              <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold leading-tight tracking-tight mb-6">
-                <span className="text-white">Create </span>
-                <span className="text-[#8A8E91]">your</span>
-                <br className="md:hidden" />
-                <span className="text-[#8A8E91]"> website </span>
-                <span className="text-white">under 5</span>
-                <br />
-                <span className="text-white">minute!</span>
-              </h1>
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-6 md:mt-8">
+              <p className="text-2xl md:text-4xl lg:text-5xl font-semibold leading-snug tracking-tight mb-8 text-white">
+                Describe your idea, Sycord&apos;s AI designs, codes and deploys your website instantly. No coding or design skills required.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-2 md:mt-8">
                 <Button 
                   asChild
-                  className="bg-white text-[#18191B] hover:bg-white/90 text-sm font-semibold px-6 md:px-8 h-11 md:h-12 rounded-full min-h-[44px] flex items-center gap-2"
+                  className="bg-[#2E2F33] hover:bg-[#3A3B3F] text-white text-sm font-semibold px-8 md:px-10 h-12 rounded-full min-h-[44px] flex items-center gap-2 border-0"
                 >
                   <Link href="/login">
                     Get started
@@ -143,37 +154,77 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
+          </div>
         </RevealSection>
 
         {/* Features Section */}
         <RevealSection className="w-full px-4 md:px-8 py-8 md:py-16 relative">
           <div className="max-w-6xl mx-auto">
             <h2 className="text-xl md:text-3xl font-bold text-white text-center mb-4 md:mb-2">Why Choose Sycord?</h2>
-            <p className="text-sm md:text-base text-[#8A8E91] text-center mb-10 md:mb-12 max-w-xl mx-auto">
+            <p className="text-sm md:text-base text-[#8A8E91] text-center mb-8 md:mb-12 max-w-xl mx-auto">
               Everything you need to build and launch your website in minutes
             </p>
-            <div className="overflow-x-auto scrollbar-hide pb-4">
-              <div className="flex gap-4 md:gap-6 w-max md:w-full md:grid md:grid-cols-3 px-0">
-                {[
-                  { src: "https://github.com/user-attachments/assets/6f4659c9-0989-47c0-b282-731ae5961df7", alt: "Best AI model on the market — Gemini 3.1" },
-                  { src: "https://github.com/user-attachments/assets/95665e35-5f9c-4a6d-9255-8a5b9dfd5d01", alt: "Why Choose Sycord — Feature 2" },
-                  { src: "https://github.com/user-attachments/assets/9c1a2ed9-1179-4e69-9c24-40058dc0e53d", alt: "Why Choose Sycord — Feature 3" },
-                ].map((img, i) => (
-                  <div
+
+            {/* Mobile: Embla snap carousel */}
+            <div className="md:hidden -mx-4">
+              <div className="overflow-hidden" ref={emblaRef}>
+                <div className="flex">
+                  {[
+                    { src: "https://github.com/user-attachments/assets/6f4659c9-0989-47c0-b282-731ae5961df7", alt: "Best AI model on the market — Gemini 3.1" },
+                    { src: "https://github.com/user-attachments/assets/95665e35-5f9c-4a6d-9255-8a5b9dfd5d01", alt: "Why Choose Sycord — Feature 2" },
+                    { src: "https://github.com/user-attachments/assets/9c1a2ed9-1179-4e69-9c24-40058dc0e53d", alt: "Why Choose Sycord — Feature 3" },
+                  ].map((img, i) => (
+                    <div key={i} className="min-w-0 flex-[0_0_82%] pl-3 first:pl-4 last:pr-4">
+                      <div className="relative h-80 rounded-3xl overflow-hidden">
+                        <Image
+                          src={img.src}
+                          alt={img.alt}
+                          fill
+                          className="object-cover"
+                          loading="lazy"
+                          sizes="82vw"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Pagination dots */}
+              <div className="flex items-center justify-center gap-2 mt-5">
+                {[0, 1, 2].map((i) => (
+                  <button
                     key={i}
-                    className="relative w-64 sm:w-72 md:w-auto h-72 sm:h-80 md:h-96 flex-shrink-0 rounded-3xl overflow-hidden"
-                  >
-                    <Image
-                      src={img.src}
-                      alt={img.alt}
-                      fill
-                      className="object-cover"
-                      loading="lazy"
-                      sizes="(max-width: 640px) 256px, (max-width: 768px) 288px, 33vw"
-                    />
-                  </div>
+                    onClick={() => scrollToFeature(i)}
+                    aria-label={`Go to slide ${i + 1}`}
+                    className={`h-2 rounded-full transition-all duration-300 ${
+                      i === activeFeature
+                        ? "w-8 bg-white/60"
+                        : "w-2 bg-white/25"
+                    }`}
+                  />
                 ))}
               </div>
+            </div>
+
+            {/* Desktop: 3-column grid */}
+            <div className="hidden md:grid md:grid-cols-3 gap-6">
+              {[
+                { src: "https://github.com/user-attachments/assets/6f4659c9-0989-47c0-b282-731ae5961df7", alt: "Best AI model on the market — Gemini 3.1" },
+                { src: "https://github.com/user-attachments/assets/95665e35-5f9c-4a6d-9255-8a5b9dfd5d01", alt: "Why Choose Sycord — Feature 2" },
+                { src: "https://github.com/user-attachments/assets/9c1a2ed9-1179-4e69-9c24-40058dc0e53d", alt: "Why Choose Sycord — Feature 3" },
+              ].map((img, i) => (
+                <div key={i} className="relative h-96 rounded-3xl overflow-hidden">
+                  <Image
+                    src={img.src}
+                    alt={img.alt}
+                    fill
+                    className="object-cover"
+                    loading="lazy"
+                    sizes="33vw"
+                  />
+                </div>
+              ))}
             </div>
           </div>
         </RevealSection>
