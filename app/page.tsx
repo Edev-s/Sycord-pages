@@ -42,62 +42,62 @@ export default function LandingPage() {
       <main className="w-full flex-1 flex flex-col">
         
         {/* Hero Section */}
-        <RevealSection className="w-full relative min-h-[70vh] md:min-h-[65vh]">
+        <RevealSection className="w-full relative min-h-[85vh] md:min-h-[65vh]">
           {/* Diagonal Background with Metallic Stripes */}
           <div className="absolute inset-0 overflow-hidden">
             {/* Dark base */}
             <div className="absolute inset-0 bg-[#0a0a0a]" />
             {/* Diagonal metallic stripe background on left */}
             <div 
-              className="absolute top-0 left-0 w-[60%] h-full origin-top-left"
+              className="absolute top-0 left-0 w-full md:w-[60%] h-[60%] md:h-full origin-top-left"
               style={{
-                clipPath: 'polygon(0 0, 100% 0, 70% 100%, 0 100%)',
+                clipPath: 'polygon(0 0, 100% 0, 100% 70%, 0 100%)',
               }}
             >
               <Image
                 src="https://github.com/user-attachments/assets/ce4c62c7-1592-4542-a6ea-1dead982ad6a"
                 alt=""
                 fill
-                className="object-cover opacity-60"
+                className="object-cover opacity-50 md:opacity-60"
                 priority
               />
               {/* Gradient overlay for smooth transition */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-[#0a0a0a]" />
+              <div className="absolute inset-0 bg-gradient-to-b md:bg-gradient-to-r from-transparent via-transparent to-[#0a0a0a]" />
             </div>
           </div>
 
           {/* Hero Content */}
-          <div className="relative z-10 max-w-6xl mx-auto px-6 md:px-12 pt-16 md:pt-24 pb-12 flex flex-col md:flex-row items-start gap-8 md:gap-12">
+          <div className="relative z-10 max-w-6xl mx-auto px-5 md:px-12 pt-12 md:pt-24 pb-8 md:pb-12 flex flex-col md:flex-row items-start gap-6 md:gap-12">
             {/* Left Side - Text Content */}
             <div className="flex-1 max-w-lg">
               {/* Logo */}
-              <div className="flex items-center gap-3 mb-10">
+              <div className="flex items-center gap-2.5 md:gap-3 mb-6 md:mb-10">
                 <Image 
                   src="/logo.png" 
                   alt="Sycord Logo" 
-                  width={36} 
-                  height={36} 
-                  className="opacity-90" 
+                  width={32} 
+                  height={32} 
+                  className="opacity-90 w-7 h-7 md:w-9 md:h-9" 
                   priority 
                 />
-                <span className="text-2xl font-bold text-white tracking-tight">sycord</span>
+                <span className="text-xl md:text-2xl font-bold text-white tracking-tight">sycord</span>
               </div>
 
               {/* Headline */}
-              <h1 className="text-2xl md:text-3xl lg:text-4xl font-normal leading-snug tracking-tight mb-8">
+              <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-normal leading-snug tracking-tight mb-6 md:mb-8">
                 <span className="text-[#8A8E91]">ship your website </span>
                 <span className="text-white font-semibold">under 5 minutes</span>
               </h1>
 
               {/* Tech Logos */}
-              <div className="flex items-center gap-6 mb-8">
+              <div className="flex items-center gap-4 md:gap-6 mb-6 md:mb-8">
                 {/* GitHub Logo */}
-                <svg className="h-6 w-auto text-[#6B6E71]" viewBox="0 0 98 24" fill="currentColor">
+                <svg className="h-5 md:h-6 w-auto text-[#6B6E71]" viewBox="0 0 98 24" fill="currentColor">
                   <path fillRule="evenodd" clipRule="evenodd" d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
                   <path d="M33.6 19V5.4h3.9c2.7 0 4.2 1.35 4.2 3.6 0 1.5-.75 2.55-1.95 3.15l2.55 6.85h-2.4l-2.25-6.3h-1.65V19h-2.4zm2.4-8.4h1.35c1.35 0 1.95-.6 1.95-1.65 0-1.05-.6-1.65-1.95-1.65h-1.35v3.3zm7.8 8.4V5.4h2.4v5.7h.15c.45-.9 1.35-1.5 2.55-1.5 1.95 0 3.15 1.35 3.15 3.45V19h-2.4v-5.4c0-1.05-.6-1.65-1.5-1.65-1.05 0-1.95.75-1.95 1.95V19h-2.4zm12.15.15c-1.65 0-2.7-.9-2.7-2.25 0-1.5 1.2-2.1 3-2.4l2.1-.3v-.45c0-.75-.45-1.2-1.35-1.2-.9 0-1.35.45-1.5 1.05h-2.25c.15-1.65 1.5-2.7 3.75-2.7 2.4 0 3.75 1.2 3.75 3.15V19h-2.25v-1.2h-.15c-.45.9-1.35 1.35-2.4 1.35zm.75-1.8c1.05 0 1.8-.75 1.8-1.65v-.6l-1.65.3c-.9.15-1.35.45-1.35.9 0 .6.45.9 1.2 1.05zm6.3 1.65V5.4h2.4v5.7h.15c.45-.9 1.35-1.5 2.55-1.5 1.95 0 3.15 1.35 3.15 3.45V19h-2.4v-5.4c0-1.05-.6-1.65-1.5-1.65-1.05 0-1.95.75-1.95 1.95V19h-2.4z"/>
                 </svg>
                 {/* Google Logo */}
-                <svg className="h-5 w-auto text-[#6B6E71]" viewBox="0 0 74 24" fill="currentColor">
+                <svg className="h-4 md:h-5 w-auto text-[#6B6E71]" viewBox="0 0 74 24" fill="currentColor">
                   <path d="M9.24 8.19v2.46h5.88c-.18 1.38-.64 2.39-1.34 3.1-.86.86-2.2 1.8-4.54 1.8-3.62 0-6.45-2.92-6.45-6.54s2.83-6.54 6.45-6.54c1.95 0 3.38.77 4.43 1.76L15.4 2.5C13.94 1.08 11.98 0 9.24 0 4.28 0 .11 4.04.11 9s4.17 9 9.13 9c2.68 0 4.7-.88 6.28-2.52 1.62-1.62 2.13-3.91 2.13-5.75 0-.57-.04-1.1-.13-1.54H9.24z"/>
                   <path d="M25.03 6.19c-3.21 0-5.83 2.44-5.83 5.81 0 3.34 2.62 5.81 5.83 5.81s5.83-2.46 5.83-5.81c0-3.37-2.62-5.81-5.83-5.81zm0 9.33c-1.76 0-3.28-1.45-3.28-3.52 0-2.09 1.52-3.52 3.28-3.52s3.28 1.43 3.28 3.52c0 2.07-1.52 3.52-3.28 3.52z"/>
                   <path d="M40.03 6.19c-3.21 0-5.83 2.44-5.83 5.81 0 3.34 2.62 5.81 5.83 5.81s5.83-2.46 5.83-5.81c0-3.37-2.62-5.81-5.83-5.81zm0 9.33c-1.76 0-3.28-1.45-3.28-3.52 0-2.09 1.52-3.52 3.28-3.52s3.28 1.43 3.28 3.52c0 2.07-1.52 3.52-3.28 3.52z"/>
@@ -110,7 +110,7 @@ export default function LandingPage() {
               {/* CTA Button */}
               <Button 
                 asChild
-                className="bg-[#3A3B3D] hover:bg-[#4A4B4D] text-white text-sm font-medium px-8 h-12 rounded-full min-h-[48px]"
+                className="bg-[#3A3B3D] hover:bg-[#4A4B4D] text-white text-sm font-medium px-6 md:px-8 h-11 md:h-12 rounded-full min-h-[44px] md:min-h-[48px]"
               >
                 <Link href="/login">Get started</Link>
               </Button>
@@ -128,20 +128,6 @@ export default function LandingPage() {
                   priority
                 />
               </div>
-            </div>
-          </div>
-        </RevealSection>
-
-        {/* Three Cards Section */}
-        <RevealSection className="w-full px-6 md:px-12 py-16 md:py-24 bg-[#0a0a0a]">
-          <div className="max-w-5xl mx-auto">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[1, 2, 3].map((i) => (
-                <div 
-                  key={i}
-                  className="aspect-square bg-[#1a1a1c] rounded-3xl border border-[#2a2a2c] hover:border-[#3a3a3c] transition-colors"
-                />
-              ))}
             </div>
           </div>
         </RevealSection>
