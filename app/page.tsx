@@ -89,7 +89,7 @@ export default function LandingPage() {
   const { scrollRef: featuresScrollRef, activeIndex: featuresActiveIndex } = useCarouselIndex(featureImages.length)
 
   return (
-    <div className="min-h-screen bg-[#101010] flex flex-col items-center overflow-x-hidden font-sans">
+    <div className="min-h-screen bg-[#101010] flex flex-col items-center overflow-x-hidden overflow-y-visible font-sans">
       {/* Header — desktop only; mobile header lives inside the hero */}
       <header className="hidden md:flex w-full px-4 md:px-8 py-4 md:py-6 items-center justify-between z-20 sticky top-0 bg-[#101010]/95 backdrop-blur-sm border-b border-white/5">
         <div className="flex items-center gap-2 md:gap-3">
@@ -108,17 +108,17 @@ export default function LandingPage() {
       <main className="w-full flex-1 flex flex-col">
 
         {/* ── Hero Section (Mobile + Desktop) ── */}
-        <section className="relative w-full overflow-hidden min-h-[75vh] md:min-h-[70vh] pb-32 md:pb-40">
-          {/* Metallic corrugated background - extends to edges, no safe area */}
+        <section className="relative w-full overflow-visible min-h-[75vh] md:min-h-[70vh] pb-32 md:pb-40">
+          {/* Metallic corrugated background - extends beyond section to cover status bar area */}
           <div
-            className="absolute inset-0 bg-cover bg-center"
+            className="absolute -top-32 md:top-0 left-0 right-0 bottom-0 bg-cover bg-center"
             style={{
               backgroundImage:
                 "url('https://github.com/user-attachments/assets/2f738fc4-174b-45f8-9831-25fcf4fd788f')",
             }}
           />
-          {/* Gradient overlay — darkens for legibility */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-transparent" />
+          {/* Gradient overlay — darkens for legibility, extends to cover status bar */}
+          <div className="absolute -top-32 md:top-0 left-0 right-0 bottom-0 bg-gradient-to-b from-black/70 via-black/50 to-transparent" />
 
           {/* Content */}
           <div className="relative z-10 flex flex-col justify-start h-full px-6 md:px-8 pt-12 md:pt-20 pb-12 max-w-6xl mx-auto">
@@ -173,7 +173,7 @@ export default function LandingPage() {
         {/* ── Old Desktop Hero removed - now unified ── */}
         
         {/* Features Section - overlaps the hero */}
-        <div className="relative z-10 -mt-24 md:-mt-32">
+        <div className="relative z-10 -mt-36 md:-mt-32">
           <div className="bg-[#141414] rounded-t-[48px] md:rounded-t-[72px] pt-14 pb-10 overflow-hidden">
             <RevealSection className="w-full py-8 md:py-16 md:px-8 relative">
               <div className="max-w-6xl md:mx-auto">
