@@ -107,9 +107,9 @@ export default function LandingPage() {
       {/* Main Content */}
       <main className="w-full flex-1 flex flex-col">
 
-        {/* ── Mobile Hero ── visible only on mobile */}
-        <section className="md:hidden relative w-full overflow-hidden min-h-[72vh] pb-16">
-          {/* Metallic corrugated background */}
+        {/* ── Hero Section (Mobile + Desktop) ── */}
+        <section className="relative w-full overflow-hidden min-h-[75vh] md:min-h-[70vh] pb-32 md:pb-40">
+          {/* Metallic corrugated background - extends to edges, no safe area */}
           <div
             className="absolute inset-0 bg-cover bg-center"
             style={{
@@ -117,13 +117,13 @@ export default function LandingPage() {
                 "url('https://github.com/user-attachments/assets/2f738fc4-174b-45f8-9831-25fcf4fd788f')",
             }}
           />
-          {/* Gradient overlay — darkens for legibility and blends into base */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/55 to-[#0f0f0f]" />
+          {/* Gradient overlay — darkens for legibility */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-transparent" />
 
           {/* Content */}
-          <div className="relative z-10 flex flex-col justify-start h-full px-6 pt-[calc(env(safe-area-inset-top,0px)+48px)] pb-12">
-            {/* Brand */}
-            <div className="flex items-center gap-3 mb-7">
+          <div className="relative z-10 flex flex-col justify-start h-full px-6 md:px-8 pt-12 md:pt-20 pb-12 max-w-6xl mx-auto">
+            {/* Brand - mobile only (desktop has header) */}
+            <div className="flex md:hidden items-center gap-3 mb-7">
               <Image
                 src="/logo.png"
                 alt="Sycord"
@@ -135,130 +135,62 @@ export default function LandingPage() {
               <span className="text-white text-3xl font-bold tracking-tight">sycord</span>
             </div>
 
+            {/* Desktop headline */}
+            <h1 className="hidden md:block text-5xl lg:text-6xl font-bold leading-tight tracking-tight mb-6">
+              <span className="text-white">Create </span>
+              <span className="text-[#8A8E91]">your</span>
+              <span className="text-[#8A8E91]"> website </span>
+              <span className="text-white">under 5</span>
+              <br />
+              <span className="text-white">minute!</span>
+            </h1>
+
             {/* Description */}
-            <p className="text-white text-[17px] font-medium leading-relaxed mb-7 max-w-xs">
+            <p className="text-white text-[17px] md:text-xl font-medium leading-relaxed mb-7 max-w-md">
               Describe your idea, Sycord&apos;s AI designs, codes and deploys your website instantly.
               No coding or design skills required.
             </p>
 
             {/* CTA */}
-            <Button
-              asChild
-              className="self-start bg-[#3A3B3D]/90 hover:bg-[#4A4B4D] text-white rounded-full px-8 h-12 text-sm font-medium border-0"
-            >
-              <Link href="/login">Get started</Link>
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+              <Button
+                asChild
+                className="self-start bg-[#3A3B3D]/90 hover:bg-[#4A4B4D] text-white rounded-full px-8 h-12 text-sm font-medium border-0"
+              >
+                <Link href="/login">Get started</Link>
+              </Button>
+              <Button 
+                asChild
+                variant="outline"
+                className="hidden md:flex border-white/20 text-white hover:bg-white/5 text-sm font-medium px-8 h-12 rounded-full"
+              >
+                <Link href="#pricing">View pricing</Link>
+              </Button>
+            </div>
           </div>
         </section>
 
-        {/* ── Desktop Hero ── hidden on mobile */}
-        <RevealSection className="hidden md:block w-full px-4 md:px-8 pt-8 md:pt-16 pb-8 md:pb-12">
-          <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-start gap-8 md:gap-12">
-            <div className="flex-1 max-w-2xl">
-              <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold leading-tight tracking-tight mb-6">
-                <span className="text-white">Create </span>
-                <span className="text-[#8A8E91]">your</span>
-                <br className="md:hidden" />
-                <span className="text-[#8A8E91]"> website </span>
-                <span className="text-white">under 5</span>
-                <br />
-                <span className="text-white">minute!</span>
-              </h1>
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-6 md:mt-8">
-                <Button 
-                  asChild
-                  className="bg-white text-[#18191B] hover:bg-white/90 text-sm font-semibold px-6 md:px-8 h-11 md:h-12 rounded-full min-h-[44px] flex items-center gap-2"
-                >
-                  <Link href="/login">
-                    Get started
-                    <ArrowRight className="w-4 h-4" />
-                  </Link>
-                </Button>
-                <Button 
-                  asChild
-                  variant="outline"
-                  className="border-white/20 text-white hover:bg-white/5 text-sm font-medium px-6 md:px-8 h-11 md:h-12 rounded-full min-h-[44px]"
-                >
-                  <Link href="#pricing">View pricing</Link>
-                </Button>
-              </div>
-            </div>
-            
-            {/* Hero Illustration */}
-            <div className="flex-1 hidden md:flex justify-center">
-              <div className="relative w-full max-w-md">
-                <svg viewBox="0 0 400 320" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto">
-                  {/* Browser window frame */}
-                  <rect x="40" y="30" width="320" height="240" rx="16" fill="#252527" stroke="#3A3B3D" strokeWidth="1.5"/>
-                  {/* Title bar */}
-                  <rect x="40" y="30" width="320" height="36" rx="16" fill="#2E2E30"/>
-                  <rect x="40" y="50" width="320" height="16" fill="#2E2E30"/>
-                  {/* Traffic lights */}
-                  <circle cx="62" cy="48" r="5" fill="#FF5F57"/>
-                  <circle cx="80" cy="48" r="5" fill="#FEBC2E"/>
-                  <circle cx="98" cy="48" r="5" fill="#28C840"/>
-                  {/* URL bar */}
-                  <rect x="120" y="41" width="160" height="14" rx="7" fill="#3A3B3D"/>
-                  {/* Content blocks - hero area */}
-                  <rect x="60" y="82" width="140" height="12" rx="6" fill="#4A4B4D"/>
-                  <rect x="60" y="102" width="100" height="8" rx="4" fill="#3A3B3D"/>
-                  <rect x="60" y="118" width="120" height="8" rx="4" fill="#3A3B3D"/>
-                  {/* CTA button illustration */}
-                  <rect x="60" y="140" width="80" height="24" rx="12" fill="white"/>
-                  {/* Image placeholder */}
-                  <rect x="220" y="82" width="120" height="90" rx="12" fill="#3A3B3D"/>
-                  <circle cx="280" cy="115" r="20" fill="#4A4B4D" opacity="0.5"/>
-                  <polygon points="270,125 290,110 280,130" fill="#6B6E71" opacity="0.5"/>
-                  {/* Card section */}
-                  <rect x="60" y="185" width="88" height="70" rx="10" fill="#2E2E30" stroke="#3A3B3D" strokeWidth="1"/>
-                  <rect x="156" y="185" width="88" height="70" rx="10" fill="#2E2E30" stroke="#3A3B3D" strokeWidth="1"/>
-                  <rect x="252" y="185" width="88" height="70" rx="10" fill="#2E2E30" stroke="#3A3B3D" strokeWidth="1"/>
-                  {/* Card icons */}
-                  <circle cx="82" cy="205" r="8" fill="#EAB308" opacity="0.3"/>
-                  <circle cx="178" cy="205" r="8" fill="#3B82F6" opacity="0.3"/>
-                  <circle cx="274" cy="205" r="8" fill="#22C55E" opacity="0.3"/>
-                  {/* Card text lines */}
-                  <rect x="72" y="222" width="60" height="5" rx="2.5" fill="#4A4B4D"/>
-                  <rect x="72" y="232" width="44" height="4" rx="2" fill="#3A3B3D"/>
-                  <rect x="168" y="222" width="60" height="5" rx="2.5" fill="#4A4B4D"/>
-                  <rect x="168" y="232" width="44" height="4" rx="2" fill="#3A3B3D"/>
-                  <rect x="264" y="222" width="60" height="5" rx="2.5" fill="#4A4B4D"/>
-                  <rect x="264" y="232" width="44" height="4" rx="2" fill="#3A3B3D"/>
-                  {/* Cursor */}
-                  <g transform="translate(170, 135)">
-                    <path d="M0 0L0 20L5.5 15L11 22L14 20.5L8.5 13.5L15 12L0 0Z" fill="white" stroke="#101010" strokeWidth="1"/>
-                  </g>
-                  {/* Decorative sparkle */}
-                  <g transform="translate(340, 28)">
-                    <path d="M8 0L10 6L16 8L10 10L8 16L6 10L0 8L6 6Z" fill="#EAB308" opacity="0.6"/>
-                  </g>
-                  <g transform="translate(20, 70)">
-                    <path d="M6 0L7.5 4.5L12 6L7.5 7.5L6 12L4.5 7.5L0 6L4.5 4.5Z" fill="#A855F7" opacity="0.4"/>
-                  </g>
-                </svg>
-              </div>
-            </div>
-          </div>
-        </RevealSection>
+        {/* ── Old Desktop Hero removed - now unified ── */}
+        
+        {/* Features Section - overlaps the hero */}
+        <div className="relative z-10 -mt-24 md:-mt-32">
+          <div className="bg-[#141414] rounded-t-[48px] md:rounded-t-[72px] pt-14 pb-10 overflow-hidden">
+            <RevealSection className="w-full py-8 md:py-16 md:px-8 relative">
+              <div className="max-w-6xl md:mx-auto">
+                {/* Heading — desktop only; on mobile the cards speak for themselves */}
+                <h2 className="hidden md:block text-xl md:text-3xl font-bold text-white text-center mb-4 md:mb-2">Why Choose Sycord?</h2>
+                <p className="hidden md:block text-sm md:text-base text-[#8A8E91] text-center mb-10 md:mb-12 max-w-xl mx-auto">
+                  Everything you need to build and launch your website in minutes
+                </p>
 
-        {/* Features Section */}
-        <div className="bg-[#141414]/95 rounded-t-[72px] rounded-b-[56px] -mt-12 pt-14 pb-10 md:bg-transparent md:rounded-none md:pt-0 md:mt-0 md:rounded-b-none md:pb-0 overflow-hidden">
-          <RevealSection className="w-full py-8 md:py-16 md:px-8 relative">
-            <div className="max-w-6xl md:mx-auto">
-              {/* Heading — desktop only; on mobile the cards speak for themselves */}
-              <h2 className="hidden md:block text-xl md:text-3xl font-bold text-white text-center mb-4 md:mb-2">Why Choose Sycord?</h2>
-              <p className="hidden md:block text-sm md:text-base text-[#8A8E91] text-center mb-10 md:mb-12 max-w-xl mx-auto">
-                Everything you need to build and launch your website in minutes
-              </p>
-
-              {/* Scroll container: snap-to-center on mobile, plain grid on desktop */}
-              <div
-                ref={featuresScrollRef}
-                className="overflow-x-scroll md:overflow-x-visible scrollbar-hide pb-4 md:pb-0 px-[12.5vw] md:px-0"
-                style={{ scrollSnapType: "x mandatory", scrollBehavior: "smooth" }}
-              >
-                <div className="flex gap-4 md:gap-6 w-max md:w-full md:grid md:grid-cols-3">
-                  {featureImages.map((img, i) => (
+                {/* Scroll container: snap-to-center on mobile, plain grid on desktop */}
+                <div
+                  ref={featuresScrollRef}
+                  className="overflow-x-scroll md:overflow-x-visible scrollbar-hide pb-4 md:pb-0 px-[12.5vw] md:px-0"
+                  style={{ scrollSnapType: "x mandatory", scrollBehavior: "smooth" }}
+                >
+                  <div className="flex gap-4 md:gap-6 w-max md:w-full md:grid md:grid-cols-3">
+                    {featureImages.map((img, i) => (
                     <div
                       key={i}
                       data-carousel-card
