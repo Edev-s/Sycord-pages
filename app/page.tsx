@@ -109,16 +109,16 @@ export default function LandingPage() {
 
         {/* ── Hero Section (Mobile + Desktop) ── */}
         <section className="relative w-full overflow-visible min-h-[75vh] md:min-h-[70vh] pb-32 md:pb-40">
-          {/* Metallic corrugated background - extends beyond section to cover status bar area */}
+          {/* Metallic corrugated background - fixed on mobile to cover entire viewport including status bar */}
           <div
-            className="absolute -top-32 md:top-0 left-0 right-0 bottom-0 bg-cover bg-center"
+            className="fixed md:absolute inset-0 bg-cover bg-center z-0"
             style={{
               backgroundImage:
                 "url('https://github.com/user-attachments/assets/2f738fc4-174b-45f8-9831-25fcf4fd788f')",
             }}
           />
-          {/* Gradient overlay — darkens for legibility, extends to cover status bar */}
-          <div className="absolute -top-32 md:top-0 left-0 right-0 bottom-0 bg-gradient-to-b from-black/70 via-black/50 to-transparent" />
+          {/* Gradient overlay — darkens for legibility */}
+          <div className="fixed md:absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-transparent z-0" />
 
           {/* Content */}
           <div className="relative z-10 flex flex-col justify-start h-full px-6 md:px-8 pt-12 md:pt-20 pb-12 max-w-6xl mx-auto">
@@ -155,7 +155,7 @@ export default function LandingPage() {
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               <Button
                 asChild
-                className="self-start bg-[#3A3B3D]/90 hover:bg-[#4A4B4D] text-white rounded-full px-8 h-12 text-sm font-medium border-0"
+                className="self-start bg-white/10 backdrop-blur-md hover:bg-white/20 text-white rounded-full px-8 h-12 text-sm font-medium border border-white/20"
               >
                 <Link href="/login">Get started</Link>
               </Button>
@@ -173,7 +173,7 @@ export default function LandingPage() {
         {/* ── Old Desktop Hero removed - now unified ── */}
         
         {/* Features Section - overlaps the hero */}
-        <div className="relative z-10 -mt-36 md:-mt-32">
+        <div className="relative z-10 -mt-40 md:-mt-32">
           <div className="bg-[#141414] rounded-t-[48px] md:rounded-t-[72px] pt-14 pb-10 overflow-hidden">
             <RevealSection className="w-full py-8 md:py-16 md:px-8 relative">
               <div className="max-w-6xl md:mx-auto">
