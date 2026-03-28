@@ -124,6 +124,20 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* Fill safe area (notch/status bar) with dark background */
+  html {
+    background-color: #18191B;
+  }
+  body::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: env(safe-area-inset-top, 0px);
+    background-color: #18191B;
+    z-index: 9999;
+  }
 }
 
 .text-gradient {
