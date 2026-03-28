@@ -230,6 +230,7 @@ export default function LandingPage() {
             </div>
           </RevealSection>
         </div>
+        </div>
 
         {/* Supporters Section */}
         <RevealSection className="w-full py-14 md:py-20 border-t border-b border-white/5 bg-[#181818] overflow-hidden">
