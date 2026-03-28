@@ -42,67 +42,56 @@ export default function LandingPage() {
       <main className="w-full flex-1 flex flex-col">
         
         {/* Hero Section */}
-        <RevealSection className="w-full relative min-h-[70vh] sm:min-h-[60vh] md:min-h-[65vh]">
+        <RevealSection className="w-full relative">
           {/* Background Layer */}
           <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
             <div className="absolute inset-0 bg-[#0a0a0a]" />
-            {/* Diagonal metallic texture */}
+            {/* Metallic texture - full width on mobile, diagonal on desktop */}
             <div 
               className="absolute inset-0 md:w-[55%]"
-              style={{ clipPath: 'polygon(0 0, 100% 0, 85% 100%, 0 100%)' }}
+              style={{ clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 100%)' }}
             >
               <Image
                 src="https://github.com/user-attachments/assets/ce4c62c7-1592-4542-a6ea-1dead982ad6a"
                 alt=""
                 fill
                 sizes="(max-width: 768px) 100vw, 55vw"
-                className="object-cover opacity-40 md:opacity-50"
+                className="object-cover opacity-30 md:opacity-50"
                 priority
               />
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#0a0a0a]/30 to-[#0a0a0a]" />
+              <div className="absolute inset-0 bg-gradient-to-b md:bg-gradient-to-r from-transparent via-transparent to-[#0a0a0a]" />
             </div>
           </div>
 
           {/* Hero Content */}
-          <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 md:px-12 pt-10 sm:pt-16 md:pt-24 pb-10 md:pb-16">
+          <div className="relative z-10 max-w-6xl mx-auto px-6 sm:px-8 md:px-12 pt-16 sm:pt-20 md:pt-24 pb-32 md:pb-16">
             <div className="flex flex-col md:flex-row items-start gap-8 md:gap-12">
               {/* Text Content */}
               <div className="flex-1 max-w-xl">
                 {/* Logo */}
-                <div className="flex items-center gap-2.5 mb-8 md:mb-10">
+                <div className="flex items-center gap-3 mb-8 md:mb-10">
                   <Image 
                     src="/logo.png" 
                     alt="Sycord" 
-                    width={36} 
-                    height={36} 
-                    className="w-8 h-8 md:w-9 md:h-9" 
+                    width={40} 
+                    height={40} 
+                    className="w-10 h-10 md:w-9 md:h-9" 
                     priority 
                   />
-                  <span className="text-xl md:text-2xl font-bold text-white tracking-tight">
+                  <span className="text-2xl md:text-2xl font-bold text-white tracking-tight">
                     sycord
                   </span>
                 </div>
 
-                {/* Headline */}
-                <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-[2.75rem] font-normal leading-tight tracking-tight mb-8 md:mb-10">
-                  <span className="text-[#9CA3AF]">ship your website </span>
-                  <span className="text-white font-semibold">under 5 minutes</span>
-                </h1>
-
-                {/* Trust Badges */}
-                <div className="flex items-center gap-5 mb-8 md:mb-10">
-                  <svg className="h-5 w-auto text-[#6B7280]" viewBox="0 0 24 24" fill="currentColor" aria-label="GitHub">
-                    <path fillRule="evenodd" clipRule="evenodd" d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
-                  </svg>
-                  <svg className="h-5 w-auto text-[#6B7280]" viewBox="0 0 24 24" fill="currentColor" aria-label="Google Cloud">
-                    <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"/>
-                  </svg>
-                </div>
+                {/* Description */}
+                <p className="text-lg sm:text-xl md:text-2xl text-[#C9CDCF] leading-relaxed mb-10 md:mb-10 max-w-md">
+                  Describe your idea, Sycord&apos;s AI designs, codes and deploys your website instantly. No coding or design skills required.
+                </p>
 
                 {/* CTA Button */}
                 <Button 
                   asChild
-                  className="bg-[#3A3D40] hover:bg-[#4A4D50] text-white text-sm font-medium px-8 h-12 rounded-full transition-colors"
+                  className="bg-[#3A3D40] hover:bg-[#4A4D50] text-white text-base font-medium px-10 h-14 rounded-full transition-colors"
                 >
                   <Link href="/login">Get started</Link>
                 </Button>
@@ -123,6 +112,22 @@ export default function LandingPage() {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Curved transition to features - mobile only */}
+          <div className="absolute bottom-0 left-0 right-0 h-20 md:hidden" aria-hidden="true">
+            <svg 
+              viewBox="0 0 1440 80" 
+              fill="none" 
+              xmlns="http://www.w3.org/2000/svg"
+              className="w-full h-full"
+              preserveAspectRatio="none"
+            >
+              <path 
+                d="M0 80V40C240 0 480 0 720 20C960 40 1200 60 1440 40V80H0Z" 
+                fill="#0a0a0a"
+              />
+            </svg>
           </div>
         </RevealSection>
 
