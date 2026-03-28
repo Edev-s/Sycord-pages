@@ -86,7 +86,7 @@ export default function LandingPage() {
       <main className="w-full flex-1 flex flex-col">
 
         {/* ── Mobile Hero ── visible only on mobile */}
-        <section className="md:hidden relative w-full overflow-hidden min-h-[58vh]">
+        <section className="md:hidden relative w-full overflow-hidden min-h-[68vh] pb-16">
           {/* Metallic corrugated background */}
           <div
             className="absolute inset-0 bg-cover bg-center"
@@ -95,13 +95,13 @@ export default function LandingPage() {
                 "url('https://github.com/user-attachments/assets/2f738fc4-174b-45f8-9831-25fcf4fd788f')",
             }}
           />
-          {/* Gradient overlay — darkens the bottom to blend into #101010 */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-[#101010]" />
+          {/* Gradient overlay — darkens for legibility and blends into base */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/55 to-[#0f0f0f]" />
 
           {/* Content */}
-          <div className="relative z-10 flex flex-col justify-center h-full px-6 pt-14 pb-12">
+          <div className="relative z-10 flex flex-col justify-start h-full px-6 pt-[calc(env(safe-area-inset-top,0px)+48px)] pb-12">
             {/* Brand */}
-            <div className="flex items-center gap-3 mb-8">
+            <div className="flex items-center gap-3 mb-7">
               <Image
                 src="/logo.png"
                 alt="Sycord"
@@ -114,7 +114,7 @@ export default function LandingPage() {
             </div>
 
             {/* Description */}
-            <p className="text-white text-[17px] font-medium leading-relaxed mb-8 max-w-xs">
+            <p className="text-white text-[17px] font-medium leading-relaxed mb-7 max-w-xs">
               Describe your idea, Sycord&apos;s AI designs, codes and deploys your website instantly.
               No coding or design skills required.
             </p>
@@ -220,7 +220,7 @@ export default function LandingPage() {
         </RevealSection>
 
         {/* Features Section */}
-        <div className="bg-[#141414] rounded-t-[48px] -mt-6 pt-10 md:bg-transparent md:rounded-none md:pt-0 md:mt-0">
+        <div className="bg-[#141414]/95 rounded-t-[64px] rounded-b-[40px] -mt-8 pt-12 md:bg-transparent md:rounded-none md:pt-0 md:mt-0 md:rounded-b-none overflow-hidden">
           <RevealSection className="w-full px-4 md:px-8 py-8 md:py-16 relative">
             <div className="max-w-6xl mx-auto">
               {/* Heading — desktop only; on mobile the cards speak for themselves */}
