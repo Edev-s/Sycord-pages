@@ -1,6 +1,7 @@
 "use client"
 
 import { cn } from "@/lib/utils"
+import { useId } from "react"
 
 interface CreditIconProps {
   className?: string
@@ -9,9 +10,9 @@ interface CreditIconProps {
 }
 
 // Main credit icon - gray star in rounded diamond outline (matches uploaded icon)
-export function CreditIcon({ className, variant = "gray", size = 48 }: CreditIconProps) {
-  // Generate unique ID for gradient to avoid conflicts when multiple icons are rendered
-  const gradientId = `starGradient-${Math.random().toString(36).substr(2, 9)}`
+export function CreditIcon({ className, size = 48 }: CreditIconProps) {
+  // Use React's useId hook for stable unique IDs
+  const gradientId = useId()
   
   return (
     <svg

@@ -64,7 +64,7 @@ function TransactionItem({ transaction }: { transaction: Transaction }) {
             : "bg-[#252525] text-gray-300 border border-[#353535]"
         }`}
       >
-        {isCredit ? transaction.amount : transaction.amount.toFixed(2)}
+        {isCredit ? transaction.amount.toFixed(0) : transaction.amount.toFixed(2)}
       </div>
     </div>
   )
