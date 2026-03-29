@@ -47,22 +47,22 @@ export function ProjectOnboarding({ onSubmit, onCancel }: ProjectOnboardingProps
     switch (currentStep) {
       case 1:
         return (
-          <div className="space-y-8 animate-in fade-in duration-300">
-            <h2 className="text-3xl md:text-4xl font-bold text-white text-left leading-tight">
+          <div className="space-y-12 animate-in fade-in duration-300">
+            <h2 className="text-4xl md:text-5xl font-bold text-white text-left leading-tight">
               Choose the type of<br />you product....
             </h2>
-            <div className="grid grid-cols-3 gap-4 pt-4">
+            <div className="grid grid-cols-3 gap-6 pt-8">
               {projectTypes.map((type) => (
                 <button
                   key={type.id}
                   onClick={() => setFormData({ ...formData, projectType: type.id })}
-                  className={`aspect-[4/3] rounded-2xl border-2 transition-all duration-200 ${
+                  className={`aspect-[4/3] rounded-3xl border-2 transition-all duration-200 flex items-center justify-center ${
                     formData.projectType === type.id
                       ? `${type.bgColor} ${type.borderColor} scale-95`
-                      : "bg-gray-700/30 border-gray-600/30 hover:border-gray-500/50 hover:bg-gray-700/40"
+                      : "bg-gray-700/20 border-gray-700/40 hover:border-gray-600/60 hover:bg-gray-700/30"
                   }`}
                 >
-                  <span className="text-sm font-medium text-white/90">{type.label}</span>
+                  {/* Empty cards matching the screenshot */}
                 </button>
               ))}
             </div>
@@ -71,36 +71,36 @@ export function ProjectOnboarding({ onSubmit, onCancel }: ProjectOnboardingProps
 
       case 2:
         return (
-          <div className="space-y-8 animate-in fade-in duration-300">
-            <div className="space-y-3">
-              <h2 className="text-3xl md:text-4xl font-bold text-white text-left leading-tight">
+          <div className="space-y-12 animate-in fade-in duration-300">
+            <div className="space-y-4">
+              <h2 className="text-4xl md:text-5xl font-bold text-white text-left leading-tight">
                 How do we will call<br />your business?
               </h2>
               {formData.businessName.trim() && (
-                <p className="text-lg text-emerald-400 font-medium animate-in slide-in-from-top-2 duration-200">
-                  <span className="text-emerald-400">Nice</span> name!
+                <p className="text-xl font-medium animate-in slide-in-from-top-2 duration-200">
+                  <span className="text-emerald-400">Nice</span> <span className="text-white">name!</span>
                 </p>
               )}
             </div>
             
-            <div className="space-y-6 pt-8">
+            <div className="space-y-8 pt-12">
               <input
                 type="text"
                 value={formData.businessName}
                 onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
-                className="w-full bg-transparent border-none text-5xl md:text-6xl font-bold text-gray-400 placeholder-gray-600 focus:outline-none focus:text-white transition-colors text-center"
+                className="w-full bg-transparent border-none text-6xl md:text-7xl font-bold text-gray-500 placeholder-gray-700 focus:outline-none focus:text-gray-400 transition-colors text-center"
                 placeholder="My flower shop"
                 autoFocus
               />
               
-              <div className="flex justify-center gap-2 pt-4">
+              <div className="flex justify-center gap-2.5 pt-6">
                 {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((dot) => (
                   <div
                     key={dot}
-                    className={`h-2 w-2 rounded-full transition-colors ${
+                    className={`h-2.5 w-2.5 rounded-full transition-all duration-200 ${
                       dot === Math.min(formData.businessName.length, 8)
-                        ? "bg-white"
-                        : "bg-gray-600"
+                        ? "bg-white scale-110"
+                        : "bg-gray-700"
                     }`}
                   />
                 ))}
@@ -111,18 +111,18 @@ export function ProjectOnboarding({ onSubmit, onCancel }: ProjectOnboardingProps
 
       case 3:
         return (
-          <div className="space-y-8 animate-in fade-in duration-300">
-            <h2 className="text-3xl md:text-4xl font-bold text-white text-left leading-tight">
+          <div className="space-y-12 animate-in fade-in duration-300">
+            <h2 className="text-4xl md:text-5xl font-bold text-white text-left leading-tight">
               Do you previously<br />owned/managed a<br />website?
             </h2>
             
-            <div className="space-y-4 pt-8">
+            <div className="space-y-5 pt-16">
               <button
                 onClick={() => setFormData({ ...formData, experienceLevel: "new" })}
-                className={`w-full max-w-md mx-auto block px-8 py-5 rounded-2xl text-xl font-medium transition-all duration-200 ${
+                className={`w-full max-w-xl mx-auto block px-10 py-6 rounded-3xl text-2xl font-medium transition-all duration-200 ${
                   formData.experienceLevel === "new"
-                    ? "bg-white/20 text-white border-2 border-white/30"
-                    : "bg-gray-700/40 text-gray-300 border-2 border-gray-600/30 hover:bg-gray-700/60 hover:border-gray-500/50"
+                    ? "bg-gray-700/60 text-white border-2 border-gray-600/40"
+                    : "bg-gray-800/40 text-gray-400 border-2 border-gray-700/30 hover:bg-gray-700/50 hover:border-gray-600/40 hover:text-gray-300"
                 }`}
               >
                 I am new at this.
@@ -130,10 +130,10 @@ export function ProjectOnboarding({ onSubmit, onCancel }: ProjectOnboardingProps
               
               <button
                 onClick={() => setFormData({ ...formData, experienceLevel: "professional" })}
-                className={`w-full max-w-md mx-auto block px-8 py-5 rounded-2xl text-xl font-medium transition-all duration-200 ${
+                className={`w-full max-w-xl mx-auto block px-10 py-6 rounded-3xl text-2xl font-medium transition-all duration-200 ${
                   formData.experienceLevel === "professional"
-                    ? "bg-white/20 text-white border-2 border-white/30"
-                    : "bg-gray-700/40 text-gray-300 border-2 border-gray-600/30 hover:bg-gray-700/60 hover:border-gray-500/50"
+                    ? "bg-gray-700/60 text-white border-2 border-gray-600/40"
+                    : "bg-gray-800/40 text-gray-400 border-2 border-gray-700/30 hover:bg-gray-700/50 hover:border-gray-600/40 hover:text-gray-300"
                 }`}
               >
                 I am professional
@@ -161,30 +161,30 @@ export function ProjectOnboarding({ onSubmit, onCancel }: ProjectOnboardingProps
   }
 
   return (
-    <div className="min-h-[600px] flex flex-col">
-      <div className="flex-1 px-4 py-8">
+    <div className="min-h-[650px] flex flex-col">
+      <div className="flex-1 px-8 py-12">
         {renderStep()}
       </div>
       
-      <div className="flex justify-between items-center px-4 py-6 border-t border-white/5">
+      <div className="flex justify-between items-center px-8 py-8 border-t border-white/5">
         <Button
           variant="ghost"
           onClick={currentStep === 1 ? onCancel : handleBack}
-          className="text-gray-400 hover:text-white"
+          className="text-gray-500 hover:text-white hover:bg-transparent"
         >
           {currentStep === 1 ? "Cancel" : "Back"}
         </Button>
         
-        <div className="flex gap-2">
+        <div className="flex gap-2.5">
           {[1, 2, 3].map((step) => (
             <div
               key={step}
-              className={`h-1.5 rounded-full transition-all duration-300 ${
+              className={`h-2 rounded-full transition-all duration-300 ${
                 step === currentStep
-                  ? "w-8 bg-white"
+                  ? "w-10 bg-white"
                   : step < currentStep
-                    ? "w-6 bg-emerald-400"
-                    : "w-6 bg-gray-600"
+                    ? "w-8 bg-emerald-400"
+                    : "w-8 bg-gray-700"
               }`}
             />
           ))}
@@ -193,7 +193,7 @@ export function ProjectOnboarding({ onSubmit, onCancel }: ProjectOnboardingProps
         <Button
           onClick={handleNext}
           disabled={!canProceed()}
-          className="bg-white text-black hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed px-8"
+          className="bg-white text-black hover:bg-gray-100 disabled:opacity-20 disabled:cursor-not-allowed px-10 py-6 text-base font-medium rounded-full"
         >
           {currentStep === 3 ? "Create" : "Next"}
         </Button>
