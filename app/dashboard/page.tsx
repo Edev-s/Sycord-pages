@@ -392,7 +392,12 @@ function DashboardContent() {
         </main>
       </div>
 
-      <CreateProjectModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      <CreateProjectModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)}
+        projectCount={projects.length}
+        userSubscription={userStatus.subscription}
+      />
 
       {/* Debug Error Popup */}
       <Dialog open={!!debugError} onOpenChange={(open) => !open && setDebugError(null)}>
