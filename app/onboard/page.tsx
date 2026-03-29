@@ -137,7 +137,7 @@ export default function OnboardPage() {
             <h1 className="text-3xl font-extrabold leading-tight text-white sm:text-5xl">
               Choose the type of
               <br />
-              you product....
+              your product....
             </h1>
 
             <div className="mt-12 sm:mt-16 grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
@@ -237,7 +237,7 @@ export default function OnboardPage() {
               <br />
               owned/managed a
               <br />
-              websit?
+              website?
             </h1>
 
             <div className="mt-16 sm:mt-24 flex flex-col gap-4">
@@ -270,7 +270,7 @@ export default function OnboardPage() {
         {step === "done" && (
           <div className="animate-in fade-in duration-300">
             <h1 className="text-3xl font-extrabold leading-tight text-white sm:text-5xl">
-              oh no! you alread
+              oh no! you already
               <br />
               created your first{" "}
               <span className="text-cyan-400">free</span> project.
