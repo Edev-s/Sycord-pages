@@ -233,21 +233,21 @@ export default function LandingPage() {
         </div>
         </div>
 
-        {/* Supporters Section */}
-        <RevealSection className="w-full py-14 md:py-20 border-t border-b border-white/5 bg-[#181818] overflow-hidden">
+        {/* Meet Syra Video Section */}
+        <RevealSection className="w-full py-14 md:py-20 border-t border-b border-white/5 bg-[#101010] overflow-hidden">
           <div className="max-w-5xl mx-auto px-4 md:px-8">
-            <p className="text-center text-[#8A8E91] text-xs md:text-sm font-medium mb-4">Powered by</p>
-            <h2 className="text-center text-white text-lg md:text-2xl font-bold mb-10 md:mb-14">The technologies behind Sycord</h2>
-            <div className="relative w-full max-w-4xl mx-auto rounded-2xl overflow-hidden">
-              <Image
-                src="https://github.com/user-attachments/assets/9b545725-ce0a-4543-a2fa-7194a97a4f72"
-                alt="Supporters — Google, GitHub, and Cloudflare"
-                width={1400}
-                height={900}
-                className="w-full h-auto"
-                loading="lazy"
-                sizes="(max-width: 768px) 100vw, 896px"
-              />
+            <p className="text-center text-[#8A8E91] text-xs md:text-sm font-medium mb-4">Introducing</p>
+            <h2 className="text-center text-white text-lg md:text-2xl font-bold mb-10 md:mb-14">Meet Syra, Your AI Builder</h2>
+            <div className="relative w-full max-w-4xl mx-auto rounded-2xl overflow-hidden bg-[#181818]/90 backdrop-blur-xl border border-white/10">
+              <video
+                className="w-full h-auto rounded-2xl"
+                controls
+                preload="metadata"
+                poster="/video-poster.jpg"
+              >
+                <source src="/Meet syra your ai builder.mp4" type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
             </div>
           </div>
         </RevealSection>
@@ -263,7 +263,7 @@ export default function LandingPage() {
             {/* Desktop Layout - 3 Column Grid */}
             <div className="hidden md:grid grid-cols-3 gap-6 max-w-5xl mx-auto">
               {/* Sycord Plan */}
-              <div className="bg-[#1F2022] rounded-2xl p-8 border border-white/5 flex flex-col">
+              <div className="frosted-card rounded-2xl p-8 flex flex-col">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-2 h-2 rounded-full bg-[#3A3B3D]"></div>
                   <div className="w-2 h-2 rounded-full bg-[#3A3B3D]"></div>
@@ -298,7 +298,7 @@ export default function LandingPage() {
               </div>
 
               {/* Sycord+ Plan - Featured */}
-              <div className="bg-[#18191B] rounded-2xl p-8 border-2 border-yellow-500/40 flex flex-col relative">
+              <div className="frosted-glass-dark rounded-2xl p-8 border-2 border-yellow-500/40 flex flex-col relative">
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-yellow-500/10 border border-yellow-500/30 rounded-full px-4 py-1">
                   <span className="text-yellow-500 text-xs font-semibold">Most Popular</span>
                 </div>
@@ -334,7 +334,7 @@ export default function LandingPage() {
               </div>
 
               {/* Sycord Enterprise Plan */}
-              <div className="bg-[#1F2022] rounded-2xl p-8 border border-white/5 flex flex-col">
+              <div className="frosted-card rounded-2xl p-8 flex flex-col">
                 <div className="flex items-center gap-2 mb-4">
                   <Sparkles className="w-4 h-4 text-purple-500" />
                 </div>
@@ -372,7 +372,7 @@ export default function LandingPage() {
             <div className="md:hidden overflow-x-auto scrollbar-hide pb-4">
               <div className="flex gap-4 w-max px-0">
                 {/* Sycord Plan */}
-                <div className="w-72 bg-[#1F2022] rounded-2xl p-5 flex-shrink-0 border border-white/5">
+                <div className="w-72 frosted-card rounded-2xl p-5 flex-shrink-0">
                   <div className="flex items-center gap-1.5 mb-4">
                     <div className="w-2 h-2 rounded-full bg-[#3A3B3D]"></div>
                     <div className="w-2 h-2 rounded-full bg-[#3A3B3D]"></div>
@@ -407,7 +407,7 @@ export default function LandingPage() {
                 </div>
 
                 {/* Sycord+ Plan */}
-                <div className="w-72 bg-[#18191B] rounded-2xl p-5 flex-shrink-0 border-2 border-yellow-500/40">
+                <div className="w-72 frosted-glass-dark rounded-2xl p-5 flex-shrink-0 border-2 border-yellow-500/40">
                   <div className="flex items-center gap-1 mb-3">
                     <Zap className="w-3.5 h-3.5 text-yellow-500" />
                     <span className="text-[9px] font-semibold text-yellow-500">Popular</span>
@@ -441,7 +441,7 @@ export default function LandingPage() {
                 </div>
 
                 {/* Sycord Enterprise Plan */}
-                <div className="w-72 bg-[#1F2022] rounded-2xl p-5 flex-shrink-0 border border-white/5">
+                <div className="w-72 frosted-card rounded-2xl p-5 flex-shrink-0">
                   <div className="flex items-center gap-1 mb-3">
                     <Sparkles className="w-3.5 h-3.5 text-purple-500" />
                   </div>
@@ -480,7 +480,7 @@ export default function LandingPage() {
 
         {/* CTA Section */}
         <RevealSection className="w-full px-4 md:px-8 py-12 md:py-16">
-          <div className="max-w-2xl mx-auto bg-[#252527] border border-white/10 rounded-2xl p-8 md:p-12 text-center relative overflow-hidden">
+          <div className="max-w-2xl mx-auto frosted-glass rounded-2xl p-8 md:p-12 text-center relative overflow-hidden">
             {/* Decorative background illustration */}
             <svg className="absolute -right-10 -top-10 w-40 h-40 opacity-[0.06]" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
               <circle cx="80" cy="80" r="78" stroke="white" strokeWidth="2"/>
@@ -511,7 +511,7 @@ export default function LandingPage() {
       </main>
 
       {/* Footer */}
-      <footer className="w-full border-t border-white/5 bg-[#181818] mt-8 md:mt-16">
+      <footer className="w-full border-t border-white/5 frosted-glass-light mt-8 md:mt-16">
         <div className="max-w-6xl mx-auto px-4 md:px-8 py-10 md:py-14">
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-10 md:gap-16 mb-10">
             <div className="flex-shrink-0">
