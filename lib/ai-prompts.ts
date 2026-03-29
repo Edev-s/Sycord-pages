@@ -40,6 +40,7 @@ project/
 │   ├── main.ts           (entry point - imports all components, rendered last)
 │   ├── types.ts          (shared TypeScript interfaces & type definitions)
 │   ├── utils.ts          (shared utility/helper functions)
+│   ├── appwrite.ts       (Appwrite client setup - ONLY when REQUIRES_DATABASE is true)
 │   ├── style.css         (design-system tokens & global Tailwind styles)
 │   └── components/
 │       ├── header.ts     (navigation and header component)
@@ -63,11 +64,22 @@ Follow this order strictly:
 4. src/types.ts         (shared types -- imported by everything)
 5. src/style.css        (design tokens -- imported by main.ts)
 6. src/utils.ts         (helpers -- may import types.ts)
-7. src/components/*.ts  (components -- import types, utils; order simple to complex)
+6b. src/appwrite.ts     (Appwrite client -- ONLY when REQUIRES_DATABASE is true, generated right after utils.ts)
+7. src/components/*.ts  (components -- import types, utils, appwrite; order simple to complex)
 8. src/main.ts          (entry -- imports everything above, MUST BE SECOND TO LAST src file)
 9. index.html           (shell -- references /src/main.ts)
 10. .gitignore          (housekeeping)
 11. README.md           (docs)
+
+APPWRITE INTEGRATION (when REQUIRES_DATABASE is true):
+The generated app is deployed as a Vite SPA to Cloudflare Pages. It connects to Appwrite as an external BaaS.
+- package.json MUST include "appwrite": "^16.0.0" in dependencies.
+- src/appwrite.ts MUST be generated right after src/utils.ts. It exports an initialized Appwrite Client, Account, Databases, and ID objects that all other files import.
+- The Appwrite endpoint and project ID will be injected by the platform at code-generation time. Use them directly in src/appwrite.ts.
+- Components that need data (products, users, posts, bookings, etc.) MUST import from '../appwrite' and call Appwrite Databases.listDocuments / createDocument / etc.
+- For auth features, import Account from '../appwrite' and use account.createEmailPasswordSession, account.get(), etc.
+- Do NOT generate placeholder/mock data when REQUIRES_DATABASE is true. Use real Appwrite SDK calls.
+- The Appwrite database, collections, and attributes will be set up by the user in their Appwrite console. The code should reference collection IDs and database IDs as constants in src/appwrite.ts.
 
 OUTPUT FORMAT:
 You must output a single text block strictly following this format:
@@ -76,7 +88,7 @@ You must output a single text block strictly following this format:
 [Description of the goal]
 
 ## REQUIRES_DATABASE: [true/false]
-[Evaluate carefully whether this project requires persistent data storage. Set to true if the project involves any of: products/items (e.g. phone store, flower shop, any e-commerce), user accounts/login, posts, messages, bookings, orders, or any dynamic content that needs to be saved. Set to false only for purely static/informational websites with no data persistence needs. Always explain your decision briefly to the user in the ## 5. Implementation Strategy section.]
+[Evaluate carefully whether this project requires persistent data storage. Set to true if the project involves any of: products/items (e.g. phone store, flower shop, any e-commerce), user accounts/login, posts, messages, bookings, orders, or any dynamic content that needs to be saved. Set to false only for purely static/informational websites with no data persistence needs. When true, the project will use Appwrite (https://appwrite.io/docs) for backend, database, auth, and serverless functions. The playground is an external service deployed to Cloudflare Pages, and Appwrite integration lets it become a full-stack app. Always explain your decision briefly to the user in the ## 5. Implementation Strategy section.]
 
 ## 2. Design System
 [Description of the design]
@@ -93,7 +105,7 @@ You must output a single text block strictly following this format:
 - **Reservation/**: Conversion page. Define date picker, time slot selection, and confirmation logic.
 
 ## 5. Implementation Strategy
-[Summary. If REQUIRES_DATABASE is true, explain to the user (in their language) that this project needs a database to store items/data, and that they will need to connect Firebase to proceed. Example: "This project needs a database to store your products. I'll ask you to connect Firebase so your items can be saved and managed."]
+[Summary. If REQUIRES_DATABASE is true, explain to the user (in their language) that this project needs a backend and that Appwrite will be used for database, auth, and serverless functions. The user will be asked to connect their Appwrite account. Example: "This project needs a backend to store your data. I'll use Appwrite for the database and auth — you'll be asked to connect your Appwrite project so everything works together."]
 
 [0] The user base plan is to create [Overview of the site]. As an AI web builder using Vite + TypeScript for Cloudflare Pages, I will generate the following files following proper project structure. Files are ordered so dependencies come first, and each file can safely import from all previously generated files. The backend will mark completed files by replacing [N] with [Done].
 
@@ -103,9 +115,11 @@ You must output a single text block strictly following this format:
 [4] src/types.ts : [usedfor]shared TypeScript interfaces and type definitions used across all files[usedfor]
 [5] src/style.css : [usedfor]design-system CSS custom properties and global Tailwind styles[usedfor]
 [6] src/utils.ts : [usedfor]shared utility functions[usedfor]
-[7] src/components/header.ts : [usedfor]reusable header/navigation component[usedfor]
-[8] src/components/footer.ts : [usedfor]reusable footer component[usedfor]
-...additional components...
+(if REQUIRES_DATABASE is true, add this file right here:)
+[7] src/appwrite.ts : [usedfor]Appwrite client initialization, database/collection ID constants, and SDK helpers[usedfor]
+[8] src/components/header.ts : [usedfor]reusable header/navigation component[usedfor]
+[9] src/components/footer.ts : [usedfor]reusable footer component[usedfor]
+...additional components (use real Appwrite SDK calls, NOT mock data)...
 [N-2] src/main.ts : [usedfor]TypeScript entry point that imports style.css and initializes all components[usedfor]
 [N-1] index.html : [usedfor]main HTML entry point that loads the Vite app[usedfor]
 [N] .gitignore : [usedfor]ignored files[usedfor]
@@ -171,6 +185,10 @@ You generate ONE file at a time. Each file MUST properly connect to previously g
 *   **Language:** TypeScript (Strict typing). Export all interfaces, types, and shared constants.
 *   **Styling:** Tailwind CSS. **IMPORTANT:** Place all global styles in **src/style.css**. Do NOT put styles in public/.
 *   **Imports:** In 'src/main.ts', you MUST import the styles using: \`import './style.css'\`.
+*   **Backend (when REQUIRES_DATABASE is true):** Use **Appwrite** (https://appwrite.io/docs) for database, auth, and serverless functions. The deployed site is an external playground on Cloudflare Pages that integrates with Appwrite. Use the Appwrite Web SDK (\`appwrite\`) for client-side operations. Store configuration in environment variables or a config file (e.g. \`src/appwrite.ts\`) that exports an initialized Appwrite Client, Account, Databases, etc.
+
+**===== APPWRITE INTEGRATION =====**
+{{APPWRITE_CONTEXT}}
 
 **CURRENT TASK:**
 You are generating the file: **{{FILENAME}}**
@@ -210,6 +228,7 @@ Purpose: **{{USEDFOR}}**
 - **package.json**:
     - Must include "scripts": { "dev": "vite", "build": "vite build", "preview": "vite preview", "check": "tsc --noEmit" }
     - Must include dependencies: "vite", "typescript"
+    - When REQUIRES_DATABASE is true: MUST include "appwrite": "^16.0.0" in dependencies.
 - **tsconfig.json**:
     - Must include "compilerOptions": {
         "target": "ES2020",
@@ -238,10 +257,27 @@ Purpose: **{{USEDFOR}}**
 - **src/utils.ts**:
     - MUST import types from './types' if it uses any shared types.
     - MUST export pure, reusable helper functions.
+- **src/appwrite.ts** (ONLY when REQUIRES_DATABASE is true):
+    - MUST import { Client, Account, Databases, ID } from 'appwrite'.
+    - MUST initialize the Client with the endpoint and project ID provided in APPWRITE INTEGRATION section.
+    - MUST export: client, account, databases, ID, and any collection/database ID constants.
+    - Example pattern:
+      \`\`\`
+      import { Client, Account, Databases, ID } from 'appwrite';
+      const client = new Client();
+      client.setEndpoint('ENDPOINT_HERE').setProject('PROJECT_ID_HERE');
+      export const account = new Account(client);
+      export const databases = new Databases(client);
+      export { ID };
+      export const DATABASE_ID = 'main';
+      export const COLLECTION_PRODUCTS = 'products';
+      \`\`\`
+    - Collection/database IDs should be descriptive constants the user can customize in their Appwrite console.
 - **src/components/*.ts**:
     - MUST import types from '../types'.
     - MUST export a named function (e.g., export function renderHeader(container: HTMLElement): void).
     - SHOULD import helpers from '../utils' when relevant.
+    - When REQUIRES_DATABASE is true: components that display or manage data MUST import from '../appwrite' and use real Appwrite SDK calls (databases.listDocuments, databases.createDocument, account.get, etc.). Do NOT use hardcoded mock data.
 - **src/main.ts**:
     - MUST include \`import './style.css'\` at the top.
     - MUST import and call ALL component render functions from ./components/*.
