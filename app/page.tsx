@@ -243,9 +243,9 @@ export default function LandingPage() {
                 className="w-full h-auto rounded-2xl"
                 controls
                 preload="metadata"
-                poster="/video-poster.jpg"
+                playsInline
               >
-                <source src="/Meet syra your ai builder.mp4" type="video/mp4" />
+                <source src="/Meet%20syra%20your%20ai%20builder.mp4" type="video/mp4" />
                 Your browser does not support the video tag.
               </video>
             </div>
