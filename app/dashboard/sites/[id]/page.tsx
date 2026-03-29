@@ -51,6 +51,10 @@ import {
   Pencil,
   Palette,
   Send,
+  RefreshCw,
+  MoreHorizontal,
+  SlidersHorizontal,
+  ChevronLeft,
 } from "lucide-react"
 import { currencySymbols } from "@/lib/webshop-types"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -318,8 +322,11 @@ const SidebarContent = ({
   router,
   getWebsiteIcon,
   databaseConnected,
+  session,
+  userStatus,
 }: any) => {
   const WebsiteIcon = getWebsiteIcon()
+  const userInitials = session?.user?.name?.split(" ").map((n: string) => n[0]).join("").toUpperCase() || "U"
 
   return (
     <div className="flex flex-col h-full p-4">
@@ -332,10 +339,12 @@ const SidebarContent = ({
 
       <nav className="flex-1 space-y-6 overflow-y-auto pr-2 custom-scrollbar">
         {navGroups.map((group: any) => (
-          <div key={group.title}>
-            <h3 className="px-3 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              {group.title}
-            </h3>
+          <div key={group.title || "main"}>
+            {group.title && (
+              <h3 className="px-3 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                {group.title}
+              </h3>
+            )}
             <div className="space-y-1">
               {group.items.map((item: any) => {
                 const Icon = item.icon
@@ -352,9 +361,9 @@ const SidebarContent = ({
                     disabled={isLocked}
                     title={isLocked ? "Connect a database to unlock this feature" : undefined}
                     className={cn(
-                      "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group text-sm font-medium",
+                      "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group text-sm font-medium",
                       isActive
-                        ? "bg-primary text-primary-foreground shadow-sm"
+                        ? "bg-white text-black shadow-sm"
                         : isLocked
                         ? "text-muted-foreground/40 cursor-not-allowed"
                         : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
@@ -371,15 +380,46 @@ const SidebarContent = ({
         ))}
       </nav>
 
-      <div className="mt-auto pt-4 border-t border-white/10">
-        <Button
-          variant="ghost"
-          className="w-full justify-start text-muted-foreground hover:text-foreground hover:bg-white/5 gap-3 px-3"
+      {/* Bottom section: Manage access, user info, credits */}
+      <div className="mt-auto pt-4 border-t border-white/10 space-y-4">
+        {/* Manage access */}
+        <button
           onClick={() => router.push("/dashboard")}
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
         >
-          <ArrowLeft className="h-5 w-5" />
-          <span className="font-medium text-sm">Back to Dashboard</span>
-        </Button>
+          <Avatar className="h-7 w-7 flex-shrink-0">
+            <AvatarImage src={session?.user?.image || ""} alt={session?.user?.name || ""} />
+            <AvatarFallback className="bg-purple-500/20 text-purple-400 text-xs">{userInitials}</AvatarFallback>
+          </Avatar>
+          <span className="font-medium">Manage access</span>
+        </button>
+
+        {/* User name + subscription */}
+        <div className="flex items-center gap-3 px-3">
+          <div className="h-8 w-8 rounded-md bg-muted/50 flex items-center justify-center text-xs font-bold text-muted-foreground flex-shrink-0">
+            {userInitials}
+          </div>
+          <span className="text-sm font-medium text-foreground truncate flex-1">{session?.user?.name || "User"}</span>
+          {userStatus?.isPremium && (
+            <span className="text-[10px] font-semibold bg-white/10 text-white/70 px-2 py-0.5 rounded-md whitespace-nowrap">
+              {userStatus.subscription === "Sycord Enterprise" ? "Enterprise" : "Sycord+"}
+            </span>
+          )}
+        </div>
+
+        {/* Monthly Credit */}
+        <div className="px-3 pb-1">
+          <div className="flex items-center justify-between text-xs mb-1.5">
+            <span className="text-muted-foreground flex items-center gap-1.5">
+              <Sparkles className="h-3 w-3" />
+              Monthly Credit
+            </span>
+            <span className="text-foreground font-medium">5€</span>
+          </div>
+          <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+            <div className="h-full bg-white rounded-full" style={{ width: "100%" }} />
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -419,6 +459,7 @@ export default function SiteSettingsPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop")
   const { data: session } = useSession()
+  const [userStatus, setUserStatus] = useState<{ isBlocked: boolean; subscription: string; isPremium: boolean }>({ isBlocked: false, subscription: "Free", isPremium: false })
 
   // Renamed to match the button name and be consistent
   const saving = isSaving
@@ -595,6 +636,21 @@ export default function SiteSettingsPage() {
 
     fetchAllData()
   }, [id])
+
+  useEffect(() => {
+    async function fetchUserStatus() {
+      try {
+        const res = await fetch("/api/user/status")
+        if (res.ok) {
+          const data = await res.json()
+          setUserStatus(data)
+        }
+      } catch (e) {
+        console.error("Error fetching user status:", e)
+      }
+    }
+    fetchUserStatus()
+  }, [])
 
   const handleStyleSelect = (style: string) => {
     console.log("[v0] Selected style:", style)
@@ -916,26 +972,21 @@ export default function SiteSettingsPage() {
 
   const navGroups = [
     {
-      title: "Home",
+      title: "",
       items: [
         { id: "styles", label: "Overview", icon: Layout },
-        { id: "preview", label: "Preview", icon: Eye },
-        { id: "ai", label: "AI Builder", icon: Zap },
         { id: "pages", label: "Pages", icon: FileText },
-        { id: "items", label: "Items", icon: ShoppingCart, requiresDatabase: true },
-        { id: "payments", label: "Payments", icon: CreditCard, requiresDatabase: true },
+        { id: "ai", label: "Syra", icon: Zap },
+        { id: "preview", label: "Settings", icon: Palette },
       ],
     },
     {
-      title: "Orders",
-      items: [{ id: "orders", label: "History", icon: History }],
-    },
-    {
-      title: "Management",
+      title: "Shop",
       items: [
-        { id: "customers", label: "Customers", icon: Users },
-        { id: "analytics", label: "Analytics", icon: BarChart3 },
-        { id: "discount", label: "Discount", icon: Tag },
+        { id: "items", label: "Products", icon: ShoppingCart, requiresDatabase: true },
+        { id: "analytics", label: "Promotions", icon: BarChart3 },
+        { id: "payments", label: "Payouts", icon: CreditCard, requiresDatabase: true },
+        { id: "customers", label: "Client", icon: Users },
       ],
     },
   ]
@@ -961,6 +1012,8 @@ export default function SiteSettingsPage() {
           router={router}
           getWebsiteIcon={getWebsiteIcon}
           databaseConnected={databaseConnected}
+          session={session}
+          userStatus={userStatus}
         />
       </aside>
 
@@ -1060,6 +1113,8 @@ export default function SiteSettingsPage() {
                       router={router}
                       getWebsiteIcon={getWebsiteIcon}
                       databaseConnected={databaseConnected}
+                      session={session}
+                      userStatus={userStatus}
                     />
                   </motion.aside>
                 </>
@@ -1615,6 +1670,43 @@ export default function SiteSettingsPage() {
 
           </div>
         </main>
+      </div>
+
+      {/* Mobile Bottom Bar */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-[#1a1a1c]/95 backdrop-blur-xl border-t border-white/10 safe-area-bottom">
+        <div className="flex items-center justify-between h-14 px-3 gap-2">
+          <button
+            onClick={() => router.push("/dashboard")}
+            className="h-10 w-10 rounded-full bg-white/10 flex items-center justify-center shrink-0 active:bg-white/20 transition-colors"
+          >
+            <ChevronLeft className="h-5 w-5 text-white" />
+          </button>
+          <button
+            onClick={() => setIsSidebarOpen(true)}
+            className="h-10 w-10 rounded-full bg-white/10 flex items-center justify-center shrink-0 active:bg-white/20 transition-colors"
+          >
+            <SlidersHorizontal className="h-4 w-4 text-white" />
+          </button>
+          <div className="flex-1 flex items-center justify-center">
+            <span className="text-sm font-medium text-white/80 truncate max-w-[180px]">
+              {displayUrl || "sycord.com"}
+            </span>
+          </div>
+          <button
+            onClick={() => previewUrl && window.open(previewUrl, "_blank")}
+            disabled={!previewUrl}
+            className="h-10 w-10 rounded-full bg-white/10 flex items-center justify-center shrink-0 active:bg-white/20 transition-colors disabled:opacity-40"
+          >
+            <RefreshCw className="h-4 w-4 text-white" />
+          </button>
+          {/* More options: visit the live site */}
+          <button
+            className="h-10 w-10 rounded-full bg-white/10 flex items-center justify-center shrink-0 active:bg-white/20 transition-colors disabled:opacity-40"
+            onClick={() => previewUrl ? window.open(previewUrl, "_blank") : setIsSidebarOpen(true)}
+          >
+            <MoreHorizontal className="h-5 w-5 text-white" />
+          </button>
+        </div>
       </div>
 
     </div>

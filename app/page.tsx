@@ -137,6 +137,7 @@ export default function LandingPage() {
             alt=""
             fill
             priority
+            fetchPriority="high"
             className="absolute inset-0 object-cover z-0"
             sizes="100vw"
           />
@@ -272,6 +273,7 @@ export default function LandingPage() {
                 muted
                 loop
                 playsInline
+                preload="none"
               >
                 <source src="/Meet%20syra%20your%20ai%20builder.mp4" type="video/mp4" />
                 Your browser does not support the video tag.
