@@ -260,9 +260,8 @@ export default function LandingPage() {
           </RevealSection>
         </div>
         </div>
-
         {/* Meet Syra Video Section */}
-        <section ref={videoSectionRef} className="w-full py-14 md:py-20 border-t border-b border-white/5 bg-[#101010] overflow-hidden scroll-hidden">
+        <section ref={videoSectionRef} className="w-full py-14 md:py-20 border-t border-b border-white/5 bg-[#101010] overflow-hidden">
           <div className="max-w-5xl mx-auto px-4 md:px-8">
             <p className="text-center text-[#8A8E91] text-xs md:text-sm font-medium mb-4">Introducing</p>
             <h2 className="text-center text-white text-lg md:text-2xl font-bold mb-10 md:mb-14">Meet Syra, Your AI Builder</h2>
