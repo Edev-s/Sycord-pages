@@ -159,6 +159,12 @@ function DashboardContent() {
           >
             Webshop Demo
           </Link>
+          <Link
+            href="/dashboard/credits"
+            className="text-sm text-muted-foreground hover:text-foreground px-4 py-2 hover:bg-accent rounded-md"
+          >
+            Credits
+          </Link>
         </nav>
       </SheetContent>
     </Sheet>
@@ -244,6 +250,12 @@ function DashboardContent() {
                   className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Webshop Demo
+                </Link>
+                <Link
+                  href="/dashboard/credits"
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Credits
                 </Link>
               </nav>
             </div>
