@@ -135,36 +135,6 @@ function DashboardContent() {
           <Link href="/dashboard" className="text-sm text-foreground font-medium px-4 py-2 hover:bg-accent rounded-md">
             Áttekintés
           </Link>
-          <Link
-            href="#"
-            className="text-sm text-muted-foreground hover:text-foreground px-4 py-2 hover:bg-accent rounded-md"
-          >
-            Projektek
-          </Link>
-          <Link
-            href="/subscriptions"
-            className="text-sm text-muted-foreground hover:text-foreground px-4 py-2 hover:bg-accent rounded-md"
-          >
-            Plans
-          </Link>
-          <Link
-            href="#"
-            className="text-sm text-muted-foreground hover:text-foreground px-4 py-2 hover:bg-accent rounded-md"
-          >
-            Analitika
-          </Link>
-          <Link
-            href="/dashboard/webshop-demo"
-            className="text-sm text-muted-foreground hover:text-foreground px-4 py-2 hover:bg-accent rounded-md"
-          >
-            Webshop Demo
-          </Link>
-          <Link
-            href="/dashboard/credits"
-            className="text-sm text-muted-foreground hover:text-foreground px-4 py-2 hover:bg-accent rounded-md"
-          >
-            Credits
-          </Link>
         </nav>
       </SheetContent>
     </Sheet>
@@ -224,40 +194,11 @@ function DashboardContent() {
                 <Image src="/logo.png" alt="Logo" width={32} height={32} />
                 <span className="text-xl font-semibold text-foreground">Sycord</span>
                 {userStatus.isPremium && (
-                  <span className="ml-1 px-1.5 py-0.5 text-[10px] font-bold bg-yellow-500/20 text-yellow-500 rounded-full border border-yellow-500/30">
-                    {userStatus.subscription === "Sycord Enterprise" ? "Enterprise" : "+"}
+                  <span className="ml-1 text-xs font-semibold text-yellow-500">
+                    {userStatus.subscription === "Sycord Enterprise" ? "Enterprise" : "Sycord+"}
                   </span>
                 )}
               </Link>
-              <nav className="hidden md:flex items-center gap-6">
-                <Link href="/dashboard" className="text-sm text-foreground font-medium">
-                  Áttekintés
-                </Link>
-                <Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                  Projektek
-                </Link>
-                <Link
-                  href="/subscriptions"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Plans
-                </Link>
-                <Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                  Analitika
-                </Link>
-                <Link
-                  href="/dashboard/webshop-demo"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Webshop Demo
-                </Link>
-                <Link
-                  href="/dashboard/credits"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Credits
-                </Link>
-              </nav>
             </div>
             <div className="flex items-center gap-2 md:gap-3">
               <MobileNav />
@@ -270,37 +211,37 @@ function DashboardContent() {
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end" forceMount>
-                  <DropdownMenuLabel className="font-normal">
+                <DropdownMenuContent className="w-56 frosted-glass-dark rounded-xl border-white/10 p-2" align="end" forceMount>
+                  <DropdownMenuLabel className="font-normal px-3 py-2">
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">{session?.user?.name}</p>
-                      <p className="text-xs leading-none text-muted-foreground">{session?.user?.email}</p>
+                      <p className="text-sm font-medium leading-none text-white">{session?.user?.name}</p>
+                      <p className="text-xs leading-none text-white/50">{session?.user?.email}</p>
                     </div>
                   </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem>
-                    <User className="mr-2 h-4 w-4" />
-                    <span>Profil</span>
+                  <DropdownMenuSeparator className="bg-white/10" />
+                  <DropdownMenuItem className="px-3 py-2.5 rounded-lg focus:bg-white/10 cursor-pointer">
+                    <User className="mr-3 h-4 w-4 text-white/70" />
+                    <span className="text-white/90">Profil</span>
                   </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Beállítások</span>
+                  <DropdownMenuItem className="px-3 py-2.5 rounded-lg focus:bg-white/10 cursor-pointer">
+                    <Settings className="mr-3 h-4 w-4 text-white/70" />
+                    <span className="text-white/90">Beállítások</span>
                   </DropdownMenuItem>
                   {session?.user?.email === "dmarton336@gmail.com" && (
                     <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => router.push("/admin")}>
-                        <Settings className="mr-2 h-4 w-4" />
+                      <DropdownMenuSeparator className="bg-white/10" />
+                      <DropdownMenuItem onClick={() => router.push("/admin")} className="px-3 py-2.5 rounded-lg focus:bg-white/10 cursor-pointer">
+                        <Settings className="mr-3 h-4 w-4 text-white/70" />
                         <span className="text-primary font-semibold">Admin Panel</span>
                       </DropdownMenuItem>
                     </>
                   )}
-                  <DropdownMenuSeparator />
+                  <DropdownMenuSeparator className="bg-white/10" />
                   <DropdownMenuItem
                     onClick={() => signOut({ callbackUrl: "/" })}
-                    className="text-destructive focus:text-destructive"
+                    className="px-3 py-2.5 rounded-lg text-red-400 focus:text-red-400 focus:bg-red-500/10 cursor-pointer"
                   >
-                    <LogOut className="mr-2 h-4 w-4" />
+                    <LogOut className="mr-3 h-4 w-4" />
                     <span>Kijelentkezés</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>

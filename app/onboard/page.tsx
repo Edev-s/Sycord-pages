@@ -3,17 +3,17 @@
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
-import { Zap, Check } from "lucide-react"
+import { Zap, Check, Briefcase, BookOpen, ShoppingCart, User2, FileText, MoreHorizontal } from "lucide-react"
 import { toast } from "sonner"
 import Link from "next/link"
 
 const projectTypes = [
-  { id: "portfolio" },
-  { id: "blog" },
-  { id: "ecommerce" },
-  { id: "business" },
-  { id: "landing" },
-  { id: "other" },
+  { id: "service", label: "Service", icon: Briefcase },
+  { id: "blog", label: "Blog", icon: BookOpen },
+  { id: "ecommerce", label: "Store", icon: ShoppingCart },
+  { id: "portfolio", label: "Portfolio", icon: User2 },
+  { id: "landing", label: "Landing Page", icon: FileText },
+  { id: "other", label: "Other", icon: MoreHorizontal },
 ]
 
 type Step = "type" | "name" | "profession" | "done"
@@ -131,37 +131,46 @@ export default function OnboardPage() {
       />
 
       {/* Step content */}
-      <div className="relative z-10 flex flex-1 flex-col px-8 pt-24">
+      <div className="relative z-10 flex flex-1 flex-col px-5 sm:px-8 pt-16 sm:pt-24">
         {step === "type" && (
           <div className="animate-in fade-in duration-300">
-            <h1 className="text-4xl font-extrabold leading-tight text-white sm:text-5xl">
+            <h1 className="text-3xl font-extrabold leading-tight text-white sm:text-5xl">
               Choose the type of
               <br />
               you product....
             </h1>
 
-            <div className="mt-16 grid grid-cols-3 gap-4">
-              {projectTypes.map((type) => (
-                <button
-                  key={type.id}
-                  onClick={() => {
-                    setFormData((d) => ({ ...d, projectType: type.id }))
-                    setTimeout(() => setStep("name"), 180)
-                  }}
-                  className={`aspect-[4/3] rounded-3xl transition-all duration-200 ${
-                    formData.projectType === type.id
-                      ? "bg-white/10 scale-95 ring-2 ring-white/30"
-                      : "bg-[#3a3a3a]/60 hover:bg-[#4a4a4a]/70"
-                  }`}
-                />
-              ))}
+            <div className="mt-12 sm:mt-16 grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+              {projectTypes.map((type) => {
+                const Icon = type.icon
+                const selected = formData.projectType === type.id
+                return (
+                  <button
+                    key={type.id}
+                    onClick={() => {
+                      setFormData((d) => ({ ...d, projectType: type.id }))
+                      setTimeout(() => setStep("name"), 180)
+                    }}
+                    className={`flex flex-col items-center justify-center gap-3 rounded-3xl py-8 sm:py-10 transition-all duration-200 ${
+                      selected
+                        ? "bg-white/10 scale-95 ring-2 ring-white/30"
+                        : "bg-[#2a2a2e]/70 hover:bg-[#3a3a3e]/80"
+                    }`}
+                  >
+                    <Icon className={`h-7 w-7 sm:h-8 sm:w-8 transition-colors ${selected ? "text-white" : "text-white/50"}`} strokeWidth={1.5} />
+                    <span className={`text-sm sm:text-base font-medium transition-colors ${selected ? "text-white" : "text-white/50"}`}>
+                      {type.label}
+                    </span>
+                  </button>
+                )
+              })}
             </div>
           </div>
         )}
 
         {step === "name" && (
           <div className="animate-in fade-in duration-300">
-            <h1 className="text-4xl font-extrabold leading-tight text-white sm:text-5xl">
+            <h1 className="text-3xl font-extrabold leading-tight text-white sm:text-5xl">
               How do we will call
               <br />
               your business?
@@ -189,7 +198,7 @@ export default function OnboardPage() {
                     setStep("profession")
                   }
                 }}
-                className="w-full bg-transparent border-none text-center text-5xl font-bold text-white/40 placeholder-white/20 focus:outline-none focus:text-white/60 transition-colors sm:text-6xl"
+                className="w-full bg-transparent border-none text-center text-4xl font-bold text-white/40 placeholder-white/20 focus:outline-none focus:text-white/60 transition-colors sm:text-6xl"
                 placeholder="My flower shop"
               />
 
@@ -223,7 +232,7 @@ export default function OnboardPage() {
 
         {step === "profession" && (
           <div className="animate-in fade-in duration-300">
-            <h1 className="text-4xl font-extrabold leading-tight text-white sm:text-5xl">
+            <h1 className="text-3xl font-extrabold leading-tight text-white sm:text-5xl">
               Do you previously
               <br />
               owned/managed a
@@ -231,7 +240,7 @@ export default function OnboardPage() {
               websit?
             </h1>
 
-            <div className="mt-24 flex flex-col gap-4">
+            <div className="mt-16 sm:mt-24 flex flex-col gap-4">
               <button
                 onClick={() => {
                   setFormData((d) => ({ ...d, experienceLevel: "new" }))
@@ -260,7 +269,7 @@ export default function OnboardPage() {
 
         {step === "done" && (
           <div className="animate-in fade-in duration-300">
-            <h1 className="text-4xl font-extrabold leading-tight text-white sm:text-5xl">
+            <h1 className="text-3xl font-extrabold leading-tight text-white sm:text-5xl">
               oh no! you alread
               <br />
               created your first{" "}
