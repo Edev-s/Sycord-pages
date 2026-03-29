@@ -4,8 +4,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Check, Zap, Sparkles, ArrowRight, Loader2 } from "lucide-react"
-import { toast } from "sonner"
+import { Check, Zap, Sparkles, ArrowRight } from "lucide-react"
 
 function useScrollReveal() {
   const ref = useRef<HTMLElement>(null)
@@ -36,39 +35,85 @@ function RevealSection({ children, className = "", id }: { children: React.React
   )
 }
 
-export default function LandingPage() {
-  const [payingPlan, setPayingPlan] = useState<string | null>(null)
+/** Tracks which card in a horizontally-scrolling container is centred. */
+function useCarouselIndex(count: number) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [activeIndex, setActiveIndex] = useState(0)
 
-  const handlePayPal = async (planName: string, price: number) => {
-    setPayingPlan(planName)
-    try {
-      const res = await fetch("/api/paypal/create-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planName, price, currency: "USD" }),
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+
+    const onScroll = () => {
+      const viewportCenter = el.scrollLeft + el.clientWidth / 2
+      const cards = el.querySelectorAll("[data-carousel-card]")
+      let closestIdx = 0
+      let closestDist = Infinity
+      cards.forEach((card, i) => {
+        const cardEl = card as HTMLElement
+        const cardCenter = cardEl.offsetLeft + cardEl.offsetWidth / 2
+        const dist = Math.abs(viewportCenter - cardCenter)
+        if (dist < closestDist) {
+          closestDist = dist
+          closestIdx = i
+        }
       })
-      const order = await res.json()
-      if (!res.ok) throw new Error(order.error || "Failed to create order")
-      const approvalUrl = order.links?.find(
-        (l: { rel: string; href: string }) => l.rel === "approve"
-      )?.href
-      if (approvalUrl) {
-        window.location.href = approvalUrl
-      } else {
-        toast.error("PayPal did not return a checkout URL. Please try again.")
-      }
-    } catch (err) {
-      console.error("[paypal]", err)
-      toast.error(err instanceof Error ? err.message : "PayPal checkout failed. Please try again.")
-    } finally {
-      setPayingPlan(null)
+      setActiveIndex(closestIdx)
     }
-  }
+
+    el.addEventListener("scroll", onScroll, { passive: true })
+    return () => el.removeEventListener("scroll", onScroll)
+  }, [count])
+
+  return { scrollRef, activeIndex }
+}
+
+/** Hook to track if an element is in viewport */
+function useInView() {
+  const ref = useRef<HTMLElement>(null)
+  const [isInView, setIsInView] = useState(false)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsInView(entry.isIntersecting)
+      },
+      { threshold: 0.3 }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  return { ref, isInView }
+}
+
+export default function LandingPage() {
+  const featureImages = [
+    {
+      src: "https://github.com/user-attachments/assets/6f4659c9-0989-47c0-b282-731ae5961df7",
+      alt: "Best AI model on the market — Gemini 3.1",
+      label: "Best AI model on the market",
+    },
+    {
+      src: "https://github.com/user-attachments/assets/95665e35-5f9c-4a6d-9255-8a5b9dfd5d01",
+      alt: "Share it! better with friend",
+      label: "Share it! better with friend",
+    },
+    {
+      src: "https://github.com/user-attachments/assets/9c1a2ed9-1179-4e69-9c24-40058dc0e53d",
+      alt: "building never been this easy",
+      label: "building never been this easy",
+    },
+  ]
+  const { scrollRef: featuresScrollRef, activeIndex: featuresActiveIndex } = useCarouselIndex(featureImages.length)
+  const { ref: videoSectionRef, isInView: isVideoInView } = useInView()
 
   return (
-    <div className="min-h-screen bg-[#18191B] flex flex-col items-center overflow-x-hidden font-sans">
-      {/* Header */}
-      <header className="w-full px-4 md:px-8 py-4 md:py-6 flex items-center justify-between z-20 sticky top-0 bg-[#18191B]/95 backdrop-blur-sm border-b border-white/5">
+    <div className="min-h-screen bg-[#101010] flex flex-col items-center overflow-x-hidden overflow-y-visible font-sans">
+      {/* Header — desktop only; mobile header lives inside the hero */}
+      <header className="hidden md:flex w-full px-4 md:px-8 py-4 md:py-6 items-center justify-between z-20 sticky top-0 bg-[#101010]/95 backdrop-blur-sm border-b border-white/5">
         <div className="flex items-center gap-2 md:gap-3">
           <Image src="/logo.png" alt="Sycord Logo" width={28} height={28} className="opacity-90" priority />
           <span className="text-base md:text-xl font-bold text-white tracking-tight">Sycord</span>
@@ -83,148 +128,159 @@ export default function LandingPage() {
 
       {/* Main Content */}
       <main className="w-full flex-1 flex flex-col">
-        
-        {/* Hero Section */}
-        <RevealSection className="w-full px-4 md:px-8 pt-8 md:pt-16 pb-8 md:pb-12">
-          <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-start gap-8 md:gap-12">
-            <div className="flex-1 max-w-2xl">
-              <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold leading-tight tracking-tight mb-6">
-                <span className="text-white">Create </span>
-                <span className="text-[#8A8E91]">your</span>
-                <br className="md:hidden" />
-                <span className="text-[#8A8E91]"> website </span>
-                <span className="text-white">under 5</span>
-                <br />
-                <span className="text-white">minute!</span>
-              </h1>
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-6 md:mt-8">
-                <Button 
-                  asChild
-                  className="bg-white text-[#18191B] hover:bg-white/90 text-sm font-semibold px-6 md:px-8 h-11 md:h-12 rounded-full min-h-[44px] flex items-center gap-2"
-                >
-                  <Link href="/login">
-                    Get started
-                    <ArrowRight className="w-4 h-4" />
-                  </Link>
-                </Button>
-                <Button 
-                  asChild
-                  variant="outline"
-                  className="border-white/20 text-white hover:bg-white/5 text-sm font-medium px-6 md:px-8 h-11 md:h-12 rounded-full min-h-[44px]"
-                >
-                  <Link href="#pricing">View pricing</Link>
-                </Button>
-              </div>
+
+        {/* ── Hero Section (Mobile + Desktop) ── */}
+        <section className="relative w-full overflow-visible min-h-[75vh] md:min-h-[70vh] pb-32 md:pb-40">
+          {/* Metallic corrugated background - optimized with Next.js Image for instant loading */}
+          <Image
+            src="https://github.com/user-attachments/assets/2f738fc4-174b-45f8-9831-25fcf4fd788f"
+            alt=""
+            fill
+            priority
+            fetchPriority="high"
+            className="absolute inset-0 object-cover z-0"
+            sizes="100vw"
+          />
+          {/* Gradient overlay — darkens for legibility */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-transparent z-0" />
+
+          {/* Content */}
+          <div className="relative z-10 flex flex-col justify-start h-full px-6 md:px-8 pt-12 md:pt-20 pb-12 max-w-6xl mx-auto">
+            {/* Brand - mobile only (desktop has header) */}
+            <div className="flex md:hidden items-center gap-3 mb-7">
+              <Image
+                src="/logo.png"
+                alt="Sycord"
+                width={40}
+                height={40}
+                className="opacity-90"
+                priority
+              />
+              <span className="text-white text-3xl font-bold tracking-tight">sycord</span>
             </div>
-            
-            {/* Hero Illustration */}
-            <div className="flex-1 hidden md:flex justify-center">
-              <div className="relative w-full max-w-md">
-                <svg viewBox="0 0 400 320" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto">
-                  {/* Browser window frame */}
-                  <rect x="40" y="30" width="320" height="240" rx="16" fill="#252527" stroke="#3A3B3D" strokeWidth="1.5"/>
-                  {/* Title bar */}
-                  <rect x="40" y="30" width="320" height="36" rx="16" fill="#2E2E30"/>
-                  <rect x="40" y="50" width="320" height="16" fill="#2E2E30"/>
-                  {/* Traffic lights */}
-                  <circle cx="62" cy="48" r="5" fill="#FF5F57"/>
-                  <circle cx="80" cy="48" r="5" fill="#FEBC2E"/>
-                  <circle cx="98" cy="48" r="5" fill="#28C840"/>
-                  {/* URL bar */}
-                  <rect x="120" y="41" width="160" height="14" rx="7" fill="#3A3B3D"/>
-                  {/* Content blocks - hero area */}
-                  <rect x="60" y="82" width="140" height="12" rx="6" fill="#4A4B4D"/>
-                  <rect x="60" y="102" width="100" height="8" rx="4" fill="#3A3B3D"/>
-                  <rect x="60" y="118" width="120" height="8" rx="4" fill="#3A3B3D"/>
-                  {/* CTA button illustration */}
-                  <rect x="60" y="140" width="80" height="24" rx="12" fill="white"/>
-                  {/* Image placeholder */}
-                  <rect x="220" y="82" width="120" height="90" rx="12" fill="#3A3B3D"/>
-                  <circle cx="280" cy="115" r="20" fill="#4A4B4D" opacity="0.5"/>
-                  <polygon points="270,125 290,110 280,130" fill="#6B6E71" opacity="0.5"/>
-                  {/* Card section */}
-                  <rect x="60" y="185" width="88" height="70" rx="10" fill="#2E2E30" stroke="#3A3B3D" strokeWidth="1"/>
-                  <rect x="156" y="185" width="88" height="70" rx="10" fill="#2E2E30" stroke="#3A3B3D" strokeWidth="1"/>
-                  <rect x="252" y="185" width="88" height="70" rx="10" fill="#2E2E30" stroke="#3A3B3D" strokeWidth="1"/>
-                  {/* Card icons */}
-                  <circle cx="82" cy="205" r="8" fill="#EAB308" opacity="0.3"/>
-                  <circle cx="178" cy="205" r="8" fill="#3B82F6" opacity="0.3"/>
-                  <circle cx="274" cy="205" r="8" fill="#22C55E" opacity="0.3"/>
-                  {/* Card text lines */}
-                  <rect x="72" y="222" width="60" height="5" rx="2.5" fill="#4A4B4D"/>
-                  <rect x="72" y="232" width="44" height="4" rx="2" fill="#3A3B3D"/>
-                  <rect x="168" y="222" width="60" height="5" rx="2.5" fill="#4A4B4D"/>
-                  <rect x="168" y="232" width="44" height="4" rx="2" fill="#3A3B3D"/>
-                  <rect x="264" y="222" width="60" height="5" rx="2.5" fill="#4A4B4D"/>
-                  <rect x="264" y="232" width="44" height="4" rx="2" fill="#3A3B3D"/>
-                  {/* Cursor */}
-                  <g transform="translate(170, 135)">
-                    <path d="M0 0L0 20L5.5 15L11 22L14 20.5L8.5 13.5L15 12L0 0Z" fill="white" stroke="#18191B" strokeWidth="1"/>
-                  </g>
-                  {/* Decorative sparkle */}
-                  <g transform="translate(340, 28)">
-                    <path d="M8 0L10 6L16 8L10 10L8 16L6 10L0 8L6 6Z" fill="#EAB308" opacity="0.6"/>
-                  </g>
-                  <g transform="translate(20, 70)">
-                    <path d="M6 0L7.5 4.5L12 6L7.5 7.5L6 12L4.5 7.5L0 6L4.5 4.5Z" fill="#A855F7" opacity="0.4"/>
-                  </g>
-                </svg>
-              </div>
+
+            {/* Desktop headline */}
+            <h1 className="hidden md:block text-5xl lg:text-6xl font-bold leading-tight tracking-tight mb-6">
+              <span className="text-white">Create </span>
+              <span className="text-[#8A8E91]">your</span>
+              <span className="text-[#8A8E91]"> website </span>
+              <span className="text-white">under 5</span>
+              <br />
+              <span className="text-white">minute!</span>
+            </h1>
+
+            {/* Description */}
+            <p className="text-white text-[17px] md:text-xl font-medium leading-relaxed mb-7 max-w-md">
+              Describe your idea, Sycord&apos;s AI designs, codes and deploys your website instantly.
+              No coding or design skills required.
+            </p>
+
+            {/* CTA */}
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+              <Button
+                asChild
+                className="self-start bg-white/10 backdrop-blur-md hover:bg-white/20 text-white rounded-full px-8 h-12 text-sm font-medium border border-white/20"
+              >
+                <Link href="/login">Get started</Link>
+              </Button>
+              <Button 
+                asChild
+                variant="outline"
+                className="hidden md:flex border-white/20 text-white hover:bg-white/5 text-sm font-medium px-8 h-12 rounded-full"
+              >
+                <Link href="#pricing">View pricing</Link>
+              </Button>
             </div>
           </div>
-        </RevealSection>
+        </section>
 
-        {/* Features Section */}
-        <RevealSection className="w-full px-4 md:px-8 py-8 md:py-16 relative">
-          <div className="max-w-6xl mx-auto">
-            <h2 className="text-xl md:text-3xl font-bold text-white text-center mb-4 md:mb-2">Why Choose Sycord?</h2>
-            <p className="text-sm md:text-base text-[#8A8E91] text-center mb-10 md:mb-12 max-w-xl mx-auto">
-              Everything you need to build and launch your website in minutes
-            </p>
-            <div className="overflow-x-auto scrollbar-hide pb-4">
-              <div className="flex gap-4 md:gap-6 w-max md:w-full md:grid md:grid-cols-3 px-0">
-                {[
-                  { src: "https://github.com/user-attachments/assets/6f4659c9-0989-47c0-b282-731ae5961df7", alt: "Best AI model on the market — Gemini 3.1" },
-                  { src: "https://github.com/user-attachments/assets/95665e35-5f9c-4a6d-9255-8a5b9dfd5d01", alt: "Why Choose Sycord — Feature 2" },
-                  { src: "https://github.com/user-attachments/assets/9c1a2ed9-1179-4e69-9c24-40058dc0e53d", alt: "Why Choose Sycord — Feature 3" },
-                ].map((img, i) => (
+        {/* ── Old Desktop Hero removed - now unified ── */}
+        
+        {/* Features Section - overlaps the hero with frosted glass effect */}
+        <div className="relative z-10 -mt-40 md:-mt-32">
+          <div 
+            className={`rounded-t-[48px] md:rounded-t-[72px] pt-14 pb-10 overflow-hidden transition-all duration-700 ${
+              isVideoInView 
+                ? 'bg-[#101010] border-transparent' 
+                : 'bg-[#101010]/85 backdrop-blur-xl border border-white/10'
+            }`}
+          >
+            <RevealSection className="w-full py-8 md:py-16 md:px-8 relative">
+              <div className="max-w-6xl md:mx-auto">
+                {/* Heading — desktop only; on mobile the cards speak for themselves */}
+                <h2 className="hidden md:block text-xl md:text-3xl font-bold text-white text-center mb-4 md:mb-2">Why Choose Sycord?</h2>
+                <p className="hidden md:block text-sm md:text-base text-[#8A8E91] text-center mb-10 md:mb-12 max-w-xl mx-auto">
+                  Everything you need to build and launch your website in minutes
+                </p>
+
+                {/* Scroll container: snap-to-center on mobile, plain grid on desktop */}
+                <div
+                  ref={featuresScrollRef}
+                  className="overflow-x-scroll md:overflow-x-visible scrollbar-hide pb-4 md:pb-0 px-[12.5vw] md:px-0"
+                  style={{ scrollSnapType: "x mandatory", scrollBehavior: "smooth" }}
+                >
+                  <div className="flex gap-4 md:gap-6 w-max md:w-full md:grid md:grid-cols-3">
+                    {featureImages.map((img, i) => (
+                    <div
+                      key={i}
+                      data-carousel-card
+                      className="relative w-[75vw] md:w-auto h-64 sm:h-72 md:h-96 flex-shrink-0 md:flex-shrink rounded-3xl overflow-hidden"
+                      style={{ scrollSnapAlign: "center" }}
+                    >
+                      {/* Badge label — mobile only */}
+                      <div className="md:hidden absolute top-3 left-3 z-10 bg-black/55 backdrop-blur-md border border-white/10 text-white text-[11px] font-medium px-3 py-1.5 rounded-full whitespace-nowrap">
+                        {img.label}
+                      </div>
+                      <Image
+                        src={img.src}
+                        alt={img.alt}
+                        fill
+                        className="object-cover"
+                        loading="lazy"
+                        sizes="(max-width: 640px) 75vw, (max-width: 768px) 80vw, 33vw"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Carousel indicator dots — mobile only, state-driven */}
+              <div className="flex md:hidden items-center justify-center gap-2 mt-5">
+                {featureImages.map((_, i) => (
                   <div
                     key={i}
-                    className="relative w-64 sm:w-72 md:w-auto h-72 sm:h-80 md:h-96 flex-shrink-0 rounded-3xl overflow-hidden"
-                  >
-                    <Image
-                      src={img.src}
-                      alt={img.alt}
-                      fill
-                      className="object-cover"
-                      loading="lazy"
-                      sizes="(max-width: 640px) 256px, (max-width: 768px) 288px, 33vw"
-                    />
-                  </div>
+                    className={`h-2 rounded-full transition-all duration-300 ${
+                      i === featuresActiveIndex
+                        ? "w-8 bg-white/65"
+                        : "w-2.5 bg-white/25"
+                    }`}
+                  />
                 ))}
               </div>
             </div>
-          </div>
-        </RevealSection>
-
-        {/* Supporters Section */}
-        <RevealSection className="w-full py-14 md:py-20 border-t border-b border-white/5 bg-[#1F1F21] overflow-hidden">
+          </RevealSection>
+        </div>
+        </div>
+        {/* Meet Syra Video Section */}
+        <section ref={videoSectionRef} className="w-full py-14 md:py-20 border-t border-b border-white/5 bg-[#101010] overflow-hidden">
           <div className="max-w-5xl mx-auto px-4 md:px-8">
-            <p className="text-center text-[#8A8E91] text-xs md:text-sm font-medium mb-4">Powered by</p>
-            <h2 className="text-center text-white text-lg md:text-2xl font-bold mb-10 md:mb-14">The technologies behind Sycord</h2>
-            <div className="relative w-full max-w-4xl mx-auto rounded-2xl overflow-hidden">
-              <Image
-                src="https://github.com/user-attachments/assets/9b545725-ce0a-4543-a2fa-7194a97a4f72"
-                alt="Supporters — Google, GitHub, and Cloudflare"
-                width={1400}
-                height={900}
-                className="w-full h-auto"
-                loading="lazy"
-                sizes="(max-width: 768px) 100vw, 896px"
-              />
+            <p className="text-center text-[#8A8E91] text-xs md:text-sm font-medium mb-4">Introducing</p>
+            <h2 className="text-center text-white text-lg md:text-2xl font-bold mb-10 md:mb-14">Meet Syra, Your AI Builder</h2>
+            <div className="relative w-full max-w-4xl mx-auto rounded-2xl overflow-hidden bg-[#181818]/90 backdrop-blur-xl border border-white/10">
+              <video
+                className="w-full h-auto rounded-2xl"
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="none"
+              >
+                <source src="/Meet%20syra%20your%20ai%20builder.mp4" type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
             </div>
           </div>
-        </RevealSection>
+        </section>
 
         {/* Pricing Section */}
         <RevealSection id="pricing" className="w-full px-4 md:px-8 py-12 md:py-20">
@@ -237,7 +293,13 @@ export default function LandingPage() {
             {/* Desktop Layout - 3 Column Grid */}
             <div className="hidden md:grid grid-cols-3 gap-6 max-w-5xl mx-auto">
               {/* Sycord Plan */}
-              <div className="bg-[#1F2022] rounded-2xl p-8 border border-white/5 flex flex-col">
+              <div className="frosted-card rounded-2xl p-8 flex flex-col relative overflow-hidden">
+                {/* Decorative illustration */}
+                <svg className="absolute -right-6 -top-6 w-28 h-28 opacity-[0.06]" viewBox="0 0 112 112" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="56" cy="56" r="50" stroke="white" strokeWidth="2"/>
+                  <circle cx="56" cy="56" r="30" stroke="white" strokeWidth="1.5"/>
+                  <path d="M56 6v100M6 56h100" stroke="white" strokeWidth="1"/>
+                </svg>
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-2 h-2 rounded-full bg-[#3A3B3D]"></div>
                   <div className="w-2 h-2 rounded-full bg-[#3A3B3D]"></div>
@@ -272,7 +334,21 @@ export default function LandingPage() {
               </div>
 
               {/* Sycord+ Plan - Featured */}
-              <div className="bg-[#18191B] rounded-2xl p-8 border-2 border-yellow-500/40 flex flex-col relative">
+              <div className="frosted-glass-dark rounded-2xl p-8 border-2 border-yellow-500/40 flex flex-col relative overflow-hidden">
+                {/* Decorative illustration - lightning pattern */}
+                <svg className="absolute -right-4 -top-4 w-32 h-32 opacity-[0.08]" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M70 8L40 56h28L54 120l40-64H66L84 8H70z" stroke="url(#yellowGrad)" strokeWidth="2" fill="none"/>
+                  <defs>
+                    <linearGradient id="yellowGrad" x1="54" y1="8" x2="54" y2="120" gradientUnits="userSpaceOnUse">
+                      <stop stopColor="#EAB308"/>
+                      <stop offset="1" stopColor="#CA8A04"/>
+                    </linearGradient>
+                  </defs>
+                </svg>
+                <svg className="absolute -left-8 -bottom-8 w-24 h-24 opacity-[0.05]" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="48" cy="48" r="44" stroke="#EAB308" strokeWidth="1.5"/>
+                  <circle cx="48" cy="48" r="28" stroke="#EAB308" strokeWidth="1"/>
+                </svg>
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-yellow-500/10 border border-yellow-500/30 rounded-full px-4 py-1">
                   <span className="text-yellow-500 text-xs font-semibold">Most Popular</span>
                 </div>
@@ -285,22 +361,11 @@ export default function LandingPage() {
                   <span className="text-3xl font-bold text-white">$9</span>
                   <span className="text-[#8A8E91] text-sm">/month</span>
                 </div>
-                <Button
-                  onClick={() => handlePayPal("Sycord+", 9)}
-                  disabled={payingPlan === "Sycord+"}
-                  className="w-full bg-white hover:bg-white/90 text-[#18191B] font-semibold mb-6 h-10 rounded-full gap-2"
+                <Button 
+                  asChild
+                  className="w-full bg-white hover:bg-white/90 text-[#18191B] font-semibold mb-6 h-10 rounded-full"
                 >
-                  {payingPlan === "Sycord+" ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Redirecting…
-                    </>
-                  ) : (
-                    <>
-                      <PayPalIcon className="w-4 h-4" />
-                      Pay with PayPal
-                    </>
-                  )}
+                  <Link href="/login">Upgrade Now</Link>
                 </Button>
                 <ul className="space-y-3 flex-1">
                   <li className="flex items-center gap-2">
@@ -319,7 +384,17 @@ export default function LandingPage() {
               </div>
 
               {/* Sycord Enterprise Plan */}
-              <div className="bg-[#1F2022] rounded-2xl p-8 border border-white/5 flex flex-col">
+              <div className="frosted-card rounded-2xl p-8 flex flex-col relative overflow-hidden">
+                {/* Decorative illustration - sparkle pattern */}
+                <svg className="absolute -right-6 -top-6 w-32 h-32 opacity-[0.08]" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M64 8l4 24 24-4-24 4 4 24-4-24-24 4 24-4-4-24z" stroke="#A855F7" strokeWidth="1.5"/>
+                  <path d="M32 48l3 16 16-3-16 3 3 16-3-16-16 3 16-3-3-16z" stroke="#A855F7" strokeWidth="1"/>
+                  <path d="M88 72l3 16 16-3-16 3 3 16-3-16-16 3 16-3-3-16z" stroke="#A855F7" strokeWidth="1"/>
+                </svg>
+                <svg className="absolute -left-6 -bottom-6 w-24 h-24 opacity-[0.05]" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="12" y="12" width="72" height="72" rx="16" stroke="#A855F7" strokeWidth="1.5"/>
+                  <rect x="28" y="28" width="40" height="40" rx="8" stroke="#A855F7" strokeWidth="1"/>
+                </svg>
                 <div className="flex items-center gap-2 mb-4">
                   <Sparkles className="w-4 h-4 text-purple-500" />
                 </div>
@@ -329,23 +404,12 @@ export default function LandingPage() {
                   <span className="text-3xl font-bold text-white">$29</span>
                   <span className="text-[#8A8E91] text-sm">/month</span>
                 </div>
-                <Button
-                  onClick={() => handlePayPal("Sycord Enterprise", 29)}
-                  disabled={payingPlan === "Sycord Enterprise"}
+                <Button 
+                  asChild
                   variant="outline"
-                  className="w-full border-white/20 hover:bg-white/5 text-white mb-6 h-10 rounded-full gap-2"
+                  className="w-full border-white/20 hover:bg-white/5 text-white mb-6 h-10 rounded-full"
                 >
-                  {payingPlan === "Sycord Enterprise" ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Redirecting…
-                    </>
-                  ) : (
-                    <>
-                      <PayPalIcon className="w-4 h-4" />
-                      Pay with PayPal
-                    </>
-                  )}
+                  <Link href="/contact">Contact Sales</Link>
                 </Button>
                 <ul className="space-y-3 flex-1">
                   <li className="flex items-center gap-2">
@@ -368,7 +432,12 @@ export default function LandingPage() {
             <div className="md:hidden overflow-x-auto scrollbar-hide pb-4">
               <div className="flex gap-4 w-max px-0">
                 {/* Sycord Plan */}
-                <div className="w-72 bg-[#1F2022] rounded-2xl p-5 flex-shrink-0 border border-white/5">
+                <div className="w-72 frosted-card rounded-2xl p-5 flex-shrink-0 relative overflow-hidden">
+                  {/* Decorative illustration */}
+                  <svg className="absolute -right-4 -top-4 w-20 h-20 opacity-[0.06]" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="40" cy="40" r="36" stroke="white" strokeWidth="1.5"/>
+                    <circle cx="40" cy="40" r="22" stroke="white" strokeWidth="1"/>
+                  </svg>
                   <div className="flex items-center gap-1.5 mb-4">
                     <div className="w-2 h-2 rounded-full bg-[#3A3B3D]"></div>
                     <div className="w-2 h-2 rounded-full bg-[#3A3B3D]"></div>
@@ -403,7 +472,11 @@ export default function LandingPage() {
                 </div>
 
                 {/* Sycord+ Plan */}
-                <div className="w-72 bg-[#18191B] rounded-2xl p-5 flex-shrink-0 border-2 border-yellow-500/40">
+                <div className="w-72 frosted-glass-dark rounded-2xl p-5 flex-shrink-0 border-2 border-yellow-500/40 relative overflow-hidden">
+                  {/* Decorative illustration - lightning */}
+                  <svg className="absolute -right-3 -top-3 w-20 h-20 opacity-[0.08]" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M44 5L25 35h17L33 75l25-40H42L53 5H44z" stroke="#EAB308" strokeWidth="1.5" fill="none"/>
+                  </svg>
                   <div className="flex items-center gap-1 mb-3">
                     <Zap className="w-3.5 h-3.5 text-yellow-500" />
                     <span className="text-[9px] font-semibold text-yellow-500">Popular</span>
@@ -414,17 +487,11 @@ export default function LandingPage() {
                     <span className="text-2xl font-bold text-white">$9</span>
                     <span className="text-[#8A8E91] text-xs">/mo</span>
                   </div>
-                  <Button
-                    onClick={() => handlePayPal("Sycord+", 9)}
-                    disabled={payingPlan === "Sycord+"}
-                    className="w-full bg-white hover:bg-white/90 text-[#18191B] text-xs h-9 rounded-full font-semibold mb-4 gap-1.5"
+                  <Button 
+                    asChild
+                    className="w-full bg-white hover:bg-white/90 text-[#18191B] text-xs h-9 rounded-full font-semibold mb-4"
                   >
-                    {payingPlan === "Sycord+" ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <PayPalIcon className="w-3.5 h-3.5" />
-                    )}
-                    Pay with PayPal
+                    <Link href="/login">Upgrade</Link>
                   </Button>
                   <ul className="space-y-2">
                     <li className="flex items-center gap-2">
@@ -443,7 +510,12 @@ export default function LandingPage() {
                 </div>
 
                 {/* Sycord Enterprise Plan */}
-                <div className="w-72 bg-[#1F2022] rounded-2xl p-5 flex-shrink-0 border border-white/5">
+                <div className="w-72 frosted-card rounded-2xl p-5 flex-shrink-0 relative overflow-hidden">
+                  {/* Decorative illustration - sparkles */}
+                  <svg className="absolute -right-4 -top-4 w-20 h-20 opacity-[0.08]" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M40 5l2.5 15 15-2.5-15 2.5 2.5 15-2.5-15-15 2.5 15-2.5-2.5-15z" stroke="#A855F7" strokeWidth="1"/>
+                    <path d="M20 45l2 10 10-2-10 2 2 10-2-10-10 2 10-2-2-10z" stroke="#A855F7" strokeWidth="1"/>
+                  </svg>
                   <div className="flex items-center gap-1 mb-3">
                     <Sparkles className="w-3.5 h-3.5 text-purple-500" />
                   </div>
@@ -453,18 +525,12 @@ export default function LandingPage() {
                     <span className="text-2xl font-bold text-white">$29</span>
                     <span className="text-[#8A8E91] text-xs">/mo</span>
                   </div>
-                  <Button
-                    onClick={() => handlePayPal("Sycord Enterprise", 29)}
-                    disabled={payingPlan === "Sycord Enterprise"}
+                  <Button 
+                    asChild
                     variant="outline"
-                    className="w-full border-white/20 hover:bg-white/5 text-white text-xs h-9 rounded-full mb-4 gap-1.5"
+                    className="w-full border-white/20 hover:bg-white/5 text-white text-xs h-9 rounded-full mb-4"
                   >
-                    {payingPlan === "Sycord Enterprise" ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <PayPalIcon className="w-3.5 h-3.5" />
-                    )}
-                    Pay with PayPal
+                    <Link href="/contact">Contact</Link>
                   </Button>
                   <ul className="space-y-2">
                     <li className="flex items-center gap-2">
@@ -488,7 +554,7 @@ export default function LandingPage() {
 
         {/* CTA Section */}
         <RevealSection className="w-full px-4 md:px-8 py-12 md:py-16">
-          <div className="max-w-2xl mx-auto bg-[#252527] border border-white/10 rounded-2xl p-8 md:p-12 text-center relative overflow-hidden">
+          <div className="max-w-2xl mx-auto frosted-glass rounded-2xl p-8 md:p-12 text-center relative overflow-hidden">
             {/* Decorative background illustration */}
             <svg className="absolute -right-10 -top-10 w-40 h-40 opacity-[0.06]" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
               <circle cx="80" cy="80" r="78" stroke="white" strokeWidth="2"/>
@@ -519,7 +585,7 @@ export default function LandingPage() {
       </main>
 
       {/* Footer */}
-      <footer className="w-full border-t border-white/5 bg-[#1F1F21] mt-8 md:mt-16">
+      <footer className="w-full border-t border-white/5 frosted-glass-light mt-8 md:mt-16">
         <div className="max-w-6xl mx-auto px-4 md:px-8 py-10 md:py-14">
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-10 md:gap-16 mb-10">
             <div className="flex-shrink-0">
@@ -551,7 +617,6 @@ export default function LandingPage() {
                 <ul className="space-y-2">
                   <li><Link href="/pap" className="text-[#8A8E91] hover:text-white text-xs transition-colors">Privacy</Link></li>
                   <li><Link href="/tos" className="text-[#8A8E91] hover:text-white text-xs transition-colors">Terms</Link></li>
-                  <li><Link href="/business-report" className="text-[#8A8E91] hover:text-white text-xs transition-colors">Business Report</Link></li>
                 </ul>
               </div>
             </div>
@@ -567,19 +632,5 @@ export default function LandingPage() {
         </div>
       </footer>
     </div>
-  )
-}
-
-function PayPalIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      className={className}
-      fill="currentColor"
-      aria-hidden="true"
-    >
-      <path d="M7.076 21.337H2.47a.641.641 0 01-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.9l-1.12 7.106zm14.146-14.42a3.35 3.35 0 00-.607-.541c1.379 4.729-1.68 7.789-6.188 7.789H12.16l-1.279 8.121H14.3c.524 0 .968-.382 1.05-.9l.04-.246.818-5.19.052-.285c.082-.517.526-.9 1.05-.9h.66c4.3 0 7.664-1.747 8.647-6.797.411-2.12.198-3.888-.948-5.051-.044-.046-.09-.09-.137-.134l-.259.134z" />
-    </svg>
   )
 }
