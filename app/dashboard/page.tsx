@@ -48,7 +48,7 @@ function DashboardContent() {
     }
 
     if (openCreateModal === "true") {
-        setIsModalOpen(true)
+        router.push("/onboard")
         const newUrl = new URL(window.location.href)
         newUrl.searchParams.delete("open_create_modal")
         window.history.replaceState({}, "", newUrl.toString())
@@ -313,7 +313,7 @@ function DashboardContent() {
           <div className="flex flex-col gap-4 mb-6 md:mb-8">
             <div className="flex items-center justify-between">
               <h1 className="text-lg font-semibold text-foreground">Projektek</h1>
-              <Button onClick={() => setIsModalOpen(true)} className="w-auto">
+              <Button onClick={() => router.push("/onboard")} className="w-auto">
                 <Plus className="h-4 w-4 mr-2" />
                 Új Projekt
               </Button>
@@ -348,7 +348,7 @@ function DashboardContent() {
                 <p className="text-sm text-muted-foreground mb-6">
                   Kezdje el első projektjét, és indítsa el weboldalát {"{"}name{"}"}.pages.dev címen
                 </p>
-                <Button onClick={() => setIsModalOpen(true)}>
+                <Button onClick={() => router.push("/onboard")}>
                   <Plus className="h-4 w-4 mr-2" />
                   Első Projekt Létrehozása
                 </Button>
