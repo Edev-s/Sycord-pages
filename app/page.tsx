@@ -68,6 +68,27 @@ function useCarouselIndex(count: number) {
   return { scrollRef, activeIndex }
 }
 
+/** Hook to track if an element is in viewport */
+function useInView() {
+  const ref = useRef<HTMLElement>(null)
+  const [isInView, setIsInView] = useState(false)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsInView(entry.isIntersecting)
+      },
+      { threshold: 0.3 }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  return { ref, isInView }
+}
+
 export default function LandingPage() {
   const featureImages = [
     {
@@ -87,6 +108,7 @@ export default function LandingPage() {
     },
   ]
   const { scrollRef: featuresScrollRef, activeIndex: featuresActiveIndex } = useCarouselIndex(featureImages.length)
+  const { ref: videoSectionRef, isInView: isVideoInView } = useInView()
 
   return (
     <div className="min-h-screen bg-[#101010] flex flex-col items-center overflow-x-hidden overflow-y-visible font-sans">
@@ -175,7 +197,13 @@ export default function LandingPage() {
         
         {/* Features Section - overlaps the hero with frosted glass effect */}
         <div className="relative z-10 -mt-40 md:-mt-32">
-          <div className="bg-[#101010]/85 backdrop-blur-xl border border-white/10 rounded-t-[48px] md:rounded-t-[72px] pt-14 pb-10 overflow-hidden">
+          <div 
+            className={`rounded-t-[48px] md:rounded-t-[72px] pt-14 pb-10 overflow-hidden transition-all duration-700 ${
+              isVideoInView 
+                ? 'bg-[#101010] border-transparent' 
+                : 'bg-[#101010]/85 backdrop-blur-xl border border-white/10'
+            }`}
+          >
             <RevealSection className="w-full py-8 md:py-16 md:px-8 relative">
               <div className="max-w-6xl md:mx-auto">
                 {/* Heading — desktop only; on mobile the cards speak for themselves */}
@@ -234,15 +262,16 @@ export default function LandingPage() {
         </div>
 
         {/* Meet Syra Video Section */}
-        <RevealSection className="w-full py-14 md:py-20 border-t border-b border-white/5 bg-[#101010] overflow-hidden">
+        <section ref={videoSectionRef} className="w-full py-14 md:py-20 border-t border-b border-white/5 bg-[#101010] overflow-hidden scroll-hidden">
           <div className="max-w-5xl mx-auto px-4 md:px-8">
             <p className="text-center text-[#8A8E91] text-xs md:text-sm font-medium mb-4">Introducing</p>
             <h2 className="text-center text-white text-lg md:text-2xl font-bold mb-10 md:mb-14">Meet Syra, Your AI Builder</h2>
             <div className="relative w-full max-w-4xl mx-auto rounded-2xl overflow-hidden bg-[#181818]/90 backdrop-blur-xl border border-white/10">
               <video
                 className="w-full h-auto rounded-2xl"
-                controls
-                preload="metadata"
+                autoPlay
+                muted
+                loop
                 playsInline
               >
                 <source src="/Meet%20syra%20your%20ai%20builder.mp4" type="video/mp4" />
@@ -250,7 +279,7 @@ export default function LandingPage() {
               </video>
             </div>
           </div>
-        </RevealSection>
+        </section>
 
         {/* Pricing Section */}
         <RevealSection id="pricing" className="w-full px-4 md:px-8 py-12 md:py-20">
@@ -263,7 +292,13 @@ export default function LandingPage() {
             {/* Desktop Layout - 3 Column Grid */}
             <div className="hidden md:grid grid-cols-3 gap-6 max-w-5xl mx-auto">
               {/* Sycord Plan */}
-              <div className="frosted-card rounded-2xl p-8 flex flex-col">
+              <div className="frosted-card rounded-2xl p-8 flex flex-col relative overflow-hidden">
+                {/* Decorative illustration */}
+                <svg className="absolute -right-6 -top-6 w-28 h-28 opacity-[0.06]" viewBox="0 0 112 112" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="56" cy="56" r="50" stroke="white" strokeWidth="2"/>
+                  <circle cx="56" cy="56" r="30" stroke="white" strokeWidth="1.5"/>
+                  <path d="M56 6v100M6 56h100" stroke="white" strokeWidth="1"/>
+                </svg>
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-2 h-2 rounded-full bg-[#3A3B3D]"></div>
                   <div className="w-2 h-2 rounded-full bg-[#3A3B3D]"></div>
@@ -298,7 +333,21 @@ export default function LandingPage() {
               </div>
 
               {/* Sycord+ Plan - Featured */}
-              <div className="frosted-glass-dark rounded-2xl p-8 border-2 border-yellow-500/40 flex flex-col relative">
+              <div className="frosted-glass-dark rounded-2xl p-8 border-2 border-yellow-500/40 flex flex-col relative overflow-hidden">
+                {/* Decorative illustration - lightning pattern */}
+                <svg className="absolute -right-4 -top-4 w-32 h-32 opacity-[0.08]" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M70 8L40 56h28L54 120l40-64H66L84 8H70z" stroke="url(#yellowGrad)" strokeWidth="2" fill="none"/>
+                  <defs>
+                    <linearGradient id="yellowGrad" x1="54" y1="8" x2="54" y2="120" gradientUnits="userSpaceOnUse">
+                      <stop stopColor="#EAB308"/>
+                      <stop offset="1" stopColor="#CA8A04"/>
+                    </linearGradient>
+                  </defs>
+                </svg>
+                <svg className="absolute -left-8 -bottom-8 w-24 h-24 opacity-[0.05]" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="48" cy="48" r="44" stroke="#EAB308" strokeWidth="1.5"/>
+                  <circle cx="48" cy="48" r="28" stroke="#EAB308" strokeWidth="1"/>
+                </svg>
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-yellow-500/10 border border-yellow-500/30 rounded-full px-4 py-1">
                   <span className="text-yellow-500 text-xs font-semibold">Most Popular</span>
                 </div>
@@ -334,7 +383,17 @@ export default function LandingPage() {
               </div>
 
               {/* Sycord Enterprise Plan */}
-              <div className="frosted-card rounded-2xl p-8 flex flex-col">
+              <div className="frosted-card rounded-2xl p-8 flex flex-col relative overflow-hidden">
+                {/* Decorative illustration - sparkle pattern */}
+                <svg className="absolute -right-6 -top-6 w-32 h-32 opacity-[0.08]" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M64 8l4 24 24-4-24 4 4 24-4-24-24 4 24-4-4-24z" stroke="#A855F7" strokeWidth="1.5"/>
+                  <path d="M32 48l3 16 16-3-16 3 3 16-3-16-16 3 16-3-3-16z" stroke="#A855F7" strokeWidth="1"/>
+                  <path d="M88 72l3 16 16-3-16 3 3 16-3-16-16 3 16-3-3-16z" stroke="#A855F7" strokeWidth="1"/>
+                </svg>
+                <svg className="absolute -left-6 -bottom-6 w-24 h-24 opacity-[0.05]" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="12" y="12" width="72" height="72" rx="16" stroke="#A855F7" strokeWidth="1.5"/>
+                  <rect x="28" y="28" width="40" height="40" rx="8" stroke="#A855F7" strokeWidth="1"/>
+                </svg>
                 <div className="flex items-center gap-2 mb-4">
                   <Sparkles className="w-4 h-4 text-purple-500" />
                 </div>
@@ -372,7 +431,12 @@ export default function LandingPage() {
             <div className="md:hidden overflow-x-auto scrollbar-hide pb-4">
               <div className="flex gap-4 w-max px-0">
                 {/* Sycord Plan */}
-                <div className="w-72 frosted-card rounded-2xl p-5 flex-shrink-0">
+                <div className="w-72 frosted-card rounded-2xl p-5 flex-shrink-0 relative overflow-hidden">
+                  {/* Decorative illustration */}
+                  <svg className="absolute -right-4 -top-4 w-20 h-20 opacity-[0.06]" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="40" cy="40" r="36" stroke="white" strokeWidth="1.5"/>
+                    <circle cx="40" cy="40" r="22" stroke="white" strokeWidth="1"/>
+                  </svg>
                   <div className="flex items-center gap-1.5 mb-4">
                     <div className="w-2 h-2 rounded-full bg-[#3A3B3D]"></div>
                     <div className="w-2 h-2 rounded-full bg-[#3A3B3D]"></div>
@@ -407,7 +471,11 @@ export default function LandingPage() {
                 </div>
 
                 {/* Sycord+ Plan */}
-                <div className="w-72 frosted-glass-dark rounded-2xl p-5 flex-shrink-0 border-2 border-yellow-500/40">
+                <div className="w-72 frosted-glass-dark rounded-2xl p-5 flex-shrink-0 border-2 border-yellow-500/40 relative overflow-hidden">
+                  {/* Decorative illustration - lightning */}
+                  <svg className="absolute -right-3 -top-3 w-20 h-20 opacity-[0.08]" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M44 5L25 35h17L33 75l25-40H42L53 5H44z" stroke="#EAB308" strokeWidth="1.5" fill="none"/>
+                  </svg>
                   <div className="flex items-center gap-1 mb-3">
                     <Zap className="w-3.5 h-3.5 text-yellow-500" />
                     <span className="text-[9px] font-semibold text-yellow-500">Popular</span>
@@ -441,7 +509,12 @@ export default function LandingPage() {
                 </div>
 
                 {/* Sycord Enterprise Plan */}
-                <div className="w-72 frosted-card rounded-2xl p-5 flex-shrink-0">
+                <div className="w-72 frosted-card rounded-2xl p-5 flex-shrink-0 relative overflow-hidden">
+                  {/* Decorative illustration - sparkles */}
+                  <svg className="absolute -right-4 -top-4 w-20 h-20 opacity-[0.08]" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M40 5l2.5 15 15-2.5-15 2.5 2.5 15-2.5-15-15 2.5 15-2.5-2.5-15z" stroke="#A855F7" strokeWidth="1"/>
+                    <path d="M20 45l2 10 10-2-10 2 2 10-2-10-10 2 10-2-2-10z" stroke="#A855F7" strokeWidth="1"/>
+                  </svg>
                   <div className="flex items-center gap-1 mb-3">
                     <Sparkles className="w-3.5 h-3.5 text-purple-500" />
                   </div>
