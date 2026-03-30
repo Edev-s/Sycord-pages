@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import clientPromise from "@/lib/mongodb"
 import { ObjectId } from "mongodb"
+import { idlePageHtml } from "@/lib/idle-page"
 
 const GITHUB_API_BASE = "https://api.github.com"
 const SYCORD_DEPLOY_API_BASE = "https://micro1.sycord.com"
@@ -252,7 +253,11 @@ export async function POST(request: Request) {
         files.push({ path: "index.html", content: project.aiGeneratedCode })
     }
 
-    if (files.length === 0) return NextResponse.json({ error: "No files to deploy." }, { status: 400 })
+    const hadGeneratedContent = files.length > 0
+    if (!hadGeneratedContent) {
+        // Fallback: always deploy an idle placeholder so every project gets a valid Pages deployment URL
+        files.push({ path: "index.html", content: idlePageHtml })
+    }
 
     // 6. Deploy using Git Tree Strategy (Atomic & Cleaner)
     await deployViaGitTree(owner, repo, files, token)
@@ -289,7 +294,7 @@ export async function POST(request: Request) {
 
     // 8. Trigger Sycord Cloudflare Deploy
     let cloudflareUrl = null
-    let deployMessage = "Deployed to GitHub"
+    const deployMessage = hadGeneratedContent ? "Deployed to GitHub" : "Deployed idle placeholder to GitHub"
 
     try {
         // Trigger

@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -69,6 +69,8 @@ import { useSession, signOut } from "next-auth/react"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { SitePreviewDashboard } from "@/components/site-preview-dashboard"
+
+const CLOUDFLARE_PAGES_SUFFIX = ".pages.dev"
 
 const headerComponents = {
   simple: { name: "Simple", description: "A clean, minimalist header" },
@@ -551,6 +553,19 @@ export default function SiteSettingsPage() {
   const [logs, setLogs] = useState<string[]>([])
   const [hasDeployError, setHasDeployError] = useState(false)
   const [autoFixLogs, setAutoFixLogs] = useState<string[] | null>(null)
+  const [autoDeployAttempted, setAutoDeployAttempted] = useState(false)
+  const isDeployingRef = useRef(false)
+  const hasCloudflareDeployment = useMemo(() => {
+    const url = project?.cloudflareUrl?.trim()
+    if (!url) return false
+    try {
+      const parsed = new URL(url)
+      if (parsed.protocol !== "https:") return false // Cloudflare Pages serves over HTTPS; reject non-HTTPS protocols
+      return parsed.hostname.endsWith(CLOUDFLARE_PAGES_SUFFIX)
+    } catch {
+      return false
+    }
+  }, [project?.cloudflareUrl])
 
   // Database / Firebase connection state
   const [databaseConnected, setDatabaseConnected] = useState(false)
@@ -879,9 +894,13 @@ export default function SiteSettingsPage() {
     }
   }
 
-  const handleDeploy = async () => {
-    if (isDeploying) return
-    
+  const handleDeploy = useCallback(async (options?: { markAutoAttempt?: boolean }) => {
+    if (isDeployingRef.current || !id) return
+    if (options?.markAutoAttempt) {
+      setAutoDeployAttempted(true)
+    }
+
+    isDeployingRef.current = true
     setIsDeploying(true)
     setDeployProgress(0)
     setDeploySuccess(false)
@@ -950,7 +969,19 @@ export default function SiteSettingsPage() {
     } finally {
       setIsDeploying(false)
     }
-  }
+    // State setters and refs are stable; dependencies limited to changing inputs
+  }, [fetchLogs, id, pollForDomain])
+
+  useEffect(() => {
+    if (autoDeployAttempted) return
+    if (!project || hasCloudflareDeployment || isDeployingRef.current) return
+
+    handleDeploy({ markAutoAttempt: true })
+  }, [autoDeployAttempted, project, hasCloudflareDeployment, isDeployingRef, handleDeploy])
+
+  useEffect(() => {
+    isDeployingRef.current = isDeploying
+  }, [isDeploying])
 
   if (isInitialLoading) {
     return (
