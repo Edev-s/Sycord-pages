@@ -64,7 +64,7 @@ function sshExec(
 // ---------------------------------------------------------------------------
 const DEPLOY_SERVER_SCRIPT = `#!/usr/bin/env python3
 """Sycord VPS Deploy Server - receives GitHub webhooks and redeploys."""
-import os, hmac, hashlib, subprocess
+import os, hmac, hashlib, subprocess, sys
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
@@ -72,9 +72,11 @@ WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "")
 REPO_DIR = os.environ.get("REPO_DIR", "/var/sycord/sycord-pages")
 RESTART_CMD = os.environ.get("RESTART_CMD", "systemctl restart sycord-server")
 
+if not WEBHOOK_SECRET:
+    print("ERROR: WEBHOOK_SECRET environment variable is required", file=sys.stderr)
+    sys.exit(1)
+
 def _verify(payload, sig):
-    if not WEBHOOK_SECRET:
-        return True
     mac = hmac.new(WEBHOOK_SECRET.encode(), payload, hashlib.sha256).hexdigest()
     return hmac.compare_digest(f"sha256={mac}", sig or "")
 
@@ -82,15 +84,14 @@ def _verify(payload, sig):
 def webhook():
     if not _verify(request.data, request.headers.get("X-Hub-Signature-256", "")):
         return jsonify(error="Invalid signature"), 401
-    subprocess.Popen(["bash", "-c", f"cd {REPO_DIR} && git pull && {RESTART_CMD}"])
+    repo = os.path.basename(REPO_DIR)
+    restart = os.path.basename(RESTART_CMD.split()[0])
+    subprocess.Popen(["bash", "-c", f"cd /var/sycord/{repo} && git pull && systemctl restart {restart}"])
     return jsonify(success=True)
 
 @app.route("/health")
 def health():
     return jsonify(status="ok")
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
 `
 
 const DEPLOY_SERVICE = `[Unit]
@@ -98,10 +99,11 @@ Description=Sycord Deploy Server
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/python3 /var/sycord/deploy-server.py
+ExecStart=/usr/bin/gunicorn --bind 0.0.0.0:8080 --workers 1 deploy-server:app
+WorkingDirectory=/var/sycord
 Restart=always
 Environment=REPO_DIR=/var/sycord/sycord-pages
-Environment=RESTART_CMD=systemctl restart sycord-server
+Environment=RESTART_CMD=sycord-server
 
 [Install]
 WantedBy=multi-user.target
@@ -172,8 +174,9 @@ export async function POST(request: Request) {
         const cmds = [
           "mkdir -p /var/sycord/sycord-pages",
           `cat > /var/sycord/deploy-server.py << 'PYEOF'\n${DEPLOY_SERVER_SCRIPT}\nPYEOF`,
+          "chmod 700 /var/sycord/deploy-server.py",
           `cat > /etc/systemd/system/sycord-deploy.service << 'SVCEOF'\n${DEPLOY_SERVICE}\nSVCEOF`,
-          "pip3 install flask --quiet 2>&1 | tail -3 || apt-get install -y python3-flask -qq",
+          "pip3 install flask gunicorn --quiet 2>&1 | tail -3 || apt-get install -y python3-flask gunicorn -qq",
           "systemctl daemon-reload",
           "systemctl enable sycord-deploy",
           "systemctl restart sycord-deploy",
