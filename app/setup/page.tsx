@@ -3,14 +3,16 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Terminal, Copy, Check, ArrowLeft, Play, Loader2 } from "lucide-react"
+import { Terminal, Copy, Check, ArrowLeft, Play, Loader2, ExternalLink } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
 
 export default function SetupPage() {
   const [copiedBash, setCopiedBash] = useState(false)
   const [copiedPython, setCopiedPython] = useState(false)
+
   const [isDeploying, setIsDeploying] = useState(false)
+  const [authUrl, setAuthUrl] = useState<string | null>(null)
 
   const copyToClipboard = (text: string, setCopied: (v: boolean) => void) => {
     navigator.clipboard.writeText(text)
@@ -24,9 +26,6 @@ cd myapp`
 
   const pythonRunner = `from flask import Flask, request, jsonify
 import os
-import subprocess
-import threading
-import time
 
 app = Flask(__name__)
 
@@ -67,55 +66,62 @@ def deploy(project_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-def start_cloudflared():
-    print("Starting Cloudflared tunnel...")
-    # Cloudflared requires the port the Flask app is running on
-    cmd = ["cloudflared", "tunnel", "--url", "http://localhost:5000"]
-    try:
-        process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True
-        )
-        for line in iter(process.stdout.readline, ''):
-            print(line, end='')
-            if "https://trycloudflare.com" in line or "auth" in line.lower():
-                # The auth link will be printed here
-                pass
-    except FileNotFoundError:
-        print("Error: 'cloudflared' not found. Please install it.")
-    except Exception as e:
-        print(f"Cloudflared error: {e}")
-
 if __name__ == '__main__':
-    # Start Cloudflared in a background thread
-    threading.Thread(target=start_cloudflared, daemon=True).start()
-
-    # Start Flask app
+    # Start Flask app on port 5000 (Cloudflared will route here)
     app.run(host='0.0.0.0', port=5000)`
 
-  const handleAutomatedSetup = async () => {
+  const handleStartSetup = async () => {
     try {
       setIsDeploying(true)
-      toast("Initiating automated VPS setup...")
+      toast("Starting Cloudflared configuration on VPS...")
 
       const res = await fetch("/api/vps/setup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pythonRunnerScript: pythonRunner }),
+        body: JSON.stringify({ action: "start" }),
       })
 
       const data = await res.json()
 
       if (!res.ok) {
-        throw new Error(data.error || "Failed to setup VPS automatically.")
+        throw new Error(data.error || "Failed to start Cloudflared login process.")
       }
 
-      toast.success(data.message || "VPS configured successfully!")
+      if (data.authUrl) {
+        setAuthUrl(data.authUrl)
+        toast.success("Please authorize the Cloudflare Tunnel.")
+      }
+
     } catch (error: any) {
       console.error("VPS Setup Error:", error)
       toast.error(error.message || "An error occurred during VPS setup.")
+    } finally {
+      setIsDeploying(false)
+    }
+  }
+
+  const handleCompleteSetup = async () => {
+    try {
+      setIsDeploying(true)
+      toast("Finalizing tunnel and runner...")
+
+      const res = await fetch("/api/vps/setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "complete", pythonRunnerScript: pythonRunner }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to complete VPS configuration.")
+      }
+
+      toast.success(data.message || "VPS is now configured and running!")
+      setAuthUrl(null)
+    } catch (error: any) {
+      console.error("VPS Setup Error:", error)
+      toast.error(error.message || "An error occurred finalizing the setup.")
     } finally {
       setIsDeploying(false)
     }
@@ -142,27 +148,90 @@ if __name__ == '__main__':
             <h1 className="text-3xl font-bold tracking-tight">VPS Runner Configuration</h1>
             <p className="text-muted-foreground mt-2 max-w-2xl">
               Follow these steps to set up a low-resource runner on your Ubuntu VPS. This runner will handle GitHub pulls,
-              receive deployments from Sycord, and automatically connect to a Cloudflare Tunnel.
+              receive deployments from Sycord, and automatically connect to a Cloudflare Tunnel via <code className="text-foreground">server.sycord.com</code>.
             </p>
           </div>
-          <Button
-            onClick={handleAutomatedSetup}
-            disabled={isDeploying}
-            className="shrink-0"
-          >
-            {isDeploying ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Setting up VPS...
-              </>
-            ) : (
-              <>
-                <Play className="mr-2 h-4 w-4 fill-current" />
-                Run Automated Setup
-              </>
-            )}
-          </Button>
         </div>
+
+        {/* AUTOMATED SETUP SECTION */}
+        <Card className="border-primary/50 bg-primary/5">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">Automated VPS Setup</CardTitle>
+            <CardDescription>
+              We will securely connect to your VPS, install dependencies, map <code className="text-foreground">server.sycord.com</code> to your local Flask app, and run it.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!authUrl ? (
+              <Button
+                onClick={handleStartSetup}
+                disabled={isDeploying}
+                size="lg"
+                className="w-full sm:w-auto"
+              >
+                {isDeploying ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Connecting & Preparing...
+                  </>
+                ) : (
+                  <>
+                    <Play className="mr-2 h-4 w-4 fill-current" />
+                    Start Automated Setup
+                  </>
+                )}
+              </Button>
+            ) : (
+              <div className="space-y-6 animate-in fade-in zoom-in duration-300 border border-primary p-6 rounded-lg bg-background">
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-lg flex items-center gap-2">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/20 text-primary text-sm font-bold">1</span>
+                    Action Required: Cloudflare Login
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Your VPS is requesting permission to create a Cloudflare Tunnel. Please click the link below to authorize it. Select your domain (`sycord.com`) when prompted.
+                  </p>
+                </div>
+
+                <a
+                  href={authUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 w-full sm:w-auto"
+                >
+                  Authorize Cloudflare <ExternalLink className="ml-2 h-4 w-4" />
+                </a>
+
+                <div className="space-y-2 pt-4 border-t border-border">
+                  <h3 className="font-semibold text-lg flex items-center gap-2">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/20 text-primary text-sm font-bold">2</span>
+                    Complete Setup
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Once you have authorized the tunnel in your browser, click below to finish configuring the DNS records, writing the runner, and starting the background processes.
+                  </p>
+                  <Button
+                    onClick={handleCompleteSetup}
+                    disabled={isDeploying}
+                    variant="secondary"
+                    className="w-full sm:w-auto"
+                  >
+                    {isDeploying ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Finalizing Setup...
+                      </>
+                    ) : (
+                      <>
+                        Complete Setup
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <div className="flex items-center gap-4 my-8">
           <div className="h-px bg-border flex-1" />
@@ -170,10 +239,9 @@ if __name__ == '__main__':
           <div className="h-px bg-border flex-1" />
         </div>
 
-        <Card className="border-border">
+        <Card className="border-border opacity-70">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/20 text-primary text-sm font-bold">1</span>
               Initialize the VPS Environment
             </CardTitle>
             <CardDescription>
@@ -197,14 +265,13 @@ if __name__ == '__main__':
           </CardContent>
         </Card>
 
-        <Card className="border-border">
+        <Card className="border-border opacity-70">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/20 text-primary text-sm font-bold">2</span>
               Create the Runner Script
             </CardTitle>
             <CardDescription>
-              Inside the `myapp` directory, save the following Python script as `runner.py`. This script starts a Flask server to receive deployments and automatically sets up a Cloudflare Tunnel. Check the console output for the Cloudflare authentication link.
+              Inside the `myapp` directory, save the following Python script as `runner.py`.
             </CardDescription>
           </CardHeader>
           <CardContent>
