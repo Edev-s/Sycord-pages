@@ -69,17 +69,22 @@ export async function POST(request: Request) {
 
       // Request login URL
       await run('rm -f cloudflared_login.log', cwd)
-      // Execute the local binary we downloaded in Step 1
-      await run('./cloudflared tunnel login > cloudflared_login.log 2>&1 &', cwd)
+
+      // Run the binary directly, forcing stdout/stderr to log.
+      // Cloudflared might refuse to output the URL if it detects no TTY,
+      // but usually redirecting to a file works. Let's use `stdbuf` just in case to avoid buffering issues.
+      await run('stdbuf -oL -eL ./cloudflared tunnel login > cloudflared_login.log 2>&1 &', cwd)
 
       // Poll log for the URL
       let authUrl = null
+      let finalLog = ""
       for (let i = 0; i < 15; i++) {
         await new Promise(r => setTimeout(r, 1000))
         const log = await run('cat cloudflared_login.log', cwd)
+        finalLog = log.stdout + "\n" + log.stderr
 
-        // Example URL: https://dash.cloudflare.com/argotunnel?callback=https%3A%2F%2Flogin.cloudflareaccess.org%2F...
-        const match = log.stdout.match(/https:\/\/dash\.cloudflare\.com\/argotunnel\?callback=[^\s]+/)
+        // Match the callback URL (often spans multiple lines or has slightly different formats)
+        const match = finalLog.match(/https:\/\/dash\.cloudflare\.com\/argotunnel\?callback=[^\s]+/i)
         if (match) {
           authUrl = match[0]
           break
@@ -91,7 +96,11 @@ export async function POST(request: Request) {
       if (authUrl) {
         return NextResponse.json({ success: true, authUrl, message: "Please authorize Cloudflare using the provided link." })
       } else {
-        return NextResponse.json({ error: "Failed to generate Cloudflare auth link. Check if cloudflared was installed correctly in the previous step." }, { status: 500 })
+        // Return the log output so the user can debug what actually happened (e.g. command not found, permissions)
+        const safeLog = finalLog.substring(0, 500) // Truncate to avoid massive payloads
+        return NextResponse.json({
+            error: `Failed to generate Cloudflare auth link. Log snippet: \n${safeLog}`
+        }, { status: 500 })
       }
     }
 
