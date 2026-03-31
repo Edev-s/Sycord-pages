@@ -22,10 +22,10 @@ import {
 
 const VPS_STEPS = [
   { id: "connect", label: "Test SSH Connection", description: "Verify SSH access to VPS" },
-  { id: "install-server", label: "Deploy Webhook Server", description: "Install lightweight GitHub webhook deploy server on VPS" },
+  { id: "install-server", label: "Install & Deploy Server", description: "Clone repo from GitHub, install Python dependencies, and start Flask + webhook services" },
   { id: "install-cloudflared", label: "Install Cloudflared", description: "Install the Cloudflare Tunnel client (cloudflared)" },
   { id: "get-tunnel-url", label: "Authenticate Cloudflare", description: "Generate Cloudflare auth link — open it in your browser to authorize" },
-  { id: "create-tunnel", label: "Create Tunnel", description: "Create tunnel 'sycord-server' and route server.sycord.com" },
+  { id: "create-tunnel", label: "Create Tunnel", description: "Create tunnel 'sycord-server' and route server.sycord.com (requires auth from step 4)" },
   { id: "start-tunnel", label: "Start Tunnel Service", description: "Enable cloudflared as a system service and start it" },
 ] as const
 

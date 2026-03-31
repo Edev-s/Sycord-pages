@@ -177,7 +177,7 @@ export async function POST(request: Request) {
           "sudo apt-get install -y git python3 python3-pip -qq",
           "sudo mkdir -p /var/sycord",
           `if [ -d /var/sycord/sycord-pages/.git ]; then cd /var/sycord/sycord-pages && git pull; else git clone ${repoUrl} /var/sycord/sycord-pages; fi`,
-          "sudo pip3 install -r /var/sycord/sycord-pages/server/requirements.txt --quiet 2>&1 | tail -5",
+          "sudo pip3 install --break-system-packages -r /var/sycord/sycord-pages/server/requirements.txt --quiet 2>&1 | tail -5",
           `sudo tee /etc/systemd/system/sycord-server.service > /dev/null << 'SVCEOF'\n${MAIN_SERVER_SERVICE}SVCEOF`,
           `sudo tee /etc/systemd/system/sycord-deploy.service > /dev/null << 'SVCEOF'\n${DEPLOY_SERVICE}SVCEOF`,
           "sudo systemctl daemon-reload",
@@ -232,8 +232,19 @@ export async function POST(request: Request) {
       // ── Step 5: create tunnel & route DNS ────────────────────────────────
       case "create-tunnel": {
         const tunnelName = "sycord-server"
+
+        // Verify that the user authenticated with Cloudflare first
+        const certCheck = await sshExec(conn, "ls ~/.cloudflared/cert.pem 2>/dev/null && echo 'found' || echo 'missing'")
+        if (certCheck.stdout.includes("missing")) {
+          return NextResponse.json({
+            success: false,
+            error: "Cloudflare cert.pem not found. Please complete Step 4 (Authenticate Cloudflare) first — open the auth URL in your browser and sign in.",
+            output: "~/.cloudflared/cert.pem is missing. You must authenticate with Cloudflare before creating a tunnel.",
+          })
+        }
+
         const cmds = [
-          `cloudflared tunnel list 2>&1 | grep -q '${tunnelName}' && echo 'exists' || cloudflared tunnel create ${tunnelName} 2>&1`,
+          `cloudflared tunnel list 2>&1 | grep -q '${tunnelName}' && echo 'tunnel already exists' || cloudflared tunnel create ${tunnelName} 2>&1`,
           `cloudflared tunnel route dns ${tunnelName} server.sycord.com 2>&1 || true`,
           `cloudflared tunnel list 2>&1 | grep '${tunnelName}'`,
         ]
@@ -248,17 +259,32 @@ export async function POST(request: Request) {
       // ── Step 6: create cloudflared config + start as service ─────────────
       case "start-tunnel": {
         const tunnelName = "sycord-server"
-        const cfConfig = `
-tunnel: ${tunnelName}
-credentials-file: /root/.cloudflared/${tunnelName}.json
+
+        // Find the tunnel credentials JSON (created in step 5)
+        const findCreds = await sshExec(conn, `ls ~/.cloudflared/*.json 2>/dev/null | grep -v cert | head -1`)
+        const credsFile = findCreds.stdout.trim()
+        if (!credsFile) {
+          return NextResponse.json({
+            success: false,
+            error: "Tunnel credentials JSON not found. Please run Step 5 (Create Tunnel) first.",
+            output: "No tunnel credentials file found in ~/.cloudflared/. The tunnel may not have been created.",
+          })
+        }
+
+        // Extract just the filename for the destination path
+        const credsFilename = credsFile.split("/").pop()
+
+        const cfConfig = `tunnel: ${tunnelName}
+credentials-file: /etc/cloudflared/${credsFilename}
 ingress:
   - hostname: server.sycord.com
     service: http://localhost:5000
   - service: http_status:404
 `
         const cmds = [
-          `sudo mkdir -p /root/.cloudflared`,
-          `sudo tee /root/.cloudflared/config.yml > /dev/null << 'CFEOF'\n${cfConfig}CFEOF`,
+          `sudo mkdir -p /etc/cloudflared`,
+          `sudo cp ${credsFile} /etc/cloudflared/`,
+          `sudo tee /etc/cloudflared/config.yml > /dev/null << 'CFEOF'\n${cfConfig}CFEOF`,
           `sudo cloudflared service install 2>&1 || true`,
           `sudo systemctl daemon-reload`,
           `sudo systemctl enable cloudflared`,
