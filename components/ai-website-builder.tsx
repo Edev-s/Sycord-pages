@@ -949,7 +949,8 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
     if (attempt >= 8) return
 
     try {
-      const res = await fetch(`https://micro1.sycord.com/api/logs?project_id=${repoId}`)
+      const vpsUrl = process.env.NEXT_PUBLIC_VPS_SERVER_URL || "https://vps.sycord.com"
+      const res = await fetch(`${vpsUrl}/api/logs?project_id=${repoId}`)
       if (!res.ok) {
         setTimeout(() => checkDeployLogs(repoId, attempt + 1), 5000)
         return
@@ -1001,8 +1002,9 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
               setDeployResult(data)
               setShowAutoDeploy(false)
               // After deploy succeeds, wait for the build then check logs for errors
-              if (data.repoId) {
-                  setTimeout(() => checkDeployLogs(data.repoId), DEPLOY_LOG_CHECK_DELAY_MS)
+              const logId = data.projectId || data.repoId
+              if (logId) {
+                  setTimeout(() => checkDeployLogs(logId), DEPLOY_LOG_CHECK_DELAY_MS)
               }
           } else {
               setError(data.error)

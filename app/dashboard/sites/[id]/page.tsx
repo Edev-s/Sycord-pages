@@ -485,11 +485,12 @@ export default function SiteSettingsPage() {
   const [databaseConnected, setDatabaseConnected] = useState(false)
 
   const fetchLogs = async (repoIdOverride?: string) => {
-    const targetId = repoIdOverride || project?.githubRepoId
+    const targetId = repoIdOverride || project?.vpsProjectId || project?.githubRepoId
     if (!targetId) return
 
     try {
-        const res = await fetch(`https://micro1.sycord.com/api/logs?project_id=${targetId}&limit=50`)
+        const vpsUrl = process.env.NEXT_PUBLIC_VPS_SERVER_URL || "https://vps.sycord.com"
+        const res = await fetch(`${vpsUrl}/api/logs?project_id=${targetId}&limit=50`)
         if (res.ok) {
             const data = await res.json()
             if (data.success && Array.isArray(data.logs)) {
@@ -845,14 +846,15 @@ export default function SiteSettingsPage() {
         message: result.message || `Successfully deployed ${result.filesCount} file(s) to GitHub`
       })
 
-      if (result.repoId) {
-          setProject((prev: any) => ({ ...prev, githubRepoId: result.repoId }))
+      if (result.projectId || result.repoId) {
+          const deployId = result.projectId || result.repoId
+          setProject((prev: any) => ({ ...prev, vpsProjectId: deployId, githubRepoId: deployId }))
           if (!result.cloudflareUrl) {
-              pollForDomain(result.repoId)
+              pollForDomain(deployId)
           } else {
               setProject((prev: any) => ({ ...prev, cloudflareUrl: result.cloudflareUrl }))
           }
-          fetchLogs(result.repoId)
+          fetchLogs(deployId)
       }
 
       const SUCCESS_DISPLAY_DURATION_MS = 5000
