@@ -3,7 +3,8 @@ import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import clientPromise from "@/lib/mongodb"
 
-const SYCORD_DEPLOY_API_BASE = "https://micro1.sycord.com"
+const VPS_BASE_URL =
+  process.env.VPS_SERVER_URL || "https://vps.sycord.com"
 
 export async function GET(
     request: Request,
@@ -17,89 +18,58 @@ export async function GET(
     }
 
     if (!repoId) {
-        return NextResponse.json({ error: "Missing Repo ID" }, { status: 400 })
+        return NextResponse.json({ error: "Missing project ID" }, { status: 400 })
     }
 
     try {
-        console.log(`[Domain Check] Checking domain for repo ${repoId}`)
+        console.log(`[Domain Check] Checking domain for project ${repoId}`)
 
         let domain = null
 
-        // 1. Try Upstream Domain API
+        // Query the VPS Flask server for project info
         try {
-            const res = await fetch(`${SYCORD_DEPLOY_API_BASE}/api/deploy/${repoId}/domain`)
+            const res = await fetch(`${VPS_BASE_URL}/api/projects/${repoId}`)
             if (res.ok) {
                 const data = await res.json()
                 if (data.success && data.domain) {
-                    domain = data.domain
-                    console.log(`[Domain Check] Found via API: ${domain}`)
+                    domain = `https://${data.domain}`
+                    console.log(`[Domain Check] Found via VPS: ${domain}`)
                 }
             }
         } catch (apiError) {
-            console.error(`[Domain Check] API fetch error:`, apiError)
+            console.error(`[Domain Check] VPS fetch error:`, apiError)
         }
 
-        // 2. Fallback: Parse Logs if API failed or returned generic placeholder
-        if (!domain || domain === "https://test.pages.dev") {
-            console.log(`[Domain Check] Domain is missing or placeholder, checking logs...`)
-            try {
-                const logsRes = await fetch(`${SYCORD_DEPLOY_API_BASE}/api/logs?project_id=${repoId}&limit=100`)
-                if (logsRes.ok) {
-                    const logData = await logsRes.json()
-                    if (logData.success && Array.isArray(logData.logs)) {
-                        // Join logs to search across lines if needed, or iterate
-                        // Pattern: "Take a peek over at https://..."
-                        const combinedLogs = logData.logs.join('\n')
-                        // Regex to capture URL. Handles variations.
-                        const match = combinedLogs.match(/Take a peek over at[\s\S]*?(https:\/\/[a-zA-Z0-9.-]+\.pages\.dev)/)
-                        if (match && match[1]) {
-                            // Clean potential trailing characters (like colors codes if raw, though usually stripped)
-                            // The provided log sample looks clean.
-                            domain = match[1].trim()
-                            // Remove trailing dot if present (common in sentences)
-                            if (domain.endsWith('.')) domain = domain.slice(0, -1)
-
-                            console.log(`[Domain Check] Found via Logs: ${domain}`)
-                        }
-                    }
-                }
-            } catch (logError) {
-                console.error(`[Domain Check] Log parsing error:`, logError)
-            }
-        }
-
-        // 3. Update Database if Found
+        // Update database if domain found
         if (domain) {
             const client = await clientPromise
             const db = client.db()
 
-            // Try updating with numeric ID
-            const numericId = parseInt(repoId)
-            let updateResult
+            // Try updating by project ID stored in vpsProjectId
+            const updateResult = await db.collection("users").updateOne(
+                {
+                    id: session.user.id,
+                    "projects.vpsProjectId": repoId
+                },
+                {
+                    $set: { "projects.$.cloudflareUrl": domain }
+                }
+            )
 
-            if (!isNaN(numericId)) {
-                updateResult = await db.collection("users").updateOne(
-                    {
-                        id: session.user.id,
-                        "projects.githubRepoId": numericId
-                    },
-                    {
-                        $set: { "projects.$.cloudflareUrl": domain }
-                    }
-                )
-            }
-
-            // Fallback to string ID if numeric failed
+            // Fallback: try by numeric githubRepoId for backward compat
             if (!updateResult || updateResult.matchedCount === 0) {
-                 await db.collection("users").updateOne(
-                    {
-                        id: session.user.id,
-                        "projects.githubRepoId": repoId
-                    },
-                    {
-                        $set: { "projects.$.cloudflareUrl": domain }
-                    }
-                )
+                const numericId = parseInt(repoId)
+                if (!isNaN(numericId)) {
+                    await db.collection("users").updateOne(
+                        {
+                            id: session.user.id,
+                            "projects.githubRepoId": numericId
+                        },
+                        {
+                            $set: { "projects.$.cloudflareUrl": domain }
+                        }
+                    )
+                }
             }
 
             return NextResponse.json({ success: true, domain })
