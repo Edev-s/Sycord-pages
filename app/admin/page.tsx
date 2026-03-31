@@ -62,7 +62,8 @@ import {
   User,
   ChevronDown,
   Calendar,
-  ExternalLink
+  ExternalLink,
+  Terminal
 } from "lucide-react"
 
 const availableIcons = [
@@ -97,10 +98,11 @@ const tabs = [
   { id: "users" as const, label: "Users", icon: Users },
   { id: "server" as const, label: "Server", icon: Server },
   { id: "tickets" as const, label: "Tickets", icon: AlertCircle },
+  { id: "vps" as const, label: "VPS", icon: Terminal },
   { id: "paptos" as const, label: "Legal", icon: BookOpen },
 ]
 
-type TabId = "overview" | "users" | "server" | "tickets" | "paptos"
+type TabId = "overview" | "users" | "server" | "tickets" | "vps" | "paptos"
 
 export default function AdminPage() {
   const router = useRouter()
@@ -857,6 +859,38 @@ export default function AdminPage() {
               <p className="text-sm font-medium text-foreground">Coming soon</p>
               <p className="text-xs text-muted-foreground mt-1">Support ticket system is under development</p>
             </div>
+          </div>
+        )}
+
+        {/* VPS Tab */}
+        {activeTab === "vps" && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">VPS Management</h2>
+              <p className="text-sm text-muted-foreground">Manage and configure your VPS deployment runner</p>
+            </div>
+
+            <Card className="border-border">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Terminal className="h-5 w-5 text-primary" />
+                  VPS Setup Generator
+                </CardTitle>
+                <CardDescription>
+                  Generate an automated setup script to configure your VPS to receive deployments and connect to a Cloudflare Tunnel.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <Button asChild>
+                    <Link href="/setup">
+                      <Terminal className="h-4 w-4 mr-2" />
+                      Go to VPS Setup Page
+                    </Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         )}
 

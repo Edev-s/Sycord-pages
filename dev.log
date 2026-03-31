@@ -9,68 +9,70 @@
  ✓ Starting...
 [baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
  ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
- ✓ Ready in 1384ms
- ○ Compiling / ...
- GET / 200 in 4.3s (compile: 3.9s, proxy.ts: 120ms, render: 337ms)
- ⨯ Error: Missing MONGO_URI environment variable
-    at module evaluation (lib/mongodb.ts:4:9)
-    at module evaluation (lib/auth.ts:4:1)
-    at module evaluation (app/api/auth/[...nextauth]/route.ts:2:1)
-    at Object.<anonymous> (.next/dev/server/app/api/auth/[...nextauth]/route.js:9:3)
-  2 |
-  3 | if (!process.env.MONGO_URI) {
-> 4 |   throw new Error("Missing MONGO_URI environment variable");
-    |         ^
-  5 | }
-  6 |
-  7 | const uri = process.env.MONGO_URI; {
-  page: '/api/auth/session'
+ ✓ Ready in 1308ms
+ ○ Compiling /setup ...
+ GET /setup 200 in 7.7s (compile: 6.9s, proxy.ts: 120ms, render: 718ms)
+[v0] Auth Warning: Missing GOOGLE_CLIENT_ID
+[v0] Auth Warning: Missing GOOGLE_CLIENT_SECRET
+[v0] Auth Warning: Missing AUTH_SECRET
+[v0] Auth Warning: Missing GOOGLE_CLIENT_ID
+[v0] Auth Warning: Missing GOOGLE_CLIENT_SECRET
+[v0] Auth Warning: Missing AUTH_SECRET
+[NextAuth-WARN][NEXTAUTH_URL]
+[NextAuth-WARN][NO_SECRET]
+[NextAuth-WARN][DEBUG_ENABLED]
+ GET /api/auth/session 200 in 3.3s (compile: 3.3s, proxy.ts: 25ms, render: 52ms)
+MongoServerSelectionError: getaddrinfo ENOTFOUND dummy
+    at ignore-listed frames {
+  errorLabelSet: Set(0) {},
+  reason: [TopologyDescription],
+  code: undefined,
+  [cause]: MongoNetworkError: getaddrinfo ENOTFOUND dummy
+      at ignore-listed frames {
+    errorLabelSet: Set(1) { 'ResetPool' },
+    beforeHandshake: false,
+    [cause]: Error: getaddrinfo ENOTFOUND dummy
+        at ignore-listed frames {
+      errno: -3008,
+      code: 'ENOTFOUND',
+      syscall: 'getaddrinfo',
+      hostname: 'dummy'
+    }
+  }
 }
- GET / 200 in 81ms (compile: 4ms, proxy.ts: 10ms, render: 67ms)
- GET /api/auth/session 500 in 3.3s (compile: 3.2s, proxy.ts: 5ms, render: 166ms)
- ⨯ Error: Missing MONGO_URI environment variable
-    at module evaluation (lib/mongodb.ts:4:9)
-    at module evaluation (lib/auth.ts:4:1)
-    at module evaluation (app/api/auth/[...nextauth]/route.ts:2:1)
-    at Object.<anonymous> (.next/dev/server/app/api/auth/[...nextauth]/route.js:9:3)
-  2 |
-  3 | if (!process.env.MONGO_URI) {
-> 4 |   throw new Error("Missing MONGO_URI environment variable");
-    |         ^
-  5 | }
-  6 |
-  7 | const uri = process.env.MONGO_URI; {
-  page: '/api/auth/session'
+ ⨯ unhandledRejection: MongoServerSelectionError: getaddrinfo ENOTFOUND dummy
+    at ignore-listed frames {
+  errorLabelSet: Set(0) {},
+  reason: [TopologyDescription],
+  code: undefined,
+  [cause]: MongoNetworkError: getaddrinfo ENOTFOUND dummy
+      at ignore-listed frames {
+    errorLabelSet: Set(1) { 'ResetPool' },
+    beforeHandshake: false,
+    [cause]: Error: getaddrinfo ENOTFOUND dummy
+        at ignore-listed frames {
+      errno: -3008,
+      code: 'ENOTFOUND',
+      syscall: 'getaddrinfo',
+      hostname: 'dummy'
+    }
+  }
 }
- GET /api/auth/session 500 in 115ms (compile: 90ms, proxy.ts: 8ms, render: 17ms)
- ⨯ Error: Missing MONGO_URI environment variable
-    at module evaluation (lib/mongodb.ts:4:9)
-    at module evaluation (lib/auth.ts:4:1)
-    at module evaluation (app/api/auth/[...nextauth]/route.ts:2:1)
-    at Object.<anonymous> (.next/dev/server/app/api/auth/[...nextauth]/route.js:9:3)
-  2 |
-  3 | if (!process.env.MONGO_URI) {
-> 4 |   throw new Error("Missing MONGO_URI environment variable");
-    |         ^
-  5 | }
-  6 |
-  7 | const uri = process.env.MONGO_URI; {
-  page: '/api/auth/_log'
+ ⨯ unhandledRejection:  MongoServerSelectionError: getaddrinfo ENOTFOUND dummy
+    at ignore-listed frames {
+  errorLabelSet: Set(0) {},
+  reason: [TopologyDescription],
+  code: undefined,
+  [cause]: MongoNetworkError: getaddrinfo ENOTFOUND dummy
+      at ignore-listed frames {
+    errorLabelSet: Set(1) { 'ResetPool' },
+    beforeHandshake: false,
+    [cause]: Error: getaddrinfo ENOTFOUND dummy
+        at ignore-listed frames {
+      errno: -3008,
+      code: 'ENOTFOUND',
+      syscall: 'getaddrinfo',
+      hostname: 'dummy'
+    }
+  }
 }
- POST /api/auth/_log 500 in 203ms (compile: 182ms, proxy.ts: 7ms, render: 15ms)
- ⨯ Error: Missing MONGO_URI environment variable
-    at module evaluation (lib/mongodb.ts:4:9)
-    at module evaluation (lib/auth.ts:4:1)
-    at module evaluation (app/api/auth/[...nextauth]/route.ts:2:1)
-    at Object.<anonymous> (.next/dev/server/app/api/auth/[...nextauth]/route.js:9:3)
-  2 |
-  3 | if (!process.env.MONGO_URI) {
-> 4 |   throw new Error("Missing MONGO_URI environment variable");
-    |         ^
-  5 | }
-  6 |
-  7 | const uri = process.env.MONGO_URI; {
-  page: '/api/auth/_log'
-}
- POST /api/auth/_log 500 in 104ms (compile: 80ms, proxy.ts: 10ms, render: 14ms)
-[?25h
