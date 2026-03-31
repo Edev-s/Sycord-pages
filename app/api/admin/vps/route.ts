@@ -173,11 +173,13 @@ export async function POST(request: Request) {
       case "install-server": {
         const repoUrl = getRepoUrl()
         const cmds = [
+          // Remove stale Cloudflare apt repo that causes "focal Release does not have a Release file" errors
+          "sudo rm -f /etc/apt/sources.list.d/cloudflared.list /etc/apt/sources.list.d/cloudflared.sources 2>/dev/null; true",
           "sudo apt-get update -qq",
-          "sudo apt-get install -y git python3 python3-pip -qq",
+          "sudo apt-get install -y git python3 python3-pip python3-venv -qq",
           "sudo mkdir -p /var/sycord",
           `if [ -d /var/sycord/sycord-pages/.git ]; then cd /var/sycord/sycord-pages && git pull; else git clone ${repoUrl} /var/sycord/sycord-pages; fi`,
-          "sudo pip3 install --break-system-packages -r /var/sycord/sycord-pages/server/requirements.txt --quiet 2>&1 | tail -5",
+          "sudo pip3 install --break-system-packages --ignore-installed -r /var/sycord/sycord-pages/server/requirements.txt --quiet 2>&1 | tail -5",
           `sudo tee /etc/systemd/system/sycord-server.service > /dev/null << 'SVCEOF'\n${MAIN_SERVER_SERVICE}SVCEOF`,
           `sudo tee /etc/systemd/system/sycord-deploy.service > /dev/null << 'SVCEOF'\n${DEPLOY_SERVICE}SVCEOF`,
           "sudo systemctl daemon-reload",
