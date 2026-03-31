@@ -18,11 +18,11 @@ WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "")
 REPO_DIR = os.environ.get("REPO_DIR", "/var/sycord/sycord-pages")
 SERVICE_NAME = os.environ.get("SERVICE_NAME", "sycord-server")
 
-# Validate env vars to prevent command injection
+# Validate env vars to prevent command injection and path traversal
 _SAFE_RE = re.compile(r"^[a-zA-Z0-9_./-]+$")
-if not _SAFE_RE.match(REPO_DIR):
+if not _SAFE_RE.match(REPO_DIR) or ".." in REPO_DIR:
     raise SystemExit(f"Invalid REPO_DIR: {REPO_DIR!r}")
-if not _SAFE_RE.match(SERVICE_NAME):
+if not _SAFE_RE.match(SERVICE_NAME) or "/" in SERVICE_NAME:
     raise SystemExit(f"Invalid SERVICE_NAME: {SERVICE_NAME!r}")
 
 

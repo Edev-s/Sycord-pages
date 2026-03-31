@@ -261,7 +261,7 @@ export async function POST(request: Request) {
         const tunnelName = "sycord-server"
 
         // Find the tunnel credentials JSON (created in step 5)
-        const findCreds = await sshExec(conn, `ls ~/.cloudflared/*.json 2>/dev/null | grep -v cert | head -1`)
+        const findCreds = await sshExec(conn, `ls ~/.cloudflared/*.json 2>/dev/null | grep -v 'cert.pem' | head -1`)
         const credsFile = findCreds.stdout.trim()
         if (!credsFile) {
           return NextResponse.json({
@@ -273,6 +273,13 @@ export async function POST(request: Request) {
 
         // Extract just the filename for the destination path
         const credsFilename = credsFile.split("/").pop()
+        if (!credsFilename) {
+          return NextResponse.json({
+            success: false,
+            error: "Could not determine credentials filename.",
+            output: `Unexpected credentials file path: ${credsFile}`,
+          })
+        }
 
         const cfConfig = `tunnel: ${tunnelName}
 credentials-file: /etc/cloudflared/${credsFilename}
