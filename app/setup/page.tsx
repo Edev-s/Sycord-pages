@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Terminal, Copy, Check, ArrowLeft, Play, Loader2, ExternalLink } from "lucide-react"
+import { Terminal, Copy, Check, ArrowLeft, Play, Loader2, ExternalLink, ShieldCheck, Server, Globe, Power } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
 
@@ -11,7 +11,10 @@ export default function SetupPage() {
   const [copiedBash, setCopiedBash] = useState(false)
   const [copiedPython, setCopiedPython] = useState(false)
 
-  const [isDeploying, setIsDeploying] = useState(false)
+  // State for guided steps
+  // 0: Init, 1: Auth, 2: Config, 3: Start, 4: Done
+  const [currentStep, setCurrentStep] = useState(0)
+  const [loadingStep, setLoadingStep] = useState<number | null>(null)
   const [authUrl, setAuthUrl] = useState<string | null>(null)
 
   const copyToClipboard = (text: string, setCopied: (v: boolean) => void) => {
@@ -61,7 +64,7 @@ def deploy(project_id):
         return jsonify({
             'success': True,
             'message': f'Saved {files_saved} files',
-            'domain': f'{subdomain}.vps.sycord.com' # Replace with actual domain logic if needed
+            'domain': f'{subdomain}.vps.sycord.com'
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -70,61 +73,46 @@ if __name__ == '__main__':
     # Start Flask app on port 5000 (Cloudflared will route here)
     app.run(host='0.0.0.0', port=5000)`
 
-  const handleStartSetup = async () => {
+  const runStep = async (stepNumber: number, action: string) => {
     try {
-      setIsDeploying(true)
-      toast("Starting Cloudflared configuration on VPS...")
+      setLoadingStep(stepNumber)
+      toast(`Running Step ${stepNumber + 1}...`)
+
+      const body = action === "start_server"
+        ? { action, pythonRunnerScript: pythonRunner }
+        : { action }
 
       const res = await fetch("/api/vps/setup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "start" }),
+        body: JSON.stringify(body),
       })
 
       const data = await res.json()
 
       if (!res.ok) {
-        throw new Error(data.error || "Failed to start Cloudflared login process.")
+        throw new Error(data.error || `Failed to execute step ${stepNumber + 1}.`)
       }
 
-      if (data.authUrl) {
+      if (action === "auth" && data.authUrl) {
         setAuthUrl(data.authUrl)
-        toast.success("Please authorize the Cloudflare Tunnel.")
+        toast.success(data.message)
+      } else {
+        toast.success(data.message)
+        setCurrentStep(stepNumber + 1) // Advance step
       }
 
     } catch (error: any) {
-      console.error("VPS Setup Error:", error)
+      console.error(`VPS Setup Error (Step ${stepNumber + 1}):`, error)
       toast.error(error.message || "An error occurred during VPS setup.")
     } finally {
-      setIsDeploying(false)
+      setLoadingStep(null)
     }
   }
 
-  const handleCompleteSetup = async () => {
-    try {
-      setIsDeploying(true)
-      toast("Finalizing tunnel and runner...")
-
-      const res = await fetch("/api/vps/setup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "complete", pythonRunnerScript: pythonRunner }),
-      })
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to complete VPS configuration.")
-      }
-
-      toast.success(data.message || "VPS is now configured and running!")
-      setAuthUrl(null)
-    } catch (error: any) {
-      console.error("VPS Setup Error:", error)
-      toast.error(error.message || "An error occurred finalizing the setup.")
-    } finally {
-      setIsDeploying(false)
-    }
+  // A helper function to advance to Step 2 manually after authorizing
+  const handleAuthCompleted = () => {
+     setCurrentStep(2)
   }
 
   return (
@@ -137,159 +125,175 @@ if __name__ == '__main__':
                 <ArrowLeft className="h-5 w-5" />
               </Link>
             </Button>
-            <span className="text-lg font-semibold">VPS Setup</span>
+            <span className="text-lg font-semibold flex items-center gap-2">
+              <Terminal className="h-5 w-5" />
+              VPS Automated Setup
+            </span>
           </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-8 max-w-4xl space-y-8 animate-in fade-in duration-300">
-        <div className="space-y-2 flex flex-col md:flex-row md:items-start justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">VPS Runner Configuration</h1>
-            <p className="text-muted-foreground mt-2 max-w-2xl">
-              Follow these steps to set up a low-resource runner on your Ubuntu VPS. This runner will handle GitHub pulls,
-              receive deployments from Sycord, and automatically connect to a Cloudflare Tunnel via <code className="text-foreground">server.sycord.com</code>.
-            </p>
-          </div>
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold tracking-tight">Robust Runner Configuration</h1>
+          <p className="text-muted-foreground mt-2 max-w-2xl">
+            This guided process securely connects to your Ubuntu VPS via SSH. We will download the necessary dependencies (Flask, Cloudflared), set up a robust tunnel to <code className="text-foreground">server.sycord.com</code>, and start the Flask webserver.
+          </p>
         </div>
 
-        {/* AUTOMATED SETUP SECTION */}
-        <Card className="border-primary/50 bg-primary/5">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">Automated VPS Setup</CardTitle>
-            <CardDescription>
-              We will securely connect to your VPS, install dependencies, map <code className="text-foreground">server.sycord.com</code> to your local Flask app, and run it.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {!authUrl ? (
-              <Button
-                onClick={handleStartSetup}
-                disabled={isDeploying}
-                size="lg"
-                className="w-full sm:w-auto"
-              >
-                {isDeploying ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Connecting & Preparing...
-                  </>
-                ) : (
-                  <>
-                    <Play className="mr-2 h-4 w-4 fill-current" />
-                    Start Automated Setup
-                  </>
-                )}
-              </Button>
-            ) : (
-              <div className="space-y-6 animate-in fade-in zoom-in duration-300 border border-primary p-6 rounded-lg bg-background">
-                <div className="space-y-2">
-                  <h3 className="font-semibold text-lg flex items-center gap-2">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/20 text-primary text-sm font-bold">1</span>
-                    Action Required: Cloudflare Login
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Your VPS is requesting permission to create a Cloudflare Tunnel. Please click the link below to authorize it. Select your domain (`sycord.com`) when prompted.
-                  </p>
-                </div>
+        {/* GUIDED STEPS */}
+        <div className="space-y-4">
 
-                <a
-                  href={authUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 w-full sm:w-auto"
-                >
-                  Authorize Cloudflare <ExternalLink className="ml-2 h-4 w-4" />
-                </a>
-
-                <div className="space-y-2 pt-4 border-t border-border">
-                  <h3 className="font-semibold text-lg flex items-center gap-2">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/20 text-primary text-sm font-bold">2</span>
-                    Complete Setup
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Once you have authorized the tunnel in your browser, click below to finish configuring the DNS records, writing the runner, and starting the background processes.
-                  </p>
-                  <Button
-                    onClick={handleCompleteSetup}
-                    disabled={isDeploying}
-                    variant="secondary"
-                    className="w-full sm:w-auto"
-                  >
-                    {isDeploying ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Finalizing Setup...
-                      </>
-                    ) : (
-                      <>
-                        Complete Setup
-                      </>
-                    )}
-                  </Button>
-                </div>
+          {/* Step 1: Init */}
+          <Card className={`transition-all duration-300 ${currentStep === 0 ? "border-primary shadow-[0_0_15px_rgba(255,255,255,0.05)]" : currentStep > 0 ? "opacity-60 border-border" : "opacity-40 pointer-events-none border-border"}`}>
+            <CardHeader className="flex flex-row items-start justify-between pb-2 space-y-0">
+              <div className="space-y-1">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${currentStep >= 0 ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'}`}>1</span>
+                  Initialize VPS Environment
+                </CardTitle>
+                <CardDescription>
+                  Creates <code className="text-xs">~/myapp</code>, clones the repository, and installs Cloudflared and Flask dependencies.
+                </CardDescription>
               </div>
-            )}
-          </CardContent>
-        </Card>
+              {currentStep > 0 && <Check className="h-5 w-5 text-green-500" />}
+            </CardHeader>
+            <CardContent>
+              {currentStep === 0 && (
+                <Button
+                  onClick={() => runStep(0, "init")}
+                  disabled={loadingStep === 0}
+                  className="mt-4"
+                >
+                  {loadingStep === 0 ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Initializing...</> : <><Play className="mr-2 h-4 w-4" /> Run Step 1</>}
+                </Button>
+              )}
+            </CardContent>
+          </Card>
 
-        <div className="flex items-center gap-4 my-8">
-          <div className="h-px bg-border flex-1" />
-          <span className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Or Set Up Manually</span>
-          <div className="h-px bg-border flex-1" />
+          {/* Step 2: Auth */}
+          <Card className={`transition-all duration-300 ${currentStep === 1 ? "border-primary shadow-[0_0_15px_rgba(255,255,255,0.05)]" : currentStep > 1 ? "opacity-60 border-border" : "opacity-40 pointer-events-none border-border"}`}>
+            <CardHeader className="flex flex-row items-start justify-between pb-2 space-y-0">
+              <div className="space-y-1">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${currentStep >= 1 ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'}`}>2</span>
+                  Authorize Cloudflare Tunnel
+                </CardTitle>
+                <CardDescription>
+                  Requests an authorization link from Cloudflare. You will need to open it in your browser to approve the tunnel for this server.
+                </CardDescription>
+              </div>
+              {currentStep > 1 && <Check className="h-5 w-5 text-green-500" />}
+            </CardHeader>
+            <CardContent>
+              {currentStep === 1 && !authUrl && (
+                <Button
+                  onClick={() => runStep(1, "auth")}
+                  disabled={loadingStep === 1}
+                  className="mt-4"
+                >
+                  {loadingStep === 1 ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Requesting Auth Link...</> : <><ShieldCheck className="mr-2 h-4 w-4" /> Get Auth Link</>}
+                </Button>
+              )}
+
+              {currentStep === 1 && authUrl && (
+                <div className="mt-4 p-4 border border-primary/50 bg-primary/5 rounded-lg space-y-4 animate-in fade-in zoom-in duration-300">
+                  <p className="text-sm">Click the link below, select your domain (<code className="font-mono">sycord.com</code>), and authorize the tunnel. Once it says "Success" in your browser, click "I have authorized".</p>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <a
+                      href={authUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
+                    >
+                      Open Authorization Link <ExternalLink className="ml-2 h-4 w-4" />
+                    </a>
+                    <Button variant="outline" onClick={handleAuthCompleted}>
+                      I have authorized
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Step 3: Config */}
+          <Card className={`transition-all duration-300 ${currentStep === 2 ? "border-primary shadow-[0_0_15px_rgba(255,255,255,0.05)]" : currentStep > 2 ? "opacity-60 border-border" : "opacity-40 pointer-events-none border-border"}`}>
+            <CardHeader className="flex flex-row items-start justify-between pb-2 space-y-0">
+              <div className="space-y-1">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${currentStep >= 2 ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'}`}>3</span>
+                  Configure Tunnel & DNS
+                </CardTitle>
+                <CardDescription>
+                  Creates the <code className="text-xs">sycord-runner</code> tunnel, routes DNS to <code className="text-xs">server.sycord.com</code>, and generates the <code className="text-xs">config.yml</code> file.
+                </CardDescription>
+              </div>
+              {currentStep > 2 && <Check className="h-5 w-5 text-green-500" />}
+            </CardHeader>
+            <CardContent>
+               {currentStep === 2 && (
+                <Button
+                  onClick={() => runStep(2, "config")}
+                  disabled={loadingStep === 2}
+                  className="mt-4"
+                >
+                  {loadingStep === 2 ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Configuring...</> : <><Globe className="mr-2 h-4 w-4" /> Run Step 3</>}
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Step 4: Start Server */}
+          <Card className={`transition-all duration-300 ${currentStep === 3 ? "border-primary shadow-[0_0_15px_rgba(255,255,255,0.05)]" : currentStep > 3 ? "opacity-60 border-border" : "opacity-40 pointer-events-none border-border"}`}>
+            <CardHeader className="flex flex-row items-start justify-between pb-2 space-y-0">
+              <div className="space-y-1">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${currentStep >= 3 ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'}`}>4</span>
+                  Write Runner & Start Server
+                </CardTitle>
+                <CardDescription>
+                  Writes the Python Flask app, securely starts the webserver, and initiates the Cloudflare tunnel routing process.
+                </CardDescription>
+              </div>
+              {currentStep > 3 && <Check className="h-5 w-5 text-green-500" />}
+            </CardHeader>
+            <CardContent>
+               {currentStep === 3 && (
+                <Button
+                  onClick={() => runStep(3, "start_server")}
+                  disabled={loadingStep === 3}
+                  className="mt-4 bg-green-600 hover:bg-green-700 text-white"
+                >
+                  {loadingStep === 3 ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Starting...</> : <><Power className="mr-2 h-4 w-4" /> Run Step 4 (Start Server)</>}
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+
         </div>
 
-        <Card className="border-border opacity-70">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              Initialize the VPS Environment
-            </CardTitle>
-            <CardDescription>
-              SSH into your Ubuntu VPS and run the following commands to clone the runner repository.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="relative">
-              <pre className="bg-accent/30 p-4 rounded-lg overflow-x-auto text-sm font-mono border border-border">
-                {bashCommands}
-              </pre>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="absolute top-2 right-2 h-8 bg-background/50 backdrop-blur hover:bg-background"
-                onClick={() => copyToClipboard(bashCommands, setCopiedBash)}
-              >
-                {copiedBash ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        {/* DONE STATE */}
+        {currentStep === 4 && (
+          <div className="p-6 border border-green-500/50 bg-green-500/10 rounded-lg flex flex-col items-center justify-center space-y-4 animate-in zoom-in duration-500">
+             <div className="h-16 w-16 bg-green-500/20 rounded-full flex items-center justify-center">
+               <Check className="h-8 w-8 text-green-500" />
+             </div>
+             <div className="text-center">
+               <h2 className="text-2xl font-bold text-foreground">VPS Setup Complete!</h2>
+               <p className="text-muted-foreground mt-2">The Flask webserver is running robustly in the background and is exposed to the internet.</p>
+             </div>
+             <a
+                href="https://server.sycord.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-4 inline-flex items-center text-sm text-primary hover:underline"
+             >
+                Test Connection to server.sycord.com <ExternalLink className="ml-1 h-3 w-3" />
+             </a>
+          </div>
+        )}
 
-        <Card className="border-border opacity-70">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              Create the Runner Script
-            </CardTitle>
-            <CardDescription>
-              Inside the `myapp` directory, save the following Python script as `runner.py`.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="relative">
-              <pre className="bg-accent/30 p-4 rounded-lg overflow-x-auto text-xs sm:text-sm font-mono border border-border">
-                {pythonRunner}
-              </pre>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="absolute top-2 right-2 h-8 bg-background/50 backdrop-blur hover:bg-background"
-                onClick={() => copyToClipboard(pythonRunner, setCopiedPython)}
-              >
-                {copiedPython ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
       </main>
     </div>
   )
