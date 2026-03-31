@@ -3,12 +3,14 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Terminal, Copy, Check, ArrowLeft } from "lucide-react"
+import { Terminal, Copy, Check, ArrowLeft, Play, Loader2 } from "lucide-react"
 import Link from "next/link"
+import { toast } from "sonner"
 
 export default function SetupPage() {
   const [copiedBash, setCopiedBash] = useState(false)
   const [copiedPython, setCopiedPython] = useState(false)
+  const [isDeploying, setIsDeploying] = useState(false)
 
   const copyToClipboard = (text: string, setCopied: (v: boolean) => void) => {
     navigator.clipboard.writeText(text)
@@ -93,6 +95,32 @@ if __name__ == '__main__':
     # Start Flask app
     app.run(host='0.0.0.0', port=5000)`
 
+  const handleAutomatedSetup = async () => {
+    try {
+      setIsDeploying(true)
+      toast("Initiating automated VPS setup...")
+
+      const res = await fetch("/api/vps/setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pythonRunnerScript: pythonRunner }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to setup VPS automatically.")
+      }
+
+      toast.success(data.message || "VPS configured successfully!")
+    } catch (error: any) {
+      console.error("VPS Setup Error:", error)
+      toast.error(error.message || "An error occurred during VPS setup.")
+    } finally {
+      setIsDeploying(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b border-border bg-background/95 backdrop-blur sticky top-0 z-50">
@@ -109,12 +137,37 @@ if __name__ == '__main__':
       </header>
 
       <main className="container mx-auto px-4 py-8 max-w-4xl space-y-8 animate-in fade-in duration-300">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">VPS Runner Configuration</h1>
-          <p className="text-muted-foreground">
-            Follow these steps to set up a low-resource runner on your Ubuntu VPS. This runner will handle GitHub pulls,
-            receive deployments from Sycord, and automatically connect to a Cloudflare Tunnel.
-          </p>
+        <div className="space-y-2 flex flex-col md:flex-row md:items-start justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">VPS Runner Configuration</h1>
+            <p className="text-muted-foreground mt-2 max-w-2xl">
+              Follow these steps to set up a low-resource runner on your Ubuntu VPS. This runner will handle GitHub pulls,
+              receive deployments from Sycord, and automatically connect to a Cloudflare Tunnel.
+            </p>
+          </div>
+          <Button
+            onClick={handleAutomatedSetup}
+            disabled={isDeploying}
+            className="shrink-0"
+          >
+            {isDeploying ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Setting up VPS...
+              </>
+            ) : (
+              <>
+                <Play className="mr-2 h-4 w-4 fill-current" />
+                Run Automated Setup
+              </>
+            )}
+          </Button>
+        </div>
+
+        <div className="flex items-center gap-4 my-8">
+          <div className="h-px bg-border flex-1" />
+          <span className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Or Set Up Manually</span>
+          <div className="h-px bg-border flex-1" />
         </div>
 
         <Card className="border-border">
