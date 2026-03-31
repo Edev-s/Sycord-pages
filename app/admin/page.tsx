@@ -62,7 +62,11 @@ import {
   User,
   ChevronDown,
   Calendar,
-  ExternalLink
+  ExternalLink,
+  Terminal,
+  CloudCog,
+  RefreshCw,
+  Link as LinkIcon,
 } from "lucide-react"
 
 const availableIcons = [
@@ -96,11 +100,25 @@ const tabs = [
   { id: "overview" as const, label: "Overview", icon: BarChart3 },
   { id: "users" as const, label: "Users", icon: Users },
   { id: "server" as const, label: "Server", icon: Server },
+  { id: "vps" as const, label: "VPS", icon: CloudCog },
   { id: "tickets" as const, label: "Tickets", icon: AlertCircle },
   { id: "paptos" as const, label: "Legal", icon: BookOpen },
 ]
 
-type TabId = "overview" | "users" | "server" | "tickets" | "paptos"
+type TabId = "overview" | "users" | "server" | "vps" | "tickets" | "paptos"
+
+// VPS setup steps definition
+const VPS_STEPS = [
+  { id: "connect", label: "Test Connection", description: "Verify SSH access to VPS" },
+  { id: "install-server", label: "Deploy Server", description: "Install lightweight GitHub webhook deploy server" },
+  { id: "install-cloudflared", label: "Install Cloudflared", description: "Install Cloudflare Tunnel client" },
+  { id: "get-tunnel-url", label: "Authenticate Cloudflare", description: "Open Cloudflare auth link in your browser" },
+  { id: "create-tunnel", label: "Create Tunnel", description: "Create tunnel & route server.sycord.com" },
+  { id: "start-tunnel", label: "Start Services", description: "Enable and start cloudflared as a system service" },
+] as const
+
+type VpsStep = typeof VPS_STEPS[number]["id"]
+type VpsStepStatus = "idle" | "running" | "done" | "error"
 
 export default function AdminPage() {
   const router = useRouter()
@@ -130,6 +148,34 @@ export default function AdminPage() {
   const [privacyPolicy, setPrivacyPolicy] = useState("Edit your privacy policy here...")
   const [termsOfService, setTermsOfService] = useState("Edit your terms of service here...")
 
+  // VPS State
+  const [vpsStatus, setVpsStatus] = useState<{
+    connected: boolean
+    vpsIp?: string
+    deployServer?: string
+    cloudflared?: string
+    tunnelInfo?: string
+    error?: string
+  } | null>(null)
+  const [vpsStatusLoading, setVpsStatusLoading] = useState(false)
+  const [vpsStepStatuses, setVpsStepStatuses] = useState<Record<VpsStep, VpsStepStatus>>({
+    "connect": "idle",
+    "install-server": "idle",
+    "install-cloudflared": "idle",
+    "get-tunnel-url": "idle",
+    "create-tunnel": "idle",
+    "start-tunnel": "idle",
+  })
+  const [vpsStepOutputs, setVpsStepOutputs] = useState<Record<VpsStep, string>>({
+    "connect": "",
+    "install-server": "",
+    "install-cloudflared": "",
+    "get-tunnel-url": "",
+    "create-tunnel": "",
+    "start-tunnel": "",
+  })
+  const [vpsAuthUrl, setVpsAuthUrl] = useState<string | null>(null)
+
   useEffect(() => {
     if (session?.user?.email !== "dmarton336@gmail.com") {
       router.push("/dashboard")
@@ -139,6 +185,12 @@ export default function AdminPage() {
     fetchUsers()
     fetchMonitors()
   }, [session, router])
+
+  useEffect(() => {
+    if (activeTab === "vps" && vpsStatus === null) {
+      fetchVpsStatus()
+    }
+  }, [activeTab])
 
   useEffect(() => {
     const query = searchQuery.toLowerCase()
@@ -361,6 +413,52 @@ export default function AdminPage() {
       toast.error("Failed to update subscription")
     } finally {
       setUpdatingUser(null)
+    }
+  }
+
+  const fetchVpsStatus = async () => {
+    try {
+      setVpsStatusLoading(true)
+      const res = await fetch("/api/admin/vps")
+      const data = await res.json()
+      setVpsStatus(data)
+    } catch (e) {
+      setVpsStatus({ connected: false, error: "Failed to fetch VPS status" })
+    } finally {
+      setVpsStatusLoading(false)
+    }
+  }
+
+  const runVpsStep = async (stepId: VpsStep) => {
+    setVpsStepStatuses(s => ({ ...s, [stepId]: "running" }))
+    setVpsStepOutputs(o => ({ ...o, [stepId]: "" }))
+    try {
+      const res = await fetch("/api/admin/vps", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ step: stepId }),
+      })
+      const data = await res.json()
+      if (data.success === false || data.error) {
+        setVpsStepStatuses(s => ({ ...s, [stepId]: "error" }))
+        setVpsStepOutputs(o => ({ ...o, [stepId]: data.error || data.output || "Unknown error" }))
+        toast.error(`Step failed: ${data.error || "unknown error"}`)
+      } else {
+        setVpsStepStatuses(s => ({ ...s, [stepId]: "done" }))
+        setVpsStepOutputs(o => ({ ...o, [stepId]: data.output || "Done" }))
+        if (stepId === "get-tunnel-url") {
+          if (data.authUrl) {
+            setVpsAuthUrl(data.authUrl)
+          } else if (data.alreadyAuthenticated) {
+            toast.success("Already authenticated with Cloudflare.")
+          }
+        }
+        toast.success(`Step completed: ${VPS_STEPS.find(s => s.id === stepId)?.label}`)
+      }
+    } catch (e: any) {
+      setVpsStepStatuses(s => ({ ...s, [stepId]: "error" }))
+      setVpsStepOutputs(o => ({ ...o, [stepId]: e.message }))
+      toast.error(`Step error: ${e.message}`)
     }
   }
 
@@ -842,6 +940,170 @@ export default function AdminPage() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* VPS Tab */}
+        {activeTab === "vps" && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">VPS & Cloudflare Tunnel Setup</h2>
+                <p className="text-sm text-muted-foreground">Deploy the server and connect server.sycord.com via Cloudflare Tunnel</p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={fetchVpsStatus}
+                disabled={vpsStatusLoading}
+                className="h-9 text-xs"
+              >
+                {vpsStatusLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
+                Refresh Status
+              </Button>
+            </div>
+
+            {/* VPS Status Card */}
+            {vpsStatus !== null && (
+              <Card className="border-border">
+                <CardContent className="p-5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${vpsStatus.connected ? "bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.4)]" : "bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.4)]"}`} />
+                    <span className="text-sm font-semibold text-foreground">
+                      {vpsStatus.connected ? `Connected to ${vpsStatus.vpsIp}` : "VPS Unreachable"}
+                    </span>
+                  </div>
+                  {vpsStatus.connected && (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="bg-accent/30 rounded-lg p-3 border border-border">
+                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Deploy Server</p>
+                        <p className="text-sm font-mono text-foreground">{vpsStatus.deployServer || "—"}</p>
+                      </div>
+                      <div className="bg-accent/30 rounded-lg p-3 border border-border">
+                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Cloudflared</p>
+                        <p className="text-sm font-mono text-foreground">{vpsStatus.cloudflared || "—"}</p>
+                      </div>
+                      <div className="bg-accent/30 rounded-lg p-3 border border-border">
+                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Tunnel</p>
+                        <p className="text-sm font-mono text-foreground truncate">{vpsStatus.tunnelInfo || "none"}</p>
+                      </div>
+                    </div>
+                  )}
+                  {vpsStatus.error && (
+                    <p className="text-xs text-destructive font-mono mt-2">{vpsStatus.error}</p>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Cloudflare Auth URL Banner */}
+            {vpsAuthUrl && (
+              <Card className="border-blue-500/30 bg-blue-500/5">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <LinkIcon className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground mb-1">Cloudflare Authentication Required</p>
+                      <p className="text-xs text-muted-foreground mb-3">Open the link below in your browser, sign in to Cloudflare, and authorize the tunnel. Then proceed to the next step.</p>
+                      <a
+                        href={vpsAuthUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-xs text-blue-500 hover:underline break-all font-mono"
+                      >
+                        {vpsAuthUrl}
+                        <ExternalLink className="h-3 w-3 flex-shrink-0" />
+                      </a>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Setup Steps */}
+            <div className="space-y-3">
+              {VPS_STEPS.map((step, index) => {
+                const status = vpsStepStatuses[step.id]
+                const output = vpsStepOutputs[step.id]
+                const prevStep = index > 0 ? VPS_STEPS[index - 1] : null
+                const prevDone = prevStep ? vpsStepStatuses[prevStep.id] === "done" : true
+
+                return (
+                  <Card key={step.id} className={`border-border transition-colors ${status === "done" ? "border-green-500/30 bg-green-500/5" : status === "error" ? "border-destructive/30 bg-destructive/5" : ""}`}>
+                    <CardContent className="p-5">
+                      <div className="flex items-start gap-4">
+                        {/* Step number / status icon */}
+                        <div className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold ${
+                          status === "done" ? "bg-green-500/20 text-green-500" :
+                          status === "error" ? "bg-destructive/20 text-destructive" :
+                          status === "running" ? "bg-primary/10 text-primary" :
+                          "bg-accent text-muted-foreground"
+                        }`}>
+                          {status === "done" ? <Check className="h-4 w-4" /> :
+                           status === "running" ? <Loader2 className="h-4 w-4 animate-spin" /> :
+                           status === "error" ? <X className="h-4 w-4" /> :
+                           <span>{index + 1}</span>}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-3 flex-wrap">
+                            <div>
+                              <p className="text-sm font-semibold text-foreground">{step.label}</p>
+                              <p className="text-xs text-muted-foreground mt-0.5">{step.description}</p>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant={status === "done" ? "outline" : "default"}
+                              onClick={() => runVpsStep(step.id)}
+                              disabled={status === "running" || (!prevDone && status === "idle")}
+                              className="h-8 text-xs flex-shrink-0"
+                            >
+                              {status === "running" ? (
+                                <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />Running…</>
+                              ) : status === "done" ? (
+                                <><RotateCcw className="h-3.5 w-3.5 mr-1.5" />Re-run</>
+                              ) : (
+                                <><Terminal className="h-3.5 w-3.5 mr-1.5" />Run</>
+                              )}
+                            </Button>
+                          </div>
+
+                          {/* Output */}
+                          {output && (
+                            <pre className="mt-3 p-3 bg-background border border-border rounded-md text-[11px] font-mono text-muted-foreground whitespace-pre-wrap break-all max-h-40 overflow-y-auto">
+                              {output}
+                            </pre>
+                          )}
+
+                          {/* Special: show auth URL button for get-tunnel-url step */}
+                          {step.id === "get-tunnel-url" && status === "done" && vpsAuthUrl && (
+                            <a
+                              href={vpsAuthUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="mt-2 inline-flex items-center gap-1.5 text-xs bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 px-3 py-1.5 rounded-md transition-colors font-medium"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                              Open Cloudflare Auth Link
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+
+            {/* Info footer */}
+            <Card className="border-border bg-accent/20">
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">How it works:</span> The setup installs a lightweight Python deploy server on your VPS (handles GitHub webhooks → git pull → restart) and connects it to <code className="bg-accent px-1 rounded text-[11px]">server.sycord.com</code> via a Cloudflare Tunnel. Full setup walkthrough also available at{" "}
+                  <a href="/setup" className="text-primary hover:underline">/setup</a>.
+                </p>
+              </CardContent>
+            </Card>
           </div>
         )}
 
