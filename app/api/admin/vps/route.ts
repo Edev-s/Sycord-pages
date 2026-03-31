@@ -18,6 +18,10 @@ function getVpsCreds() {
 function getRepoUrl(): string {
   const token = process.env.GITHUB_TOKEN
   if (token) {
+    // Reject tokens containing shell metacharacters to prevent injection
+    if (!/^[A-Za-z0-9_.-]+$/.test(token)) {
+      throw new Error("GITHUB_TOKEN contains invalid characters")
+    }
     return GITHUB_REPO.replace("https://", `https://${token}@`)
   }
   return GITHUB_REPO
@@ -179,7 +183,7 @@ export async function POST(request: Request) {
           "sudo systemctl daemon-reload",
           "sudo systemctl enable sycord-server sycord-deploy",
           "sudo systemctl restart sycord-server sycord-deploy",
-          "sleep 2 && systemctl is-active sycord-server && systemctl is-active sycord-deploy",
+          "sleep 2 && sudo systemctl is-active sycord-server && sudo systemctl is-active sycord-deploy",
         ]
         const results: string[] = []
         for (const cmd of cmds) {
@@ -259,7 +263,7 @@ ingress:
           `sudo systemctl daemon-reload`,
           `sudo systemctl enable cloudflared`,
           `sudo systemctl restart cloudflared`,
-          `sleep 2 && systemctl is-active cloudflared`,
+          `sleep 2 && sudo systemctl is-active cloudflared`,
         ]
         const results: string[] = []
         for (const cmd of cmds) {

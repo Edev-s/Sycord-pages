@@ -6,6 +6,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import os
+import re
 import subprocess
 import sys
 
@@ -16,6 +17,13 @@ app = Flask(__name__)
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "")
 REPO_DIR = os.environ.get("REPO_DIR", "/var/sycord/sycord-pages")
 SERVICE_NAME = os.environ.get("SERVICE_NAME", "sycord-server")
+
+# Validate env vars to prevent command injection
+_SAFE_RE = re.compile(r"^[a-zA-Z0-9_./-]+$")
+if not _SAFE_RE.match(REPO_DIR):
+    raise SystemExit(f"Invalid REPO_DIR: {REPO_DIR!r}")
+if not _SAFE_RE.match(SERVICE_NAME):
+    raise SystemExit(f"Invalid SERVICE_NAME: {SERVICE_NAME!r}")
 
 
 def _verify(payload: bytes, sig: str | None) -> bool:
@@ -32,7 +40,7 @@ def webhook():
         return jsonify(error="Invalid signature"), 401
 
     subprocess.Popen(
-        ["bash", "-c", f"cd {REPO_DIR} && git pull && systemctl restart {SERVICE_NAME}"]
+        ["bash", "-c", f"cd {REPO_DIR} && git pull && sudo systemctl restart {SERVICE_NAME}"]
     )
     return jsonify(success=True)
 
