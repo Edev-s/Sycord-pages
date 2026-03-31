@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { Client } from "ssh2"
 
+const GITHUB_REPO = "https://github.com/Edev-s/Sycord-pages.git"
+
 /** Resolve VPS credentials from environment. */
 function getVpsCreds() {
   const host = process.env.VPS_IP
@@ -10,6 +12,15 @@ function getVpsCreds() {
     throw new Error("VPS_IP, VPS_USERNAME, and VPS_PASSWORD must be set in environment variables.")
   }
   return { host, username, password }
+}
+
+/** Build the git clone URL, embedding a token when GITHUB_TOKEN is set. */
+function getRepoUrl(): string {
+  const token = process.env.GITHUB_TOKEN
+  if (token) {
+    return GITHUB_REPO.replace("https://", `https://${token}@`)
+  }
+  return GITHUB_REPO
 }
 
 /** Open an SSH connection and return the connected client. */
@@ -60,50 +71,35 @@ function sshExec(
 }
 
 // ---------------------------------------------------------------------------
-// Embedded lightweight deploy-webhook server (written to VPS via SSH)
+// Systemd service templates
 // ---------------------------------------------------------------------------
-const DEPLOY_SERVER_SCRIPT = `#!/usr/bin/env python3
-"""Sycord VPS Deploy Server - receives GitHub webhooks and redeploys."""
-import os, hmac, hashlib, subprocess, sys
-from flask import Flask, request, jsonify
 
-app = Flask(__name__)
-WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "")
-REPO_DIR = os.environ.get("REPO_DIR", "/var/sycord/sycord-pages")
-RESTART_CMD = os.environ.get("RESTART_CMD", "systemctl restart sycord-server")
+// Main Flask application server (port 5000)
+const MAIN_SERVER_SERVICE = `[Unit]
+Description=Sycord Pages Server
+After=network.target
 
-if not WEBHOOK_SECRET:
-    print("ERROR: WEBHOOK_SECRET environment variable is required", file=sys.stderr)
-    sys.exit(1)
+[Service]
+ExecStart=/usr/bin/gunicorn --bind 0.0.0.0:5000 --workers 2 app:app
+WorkingDirectory=/var/sycord/sycord-pages/server
+Restart=always
+Environment=SYCORD_DATA_DIR=/var/sycord/data
 
-def _verify(payload, sig):
-    mac = hmac.new(WEBHOOK_SECRET.encode(), payload, hashlib.sha256).hexdigest()
-    return hmac.compare_digest(f"sha256={mac}", sig or "")
-
-@app.route("/webhook", methods=["POST"])
-def webhook():
-    if not _verify(request.data, request.headers.get("X-Hub-Signature-256", "")):
-        return jsonify(error="Invalid signature"), 401
-    repo = os.path.basename(REPO_DIR)
-    restart = os.path.basename(RESTART_CMD.split()[0])
-    subprocess.Popen(["bash", "-c", f"cd /var/sycord/{repo} && git pull && systemctl restart {restart}"])
-    return jsonify(success=True)
-
-@app.route("/health")
-def health():
-    return jsonify(status="ok")
+[Install]
+WantedBy=multi-user.target
 `
 
+// Deploy webhook receiver (port 8080)
 const DEPLOY_SERVICE = `[Unit]
 Description=Sycord Deploy Server
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/gunicorn --bind 0.0.0.0:8080 --workers 1 deploy-server:app
-WorkingDirectory=/var/sycord
+ExecStart=/usr/bin/gunicorn --bind 0.0.0.0:8080 --workers 1 deploy_server:app
+WorkingDirectory=/var/sycord/sycord-pages/server
 Restart=always
 Environment=REPO_DIR=/var/sycord/sycord-pages
-Environment=RESTART_CMD=sycord-server
+Environment=SERVICE_NAME=sycord-server
 
 [Install]
 WantedBy=multi-user.target
@@ -169,18 +165,21 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true, output: info.stdout.trim() })
       }
 
-      // ── Step 2: install lightweight deploy webhook server ─────────────────
+      // ── Step 2: install server via git clone from GitHub ───────────────
       case "install-server": {
+        const repoUrl = getRepoUrl()
         const cmds = [
-          "mkdir -p /var/sycord/sycord-pages",
-          `cat > /var/sycord/deploy-server.py << 'PYEOF'\n${DEPLOY_SERVER_SCRIPT}\nPYEOF`,
-          "chmod 700 /var/sycord/deploy-server.py",
-          `cat > /etc/systemd/system/sycord-deploy.service << 'SVCEOF'\n${DEPLOY_SERVICE}\nSVCEOF`,
-          "pip3 install flask gunicorn --quiet 2>&1 | tail -3 || apt-get install -y python3-flask gunicorn -qq",
-          "systemctl daemon-reload",
-          "systemctl enable sycord-deploy",
-          "systemctl restart sycord-deploy",
-          "sleep 2 && systemctl is-active sycord-deploy",
+          "sudo apt-get update -qq",
+          "sudo apt-get install -y git python3 python3-pip -qq",
+          "sudo mkdir -p /var/sycord",
+          `if [ -d /var/sycord/sycord-pages/.git ]; then cd /var/sycord/sycord-pages && git pull; else git clone ${repoUrl} /var/sycord/sycord-pages; fi`,
+          "sudo pip3 install -r /var/sycord/sycord-pages/server/requirements.txt --quiet 2>&1 | tail -5",
+          `sudo tee /etc/systemd/system/sycord-server.service > /dev/null << 'SVCEOF'\n${MAIN_SERVER_SERVICE}SVCEOF`,
+          `sudo tee /etc/systemd/system/sycord-deploy.service > /dev/null << 'SVCEOF'\n${DEPLOY_SERVICE}SVCEOF`,
+          "sudo systemctl daemon-reload",
+          "sudo systemctl enable sycord-server sycord-deploy",
+          "sudo systemctl restart sycord-server sycord-deploy",
+          "sleep 2 && systemctl is-active sycord-server && systemctl is-active sycord-deploy",
         ]
         const results: string[] = []
         for (const cmd of cmds) {
@@ -190,12 +189,12 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true, output: results.join("\n").trim() })
       }
 
-      // ── Step 3: install cloudflared ───────────────────────────────────────
+      // ── Step 3: install cloudflared via .deb package (Ubuntu) ──────────
       case "install-cloudflared": {
         const installCmd = [
-          "curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg | gpg --dearmor -o /usr/share/keyrings/cloudflare-main.gpg 2>&1",
-          `echo 'deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/ focal main' | tee /etc/apt/sources.list.d/cloudflare-main.list`,
-          "apt-get update -qq && apt-get install -y cloudflared -qq",
+          "curl -L --output /tmp/cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb",
+          "sudo dpkg -i /tmp/cloudflared.deb",
+          "rm -f /tmp/cloudflared.deb",
           "cloudflared --version",
         ].join(" && ")
 
@@ -254,12 +253,12 @@ ingress:
   - service: http_status:404
 `
         const cmds = [
-          `mkdir -p /root/.cloudflared`,
-          `cat > /root/.cloudflared/config.yml << 'CFEOF'\n${cfConfig}\nCFEOF`,
-          `cloudflared service install 2>&1 || true`,
-          `systemctl daemon-reload`,
-          `systemctl enable cloudflared`,
-          `systemctl restart cloudflared`,
+          `sudo mkdir -p /root/.cloudflared`,
+          `sudo tee /root/.cloudflared/config.yml > /dev/null << 'CFEOF'\n${cfConfig}CFEOF`,
+          `sudo cloudflared service install 2>&1 || true`,
+          `sudo systemctl daemon-reload`,
+          `sudo systemctl enable cloudflared`,
+          `sudo systemctl restart cloudflared`,
           `sleep 2 && systemctl is-active cloudflared`,
         ]
         const results: string[] = []
