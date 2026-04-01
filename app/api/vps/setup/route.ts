@@ -26,7 +26,8 @@ export async function POST(request: Request) {
     const ssh = new NodeSSH()
     await ssh.connect({ host, username, password })
 
-    const cwd = `/home/${username}/myapp`
+    const homeDir = username === 'root' ? '/root' : `/home/${username}`
+    const cwd = `${homeDir}/myapp`
 
     // Helper to log errors but not necessarily throw, useful for checking if a command worked
     const run = async (cmd: string, dir: string = cwd) => {
@@ -42,12 +43,12 @@ export async function POST(request: Request) {
       console.log(`[VPS Setup] Running Step 1: Init...`)
 
       // Ensure absolute paths
-      await run(`mkdir -p ${cwd}`, `/home/${username}`)
+      await run(`mkdir -p ${cwd}`, homeDir)
 
       // Clone if empty
       const lsRes = await run(`ls -A ${cwd}`)
       if (!lsRes.stdout) {
-          await run(`git clone https://github.com/MDavidka/server-sycord ${cwd} || true`, `/home/${username}`)
+          await run(`git clone https://github.com/MDavidka/server-sycord ${cwd} || true`, homeDir)
       }
 
       console.log(`[VPS Setup] Installing Cloudflared locally...`)
@@ -146,7 +147,7 @@ export async function POST(request: Request) {
 
       // Generate config.yml
       const configYml = `tunnel: ${tunnelId}
-credentials-file: /home/${username}/.cloudflared/${tunnelId}.json
+credentials-file: ${homeDir}/.cloudflared/${tunnelId}.json
 
 ingress:
   - hostname: server.sycord.com
@@ -175,20 +176,32 @@ ingress:
       await run('pkill -f "python3 runner.py" || true', cwd)
       await run('pkill -f "cloudflared tunnel run" || true', cwd)
 
-      // Start processes
-      await run('nohup python3 runner.py > runner.log 2>&1 &', cwd)
-      // Explicitly point to the config.yml so cloudflared knows where to route traffic
-      await run(`nohup ./cloudflared tunnel --config config.yml run sycord-runner > tunnel.log 2>&1 &`, cwd)
+      // Start processes using absolute paths to avoid environment PATH issues inside nohup over SSH
+      await run(`nohup python3 ${cwd}/runner.py > ${cwd}/runner.log 2>&1 &`, cwd)
 
-      // Optional check if they stayed alive for 1s
-      await new Promise(r => setTimeout(r, 1000))
-      const psRes = await run('pgrep -f "python3 runner.py"', cwd)
-      if (!psRes.stdout) {
+      // Explicitly point to the config.yml so cloudflared knows where to route traffic
+      await run(`nohup ${cwd}/cloudflared tunnel --config ${cwd}/config.yml run sycord-runner > ${cwd}/tunnel.log 2>&1 &`, cwd)
+
+      // Wait 2 seconds to see if cloudflared crashes immediately
+      await new Promise(r => setTimeout(r, 2000))
+
+      const psResFlask = await run('pgrep -f "python3.*/runner.py"', cwd)
+      if (!psResFlask.stdout) {
          console.warn("[VPS Setup] Flask server doesn't appear to be running after start.")
       }
 
+      const psResTunnel = await run('pgrep -f "cloudflared tunnel.*sycord-runner"', cwd)
+      if (!psResTunnel.stdout) {
+         console.warn("[VPS Setup] Cloudflared tunnel crashed. Fetching log...")
+         const logTail = await run(`tail -n 20 ${cwd}/tunnel.log`, cwd)
+         ssh.dispose()
+         return NextResponse.json({
+           error: `Tunnel crashed immediately. Log output:\n${logTail.stdout || logTail.stderr || 'No log output found.'}`
+         }, { status: 500 })
+      }
+
       ssh.dispose()
-      return NextResponse.json({ success: true, message: "VPS Setup Complete! Flask server is running and exposed via Cloudflare." })
+      return NextResponse.json({ success: true, message: "VPS Setup Complete! Flask server and Tunnel are both running." })
     }
 
     ssh.dispose()
