@@ -169,12 +169,16 @@ ingress:
         return NextResponse.json({ error: "Missing python runner script" }, { status: 400 })
       }
 
-      // Write runner.py
+      // Write runner.py (force remove old one first)
+      await run(`rm -f runner.py`, cwd)
       await ssh.execCommand(`cat > runner.py`, { cwd, stdin: pythonRunnerScript })
 
-      // Kill existing processes
-      await run('pkill -f "python3 runner.py" || true', cwd)
-      await run('pkill -f "cloudflared tunnel run" || true', cwd)
+      // Kill existing processes forcefully
+      await run('pkill -9 -f "runner\\.py" || true', cwd)
+      await run('pkill -9 -f "cloudflared tunnel run" || true', cwd)
+
+      // Force free port 5000 just in case pkill missed it
+      await run('fuser -k 5000/tcp || true', cwd)
 
       // Start processes using absolute paths to avoid environment PATH issues inside nohup over SSH
       await run(`nohup python3 ${cwd}/runner.py > ${cwd}/runner.log 2>&1 &`, cwd)
