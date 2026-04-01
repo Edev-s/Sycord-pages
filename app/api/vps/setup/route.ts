@@ -84,9 +84,15 @@ export async function POST(request: Request) {
         finalLog = log.stdout + "\n" + log.stderr
 
         // Match the callback URL (often spans multiple lines or has slightly different formats)
-        const match = finalLog.match(/https:\/\/dash\.cloudflare\.com\/argotunnel\?callback=[^\s]+/i)
+        // cloudflared outputs ANSI codes and mixed newlines, so we clean it up and use a more permissive regex
+        // to catch the full encoded url
+        const cleanLog = finalLog.replace(/\x1b\[[0-9;]*m/g, '').replace(/\\n/g, '\n').trim()
+
+        // Find the URL specifically. It's usually `https://dash.cloudflare.com/argotunnel?callback=...`
+        // We match until a space, newline, or a specific control character to avoid chopping off parts of the URL.
+        const match = cleanLog.match(/(https:\/\/dash\.cloudflare\.com\/argotunnel\?callback=[^\s"'\n\r]+)/i)
         if (match) {
-          authUrl = match[0]
+          authUrl = match[1] // capture group ensures we don't grab trailing random chars
           break
         }
       }
