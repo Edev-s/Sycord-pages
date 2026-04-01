@@ -1487,6 +1487,14 @@ export default function SiteSettingsPage() {
                       <p className="text-muted-foreground">Manage AI-generated content (Vite + TypeScript)</p>
                     </div>
                     <div className="flex items-center gap-2">
+                      <Button
+                        onClick={handleDeploy}
+                        disabled={isDeploying || generatedPages.length === 0}
+                        className="bg-[#22a868] text-white hover:bg-[#1e955c] transition-colors"
+                      >
+                        {isDeploying ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Globe className="h-4 w-4 mr-2" />}
+                        {isDeploying ? "Deploying..." : "Deploy to Sycord"}
+                      </Button>
                       {generatedPages.length > 0 && (
                         <Button
                           variant="destructive"
