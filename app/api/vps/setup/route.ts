@@ -150,7 +150,7 @@ credentials-file: /home/${username}/.cloudflared/${tunnelId}.json
 
 ingress:
   - hostname: server.sycord.com
-    service: http://localhost:5000
+    service: http://127.0.0.1:5000
   - service: http_status:404`
 
       await ssh.execCommand(`cat > config.yml`, { cwd, stdin: configYml })
@@ -177,7 +177,15 @@ ingress:
 
       // Start processes
       await run('nohup python3 runner.py > runner.log 2>&1 &', cwd)
-      await run(`nohup ./cloudflared tunnel run sycord-runner > tunnel.log 2>&1 &`, cwd)
+      // Explicitly point to the config.yml so cloudflared knows where to route traffic
+      await run(`nohup ./cloudflared tunnel --config config.yml run sycord-runner > tunnel.log 2>&1 &`, cwd)
+
+      // Optional check if they stayed alive for 1s
+      await new Promise(r => setTimeout(r, 1000))
+      const psRes = await run('pgrep -f "python3 runner.py"', cwd)
+      if (!psRes.stdout) {
+         console.warn("[VPS Setup] Flask server doesn't appear to be running after start.")
+      }
 
       ssh.dispose()
       return NextResponse.json({ success: true, message: "VPS Setup Complete! Flask server is running and exposed via Cloudflare." })
