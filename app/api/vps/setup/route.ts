@@ -88,6 +88,16 @@ export async function POST(request: Request) {
         // to catch the full encoded url
         const cleanLog = finalLog.replace(/\x1b\[[0-9;]*m/g, '').replace(/\\n/g, '\n').trim()
 
+        // Check if the server is already authorized
+        if (cleanLog.includes("You have an existing certificate") || cleanLog.includes("cert.pem which login would overwrite")) {
+          ssh.dispose()
+          return NextResponse.json({
+            success: true,
+            alreadyAuthorized: true,
+            message: "Cloudflare tunnel is already authorized on this server."
+          })
+        }
+
         // Find the URL specifically. It's usually `https://dash.cloudflare.com/argotunnel?callback=...`
         // We match until a space, newline, or a specific control character to avoid chopping off parts of the URL.
         const match = cleanLog.match(/(https:\/\/dash\.cloudflare\.com\/argotunnel\?callback=[^\s"'\n\r]+)/i)

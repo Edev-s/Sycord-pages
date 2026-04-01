@@ -94,9 +94,14 @@ if __name__ == '__main__':
         throw new Error(data.error || `Failed to execute step ${stepNumber + 1}.`)
       }
 
-      if (action === "auth" && data.authUrl) {
-        setAuthUrl(data.authUrl)
-        toast.success(data.message)
+      if (action === "auth") {
+        if (data.alreadyAuthorized) {
+          toast.success(data.message)
+          setCurrentStep(stepNumber + 1) // Advance to config step
+        } else if (data.authUrl) {
+          setAuthUrl(data.authUrl)
+          toast.success(data.message)
+        }
       } else {
         toast.success(data.message)
         setCurrentStep(stepNumber + 1) // Advance step
