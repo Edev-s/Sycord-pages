@@ -36,6 +36,29 @@ app = Flask(__name__)
 DEPLOY_DIR = os.path.join(os.path.expanduser("~"), "myapp", "deployments")
 os.makedirs(DEPLOY_DIR, exist_ok=True)
 
+@app.route('/')
+def index():
+    return """
+    <html>
+      <head>
+        <title>Sycord VPS Runner</title>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0a0a0a; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+          .container { text-align: center; padding: 2rem; background: #141414; border: 1px solid #333; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+          h1 { margin-bottom: 0.5rem; color: #10b981; }
+          p { color: #a1a1aa; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h1>VPS Runner is Online</h1>
+          <p>Your Sycord deployment server is running successfully behind Cloudflare.</p>
+          <p style="font-size: 0.8rem; margin-top: 1rem; color: #555;">Listening for deployments on /api/deploy/&lt;project_id&gt;</p>
+        </div>
+      </body>
+    </html>
+    """
+
 @app.route('/api/deploy/<project_id>', methods=['POST'])
 def deploy(project_id):
     try:
