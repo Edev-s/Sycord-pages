@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Terminal, Copy, Check, ArrowLeft, Play, Loader2, ExternalLink, ShieldCheck, Server, Globe, Power } from "lucide-react"
+import { Terminal, Copy, Check, ArrowLeft, Play, Loader2, ExternalLink, ShieldCheck, Server, Globe, Power, Lock } from "lucide-react"
+import { Textarea } from "@/components/ui/textarea"
 import Link from "next/link"
 import { toast } from "sonner"
 
@@ -17,6 +18,9 @@ export default function SetupPage() {
   const [loadingStep, setLoadingStep] = useState<number | null>(null)
   const [authUrl, setAuthUrl] = useState<string | null>(null)
   const [tunnelId, setTunnelId] = useState<string | null>(null)
+
+  const [sslCert, setSslCert] = useState("")
+  const [sslKey, setSslKey] = useState("")
 
   const copyToClipboard = (text: string, setCopied: (v: boolean) => void) => {
     navigator.clipboard.writeText(text)
@@ -135,8 +139,20 @@ def deploy(project_id):
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    # Start Flask app on port 5000 (Cloudflared will route here)
-    app.run(host='0.0.0.0', port=5000)`
+    # Start Flask app. If Cloudflare Origin Certs exist, run securely on port 443.
+    # Otherwise run on port 5000 for standard HTTP Cloudflare Tunnel routing.
+    cert_path = 'cert.pem'
+    key_path = 'privkey.pem'
+    if os.path.exists(cert_path) and os.path.exists(key_path):
+        print("Starting Flask with SSL Context on port 443...")
+        try:
+            app.run(host='0.0.0.0', port=443, ssl_context=(cert_path, key_path))
+        except PermissionError:
+            print("Permission denied on port 443, falling back to 8443 with SSL...")
+            app.run(host='0.0.0.0', port=8443, ssl_context=(cert_path, key_path))
+    else:
+        print("Starting Flask on HTTP port 5000...")
+        app.run(host='0.0.0.0', port=5000)`
 
   const runStep = async (stepNumber: number, action: string) => {
     try {
@@ -144,7 +160,7 @@ if __name__ == '__main__':
       toast(`Running Step ${stepNumber + 1}...`)
 
       const body = action === "start_server"
-        ? { action, pythonRunnerScript: pythonRunner }
+        ? { action, pythonRunnerScript: pythonRunner, sslCert, sslKey }
         : { action }
 
       const res = await fetch("/api/vps/setup", {
@@ -344,13 +360,45 @@ if __name__ == '__main__':
             </CardHeader>
             <CardContent>
                {currentStep === 3 && (
-                <Button
-                  onClick={() => runStep(3, "start_server")}
-                  disabled={loadingStep === 3}
-                  className="mt-4 bg-green-600 hover:bg-green-700 text-white"
-                >
-                  {loadingStep === 3 ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Starting...</> : <><Power className="mr-2 h-4 w-4" /> Run Step 4 (Start Server)</>}
-                </Button>
+                 <div className="space-y-4 mt-4">
+                   <div className="space-y-4 bg-accent/20 p-4 rounded-lg border border-border">
+                     <div className="flex items-center gap-2">
+                       <Lock className="h-4 w-4 text-muted-foreground" />
+                       <h4 className="text-sm font-medium">Optional: Cloudflare Origin Certificate</h4>
+                     </div>
+                     <p className="text-xs text-muted-foreground">
+                       If you are bypassing the tunnel and routing DNS directly to your VPS IP for full strict SSL control over second-level subdomains, paste your Cloudflare Origin Certificate and Private Key here. The runner will automatically bind them to port 443/8443. Leave blank if you are using standard Cloudflare Tunnels (which encrypts automatically).
+                     </p>
+                     <div className="grid gap-4 md:grid-cols-2">
+                       <div className="space-y-2">
+                         <label className="text-xs font-medium">Certificate (cert.pem)</label>
+                         <Textarea
+                           placeholder="-----BEGIN CERTIFICATE-----&#10;..."
+                           className="font-mono text-xs h-32 resize-none"
+                           value={sslCert}
+                           onChange={e => setSslCert(e.target.value)}
+                         />
+                       </div>
+                       <div className="space-y-2">
+                         <label className="text-xs font-medium">Private Key (privkey.pem)</label>
+                         <Textarea
+                           placeholder="-----BEGIN PRIVATE KEY-----&#10;..."
+                           className="font-mono text-xs h-32 resize-none"
+                           value={sslKey}
+                           onChange={e => setSslKey(e.target.value)}
+                         />
+                       </div>
+                     </div>
+                   </div>
+
+                   <Button
+                     onClick={() => runStep(3, "start_server")}
+                     disabled={loadingStep === 3}
+                     className="bg-green-600 hover:bg-green-700 text-white"
+                   >
+                     {loadingStep === 3 ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Starting...</> : <><Power className="mr-2 h-4 w-4" /> Run Step 4 (Start Server)</>}
+                   </Button>
+                 </div>
               )}
             </CardContent>
           </Card>

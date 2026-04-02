@@ -179,6 +179,17 @@ ingress:
         return NextResponse.json({ error: "Missing python runner script" }, { status: 400 })
       }
 
+      // Write optional SSL Certs if provided
+      const { sslCert, sslKey } = body
+      if (sslCert && sslKey) {
+          console.log(`[VPS Setup] Writing custom SSL Origin Certificates...`)
+          await ssh.execCommand(`cat > cert.pem`, { cwd, stdin: sslCert.trim() })
+          await ssh.execCommand(`cat > privkey.pem`, { cwd, stdin: sslKey.trim() })
+      } else {
+          // Remove old certs if user is running without them
+          await run(`rm -f cert.pem privkey.pem`, cwd)
+      }
+
       // Write runner.py (force remove old one first)
       await run(`rm -f runner.py`, cwd)
       await ssh.execCommand(`cat > runner.py`, { cwd, stdin: pythonRunnerScript })
