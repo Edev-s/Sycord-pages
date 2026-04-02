@@ -144,6 +144,8 @@ export async function POST(request: Request) {
 
       // Route DNS
       await run(`./cloudflared tunnel route dns sycord-runner server.sycord.com || true`, cwd)
+      // Attempt to route wildcard (may fail if zone doesn't support it directly via CLI, so we use || true)
+      await run(`./cloudflared tunnel route dns sycord-runner "*.vps.sycord.com" || true`, cwd)
 
       // Generate config.yml
       const configYml = `tunnel: ${tunnelId}
@@ -152,12 +154,18 @@ credentials-file: ${homeDir}/.cloudflared/${tunnelId}.json
 ingress:
   - hostname: server.sycord.com
     service: http://127.0.0.1:5000
+  - hostname: "*.vps.sycord.com"
+    service: http://127.0.0.1:5000
   - service: http_status:404`
 
       await ssh.execCommand(`cat > config.yml`, { cwd, stdin: configYml })
 
       ssh.dispose()
-      return NextResponse.json({ success: true, message: "Tunnel sycord-runner created and routed to server.sycord.com!" })
+      return NextResponse.json({
+        success: true,
+        tunnelId: tunnelId,
+        message: "Tunnel sycord-runner created! DNS routing attempted for server.sycord.com and *.vps.sycord.com."
+      })
     }
 
     // --- STEP 4: START SERVER ---

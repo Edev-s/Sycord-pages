@@ -16,6 +16,7 @@ export default function SetupPage() {
   const [currentStep, setCurrentStep] = useState(0)
   const [loadingStep, setLoadingStep] = useState<number | null>(null)
   const [authUrl, setAuthUrl] = useState<string | null>(null)
+  const [tunnelId, setTunnelId] = useState<string | null>(null)
 
   const copyToClipboard = (text: string, setCopied: (v: boolean) => void) => {
     navigator.clipboard.writeText(text)
@@ -27,7 +28,7 @@ export default function SetupPage() {
 git clone https://github.com/MDavidka/server-sycord myapp
 cd myapp`
 
-  const pythonRunner = `from flask import Flask, request, jsonify
+  const pythonRunner = `from flask import Flask, request, jsonify, send_from_directory, abort
 import os
 
 app = Flask(__name__)
@@ -36,28 +37,55 @@ app = Flask(__name__)
 DEPLOY_DIR = os.path.join(os.path.expanduser("~"), "myapp", "deployments")
 os.makedirs(DEPLOY_DIR, exist_ok=True)
 
-@app.route('/')
-def index():
-    return """
-    <html>
-      <head>
-        <title>Sycord VPS Runner</title>
-        <style>
-          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0a0a0a; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-          .container { text-align: center; padding: 2rem; background: #141414; border: 1px solid #333; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-          h1 { margin-bottom: 0.5rem; color: #10b981; }
-          p { color: #a1a1aa; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <h1>VPS Runner is Online</h1>
-          <p>Your Sycord deployment server is running successfully behind Cloudflare.</p>
-          <p style="font-size: 0.8rem; margin-top: 1rem; color: #555;">Listening for deployments on /api/deploy/&lt;project_id&gt;</p>
-        </div>
-      </body>
-    </html>
-    """
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def wildcard_router(path):
+    host = request.headers.get('Host', '')
+
+    # Serve the runner index page if accessed via the main server domain
+    if 'server.sycord.com' in host:
+        if path.startswith('api/deploy/'):
+            return abort(405) # handled by POST below
+        return """
+        <html>
+          <head>
+            <title>Sycord VPS Runner</title>
+            <style>
+              body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0a0a0a; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+              .container { text-align: center; padding: 2rem; background: #141414; border: 1px solid #333; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+              h1 { margin-bottom: 0.5rem; color: #10b981; }
+              p { color: #a1a1aa; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h1>VPS Runner is Online</h1>
+              <p>Your Sycord deployment server is running successfully behind Cloudflare.</p>
+              <p style="font-size: 0.8rem; margin-top: 1rem; color: #555;">Listening for deployments on /api/deploy/&lt;project_id&gt;</p>
+            </div>
+          </body>
+        </html>
+        """
+
+    # Otherwise, it's a subdomain request. Try to extract subdomain and serve from deployments.
+    # E.g. myproject.vps.sycord.com -> subdomain 'myproject'
+    subdomain = host.split('.')[0]
+    project_path = os.path.join(DEPLOY_DIR, subdomain)
+
+    if not os.path.exists(project_path):
+        return jsonify({'error': 'Deployment not found'}), 404
+
+    if not path:
+        path = 'index.html'
+
+    try:
+        return send_from_directory(project_path, path)
+    except FileNotFoundError:
+        # Fallback to index for SPA routing
+        try:
+            return send_from_directory(project_path, 'index.html')
+        except FileNotFoundError:
+            return jsonify({'error': 'File not found'}), 404
 
 @app.route('/api/deploy/<project_id>', methods=['POST'])
 def deploy(project_id):
@@ -126,6 +154,9 @@ if __name__ == '__main__':
           toast.success(data.message)
         }
       } else {
+        if (action === "config" && data.tunnelId) {
+          setTunnelId(data.tunnelId)
+        }
         toast.success(data.message)
         setCurrentStep(stepNumber + 1) // Advance step
       }
@@ -314,14 +345,36 @@ if __name__ == '__main__':
 
         {/* DONE STATE */}
         {currentStep === 4 && (
-          <div className="p-6 border border-green-500/50 bg-green-500/10 rounded-lg flex flex-col items-center justify-center space-y-4 animate-in zoom-in duration-500">
-             <div className="h-16 w-16 bg-green-500/20 rounded-full flex items-center justify-center">
-               <Check className="h-8 w-8 text-green-500" />
-             </div>
-             <div className="text-center">
+          <div className="p-6 border border-green-500/50 bg-green-500/10 rounded-lg flex flex-col items-center space-y-6 animate-in zoom-in duration-500">
+             <div className="text-center space-y-2">
+               <div className="mx-auto h-16 w-16 bg-green-500/20 rounded-full flex items-center justify-center mb-4">
+                 <Check className="h-8 w-8 text-green-500" />
+               </div>
                <h2 className="text-2xl font-bold text-foreground">VPS Setup Complete!</h2>
-               <p className="text-muted-foreground mt-2">The Flask webserver is running robustly in the background and is exposed to the internet.</p>
+               <p className="text-muted-foreground mt-2 max-w-lg mx-auto">The Flask webserver is running robustly in the background and is exposed to the internet.</p>
              </div>
+
+             <div className="w-full max-w-2xl bg-background border border-border rounded-xl p-6 space-y-4">
+                <h3 className="font-semibold text-lg flex items-center gap-2">
+                   <Globe className="h-5 w-5 text-primary" />
+                   DNS Configuration (Required for deployments)
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                   To ensure AI-generated websites can be deployed to their own subdomains, you must add a wildcard DNS record in your Cloudflare dashboard.
+                </p>
+                <div className="bg-accent/30 p-4 rounded-lg border border-border">
+                   <p className="text-sm font-medium mb-2">Add the following CNAME record in Cloudflare:</p>
+                   <ul className="text-sm space-y-2 font-mono text-zinc-300">
+                      <li><span className="text-zinc-500 inline-block w-16">Type:</span> CNAME</li>
+                      <li><span className="text-zinc-500 inline-block w-16">Name:</span> *.vps</li>
+                      <li>
+                        <span className="text-zinc-500 inline-block w-16">Target:</span>
+                        {tunnelId ? `${tunnelId}.cfargotunnel.com` : '<tunnel-uuid>.cfargotunnel.com'}
+                      </li>
+                   </ul>
+                </div>
+             </div>
+
              <a
                 href="https://server.sycord.com"
                 target="_blank"
