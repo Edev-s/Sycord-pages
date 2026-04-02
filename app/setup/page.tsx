@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Terminal, Copy, Check, ArrowLeft, Play, Loader2, ExternalLink, ShieldCheck, Server, Globe, Power } from "lucide-react"
@@ -142,6 +142,17 @@ if __name__ == '__main__':
   const handleAuthCompleted = () => {
      setCurrentStep(2)
   }
+
+  // Automatically check if server is already running to bypass setup
+  useEffect(() => {
+     fetch("https://server.sycord.com")
+       .then(res => {
+         if(res.ok) {
+           setCurrentStep(4) // Skip to done
+         }
+       })
+       .catch(err => console.log("Runner not online yet, proceeding with setup."))
+  }, [])
 
   return (
     <div className="min-h-screen bg-background text-foreground">

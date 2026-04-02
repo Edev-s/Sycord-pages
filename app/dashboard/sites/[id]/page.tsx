@@ -489,7 +489,7 @@ export default function SiteSettingsPage() {
     if (!targetId) return
 
     try {
-        const vpsUrl = process.env.NEXT_PUBLIC_VPS_SERVER_URL || "https://vps.sycord.com"
+        const vpsUrl = process.env.NEXT_PUBLIC_VPS_SERVER_URL || "https://server.sycord.com"
         const res = await fetch(`${vpsUrl}/api/logs?project_id=${targetId}&limit=50`)
         if (res.ok) {
             const data = await res.json()

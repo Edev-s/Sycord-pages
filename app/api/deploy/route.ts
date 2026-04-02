@@ -10,7 +10,7 @@ import { ObjectId } from "mongodb"
  * sites via subdomain detection.
  */
 const VPS_BASE_URL =
-  process.env.VPS_SERVER_URL || "https://vps.sycord.com"
+  process.env.VPS_SERVER_URL || "https://server.sycord.com"
 
 export async function POST(request: Request) {
   try {
