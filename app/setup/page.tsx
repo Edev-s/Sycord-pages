@@ -40,10 +40,10 @@ os.makedirs(DEPLOY_DIR, exist_ok=True)
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def wildcard_router(path):
-    host = request.headers.get('Host', '')
+    host = request.headers.get('Host', '').split(':')[0]
 
-    # Serve the runner index page if accessed via the main server domain
-    if 'server.sycord.com' in host:
+    # Serve the runner index page if accessed via the exact main server domain
+    if host == 'server.sycord.com':
         if path.startswith('api/deploy/'):
             return abort(405) # handled by POST below
         return """
@@ -68,12 +68,12 @@ def wildcard_router(path):
         """
 
     # Otherwise, it's a subdomain request. Try to extract subdomain and serve from deployments.
-    # E.g. myproject.vps.sycord.com -> subdomain 'myproject'
+    # E.g. myproject.server.sycord.com -> subdomain 'myproject'
     subdomain = host.split('.')[0]
     project_path = os.path.join(DEPLOY_DIR, subdomain)
 
     if not os.path.exists(project_path):
-        return jsonify({'error': 'Deployment not found'}), 404
+        return jsonify({'error': f'Deployment not found for subdomain: {subdomain}'}), 404
 
     if not path:
         path = 'index.html'
@@ -115,7 +115,7 @@ def deploy(project_id):
         return jsonify({
             'success': True,
             'message': f'Saved {files_saved} files',
-            'domain': f'{subdomain}.vps.sycord.com'
+            'domain': f'{subdomain}.server.sycord.com'
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -366,7 +366,7 @@ if __name__ == '__main__':
                    <p className="text-sm font-medium mb-2">Add the following CNAME record in Cloudflare:</p>
                    <ul className="text-sm space-y-2 font-mono text-zinc-300">
                       <li><span className="text-zinc-500 inline-block w-16">Type:</span> CNAME</li>
-                      <li><span className="text-zinc-500 inline-block w-16">Name:</span> *.vps</li>
+                      <li><span className="text-zinc-500 inline-block w-16">Name:</span> *.server</li>
                       <li>
                         <span className="text-zinc-500 inline-block w-16">Target:</span>
                         {tunnelId ? `${tunnelId}.cfargotunnel.com` : '<tunnel-uuid>.cfargotunnel.com'}
