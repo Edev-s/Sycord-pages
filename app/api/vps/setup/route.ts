@@ -56,7 +56,9 @@ export async function POST(request: Request) {
       await run(`wget -q -O cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64`, cwd)
       await run(`chmod +x cloudflared`, cwd)
 
-      console.log(`[VPS Setup] Installing Flask & deps via pip...`)
+      console.log(`[VPS Setup] Installing Flask, deps, and Certbot...`)
+      // Install Certbot for optional direct IP SSL generation, and pip3
+      await ssh.execCommand('sudo apt-get update && sudo apt-get install -y python3-pip certbot || true', { cwd })
       // Install dependencies locally for the user
       await run(`pip3 install --user flask`, cwd)
 

@@ -30,6 +30,7 @@ cd myapp`
 
   const pythonRunner = `from flask import Flask, request, jsonify, send_from_directory, abort
 import os
+import subprocess
 
 app = Flask(__name__)
 
@@ -112,10 +113,23 @@ def deploy(project_id):
                 f.write(content)
             files_saved += 1
 
+        # Attempt to issue an automated Let's Encrypt SSL certificate for this specific deployed subdomain.
+        # This will only succeed if traffic is routed directly to the VPS IP (DNS Proxied=false).
+        domain_name = f'{subdomain}.sycord.com'
+        try:
+            certbot_cmd = [
+                'certbot', 'certonly', '--standalone',
+                '--non-interactive', '--agree-tos', '-m', 'admin@sycord.com',
+                '-d', domain_name
+            ]
+            subprocess.Popen(certbot_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception as cert_err:
+            print(f"Auto-Certbot failed for {domain_name}: {cert_err}")
+
         return jsonify({
             'success': True,
             'message': f'Saved {files_saved} files',
-            'domain': f'{subdomain}.sycord.com'
+            'domain': domain_name
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -388,6 +402,29 @@ if __name__ == '__main__':
              >
                 Test Connection to server.sycord.com <ExternalLink className="ml-1 h-3 w-3" />
              </a>
+
+             {/* CERTBOT INSTRUCTIONS */}
+             <div className="w-full max-w-2xl bg-accent/20 border border-border/50 rounded-xl p-6 mt-4 space-y-4">
+                <h3 className="font-semibold text-lg flex items-center gap-2">
+                   <ShieldCheck className="h-5 w-5 text-yellow-500" />
+                   Troubleshooting SSL? (Auto-Certbot)
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                   If Cloudflare's Free Edge SSL is not issuing a certificate for your domain due to DNS proxy caching issues, you can disable the Tunnel and serve the website directly from your VPS IP using Let's Encrypt. The <code className="text-foreground">certbot</code> package is already installed on your server.
+                </p>
+                <div className="bg-background p-4 rounded-lg border border-border overflow-x-auto">
+                   <pre className="text-xs text-zinc-300 font-mono">
+{`# 1. SSH into the VPS and stop the tunnel
+pkill -f cloudflared
+
+# 2. Issue a free SSL certificate for your domain
+sudo certbot certonly --standalone -d yourdomain.sycord.com
+
+# 3. Update the runner.py app.run() to use the generated certificates
+# app.run(host='0.0.0.0', port=443, ssl_context=('/etc/letsencrypt/live/yourdomain.sycord.com/fullchain.pem', '/etc/letsencrypt/live/yourdomain.sycord.com/privkey.pem'))`}
+                   </pre>
+                </div>
+             </div>
           </div>
         )}
 
