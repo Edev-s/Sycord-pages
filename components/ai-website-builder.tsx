@@ -224,12 +224,17 @@ const GeminiIcon = ({ className }: { className?: string }) => (
     </svg>
 )
 
-const GeminiBadge = () => (
+const GeminiBadge = ({ isFastMode, toggleMode }: { isFastMode: boolean, toggleMode: () => void }) => (
     <div className="absolute top-0 left-0 right-0 flex items-center justify-center animate-in fade-in zoom-in duration-700 delay-100 z-50 pt-6">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-zinc-900 border border-zinc-800 shadow-sm transition-all hover:bg-zinc-800/80 cursor-default">
-            <GeminiIcon className="h-4 w-4" />
-            <span className="text-xs font-medium text-zinc-300">State of the Art</span>
-            <Info className="h-3 w-3 text-zinc-600 ml-1" />
+        <div
+            onClick={toggleMode}
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-zinc-900 border border-zinc-800 shadow-sm transition-all hover:bg-zinc-800/80 cursor-pointer select-none group"
+        >
+            <GeminiIcon className={`h-4 w-4 transition-colors ${isFastMode ? 'text-blue-400' : 'text-purple-500'}`} />
+            <span className="text-xs font-medium text-zinc-300">
+              {isFastMode ? "Faster Thinking" : "State of the Art"}
+            </span>
+            <span className="text-[10px] text-zinc-500 ml-1 opacity-0 group-hover:opacity-100 transition-opacity">Click to swap</span>
         </div>
     </div>
 )
@@ -557,6 +562,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
 
   const [instruction, setInstruction] = useState<string>("")
   const [selectedModel, setSelectedModel] = useState(MODELS[0])
+  const [isFastMode, setIsFastMode] = useState(false)
 
   const [fixHistory, setFixHistory] = useState<any[]>([])
   const [requiresDatabase, setRequiresDatabase] = useState(false)
@@ -815,7 +821,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       const planResponse = await fetch("/api/ai/generate-plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: [...messages, userMessage] }),
+        body: JSON.stringify({ messages: [...messages, userMessage], isFastMode }),
       })
 
       if (!planResponse.ok) throw new Error("Failed to generate plan")
@@ -836,14 +842,8 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
           return
       }
 
-      // Check if database is required
-      if (generatedInstruction.includes("## REQUIRES_DATABASE: true")) {
-          setRequiresDatabase(true)
-          setStep("firebase_auth")
-          // We will wait for user to authenticate
-      } else {
-          setRequiresDatabase(false)
-      }
+      // No longer requiring database auth based on user's new rules
+      setRequiresDatabase(false)
 
       setInstruction(generatedInstruction)
 
@@ -855,9 +855,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       }
       setMessages(prev => [...prev, planMessage])
 
-      if (!generatedInstruction.includes("## REQUIRES_DATABASE: true")) {
-          processNextStep(generatedInstruction, [...messages, userMessage, planMessage])
-      }
+      processNextStep(generatedInstruction, [...messages, userMessage, planMessage])
     } catch (err: any) {
       setError(err.message || "Planning failed")
       setStep("idle")
@@ -884,7 +882,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
           projectId,
           messages: currentHistory,
           instruction: currentInstruction,
-          model: selectedModel.id,
+          model: isFastMode ? "gemini-3-flash-preview" : selectedModel.id,
           generatedPages: generatedPages.map(p => ({ name: p.name, code: p.code })),
         }),
       })
@@ -1036,7 +1034,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                 {/* IDLE STATE */}
                 {step === 'idle' && (
                     <div className="flex-1 flex flex-col items-center justify-center text-center py-20 animate-in fade-in slide-in-from-bottom-8 duration-700 relative">
-                        <GeminiBadge />
+                        <GeminiBadge isFastMode={isFastMode} toggleMode={() => setIsFastMode(!isFastMode)} />
                         <div className="mt-4 space-y-1">
                             <h1 className="text-4xl md:text-5xl font-medium tracking-tight text-white">
                                 Hi {userName},
@@ -1150,18 +1148,6 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                                         />
                                     </div>
                                 </div>
-                            </div>
-                        )}
-
-                        {step === 'firebase_auth' && (
-                            <div className="mt-4">
-                                <FirebaseConnectionCard
-                                    projectId={projectId}
-                                    onConnect={() => {
-                                        onDatabaseConnected?.()
-                                        if (instruction) processNextStep(instruction, [...messages])
-                                    }}
-                                />
                             </div>
                         )}
 

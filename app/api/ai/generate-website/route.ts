@@ -19,6 +19,7 @@ const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions"
 // Map models to their specific endpoints and Env Vars
 const MODEL_CONFIGS: Record<string, { url: string, envVar: string, provider: string }> = {
   "gemini-3.1-pro-preview": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
+  "gemini-3-flash-preview": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
   "gemini-2.0-flash": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
   "gemini-1.5-flash": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
   "gemini-1.5-pro": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
@@ -55,10 +56,10 @@ export async function POST(request: Request) {
     // Map "gemini-3-flash" or similar user requests to actual model
     let configKey = modelId
     if (modelId === "gemini-3-flash" || modelId === "gemini-3.0-flash") {
-       configKey = "gemini-2.0-flash"
+       configKey = "gemini-3-flash-preview"
     }
     if (modelId === "gemini-3-pro" || modelId === "gemini-3.0-pro") {
-       configKey = "gemini-1.5-pro"
+       configKey = "gemini-3.1-pro-preview"
     }
 
     const config = MODEL_CONFIGS[configKey] || MODEL_CONFIGS["gemini-3.1-pro-preview"]
