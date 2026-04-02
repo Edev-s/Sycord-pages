@@ -68,7 +68,7 @@ def wildcard_router(path):
         """
 
     # Otherwise, it's a subdomain request. Try to extract subdomain and serve from deployments.
-    # E.g. myproject.server.sycord.com -> subdomain 'myproject'
+    # E.g. myproject.sycord.com -> subdomain 'myproject'
     subdomain = host.split('.')[0]
     project_path = os.path.join(DEPLOY_DIR, subdomain)
 
@@ -115,7 +115,7 @@ def deploy(project_id):
         return jsonify({
             'success': True,
             'message': f'Saved {files_saved} files',
-            'domain': f'{subdomain}.server.sycord.com'
+            'domain': f'{subdomain}.sycord.com'
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -366,14 +366,16 @@ if __name__ == '__main__':
                    <p className="text-sm font-medium mb-2">Add the following CNAME record in Cloudflare:</p>
                    <ul className="text-sm space-y-2 font-mono text-zinc-300">
                       <li><span className="text-zinc-500 inline-block w-16">Type:</span> CNAME</li>
-                      <li><span className="text-zinc-500 inline-block w-16">Name:</span> *.server</li>
+                      <li><span className="text-zinc-500 inline-block w-16">Name:</span> *</li>
                       <li>
                         <span className="text-zinc-500 inline-block w-16">Target:</span>
                         {tunnelId ? `${tunnelId}.cfargotunnel.com` : '<tunnel-uuid>.cfargotunnel.com'}
                       </li>
                    </ul>
                    <p className="text-xs text-muted-foreground mt-4">
-                     Note: The system will automatically attempt to configure DNS via the Cloudflare API during deployments if API keys are provided.
+                     <strong>Note on SSL:</strong> By routing deployments to <code className="font-mono text-primary">project.sycord.com</code> (a first-level subdomain), Cloudflare's Free Universal SSL will automatically secure your websites. If you were previously routing to <code>*.server.sycord.com</code>, Cloudflare Free SSL does not cover two levels deep, which causes SSL browser errors.
+                     <br/><br/>
+                     The system will automatically attempt to configure the required CNAME via the Cloudflare API during deployments if API keys are provided.
                    </p>
                 </div>
              </div>

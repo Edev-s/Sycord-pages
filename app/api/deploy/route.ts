@@ -60,14 +60,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No files to deploy." }, { status: 400 })
 
     // 4. Create Cloudflare DNS Record
-    console.log(`[Deploy] Updating DNS for ${subdomain}.server.sycord.com via Cloudflare API...`)
+    console.log(`[Deploy] Updating DNS for ${subdomain}.sycord.com via Cloudflare API...`)
     const cfApiKey = process.env.CLOUDFLARE_API_KEY
     const cfZoneId = process.env.CLOUDFLARE_ZONE_ID
 
     if (cfApiKey && cfZoneId) {
       try {
         // Step 4a: Check if record exists
-        const dnsCheck = await fetch(`https://api.cloudflare.com/client/v4/zones/${cfZoneId}/dns_records?name=${subdomain}.server.sycord.com`, {
+        const dnsCheck = await fetch(`https://api.cloudflare.com/client/v4/zones/${cfZoneId}/dns_records?name=${subdomain}.sycord.com`, {
           headers: {
             "Authorization": `Bearer ${cfApiKey}`,
             "Content-Type": "application/json"
@@ -76,11 +76,11 @@ export async function POST(request: Request) {
         const dnsCheckData = await dnsCheck.json()
 
         // Step 4b: Create or update CNAME to route to the tunnel
-        // name: "project.server" creates a record for "project.server.sycord.com"
-        // content: "server.sycord.com" points it to the Cloudflare Tunnel CNAME
+        // We MUST use a first-level subdomain (project.sycord.com) because Cloudflare Free SSL
+        // does NOT cover second-level subdomains like project.server.sycord.com.
         const dnsPayload = {
           type: "CNAME",
-          name: `${subdomain}.server`,
+          name: subdomain,
           content: "server.sycord.com",
           proxied: true,
           ttl: 1
