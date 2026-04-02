@@ -843,7 +843,7 @@ export default function SiteSettingsPage() {
       setDeploySuccess(true)
       setDeployResult({
         url: result.url,
-        message: result.message || `Successfully deployed ${result.filesCount} file(s) to GitHub`
+        message: result.message || `Successfully deployed ${result.filesCount} file(s) to VPS`
       })
 
       if (result.projectId || result.repoId) {

@@ -128,7 +128,7 @@ def deploy(project_id):
 
         return jsonify({
             'success': True,
-            'message': f'Saved {files_saved} files',
+            'message': f'Saved {files_saved} files. Auto-SSL (Certbot) initiated. If manual cert binding is needed, check the VPS Setup page.',
             'domain': domain_name
         })
     except Exception as e:
