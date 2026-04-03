@@ -44,7 +44,6 @@ import {
   FileCode,
   FileType,
   ChevronRight,
-  ChevronDown,
   Code,
   Lock,
   Database,
@@ -380,14 +379,14 @@ const SidebarContent = ({
                 {group.title}
               </h3>
             )}
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               {group.items.map((item: any) => {
-                const Icon = item.icon
                 const hasChildren = item.children && item.children.length > 0
                 const isExpanded = expandedFolders.has(item.id)
                 const isActive = activeTab === item.id
                 const isLocked = item.requiresDatabase && !databaseConnected
                 const isChildActive = hasChildren && item.children.some((c: any) => activeTab === c.id)
+                const FolderIcon = hasChildren ? (isExpanded ? FolderOpen : Folder) : item.icon
 
                 return (
                   <div key={item.id}>
@@ -404,7 +403,7 @@ const SidebarContent = ({
                       disabled={isLocked}
                       title={isLocked ? "Connect a database to unlock this feature" : undefined}
                       className={cn(
-                        "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 text-sm font-medium text-left",
+                        "w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md transition-all duration-200 text-sm font-medium text-left",
                         isActive && !hasChildren
                           ? "bg-primary text-primary-foreground shadow-sm"
                           : isChildActive
@@ -414,7 +413,10 @@ const SidebarContent = ({
                           : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
                       )}
                     >
-                      <Icon className="h-4 w-4 flex-shrink-0" />
+                      {hasChildren && (
+                        <ChevronRight className={cn("h-3 w-3 shrink-0 transition-transform duration-200", isExpanded ? "rotate-90" : "")} />
+                      )}
+                      <FolderIcon className={cn("h-4 w-4 flex-shrink-0", hasChildren ? "text-yellow-500/80" : "")} />
                       <span className="truncate flex-1 text-left">{item.label}</span>
                       {item.badge && (
                         <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border border-white/25 bg-transparent text-foreground/70 shrink-0">
@@ -422,12 +424,9 @@ const SidebarContent = ({
                         </span>
                       )}
                       {isLocked && <Lock className="h-3 w-3 shrink-0 opacity-50" />}
-                      {hasChildren && (
-                        <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 transition-transform duration-200", isExpanded ? "" : "-rotate-90")} />
-                      )}
                     </button>
                     {hasChildren && isExpanded && (
-                      <div className="ml-4 mt-1 space-y-0.5 border-l border-white/10 pl-3">
+                      <div className="ml-[18px] mt-0.5 space-y-0.5 border-l border-white/8 pl-3">
                         {item.children.map((child: any) => {
                           const ChildIcon = child.icon
                           const isChildItemActive = activeTab === child.id
@@ -1148,7 +1147,7 @@ export default function SiteSettingsPage() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className={cn("border-b border-white/10 frosted-glass z-20 shrink-0")}>
+        <header className={cn("frosted-glass z-20 shrink-0")}>
           <div className="flex items-center justify-between h-14 px-4 md:px-6">
             {/* Mobile: hamburger + site name */}
             <div className="flex items-center gap-2 md:hidden">

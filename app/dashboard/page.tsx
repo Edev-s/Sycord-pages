@@ -313,7 +313,7 @@ function DashboardContent() {
           <div className="flex flex-col gap-4 mb-6 md:mb-8">
             <div className="flex items-center justify-between">
               <h1 className="text-lg font-semibold text-foreground">Projektek</h1>
-              <Button onClick={() => setIsModalOpen(true)} className="w-auto frosted-card hover:bg-white/10 border-white/10">
+              <Button onClick={() => setIsModalOpen(true)} className="w-auto frosted-glass-light hover:bg-white/15 text-foreground border-white/10">
                 <Plus className="h-4 w-4 mr-2" />
                 Új Projekt
               </Button>
@@ -348,7 +348,7 @@ function DashboardContent() {
                 <p className="text-sm text-muted-foreground mb-6">
                   Kezdje el első projektjét, és indítsa el weboldalát {"{"}name{"}"}.pages.dev címen
                 </p>
-                <Button onClick={() => setIsModalOpen(true)} className="frosted-card hover:bg-white/10 border-white/10">
+                <Button onClick={() => setIsModalOpen(true)} className="frosted-glass-light hover:bg-white/15 text-foreground border-white/10">
                   <Plus className="h-4 w-4 mr-2" />
                   Első Projekt Létrehozása
                 </Button>
