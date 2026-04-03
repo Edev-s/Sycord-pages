@@ -115,6 +115,7 @@ def _build_project(project_id: str, project_dir: Path) -> dict:
     """
     env = {**os.environ, "NODE_ENV": "production", "CI": "true"}
     combined_output: list[str] = []
+    build_timeout = int(os.environ.get("SYCORD_BUILD_TIMEOUT", "300"))
 
     for step, cmd in [("install", ["npm", "install", "--no-fund", "--no-audit"]),
                       ("build", ["npm", "run", "build"])]:
@@ -125,7 +126,7 @@ def _build_project(project_id: str, project_dir: Path) -> dict:
                 cwd=str(project_dir),
                 capture_output=True,
                 text=True,
-                timeout=120,
+                timeout=build_timeout,
                 env=env,
             )
             combined_output.append(f"--- {step} (exit {result.returncode}) ---")
@@ -144,7 +145,7 @@ def _build_project(project_id: str, project_dir: Path) -> dict:
                     "error": f"{step} exited with code {result.returncode}",
                 }
         except subprocess.TimeoutExpired:
-            msg = f"{step} timed out after 120 s"
+            msg = f"{step} timed out after {build_timeout} s"
             logger.error("Build [%s] timeout for project %s", step, project_id)
             combined_output.append(msg)
             return {"success": False, "step": step, "output": "\n".join(combined_output), "error": msg}
@@ -161,12 +162,14 @@ def _build_project(project_id: str, project_dir: Path) -> dict:
 def _serve_root(project_dir: Path) -> Path:
     """Return the directory that should be served for a project.
 
-    If the project was built (has a ``dist/`` folder), serve from there;
-    otherwise fall back to the project root (plain HTML sites).
+    If the project was built (has a ``dist/`` or ``build/`` folder with an
+    ``index.html``), serve from there; otherwise fall back to the project root
+    (plain HTML sites).
     """
-    dist = project_dir / "dist"
-    if dist.is_dir() and (dist / "index.html").is_file():
-        return dist
+    for candidate in ("dist", "build"):
+        out = project_dir / candidate
+        if out.is_dir() and (out / "index.html").is_file():
+            return out
     return project_dir
 
 
