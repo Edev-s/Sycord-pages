@@ -44,6 +44,7 @@ import {
   FileCode,
   FileType,
   ChevronRight,
+  ChevronDown,
   Code,
   Lock,
   Database,
@@ -54,6 +55,10 @@ import {
   Wallet,
   BadgeCheck,
   Coins,
+  Plug,
+  Server,
+  Mail,
+  HardDrive,
 } from "lucide-react"
 import { currencySymbols } from "@/lib/webshop-types"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -345,8 +350,18 @@ const SidebarContent = ({
   onManageAccess,
 }: any) => {
   const WebsiteIcon = getWebsiteIcon()
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(["pages"]))
 
   const planLabel = getPlanLabel(subscription)
+
+  const toggleFolder = (id: string) => {
+    setExpandedFolders((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   return (
     <div className="flex flex-col h-full p-4">
@@ -368,36 +383,76 @@ const SidebarContent = ({
             <div className="space-y-1">
               {group.items.map((item: any) => {
                 const Icon = item.icon
+                const hasChildren = item.children && item.children.length > 0
+                const isExpanded = expandedFolders.has(item.id)
                 const isActive = activeTab === item.id
                 const isLocked = item.requiresDatabase && !databaseConnected
+                const isChildActive = hasChildren && item.children.some((c: any) => activeTab === c.id)
+
                 return (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      if (isLocked) return
-                      setActiveTab(item.id)
-                      setIsSidebarOpen(false)
-                    }}
-                    disabled={isLocked}
-                    title={isLocked ? "Connect a database to unlock this feature" : undefined}
-                    className={cn(
-                      "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 text-sm font-medium text-left",
-                      isActive
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : isLocked
-                        ? "text-muted-foreground/40 cursor-not-allowed"
-                        : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                  <div key={item.id}>
+                    <button
+                      onClick={() => {
+                        if (isLocked) return
+                        if (hasChildren) {
+                          toggleFolder(item.id)
+                        } else {
+                          setActiveTab(item.id)
+                          setIsSidebarOpen(false)
+                        }
+                      }}
+                      disabled={isLocked}
+                      title={isLocked ? "Connect a database to unlock this feature" : undefined}
+                      className={cn(
+                        "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 text-sm font-medium text-left",
+                        isActive && !hasChildren
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : isChildActive
+                          ? "text-foreground bg-white/5"
+                          : isLocked
+                          ? "text-muted-foreground/40 cursor-not-allowed"
+                          : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                      )}
+                    >
+                      <Icon className="h-4 w-4 flex-shrink-0" />
+                      <span className="truncate flex-1 text-left">{item.label}</span>
+                      {item.badge && (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border border-white/25 bg-transparent text-foreground/70 shrink-0">
+                          {item.badge}
+                        </span>
+                      )}
+                      {isLocked && <Lock className="h-3 w-3 shrink-0 opacity-50" />}
+                      {hasChildren && (
+                        <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 transition-transform duration-200", isExpanded ? "" : "-rotate-90")} />
+                      )}
+                    </button>
+                    {hasChildren && isExpanded && (
+                      <div className="ml-4 mt-1 space-y-0.5 border-l border-white/10 pl-3">
+                        {item.children.map((child: any) => {
+                          const ChildIcon = child.icon
+                          const isChildItemActive = activeTab === child.id
+                          return (
+                            <button
+                              key={child.id}
+                              onClick={() => {
+                                setActiveTab(child.id)
+                                setIsSidebarOpen(false)
+                              }}
+                              className={cn(
+                                "w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md transition-all duration-200 text-[13px] font-medium text-left",
+                                isChildItemActive
+                                  ? "bg-primary text-primary-foreground shadow-sm"
+                                  : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                              )}
+                            >
+                              <ChildIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                              <span className="truncate">{child.label}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
                     )}
-                  >
-                    <Icon className="h-4 w-4 flex-shrink-0" />
-                    <span className="truncate flex-1 text-left">{item.label}</span>
-                    {item.badge && (
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border border-white/25 bg-transparent text-foreground/70 shrink-0">
-                        {item.badge}
-                      </span>
-                    )}
-                    {isLocked && <Lock className="h-3 w-3 shrink-0 opacity-50" />}
-                  </button>
+                  </div>
                 )
               })}
             </div>
@@ -428,8 +483,8 @@ const SidebarContent = ({
           <span className="flex-1 text-xs font-medium truncate text-foreground">
             {session?.user?.name || "User"}
           </span>
-          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 bg-white/10 text-foreground">
-            {planLabel}
+          <span className="text-[10px] font-semibold shrink-0 text-muted-foreground">
+            {planLabel === "Sycord+" ? "sycord+" : planLabel}
           </span>
         </div>
 
@@ -1004,9 +1059,33 @@ export default function SiteSettingsPage() {
       title: null,
       items: [
         { id: "overview", label: "Overview", icon: Layout },
-        { id: "pages", label: "Pages", icon: FileText },
-        { id: "ai", label: "Syra", icon: Zap },
+        {
+          id: "pages",
+          label: "Pages",
+          icon: FileText,
+          children: [
+            { id: "pages", label: "All Pages", icon: File },
+            { id: "ai", label: "Syra", icon: Zap },
+          ],
+        },
         { id: "settings", label: "Settings", icon: Settings },
+      ],
+    },
+    {
+      title: "Integrations",
+      items: [
+        { id: "int-pterodactyl", label: "Pterodactyl", icon: Server },
+        { id: "int-mongodb", label: "MongoDB", icon: Database },
+        { id: "int-stripe", label: "Stripe", icon: CreditCard },
+        {
+          id: "int-google",
+          label: "Google",
+          icon: Mail,
+          children: [
+            { id: "int-google-drive", label: "Drive", icon: HardDrive },
+            { id: "int-google-mail", label: "Mail", icon: Mail },
+          ],
+        },
       ],
     },
     ...(siteType === "blog"
@@ -1069,7 +1148,7 @@ export default function SiteSettingsPage() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className={cn("border-b border-white/10 bg-background/50 backdrop-blur-sm z-20 shrink-0")}>
+        <header className={cn("border-b border-white/10 frosted-glass z-20 shrink-0")}>
           <div className="flex items-center justify-between h-14 px-4 md:px-6">
             {/* Mobile: hamburger + site name */}
             <div className="flex items-center gap-2 md:hidden">
