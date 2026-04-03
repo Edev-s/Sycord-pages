@@ -56,9 +56,9 @@ export async function POST(request: Request) {
       await run(`wget -q -O cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64`, cwd)
       await run(`chmod +x cloudflared`, cwd)
 
-      console.log(`[VPS Setup] Installing Flask, deps, and Certbot...`)
-      // Install Certbot for optional direct IP SSL generation, and pip3
-      await ssh.execCommand('sudo apt-get update && sudo apt-get install -y python3-pip certbot || true', { cwd })
+      console.log(`[VPS Setup] Installing Flask & deps via pip...`)
+      // Install dependencies globally or locally for the user
+      await ssh.execCommand('sudo apt-get update && sudo apt-get install -y python3-pip || true', { cwd })
       // Install dependencies locally for the user
       await run(`pip3 install --user flask`, cwd)
 
@@ -145,18 +145,18 @@ export async function POST(request: Request) {
       }
 
       // Route DNS
-      await run(`./cloudflared tunnel route dns sycord-runner server.sycord.com || true`, cwd)
+      await run(`./cloudflared tunnel route dns sycord-runner server.sycord.site || true`, cwd)
       // Attempt to route wildcard (may fail if zone doesn't support it directly via CLI, so we use || true)
-      await run(`./cloudflared tunnel route dns sycord-runner "*.sycord.com" || true`, cwd)
+      await run(`./cloudflared tunnel route dns sycord-runner "*.sycord.site" || true`, cwd)
 
       // Generate config.yml
       const configYml = `tunnel: ${tunnelId}
 credentials-file: ${homeDir}/.cloudflared/${tunnelId}.json
 
 ingress:
-  - hostname: server.sycord.com
+  - hostname: server.sycord.site
     service: http://127.0.0.1:5000
-  - hostname: "*.sycord.com"
+  - hostname: "*.sycord.site"
     service: http://127.0.0.1:5000
   - service: http_status:404`
 
@@ -166,7 +166,7 @@ ingress:
       return NextResponse.json({
         success: true,
         tunnelId: tunnelId,
-        message: "Tunnel sycord-runner created! DNS routing attempted for server.sycord.com and *.sycord.com."
+        message: "Tunnel sycord-runner created! DNS routing attempted for server.sycord.site and *.sycord.site."
       })
     }
 

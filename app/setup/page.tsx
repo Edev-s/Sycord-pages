@@ -19,64 +19,6 @@ export default function SetupPage() {
   const [authUrl, setAuthUrl] = useState<string | null>(null)
   const [tunnelId, setTunnelId] = useState<string | null>(null)
 
-  // Defaulting to the requested Cloudflare Origin Certificate strings
-  const [sslCert, setSslCert] = useState(`-----BEGIN CERTIFICATE-----
-MIIEmzCCA4OgAwIBAgIUFFFkwBiYB39EexzlXOceu8W6qzkwDQYJKoZIhvcNAQEL
-BQAwgYsxCzAJBgNVBAYTAlVTMRkwFwYDVQQKExBDbG91ZEZsYXJlLCBJbmMuMTQw
-MgYDVQQLEytDbG91ZEZsYXJlIE9yaWdpbiBTU0wgQ2VydGlmaWNhdGUgQXV0aG9y
-aXR5MRYwFAYDVQQHEw1TYW4gRnJhbmNpc2NvMRMwEQYDVQQIEwpDYWxpZm9ybmlh
-MB4XDTI2MDQwMjE4NDgwMFoXDTQxMDMyOTE4NDgwMFowYjEZMBcGA1UEChMQQ2xv
-dWRGbGFyZSwgSW5jLjEdMBsGA1UECxMUQ2xvdWRGbGFyZSBPcmlnaW4gQ0ExJjAk
-BgNVBAMTHUNsb3VkRmxhcmUgT3JpZ2luIENlcnRpZmljYXRlMIIBIjANBgkqhkiG
-9w0BAQEFAAOCAQ8AMIIBCgKCAQEA5icHgOjHdEVSpb5l64tXR2vnSDZcgN9TBc3/
-ZRfzVrOQXrvirs/lPKh93RPL9jw/aNSOc1QtBs0ED5Tdp3tHp5g8WuebYJkL7Kv7
-wqUXXdBKOdgV+jQEyfIzqUhViPh/CeNAXzg71TFKcEVAnr7m9sbHmQMzsLaMNSdB
-egumWHbPjtZ4MIdQQmAZic54W4VtZOxd1faClus5ihQIPnsBYvIs1a3fdzsIJW4w
-pJmx1YY260+KsN9CGC84PdWJ1I123PeB+k3HGjWFnZOXuMy9ehX7HBC4LhyxcGIu
-NX7uNt8sV81cuRokPQF//8g0e9OKklw+InIGHY+th3HyPxbQTQIDAQABo4IBHTCC
-ARkwDgYDVR0PAQH/BAQDAgWgMB0GA1UdJQQWMBQGCCsGAQUFBwMCBggrBgEFBQcD
-ATAMBgNVHRMBAf8EAjAAMB0GA1UdDgQWBBQfs4AHhVVQj4RATc9cdX3XKH/xqDAf
-BgNVHSMEGDAWgBQk6FNXXXw0QIep65TbuuEWePwppDBABggrBgEFBQcBAQQ0MDIw
-MAYIKwYBBQUHMAGGJGh0dHA6Ly9vY3NwLmNsb3VkZmxhcmUuY29tL29yaWdpbl9j
-YTAeBgNVHREEFzAVghMqLnNlcnZlci5zeWNvcmQuY29tMDgGA1UdHwQxMC8wLaAr
-oCmGJ2h0dHA6Ly9jcmwuY2xvdWRmbGFyZS5jb20vb3JpZ2luX2NhLmNybDANBgkq
-hkiG9w0BAQsFAAOCAQEAJUQnl679OCYbs0ws0rOCVRVXdTlPj+cs5tWLAdakxuyU
-db53pnTcwf6D/5F7ukvmh+6lBU/KD9FrKMaNBjilpEIT2tOVFY3oeMZKEjx0jXeA
-xvp8xtENrSlfDHMeHyHIcNkKSZGNhruWcN9VoJp8pfZdCrCLHPP+4SWXf4YUmhJt
-6SmyEf5Y4+YlUioNnmJICOIvw/VuBSEom97nvakCus6VekHpRAPsflJo/kr1Vu09
-rQDhLZB4nBq/VInBr2dzehhfMMn7Yf4yOl2s9X1pIvRaxpR6sniZDV8Q6m4dysDw
-d5gfMDaRRfB7Avb9uKU3m8kaDfg5RQQsFRG9f1HceA==
------END CERTIFICATE-----`)
-
-  const [sslKey, setSslKey] = useState(`-----BEGIN PRIVATE KEY-----
-MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDmJweA6Md0RVKl
-vmXri1dHa+dINlyA31MFzf9lF/NWs5Beu+Kuz+U8qH3dE8v2PD9o1I5zVC0GzQQP
-lN2ne0enmDxa55tgmQvsq/vCpRdd0Eo52BX6NATJ8jOpSFWI+H8J40BfODvVMUpw
-RUCevub2xseZAzOwtow1J0F6C6ZYds+O1ngwh1BCYBmJznhbhW1k7F3V9oKW6zmK
-FAg+ewFi8izVrd93OwglbjCkmbHVhjbrT4qw30IYLzg91YnUjXbc94H6TccaNYWd
-k5e4zL16FfscELguHLFwYi41fu423yxXzVy5GiQ9AX//yDR704qSXD4icgYdj62H
-cfI/FtBNAgMBAAECggEAH8HU7Dmyg92o6Mvb3mOMuIMwF6vAmdu25f8ltXpXjmga
-jKfaQIrZM8SAEYhQxXpMuZdSzKEZ0W1qmQfOifSdz4dXFKgOrYaQuaiFhbcoAT7j
-bxXc+nhBDOiJrlsXyl2XkfK0iC8HOoSho9o6b20iC30kP33MnR6jPBZdl4yR+HSx
-cpLv4QXouUQ+T1Lo07seaaL4xQQ1HRA0Eh9I+VOCAvUXZDxrT9/CV3yViIW6cCnB
-6WToaq9Xe5bSPMD5AFnYqFK9Dh57yt0XqGE2y7UBJOgOC9YHPW0BuT5N8mh1wfE1
-9g2QGAsemrAeLHM9BjLSgj6MD3az9VQFhmnBt1cn1QKBgQD2XL/pdwCEg61Oh72R
-xiwz0iur4j7TdxSsGERMSbnWvG23iyafw/TNqaTUi8BLLfG478ReXdGW8k00dCM7
-R56v06XlD1uUVeRnqSxAVrWl4DVIgoct7Wxl6P6rpzs3D90amVBA6RFiEsP6K5Wp
-k2TMG08pyk+m1HJas8Pb46+54wKBgQDvJ/FKMHWejvhVFZCZZPg7yc2e9Pa5l1J8
-gaePjMohjM9MO8jaoNCRwPnwEPGMwwjP/XIKOS+FhusM4xy6Xv3At/mshSjH6wwO
-XwxLROF6kpF9aO2johf1hLoS+BKfY7twzIPmEIt40kNi/hVXp+uYh2JIEJqIY8EK
-LFYghG0kDwKBgHJDOk9R/k93sx3FH0tJGp8+Tzr9SB5UEKZw6txnJWZPJqQGSfe3
-rwbkM6rQ1nMH8CDSM8WAxgC4iM5XPy/zW8o446yFnvgBjln1wKxmiwFQJ+Zlg8Tt
-ZWUu109N1M0I8oevq+UvM/zEr1iMdnGcBxgTYngDeUXrKs6eqayGwa35AoGBAM+E
-hi/M+tKZ1kvmCXHBFlCy3DQY9Vm3P4D/9AhwrxgLmfjZS4DB2BkRLQ8tdJuixKvN
-jL3oPx8LIjwteckSEfe+6+vSI7/NacmymfVaEJkOQyZh/Qpm5YlKITfCgE5D+Op4
-296u7obpVEW6mYRVFe5lU1ea6Kx+eou8SwOuRRHrAoGAP2tnXjIROwltrMKc/5Ya
-xdf/XZMXanYejZD+vZgPhCuWBsQ+hFJ7aDonv6NhSw0YPJR9pw16OIR08iyNEBXx
-1y9cd6hHBe8uQpCCCOhAdbZwMWAwMx8nklkNO0MLPZCGxnr0pl1UsmfThm7GyCSR
-iNziWLvXEC6DMekAG70k9pE=
------END PRIVATE KEY-----`)
-
   const copyToClipboard = (text: string, setCopied: (v: boolean) => void) => {
     navigator.clipboard.writeText(text)
     setCopied(true)
@@ -89,8 +31,6 @@ cd myapp`
 
   const pythonRunner = `from flask import Flask, request, jsonify, send_from_directory, abort
 import os
-import subprocess
-import threading
 
 app = Flask(__name__)
 
@@ -104,7 +44,7 @@ def wildcard_router(path):
     host = request.headers.get('Host', '').split(':')[0]
 
     # Serve the runner index page if accessed via the exact main server domain
-    if host == 'server.sycord.com':
+    if host == 'server.sycord.site':
         if path.startswith('api/deploy/'):
             return abort(405) # handled by POST below
         return """
@@ -129,7 +69,7 @@ def wildcard_router(path):
         """
 
     # Otherwise, it's a subdomain request. Try to extract subdomain and serve from deployments.
-    # E.g. myproject.sycord.com -> subdomain 'myproject'
+    # E.g. myproject.sycord.site -> subdomain 'myproject'
     subdomain = host.split('.')[0]
     project_path = os.path.join(DEPLOY_DIR, subdomain)
 
@@ -173,52 +113,19 @@ def deploy(project_id):
                 f.write(content)
             files_saved += 1
 
-        # Attempt to issue an automated Let's Encrypt SSL certificate for this specific deployed subdomain.
-        # This will only succeed if traffic is routed directly to the VPS IP (DNS Proxied=false).
-        domain_name = f'{subdomain}.sycord.com'
-        try:
-            certbot_cmd = [
-                'certbot', 'certonly', '--standalone',
-                '--non-interactive', '--agree-tos', '-m', 'admin@sycord.com',
-                '-d', domain_name
-            ]
-            subprocess.Popen(certbot_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        except Exception as cert_err:
-            print(f"Auto-Certbot failed for {domain_name}: {cert_err}")
+        domain_name = f'{subdomain}.sycord.site'
 
         return jsonify({
             'success': True,
-            'message': f'Saved {files_saved} files. Auto-SSL (Certbot) initiated. If manual cert binding is needed, check the VPS Setup page.',
+            'message': f'Saved {files_saved} files. Cloudflare Edge SSL automatically secured.',
             'domain': domain_name
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    cert_path = 'cert.pem'
-    key_path = 'privkey.pem'
-
-    def run_http():
-        print("Starting Flask on HTTP port 5000 (for Cloudflare Tunnel)...")
-        app.run(host='127.0.0.1', port=5000)
-
-    # If Cloudflare Origin Certs exist, run securely on port 443/8443 simultaneously for direct access
-    if os.path.exists(cert_path) and os.path.exists(key_path):
-        print("Certificates found. Starting dual HTTP/HTTPS mode.")
-        # Start HTTP server in a background daemon thread
-        threading.Thread(target=run_http, daemon=True).start()
-
-        # Start HTTPS server on the main thread
-        print("Starting Flask with SSL Context on port 443...")
-        try:
-            app.run(host='0.0.0.0', port=443, ssl_context=(cert_path, key_path))
-        except PermissionError:
-            print("Permission denied on port 443, falling back to 8443 with SSL...")
-            app.run(host='0.0.0.0', port=8443, ssl_context=(cert_path, key_path))
-    else:
-        # Run standard HTTP on all interfaces if no certs are present
-        print("No certificates found. Starting standard HTTP on port 5000...")
-        app.run(host='0.0.0.0', port=5000)`
+    print("Starting Flask on HTTP port 5000 (for Cloudflare Tunnel)...")
+    app.run(host='127.0.0.1', port=5000)`
 
   const runStep = async (stepNumber: number, action: string) => {
     try {
@@ -509,35 +416,18 @@ if __name__ == '__main__':
              </div>
 
              <a
-                href="https://server.sycord.com"
+                href="https://server.sycord.site"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-4 inline-flex items-center text-sm text-primary hover:underline"
              >
-                Test Connection to server.sycord.com <ExternalLink className="ml-1 h-3 w-3" />
+                Test Connection to server.sycord.site <ExternalLink className="ml-1 h-3 w-3" />
              </a>
 
-             {/* CERTBOT INSTRUCTIONS */}
-             <div className="w-full max-w-2xl bg-accent/20 border border-border/50 rounded-xl p-6 mt-4 space-y-4">
-                <h3 className="font-semibold text-lg flex items-center gap-2">
-                   <ShieldCheck className="h-5 w-5 text-yellow-500" />
-                   Troubleshooting SSL? (Auto-Certbot)
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                   If Cloudflare's Free Edge SSL is not issuing a certificate for your domain due to DNS proxy caching issues, you can disable the Tunnel and serve the website directly from your VPS IP using Let's Encrypt. The <code className="text-foreground">certbot</code> package is already installed on your server.
-                </p>
-                <div className="bg-background p-4 rounded-lg border border-border overflow-x-auto">
-                   <pre className="text-xs text-zinc-300 font-mono">
-{`# 1. SSH into the VPS and stop the tunnel
-pkill -f cloudflared
-
-# 2. Issue a free SSL certificate for your domain
-sudo certbot certonly --standalone -d yourdomain.sycord.com
-
-# 3. Update the runner.py app.run() to use the generated certificates
-# app.run(host='0.0.0.0', port=443, ssl_context=('/etc/letsencrypt/live/yourdomain.sycord.com/fullchain.pem', '/etc/letsencrypt/live/yourdomain.sycord.com/privkey.pem'))`}
-                   </pre>
-                </div>
+             <div className="pt-4 border-t border-border w-full flex justify-center mt-4">
+               <Button variant="ghost" onClick={() => setCurrentStep(0)} className="text-muted-foreground hover:text-foreground">
+                 Reset VPS Settings (New Server/Domain)
+               </Button>
              </div>
           </div>
         )}

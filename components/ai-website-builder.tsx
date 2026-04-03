@@ -947,7 +947,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
     if (attempt >= 8) return
 
     try {
-      const vpsUrl = process.env.NEXT_PUBLIC_VPS_SERVER_URL || "https://server.sycord.com"
+      const vpsUrl = process.env.NEXT_PUBLIC_VPS_SERVER_URL || "https://server.sycord.site"
       const res = await fetch(`${vpsUrl}/api/logs?project_id=${repoId}`)
       if (!res.ok) {
         setTimeout(() => checkDeployLogs(repoId, attempt + 1), 5000)

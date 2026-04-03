@@ -10,7 +10,7 @@ import { ObjectId } from "mongodb"
  * sites via subdomain detection.
  */
 const VPS_BASE_URL =
-  process.env.VPS_SERVER_URL || "https://server.sycord.com"
+  process.env.VPS_SERVER_URL || "https://server.sycord.site"
 
 export async function POST(request: Request) {
   try {
@@ -60,14 +60,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No files to deploy." }, { status: 400 })
 
     // 4. Create Cloudflare DNS Record
-    console.log(`[Deploy] Updating DNS for ${subdomain}.sycord.com via Cloudflare API...`)
+    console.log(`[Deploy] Updating DNS for ${subdomain}.sycord.site via Cloudflare API...`)
     const cfApiKey = process.env.CLOUDFLARE_API_KEY
     const cfZoneId = process.env.CLOUDFLARE_ZONE_ID
 
     if (cfApiKey && cfZoneId) {
       try {
         // Step 4a: Check if record exists
-        const dnsCheck = await fetch(`https://api.cloudflare.com/client/v4/zones/${cfZoneId}/dns_records?name=${subdomain}.sycord.com`, {
+        const dnsCheck = await fetch(`https://api.cloudflare.com/client/v4/zones/${cfZoneId}/dns_records?name=${subdomain}.sycord.site`, {
           headers: {
             "Authorization": `Bearer ${cfApiKey}`,
             "Content-Type": "application/json"
@@ -76,12 +76,10 @@ export async function POST(request: Request) {
         const dnsCheckData = await dnsCheck.json()
 
         // Step 4b: Create or update CNAME to route to the tunnel
-        // We MUST use a first-level subdomain (project.sycord.com) because Cloudflare Free SSL
-        // does NOT cover second-level subdomains like project.server.sycord.com.
         const dnsPayload = {
           type: "CNAME",
           name: subdomain,
-          content: "server.sycord.com",
+          content: "server.sycord.site",
           proxied: true,
           ttl: 1
         }

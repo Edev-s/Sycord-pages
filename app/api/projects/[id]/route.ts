@@ -118,7 +118,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     }
 
     // Also delete from VPS Flask server (best-effort)
-    const vpsUrl = process.env.VPS_SERVER_URL || "https://server.sycord.com"
+    const vpsUrl = process.env.VPS_SERVER_URL || "https://server.sycord.site"
     try {
       await fetch(`${vpsUrl}/api/projects/${id}`, { method: "DELETE" })
     } catch (vpsErr) {
