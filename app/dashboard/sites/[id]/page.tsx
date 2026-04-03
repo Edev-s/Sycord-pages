@@ -414,7 +414,7 @@ const SidebarContent = ({
                       )}
                     >
                       {hasChildren && (
-                        <ChevronRight className={cn("h-3 w-3 shrink-0 transition-transform duration-200", isExpanded ? "rotate-90" : "")} />
+                        <ChevronRight className={cn("h-3 w-3 shrink-0 transition-transform duration-200", isExpanded ? "rotate-90" : "rotate-0")} />
                       )}
                       <FolderIcon className={cn("h-4 w-4 flex-shrink-0", hasChildren ? "text-yellow-500/80" : "")} />
                       <span className="truncate flex-1 text-left">{item.label}</span>
