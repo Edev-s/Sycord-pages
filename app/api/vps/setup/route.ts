@@ -127,14 +127,27 @@ export async function POST(request: Request) {
     if (action === "config") {
       console.log(`[VPS Setup] Running Step 3: Config...`)
 
-      // Create Tunnel
+      // Delete any existing tunnel with the same name to ensure fresh credentials
+      // This avoids the "credentials file doesn't exist" error when a tunnel was
+      // previously created but its JSON credentials file was lost.
+      const listRes = await run('./cloudflared tunnel list', cwd)
+      if (listRes.stdout.includes('sycord-runner')) {
+        console.log(`[VPS Setup] Existing tunnel found, deleting to recreate with fresh credentials...`)
+        await run('./cloudflared tunnel cleanup sycord-runner || true', cwd)
+        await run('./cloudflared tunnel delete sycord-runner || true', cwd)
+        // Allow Cloudflare backend to finish tunnel deletion before recreating
+        await new Promise(r => setTimeout(r, 1000))
+      }
+
+      // Create Tunnel (fresh, so credentials JSON is guaranteed to be generated)
       const createRes = await run('./cloudflared tunnel create sycord-runner', cwd)
       const uuidMatch = createRes.stdout.match(/id ([a-f0-9-]+)/i) || createRes.stderr.match(/id ([a-f0-9-]+)/i)
 
       let tunnelId = ""
       if (!uuidMatch) {
-         const listRes = await run('./cloudflared tunnel list', cwd)
-         const listMatch = listRes.stdout.match(/([a-f0-9-]+)\s+sycord-runner/i)
+         // Fallback: list tunnels to find UUID
+         const listRes2 = await run('./cloudflared tunnel list', cwd)
+         const listMatch = listRes2.stdout.match(/([a-f0-9-]+)\s+sycord-runner/i)
          if (!listMatch) {
              ssh.dispose()
              return NextResponse.json({ error: "Failed to create or find Cloudflare tunnel UUID." }, { status: 500 })
@@ -144,16 +157,47 @@ export async function POST(request: Request) {
          tunnelId = uuidMatch[1]
       }
 
-      // Route DNS
+      // Validate tunnelId is a proper UUID (alphanumeric + hyphens only)
+      if (!/^[a-f0-9-]+$/i.test(tunnelId)) {
+        ssh.dispose()
+        return NextResponse.json({ error: "Invalid tunnel ID format returned by cloudflared." }, { status: 500 })
+      }
+
+      // Verify the credentials file exists at the expected location
+      const defaultCredsPath = `${homeDir}/.cloudflared/${tunnelId}.json`
+      const credsCheck = await run(`test -f ${defaultCredsPath} && echo EXISTS || echo MISSING`, cwd)
+
+      let credsFilePath = defaultCredsPath
+      if (credsCheck.stdout.trim() !== 'EXISTS') {
+        // Search for the credentials file in common locations
+        console.log(`[VPS Setup] Credentials not at default path, searching...`)
+        const findRes = await run(`find ${homeDir} -name "${tunnelId}.json" -type f 2>/dev/null | head -1`, cwd)
+        if (findRes.stdout.trim()) {
+          credsFilePath = findRes.stdout.trim()
+          console.log(`[VPS Setup] Found credentials at: ${credsFilePath}`)
+          // Copy to expected location so future runs also work
+          await run(`mkdir -p ${homeDir}/.cloudflared && cp "${credsFilePath}" "${defaultCredsPath}"`, cwd)
+        } else {
+          ssh.dispose()
+          return NextResponse.json({
+            error: `Tunnel created (${tunnelId}) but credentials file not found. Try deleting the tunnel manually and re-running this step.`
+          }, { status: 500 })
+        }
+      }
+
+      // Route DNS for sycord.site, server.sycord.site, and wildcard *.sycord.site
+      await run(`./cloudflared tunnel route dns sycord-runner sycord.site || true`, cwd)
       await run(`./cloudflared tunnel route dns sycord-runner server.sycord.site || true`, cwd)
       // Attempt to route wildcard (may fail if zone doesn't support it directly via CLI, so we use || true)
       await run(`./cloudflared tunnel route dns sycord-runner "*.sycord.site" || true`, cwd)
 
-      // Generate config.yml
+      // Generate config.yml with sycord.site as the primary hostname
       const configYml = `tunnel: ${tunnelId}
-credentials-file: ${homeDir}/.cloudflared/${tunnelId}.json
+credentials-file: ${defaultCredsPath}
 
 ingress:
+  - hostname: sycord.site
+    service: http://127.0.0.1:5000
   - hostname: server.sycord.site
     service: http://127.0.0.1:5000
   - hostname: "*.sycord.site"
@@ -166,7 +210,7 @@ ingress:
       return NextResponse.json({
         success: true,
         tunnelId: tunnelId,
-        message: "Tunnel sycord-runner created! DNS routing attempted for server.sycord.site and *.sycord.site."
+        message: "Tunnel sycord-runner created! DNS routing configured for sycord.site, server.sycord.site, and *.sycord.site."
       })
     }
 

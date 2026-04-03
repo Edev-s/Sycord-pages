@@ -44,8 +44,8 @@ os.makedirs(DEPLOY_DIR, exist_ok=True)
 def wildcard_router(path):
     host = request.headers.get('Host', '').split(':')[0]
 
-    # Serve the runner index page if accessed via the exact main server domain
-    if host == 'server.sycord.site':
+    # Serve the runner index page if accessed via the main server domain
+    if host in ('sycord.site', 'server.sycord.site'):
         if path.startswith('api/deploy/'):
             return abort(405) # handled by POST below
         return """
@@ -180,7 +180,7 @@ if __name__ == '__main__':
 
   // Automatically check if server is already running to bypass setup
   useEffect(() => {
-     fetch("https://server.sycord.com")
+     fetch("https://sycord.site")
        .then(res => {
          if(res.ok) {
            setCurrentStep(4) // Skip to done
@@ -206,7 +206,7 @@ if __name__ == '__main__':
         <div className="space-y-2">
           <h1 className="text-3xl font-bold tracking-tight">Robust Runner Configuration</h1>
           <p className="text-muted-foreground mt-2 max-w-2xl">
-            This guided process securely connects to your Ubuntu VPS via SSH. We will download the necessary dependencies (Flask, Cloudflared), set up a robust tunnel to <code className="text-foreground">server.sycord.com</code>, and start the Flask webserver.
+            This guided process securely connects to your Ubuntu VPS via SSH. We will download the necessary dependencies (Flask, Cloudflared), set up a robust tunnel to <code className="text-foreground">sycord.site</code>, and start the Flask webserver.
           </p>
         </div>
 
@@ -300,7 +300,7 @@ if __name__ == '__main__':
                   Configure Tunnel & DNS
                 </CardTitle>
                 <CardDescription>
-                  Creates the <code className="text-xs">sycord-runner</code> tunnel, routes DNS to <code className="text-xs">server.sycord.com</code>, and generates the <code className="text-xs">config.yml</code> file.
+                  Creates the <code className="text-xs">sycord-runner</code> tunnel, routes DNS to <code className="text-xs">sycord.site</code>, and generates the <code className="text-xs">config.yml</code> file.
                 </CardDescription>
               </div>
               {currentStep > 2 && <Check className="h-5 w-5 text-green-500" />}
@@ -409,7 +409,7 @@ if __name__ == '__main__':
                       </li>
                    </ul>
                    <p className="text-xs text-muted-foreground mt-4">
-                     <strong>Note on SSL:</strong> By routing deployments to <code className="font-mono text-primary">project.sycord.com</code> (a first-level subdomain), Cloudflare's Free Universal SSL will automatically secure your websites. If you were previously routing to <code>*.server.sycord.com</code>, Cloudflare Free SSL does not cover two levels deep, which causes SSL browser errors.
+                     <strong>Note on SSL:</strong> By routing deployments to <code className="font-mono text-primary">project.sycord.site</code> (a first-level subdomain), Cloudflare&#39;s Free Universal SSL will automatically secure your websites.
                      <br/><br/>
                      The system will automatically attempt to configure the required CNAME via the Cloudflare API during deployments if API keys are provided.
                    </p>
@@ -417,12 +417,12 @@ if __name__ == '__main__':
              </div>
 
              <a
-                href="https://server.sycord.site"
+                href="https://sycord.site"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-4 inline-flex items-center text-sm text-primary hover:underline"
              >
-                Test Connection to server.sycord.site <ExternalLink className="ml-1 h-3 w-3" />
+                Test Connection to sycord.site <ExternalLink className="ml-1 h-3 w-3" />
              </a>
 
              <div className="pt-4 border-t border-border w-full flex justify-center mt-4">
