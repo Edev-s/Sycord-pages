@@ -58,9 +58,9 @@ export async function POST(request: Request) {
 
       console.log(`[VPS Setup] Installing Flask & deps via pip...`)
       // Install dependencies globally or locally for the user
-      await ssh.execCommand('sudo apt-get update && sudo apt-get install -y python3-pip || true', { cwd })
+      await ssh.execCommand('sudo apt-get update && sudo apt-get install -y python3-pip python3-venv git curl wget || true', { cwd })
       // Install dependencies locally for the user
-      await run(`pip3 install --user flask`, cwd)
+      await run(`pip3 install --user flask gunicorn`, cwd)
 
       ssh.dispose()
       return NextResponse.json({ success: true, message: "VPS Initialized! Repository cloned and dependencies installed." })

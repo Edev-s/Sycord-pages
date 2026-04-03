@@ -3,9 +3,8 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Terminal, Copy, Check, ArrowLeft, Play, Loader2, ExternalLink, ShieldCheck, Server, Globe, Power, Lock } from "lucide-react"
+import { Terminal, Copy, Check, Play, Loader2, ExternalLink, ShieldCheck, Server, Globe, Power, Lock } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
-import Link from "next/link"
 import { toast } from "sonner"
 
 export default function SetupPage() {
@@ -18,6 +17,8 @@ export default function SetupPage() {
   const [loadingStep, setLoadingStep] = useState<number | null>(null)
   const [authUrl, setAuthUrl] = useState<string | null>(null)
   const [tunnelId, setTunnelId] = useState<string | null>(null)
+  const [sslCert, setSslCert] = useState("")
+  const [sslKey, setSslKey] = useState("")
 
   const copyToClipboard = (text: string, setCopied: (v: boolean) => void) => {
     navigator.clipboard.writeText(text)
@@ -193,11 +194,6 @@ if __name__ == '__main__':
       <header className="border-b border-border bg-background/95 backdrop-blur sticky top-0 z-50">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" asChild className="hidden md:flex">
-              <Link href="/admin">
-                <ArrowLeft className="h-5 w-5" />
-              </Link>
-            </Button>
             <span className="text-lg font-semibold flex items-center gap-2">
               <Terminal className="h-5 w-5" />
               VPS Automated Setup
@@ -271,16 +267,21 @@ if __name__ == '__main__':
 
               {currentStep === 1 && authUrl && (
                 <div className="mt-4 p-4 border border-primary/50 bg-primary/5 rounded-lg space-y-4 animate-in fade-in zoom-in duration-300">
-                  <p className="text-sm">Click the link below, select your domain (<code className="font-mono">sycord.com</code>), and authorize the tunnel. Once it says "Success" in your browser, click "I have authorized".</p>
+                  <p className="text-sm">Click the button below, select your domain (<code className="font-mono">sycord.site</code>), and authorize the tunnel. Once it says "Success" in your browser, click "I have authorized".</p>
                   <div className="flex flex-col sm:flex-row gap-3">
-                    <a
-                      href={authUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
+                    <Button
+                      asChild
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
                     >
-                      Open Authorization Link <ExternalLink className="ml-2 h-4 w-4" />
-                    </a>
+                      <a
+                        href={authUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <ExternalLink className="mr-2 h-4 w-4" />
+                        Authorize Cloudflare Tunnel
+                      </a>
+                    </Button>
                     <Button variant="outline" onClick={handleAuthCompleted}>
                       I have authorized
                     </Button>
