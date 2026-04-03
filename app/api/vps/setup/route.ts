@@ -4,7 +4,15 @@ import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 
 /**
- * Helper: Upsert a proxied CNAME record via the Cloudflare API.
+ * Helper: Ensure a proxied CNAME record exists for the given hostname.
+ *
+ * Strategy: delete-all-then-create.  A CNAME record cannot coexist with
+ * A or AAAA records at the same name (RFC 1034).  If the hostname already
+ * has one or more A/AAAA/CNAME records (possibly left over from an old
+ * tunnel or manual setup), we must remove **all** of them before creating
+ * the new CNAME.  Simply PUTting over one record doesn't help when there
+ * are multiple conflicting records.
+ *
  * Returns true on success, or a string error message on failure.
  */
 async function upsertCfCname(
@@ -27,54 +35,87 @@ async function upsertCfCname(
   }
 
   /**
-   * Helper: search for any existing DNS record with the given hostname.
-   * First tries the exact `?name=` filter; if that returns nothing, falls back
-   * to listing all zone records and filtering client-side (handles edge cases
-   * with wildcards, root domains, or restricted API-token read scopes).
+   * Find ALL existing A, AAAA, and CNAME records for the hostname.
+   * Uses two strategies (exact-name query, then broad per-type scan) to
+   * handle edge cases with API-token scoping, wildcard encoding, etc.
    */
-  async function findExistingRecord(): Promise<string | null> {
-    // Exact-name query
-    const checkRes = await fetch(
-      `https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records?name=${encodeURIComponent(hostname)}&per_page=50`,
-      { headers },
-    )
-    const checkData = await checkRes.json()
-    if (checkData.success && checkData.result?.length > 0) {
-      return checkData.result[0].id
-    }
+  async function findAllExistingRecords(): Promise<Array<{ id: string; type: string }>> {
+    const found = new Map<string, { id: string; type: string }>()
 
-    // Broad fallback – fetch records by type and match manually
-    for (const recType of ["CNAME", "A", "AAAA"]) {
-      const allRes = await fetch(
-        `https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records?type=${recType}&per_page=100`,
+    // 1. Exact-name query (catches all types at once)
+    try {
+      const res = await fetch(
+        `https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records?name=${encodeURIComponent(hostname)}&per_page=50`,
         { headers },
       )
-      const allData = await allRes.json()
-      if (allData.success && allData.result?.length > 0) {
-        const match = allData.result.find((r: any) => r.name === hostname)
-        if (match) return match.id
+      const data = await res.json()
+      if (data.success && data.result?.length > 0) {
+        for (const r of data.result) {
+          if (["A", "AAAA", "CNAME"].includes(r.type)) {
+            found.set(r.id, { id: r.id, type: r.type })
+          }
+        }
       }
+    } catch { /* ignore – we have the fallback below */ }
+
+    // 2. Broad fallback – query by type and match client-side
+    for (const recType of ["CNAME", "A", "AAAA"]) {
+      try {
+        const res = await fetch(
+          `https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records?type=${recType}&per_page=100`,
+          { headers },
+        )
+        const data = await res.json()
+        if (data.success && data.result?.length > 0) {
+          for (const r of data.result) {
+            if (r.name === hostname) {
+              found.set(r.id, { id: r.id, type: r.type })
+            }
+          }
+        }
+      } catch { /* continue with next type */ }
     }
 
-    return null
+    return Array.from(found.values())
   }
 
   try {
-    // 1. Try to find and update an existing record first
-    const existingId = await findExistingRecord()
-    if (existingId) {
-      const putRes = await fetch(
-        `https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records/${existingId}`,
-        { method: "PUT", headers, body: JSON.stringify(payload) },
-      )
-      const putData = await putRes.json()
-      if (!putData.success) {
-        return `Failed to update DNS for ${hostname}: ${JSON.stringify(putData.errors)}`
-      }
-      return true
+    // --- Step 1: Find all existing conflicting records ---
+    const existing = await findAllExistingRecords()
+
+    // If there is exactly one CNAME already pointing to the right target,
+    // skip the delete+create cycle entirely.
+    if (
+      existing.length === 1 &&
+      existing[0].type === "CNAME"
+    ) {
+      // Quick-check: is it already pointing to the correct target?
+      try {
+        const getRes = await fetch(
+          `https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records/${existing[0].id}`,
+          { headers },
+        )
+        const getData = await getRes.json()
+        if (getData.success && getData.result?.content === target) {
+          return true // already correct – nothing to do
+        }
+      } catch { /* fall through and recreate */ }
     }
 
-    // 2. No existing record found – create a new one
+    // --- Step 2: Delete ALL conflicting records ---
+    for (const rec of existing) {
+      const delRes = await fetch(
+        `https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records/${rec.id}`,
+        { method: "DELETE", headers },
+      )
+      const delData = await delRes.json()
+      if (!delData.success) {
+        console.warn(`[DNS] Failed to delete ${rec.type} record ${rec.id} for ${hostname}: ${JSON.stringify(delData.errors)}`)
+        // Non-fatal: continue and try creating anyway
+      }
+    }
+
+    // --- Step 3: Create the CNAME record ---
     const postRes = await fetch(
       `https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records`,
       { method: "POST", headers, body: JSON.stringify(payload) },
@@ -82,29 +123,34 @@ async function upsertCfCname(
     const postData = await postRes.json()
 
     if (!postData.success) {
-      // 3. If create failed because a record already exists (81053), retry
-      //    with a broader search and update. This handles edge cases where
-      //    the initial lookup missed the record.
+      // Last resort: if we STILL get 81053, try a brute-force scan of the
+      // entire zone, delete every matching record, and create again.
       const hasConflict = postData.errors?.some((e: any) => e.code === 81053)
       if (hasConflict) {
-        // List ALL records in the zone and match by name
         const allRes = await fetch(
           `https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records?per_page=500`,
           { headers },
         )
         const allData = await allRes.json()
         if (allData.success && allData.result?.length > 0) {
-          const match = allData.result.find((r: any) => r.name === hostname)
-          if (match) {
-            const retryPut = await fetch(
-              `https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records/${match.id}`,
-              { method: "PUT", headers, body: JSON.stringify(payload) },
+          const matches = allData.result.filter(
+            (r: any) => r.name === hostname && ["A", "AAAA", "CNAME"].includes(r.type),
+          )
+          for (const m of matches) {
+            await fetch(
+              `https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records/${m.id}`,
+              { method: "DELETE", headers },
             )
-            const retryData = await retryPut.json()
-            if (retryData.success) return true
-            return `Failed to update DNS for ${hostname} (retry): ${JSON.stringify(retryData.errors)}`
           }
         }
+        // Retry create
+        const retryRes = await fetch(
+          `https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records`,
+          { method: "POST", headers, body: JSON.stringify(payload) },
+        )
+        const retryData = await retryRes.json()
+        if (retryData.success) return true
+        return `Failed to create DNS for ${hostname} after deleting conflicts: ${JSON.stringify(retryData.errors)}`
       }
       return `Failed to create DNS for ${hostname}: ${JSON.stringify(postData.errors)}`
     }
