@@ -7,8 +7,8 @@ export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
 
-    // Simple admin check
-    if (session?.user?.email !== "dmarton336@gmail.com") {
+    // Simple admin check (Temporarily disabled for user testing)
+    if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
