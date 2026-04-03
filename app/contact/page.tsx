@@ -102,6 +102,7 @@ export default function ContactPage() {
             <Link href="/tos" className="text-[#8A8E91] hover:text-white text-[11px] transition-colors">Terms</Link>
             <Link href="/pap" className="text-[#8A8E91] hover:text-white text-[11px] transition-colors">Privacy</Link>
             <Link href="/about" className="text-[#8A8E91] hover:text-white text-[11px] transition-colors">About</Link>
+            <Link href="/servers" className="text-[#8A8E91] hover:text-white text-[11px] transition-colors">Servers</Link>
           </div>
         </div>
       </footer>

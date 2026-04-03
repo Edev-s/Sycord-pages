@@ -3,9 +3,8 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Terminal, Copy, Check, ArrowLeft, Play, Loader2, ExternalLink, ShieldCheck, Server, Globe, Power, Lock } from "lucide-react"
+import { Terminal, Copy, Check, Play, Loader2, ExternalLink, ShieldCheck, Server, Globe, Power, Lock } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
-import Link from "next/link"
 import { toast } from "sonner"
 
 export default function SetupPage() {
@@ -18,6 +17,11 @@ export default function SetupPage() {
   const [loadingStep, setLoadingStep] = useState<number | null>(null)
   const [authUrl, setAuthUrl] = useState<string | null>(null)
   const [tunnelId, setTunnelId] = useState<string | null>(null)
+  const [sslCert, setSslCert] = useState("")
+  const [sslKey, setSslKey] = useState("")
+  const [statusData, setStatusData] = useState<any>(null)
+  const [statusLoading, setStatusLoading] = useState(false)
+  const [restartLoading, setRestartLoading] = useState(false)
 
   const copyToClipboard = (text: string, setCopied: (v: boolean) => void) => {
     navigator.clipboard.writeText(text)
@@ -43,8 +47,8 @@ os.makedirs(DEPLOY_DIR, exist_ok=True)
 def wildcard_router(path):
     host = request.headers.get('Host', '').split(':')[0]
 
-    # Serve the runner index page if accessed via the exact main server domain
-    if host == 'server.sycord.site':
+    # Serve the runner index page if accessed via the main server domain
+    if host in ('sycord.site', 'server.sycord.site'):
         if path.startswith('api/deploy/'):
             return abort(405) # handled by POST below
         return """
@@ -177,9 +181,50 @@ if __name__ == '__main__':
      setCurrentStep(2)
   }
 
+  const checkStatus = async () => {
+    try {
+      setStatusLoading(true)
+      const res = await fetch("/api/vps/setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "status" }),
+      })
+      const data = await res.json()
+      setStatusData(data)
+      if (!res.ok) toast.error(data.error || "Status check failed")
+    } catch (err: any) {
+      toast.error(err.message)
+    } finally {
+      setStatusLoading(false)
+    }
+  }
+
+  const restartServices = async () => {
+    try {
+      setRestartLoading(true)
+      toast("Restarting Flask & Tunnel...")
+      const res = await fetch("/api/vps/setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "restart" }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || "Restart failed")
+      } else {
+        toast.success(data.message)
+        setStatusData(null)
+      }
+    } catch (err: any) {
+      toast.error(err.message)
+    } finally {
+      setRestartLoading(false)
+    }
+  }
+
   // Automatically check if server is already running to bypass setup
   useEffect(() => {
-     fetch("https://server.sycord.com")
+     fetch("https://sycord.site")
        .then(res => {
          if(res.ok) {
            setCurrentStep(4) // Skip to done
@@ -193,11 +238,6 @@ if __name__ == '__main__':
       <header className="border-b border-border bg-background/95 backdrop-blur sticky top-0 z-50">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" asChild className="hidden md:flex">
-              <Link href="/admin">
-                <ArrowLeft className="h-5 w-5" />
-              </Link>
-            </Button>
             <span className="text-lg font-semibold flex items-center gap-2">
               <Terminal className="h-5 w-5" />
               VPS Automated Setup
@@ -210,7 +250,7 @@ if __name__ == '__main__':
         <div className="space-y-2">
           <h1 className="text-3xl font-bold tracking-tight">Robust Runner Configuration</h1>
           <p className="text-muted-foreground mt-2 max-w-2xl">
-            This guided process securely connects to your Ubuntu VPS via SSH. We will download the necessary dependencies (Flask, Cloudflared), set up a robust tunnel to <code className="text-foreground">server.sycord.com</code>, and start the Flask webserver.
+            This guided process securely connects to your Ubuntu VPS via SSH. We will download the necessary dependencies (Flask, Cloudflared), set up a robust tunnel to <code className="text-foreground">sycord.site</code>, and start the Flask webserver.
           </p>
         </div>
 
@@ -271,16 +311,21 @@ if __name__ == '__main__':
 
               {currentStep === 1 && authUrl && (
                 <div className="mt-4 p-4 border border-primary/50 bg-primary/5 rounded-lg space-y-4 animate-in fade-in zoom-in duration-300">
-                  <p className="text-sm">Click the link below, select your domain (<code className="font-mono">sycord.com</code>), and authorize the tunnel. Once it says "Success" in your browser, click "I have authorized".</p>
+                  <p className="text-sm">Click the button below, select your domain (<code className="font-mono">sycord.site</code>), and authorize the tunnel. Once it says "Success" in your browser, click "I have authorized".</p>
                   <div className="flex flex-col sm:flex-row gap-3">
-                    <a
-                      href={authUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
+                    <Button
+                      asChild
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
                     >
-                      Open Authorization Link <ExternalLink className="ml-2 h-4 w-4" />
-                    </a>
+                      <a
+                        href={authUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <ExternalLink className="mr-2 h-4 w-4" />
+                        Authorize Cloudflare Tunnel
+                      </a>
+                    </Button>
                     <Button variant="outline" onClick={handleAuthCompleted}>
                       I have authorized
                     </Button>
@@ -299,7 +344,7 @@ if __name__ == '__main__':
                   Configure Tunnel & DNS
                 </CardTitle>
                 <CardDescription>
-                  Creates the <code className="text-xs">sycord-runner</code> tunnel, routes DNS to <code className="text-xs">server.sycord.com</code>, and generates the <code className="text-xs">config.yml</code> file.
+                  Creates the <code className="text-xs">sycord-runner</code> tunnel, routes DNS to <code className="text-xs">sycord.site</code>, and generates the <code className="text-xs">config.yml</code> file.
                 </CardDescription>
               </div>
               {currentStep > 2 && <Check className="h-5 w-5 text-green-500" />}
@@ -408,7 +453,7 @@ if __name__ == '__main__':
                       </li>
                    </ul>
                    <p className="text-xs text-muted-foreground mt-4">
-                     <strong>Note on SSL:</strong> By routing deployments to <code className="font-mono text-primary">project.sycord.com</code> (a first-level subdomain), Cloudflare's Free Universal SSL will automatically secure your websites. If you were previously routing to <code>*.server.sycord.com</code>, Cloudflare Free SSL does not cover two levels deep, which causes SSL browser errors.
+                     <strong>Note on SSL:</strong> By routing deployments to <code className="font-mono text-primary">project.sycord.site</code> (a first-level subdomain), Cloudflare&#39;s Free Universal SSL will automatically secure your websites.
                      <br/><br/>
                      The system will automatically attempt to configure the required CNAME via the Cloudflare API during deployments if API keys are provided.
                    </p>
@@ -416,13 +461,56 @@ if __name__ == '__main__':
              </div>
 
              <a
-                href="https://server.sycord.site"
+                href="https://sycord.site"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-4 inline-flex items-center text-sm text-primary hover:underline"
              >
-                Test Connection to server.sycord.site <ExternalLink className="ml-1 h-3 w-3" />
+                Test Connection to sycord.site <ExternalLink className="ml-1 h-3 w-3" />
              </a>
+
+             {/* Quick diagnostics / restart */}
+             <div className="w-full max-w-2xl bg-background border border-border rounded-xl p-6 space-y-4 mt-4">
+               <h3 className="font-semibold text-lg flex items-center gap-2">
+                 <Server className="h-5 w-5 text-primary" />
+                 Service Management
+               </h3>
+               <div className="flex gap-2">
+                 <Button variant="outline" size="sm" onClick={checkStatus} disabled={statusLoading}>
+                   {statusLoading ? <><Loader2 className="mr-2 h-3 w-3 animate-spin" /> Checking...</> : "Check Status"}
+                 </Button>
+                 <Button variant="outline" size="sm" className="border-yellow-600 text-yellow-500 hover:bg-yellow-600/10" onClick={restartServices} disabled={restartLoading}>
+                   {restartLoading ? <><Loader2 className="mr-2 h-3 w-3 animate-spin" /> Restarting...</> : <><Power className="mr-1 h-3 w-3" /> Restart Services</>}
+                 </Button>
+               </div>
+
+               {statusData && (
+                 <div className="text-xs font-mono space-y-2 bg-accent/30 p-3 rounded-lg border border-border">
+                   <p>
+                     <span className={statusData.flask?.running ? "text-green-400" : "text-red-400"}>
+                       Flask: {statusData.flask?.running ? `running (PID ${statusData.flask.pid})` : "NOT running"}
+                     </span>
+                   </p>
+                   <p>
+                     <span className={statusData.tunnel?.running ? "text-green-400" : "text-red-400"}>
+                       Tunnel: {statusData.tunnel?.running ? `running (PID ${statusData.tunnel.pid})` : "NOT running"}
+                     </span>
+                   </p>
+                   {statusData.tunnel?.log && (
+                     <details className="mt-2">
+                       <summary className="cursor-pointer text-muted-foreground">Tunnel log (last 10 lines)</summary>
+                       <pre className="mt-1 whitespace-pre-wrap text-muted-foreground overflow-auto max-h-32">{statusData.tunnel.log}</pre>
+                     </details>
+                   )}
+                   {statusData.flask?.log && (
+                     <details className="mt-2">
+                       <summary className="cursor-pointer text-muted-foreground">Flask log (last 10 lines)</summary>
+                       <pre className="mt-1 whitespace-pre-wrap text-muted-foreground overflow-auto max-h-32">{statusData.flask.log}</pre>
+                     </details>
+                   )}
+                 </div>
+               )}
+             </div>
 
              <div className="pt-4 border-t border-border w-full flex justify-center mt-4">
                <Button variant="ghost" onClick={() => setCurrentStep(0)} className="text-muted-foreground hover:text-foreground">

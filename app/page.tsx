@@ -600,6 +600,7 @@ export default function LandingPage() {
                   <li><Link href="#" className="text-[#8A8E91] hover:text-white text-xs transition-colors">Features</Link></li>
                   <li><Link href="#pricing" className="text-[#8A8E91] hover:text-white text-xs transition-colors">Pricing</Link></li>
                   <li><Link href="#" className="text-[#8A8E91] hover:text-white text-xs transition-colors">Security</Link></li>
+                  <li><Link href="/servers" className="text-[#8A8E91] hover:text-white text-xs transition-colors">Servers</Link></li>
                 </ul>
               </div>
               <div>

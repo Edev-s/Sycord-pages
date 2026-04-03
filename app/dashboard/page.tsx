@@ -224,7 +224,7 @@ function DashboardContent() {
                 <Image src="/logo.png" alt="Logo" width={32} height={32} />
                 <span className="text-xl font-semibold text-foreground">Sycord</span>
                 {userStatus.isPremium && (
-                  <span className="ml-1 px-1.5 py-0.5 text-[10px] font-bold bg-yellow-500/20 text-yellow-500 rounded-full border border-yellow-500/30">
+                  <span className="ml-0.5 text-[11px] font-semibold text-yellow-500">
                     {userStatus.subscription === "Sycord Enterprise" ? "Enterprise" : "+"}
                   </span>
                 )}
@@ -313,7 +313,7 @@ function DashboardContent() {
           <div className="flex flex-col gap-4 mb-6 md:mb-8">
             <div className="flex items-center justify-between">
               <h1 className="text-lg font-semibold text-foreground">Projektek</h1>
-              <Button onClick={() => setIsModalOpen(true)} className="w-auto">
+              <Button onClick={() => setIsModalOpen(true)} className="w-auto frosted-card hover:bg-white/10 border-white/10">
                 <Plus className="h-4 w-4 mr-2" />
                 Új Projekt
               </Button>
@@ -348,7 +348,7 @@ function DashboardContent() {
                 <p className="text-sm text-muted-foreground mb-6">
                   Kezdje el első projektjét, és indítsa el weboldalát {"{"}name{"}"}.pages.dev címen
                 </p>
-                <Button onClick={() => setIsModalOpen(true)}>
+                <Button onClick={() => setIsModalOpen(true)} className="frosted-card hover:bg-white/10 border-white/10">
                   <Plus className="h-4 w-4 mr-2" />
                   Első Projekt Létrehozása
                 </Button>
