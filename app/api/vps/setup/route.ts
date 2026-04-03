@@ -3,6 +3,66 @@ import { NodeSSH } from "node-ssh"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 
+/**
+ * Helper: Upsert a proxied CNAME record via the Cloudflare API.
+ * Returns true on success, or a string error message on failure.
+ */
+async function upsertCfCname(
+  apiKey: string,
+  zoneId: string,
+  hostname: string,
+  target: string,
+): Promise<true | string> {
+  const headers = {
+    Authorization: `Bearer ${apiKey}`,
+    "Content-Type": "application/json",
+  }
+
+  try {
+    // Check if a record already exists
+    const checkRes = await fetch(
+      `https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records?name=${encodeURIComponent(hostname)}`,
+      { headers },
+    )
+    const checkData = await checkRes.json()
+
+    const payload = {
+      type: "CNAME",
+      name: hostname,
+      content: target,
+      proxied: true,
+      ttl: 1,
+    }
+
+    if (checkData.success && checkData.result?.length > 0) {
+      // Update the existing record
+      const recordId = checkData.result[0].id
+      const putRes = await fetch(
+        `https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records/${recordId}`,
+        { method: "PUT", headers, body: JSON.stringify(payload) },
+      )
+      const putData = await putRes.json()
+      if (!putData.success) {
+        return `Failed to update DNS for ${hostname}: ${JSON.stringify(putData.errors)}`
+      }
+    } else {
+      // Create a new record
+      const postRes = await fetch(
+        `https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records`,
+        { method: "POST", headers, body: JSON.stringify(payload) },
+      )
+      const postData = await postRes.json()
+      if (!postData.success) {
+        return `Failed to create DNS for ${hostname}: ${JSON.stringify(postData.errors)}`
+      }
+    }
+
+    return true
+  } catch (err: any) {
+    return `DNS API error for ${hostname}: ${err.message}`
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
@@ -185,11 +245,36 @@ export async function POST(request: Request) {
         }
       }
 
-      // Route DNS for sycord.site, server.sycord.site, and wildcard *.sycord.site
-      await run(`./cloudflared tunnel route dns sycord-runner sycord.site || true`, cwd)
-      await run(`./cloudflared tunnel route dns sycord-runner server.sycord.site || true`, cwd)
-      // Attempt to route wildcard (may fail if zone doesn't support it directly via CLI, so we use || true)
-      await run(`./cloudflared tunnel route dns sycord-runner "*.sycord.site" || true`, cwd)
+      // Route DNS – prefer the Cloudflare API so we can reliably update records
+      // that already exist (pointing at the old deleted tunnel UUID).
+      const cfApiKey = process.env.CLOUDFLARE_API_KEY
+      const cfZoneId = process.env.CLOUDFLARE_ZONE_ID
+      const tunnelTarget = `${tunnelId}.cfargotunnel.com`
+      const dnsWarnings: string[] = []
+
+      if (cfApiKey && cfZoneId) {
+        console.log(`[VPS Setup] Updating DNS via Cloudflare API → ${tunnelTarget}`)
+        const hostnames = ["sycord.site", "server.sycord.site", "*.sycord.site"]
+        for (const h of hostnames) {
+          const result = await upsertCfCname(cfApiKey, cfZoneId, h, tunnelTarget)
+          if (result !== true) {
+            console.warn(`[VPS Setup] DNS warning: ${result}`)
+            dnsWarnings.push(result)
+          }
+        }
+      } else {
+        // Fallback to cloudflared CLI (may fail if records already exist for a different tunnel)
+        console.warn("[VPS Setup] No CLOUDFLARE_API_KEY/ZONE_ID – falling back to cloudflared route dns")
+        const dnsHostnames = ["sycord.site", "server.sycord.site"]
+        for (const h of dnsHostnames) {
+          const routeRes = await run(`./cloudflared tunnel route dns sycord-runner ${h}`, cwd)
+          if (routeRes.stderr && !routeRes.stderr.includes("already exists")) {
+            dnsWarnings.push(`route dns ${h}: ${routeRes.stderr.substring(0, 200)}`)
+          }
+        }
+        // Wildcard may not be supported via CLI on all plans
+        await run(`./cloudflared tunnel route dns sycord-runner "*.sycord.site" || true`, cwd)
+      }
 
       // Generate config.yml with sycord.site as the primary hostname
       const configYml = `tunnel: ${tunnelId}
@@ -207,10 +292,13 @@ ingress:
       await ssh.execCommand(`cat > config.yml`, { cwd, stdin: configYml })
 
       ssh.dispose()
+      const warnText = dnsWarnings.length > 0
+        ? ` DNS warnings: ${dnsWarnings.join("; ")}`
+        : ""
       return NextResponse.json({
         success: true,
         tunnelId: tunnelId,
-        message: "Tunnel sycord-runner created! DNS routing configured for sycord.site, server.sycord.site, and *.sycord.site."
+        message: `Tunnel sycord-runner created! DNS routing configured for sycord.site, server.sycord.site, and *.sycord.site.${warnText}`
       })
     }
 
@@ -271,6 +359,76 @@ ingress:
 
       ssh.dispose()
       return NextResponse.json({ success: true, message: "VPS Setup Complete! Flask server and Tunnel are both running." })
+    }
+
+    // --- STATUS CHECK ---
+    if (action === "status") {
+      const flaskPid = await run('pgrep -f "python3.*/runner.py"', cwd)
+      const tunnelPid = await run('pgrep -f "cloudflared tunnel.*sycord-runner"', cwd)
+      const tunnelLog = await run(`tail -n 10 ${cwd}/tunnel.log 2>/dev/null`, cwd)
+      const runnerLog = await run(`tail -n 10 ${cwd}/runner.log 2>/dev/null`, cwd)
+
+      ssh.dispose()
+      return NextResponse.json({
+        success: true,
+        flask: {
+          running: !!flaskPid.stdout.trim(),
+          pid: flaskPid.stdout.trim() || null,
+          log: runnerLog.stdout || null,
+        },
+        tunnel: {
+          running: !!tunnelPid.stdout.trim(),
+          pid: tunnelPid.stdout.trim() || null,
+          log: tunnelLog.stdout || null,
+        },
+      })
+    }
+
+    // --- RESTART (quick restart without reconfiguring) ---
+    if (action === "restart") {
+      console.log(`[VPS Setup] Restarting Flask and Tunnel...`)
+
+      // Kill existing
+      await run('pkill -9 -f "runner\\.py" || true', cwd)
+      await run('pkill -9 -f "cloudflared tunnel run" || true', cwd)
+      await run('fuser -k 5000/tcp || true', cwd)
+
+      // Verify config.yml exists
+      const cfgCheck = await run(`test -f ${cwd}/config.yml && echo EXISTS || echo MISSING`, cwd)
+      if (cfgCheck.stdout.trim() !== 'EXISTS') {
+        ssh.dispose()
+        return NextResponse.json({ error: "config.yml not found. Run the Config step (Step 3) first." }, { status: 400 })
+      }
+
+      // Verify runner.py exists
+      const runnerCheck = await run(`test -f ${cwd}/runner.py && echo EXISTS || echo MISSING`, cwd)
+      if (runnerCheck.stdout.trim() !== 'EXISTS') {
+        ssh.dispose()
+        return NextResponse.json({ error: "runner.py not found. Run the Start Server step (Step 4) first." }, { status: 400 })
+      }
+
+      // Start
+      await run(`nohup python3 ${cwd}/runner.py > ${cwd}/runner.log 2>&1 &`, cwd)
+      await run(`nohup ${cwd}/cloudflared tunnel --config ${cwd}/config.yml run sycord-runner > ${cwd}/tunnel.log 2>&1 &`, cwd)
+
+      await new Promise(r => setTimeout(r, 3000))
+
+      const flaskUp = await run('pgrep -f "python3.*/runner.py"', cwd)
+      const tunnelUp = await run('pgrep -f "cloudflared tunnel.*sycord-runner"', cwd)
+
+      if (!tunnelUp.stdout) {
+        const logTail = await run(`tail -n 20 ${cwd}/tunnel.log`, cwd)
+        ssh.dispose()
+        return NextResponse.json({
+          error: `Tunnel crashed after restart. Log:\n${logTail.stdout || logTail.stderr || 'No output'}`
+        }, { status: 500 })
+      }
+
+      ssh.dispose()
+      return NextResponse.json({
+        success: true,
+        message: `Restarted! Flask: ${flaskUp.stdout ? 'running' : 'NOT running'}, Tunnel: running.`
+      })
     }
 
     ssh.dispose()

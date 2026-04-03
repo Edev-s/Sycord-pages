@@ -19,6 +19,9 @@ export default function SetupPage() {
   const [tunnelId, setTunnelId] = useState<string | null>(null)
   const [sslCert, setSslCert] = useState("")
   const [sslKey, setSslKey] = useState("")
+  const [statusData, setStatusData] = useState<any>(null)
+  const [statusLoading, setStatusLoading] = useState(false)
+  const [restartLoading, setRestartLoading] = useState(false)
 
   const copyToClipboard = (text: string, setCopied: (v: boolean) => void) => {
     navigator.clipboard.writeText(text)
@@ -176,6 +179,47 @@ if __name__ == '__main__':
   // A helper function to advance to Step 2 manually after authorizing
   const handleAuthCompleted = () => {
      setCurrentStep(2)
+  }
+
+  const checkStatus = async () => {
+    try {
+      setStatusLoading(true)
+      const res = await fetch("/api/vps/setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "status" }),
+      })
+      const data = await res.json()
+      setStatusData(data)
+      if (!res.ok) toast.error(data.error || "Status check failed")
+    } catch (err: any) {
+      toast.error(err.message)
+    } finally {
+      setStatusLoading(false)
+    }
+  }
+
+  const restartServices = async () => {
+    try {
+      setRestartLoading(true)
+      toast("Restarting Flask & Tunnel...")
+      const res = await fetch("/api/vps/setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "restart" }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || "Restart failed")
+      } else {
+        toast.success(data.message)
+        setStatusData(null)
+      }
+    } catch (err: any) {
+      toast.error(err.message)
+    } finally {
+      setRestartLoading(false)
+    }
   }
 
   // Automatically check if server is already running to bypass setup
@@ -424,6 +468,49 @@ if __name__ == '__main__':
              >
                 Test Connection to sycord.site <ExternalLink className="ml-1 h-3 w-3" />
              </a>
+
+             {/* Quick diagnostics / restart */}
+             <div className="w-full max-w-2xl bg-background border border-border rounded-xl p-6 space-y-4 mt-4">
+               <h3 className="font-semibold text-lg flex items-center gap-2">
+                 <Server className="h-5 w-5 text-primary" />
+                 Service Management
+               </h3>
+               <div className="flex gap-2">
+                 <Button variant="outline" size="sm" onClick={checkStatus} disabled={statusLoading}>
+                   {statusLoading ? <><Loader2 className="mr-2 h-3 w-3 animate-spin" /> Checking...</> : "Check Status"}
+                 </Button>
+                 <Button variant="outline" size="sm" className="border-yellow-600 text-yellow-500 hover:bg-yellow-600/10" onClick={restartServices} disabled={restartLoading}>
+                   {restartLoading ? <><Loader2 className="mr-2 h-3 w-3 animate-spin" /> Restarting...</> : <><Power className="mr-1 h-3 w-3" /> Restart Services</>}
+                 </Button>
+               </div>
+
+               {statusData && (
+                 <div className="text-xs font-mono space-y-2 bg-accent/30 p-3 rounded-lg border border-border">
+                   <p>
+                     <span className={statusData.flask?.running ? "text-green-400" : "text-red-400"}>
+                       Flask: {statusData.flask?.running ? `running (PID ${statusData.flask.pid})` : "NOT running"}
+                     </span>
+                   </p>
+                   <p>
+                     <span className={statusData.tunnel?.running ? "text-green-400" : "text-red-400"}>
+                       Tunnel: {statusData.tunnel?.running ? `running (PID ${statusData.tunnel.pid})` : "NOT running"}
+                     </span>
+                   </p>
+                   {statusData.tunnel?.log && (
+                     <details className="mt-2">
+                       <summary className="cursor-pointer text-muted-foreground">Tunnel log (last 10 lines)</summary>
+                       <pre className="mt-1 whitespace-pre-wrap text-muted-foreground overflow-auto max-h-32">{statusData.tunnel.log}</pre>
+                     </details>
+                   )}
+                   {statusData.flask?.log && (
+                     <details className="mt-2">
+                       <summary className="cursor-pointer text-muted-foreground">Flask log (last 10 lines)</summary>
+                       <pre className="mt-1 whitespace-pre-wrap text-muted-foreground overflow-auto max-h-32">{statusData.flask.log}</pre>
+                     </details>
+                   )}
+                 </div>
+               )}
+             </div>
 
              <div className="pt-4 border-t border-border w-full flex justify-center mt-4">
                <Button variant="ghost" onClick={() => setCurrentStep(0)} className="text-muted-foreground hover:text-foreground">
