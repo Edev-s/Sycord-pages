@@ -205,7 +205,7 @@ def deploy(project_id: str):
             link.symlink_to(project_dir)
 
     # Persist metadata
-    domain = f"{subdomain}.sycord.com" if subdomain else None
+    domain = f"{subdomain}.sycord.site" if subdomain else None
     meta = _read_meta(project_id) or {}
     meta.update(
         {

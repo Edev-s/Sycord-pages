@@ -20,7 +20,7 @@ const sections = [
     items: [
       "2.1 Weboldalkészítés: A Sycord lehetőséget biztosít weboldalak létrehozására, szerkesztésére és közzétételére vizuális szerkesztő és AI-alapú kódgenerátor segítségével, kódolási ismeretek nélkül.",
       "2.2 AI Kódgenerálás: A platform Google Gemini és DeepSeek mesterséges intelligencia modelleket használ HTML, CSS és TypeScript kód automatikus generálásához. A felhasználói promptok feldolgozásra kerülnek ezen külső AI szolgáltatók által.",
-      "2.3 Tárhelyszolgáltatás: Az elkészült weboldalak a Sycord infrastruktúráján kerülnek közzétételre, egyedi aldomain (*.sycord.com) vagy egyéni domain alatt.",
+      "2.3 Tárhelyszolgáltatás: Az elkészült weboldalak a Sycord infrastruktúráján kerülnek közzétételre, egyedi aldomain (*.sycord.site) vagy egyéni domain alatt.",
       "2.4 GitHub Integráció: A weboldalak forráskódja GitHub repositorykba kerül telepítésre automatikus deployment folyamattal.",
       "2.5 Firebase Szinkronizáció: A szerkesztési adatok valós időben szinkronizálódnak Firebase infrastruktúrán keresztül, biztosítva az azonnali frissítéseket.",
       "2.6 Tartalomszűrés: A platform automatikus tartalommoderációt alkalmaz (szűrőrendszer) a nem megfelelő tartalmak kiszűrésére.",
@@ -107,7 +107,7 @@ const sections = [
   {
     title: "11. Domain-kezelés és Tárhely",
     items: [
-      "11.1 Aldomain: Minden közzétett weboldal alapértelmezetten egy *.sycord.com aldomain alatt érhető el.",
+      "11.1 Aldomain: Minden közzétett weboldal alapértelmezetten egy *.sycord.site aldomain alatt érhető el.",
       "11.2 Egyéni domain: A Sycord+ és Enterprise csomagok esetén a Felhasználó egyéni domaint csatlakoztathat. A domain regisztrációs és megújítási díjai a Felhasználót terhelik.",
       "11.3 Tárhelykorlátok: A tárhelyhasználat az előfizetési csomagnak megfelelő korlátokhoz kötött. A korlát túllépése a további feltöltések letiltásához vezethet.",
       "11.4 Aldomain fenntartás: A Sycord fenntartja a jogot az aldomain visszavonására, amennyiben az sértő, megtévesztő vagy jogsértő tartalmat tartalmaz.",

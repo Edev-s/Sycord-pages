@@ -45,7 +45,7 @@ export default function TermsOfServicePage() {
             <ul className="space-y-3 text-sm text-[#c0c2c5] leading-relaxed">
               <li><span className="text-white/70 font-medium">2.1 Weboldalkészítés:</span> A Sycord lehetőséget biztosít weboldalak létrehozására, szerkesztésére és közzétételére vizuális szerkesztő és AI-alapú kódgenerátor segítségével, kódolási ismeretek nélkül.</li>
               <li><span className="text-white/70 font-medium">2.2 AI Kódgenerálás:</span> A platform Google Gemini és DeepSeek mesterséges intelligencia modelleket használ HTML, CSS és TypeScript kód automatikus generálásához. A felhasználói promptok feldolgozásra kerülnek ezen külső AI szolgáltatók által.</li>
-              <li><span className="text-white/70 font-medium">2.3 Tárhelyszolgáltatás:</span> Az elkészült weboldalak a Sycord infrastruktúráján kerülnek közzétételre, egyedi aldomain (*.sycord.com) vagy egyéni domain alatt.</li>
+              <li><span className="text-white/70 font-medium">2.3 Tárhelyszolgáltatás:</span> Az elkészült weboldalak a Sycord infrastruktúráján kerülnek közzétételre, egyedi aldomain (*.sycord.site) vagy egyéni domain alatt.</li>
               <li><span className="text-white/70 font-medium">2.4 GitHub Integráció:</span> A weboldalak forráskódja GitHub repositorykba kerül telepítésre automatikus deployment folyamattal.</li>
               <li><span className="text-white/70 font-medium">2.5 Firebase Szinkronizáció:</span> A szerkesztési adatok valós időben szinkronizálódnak Firebase infrastruktúrán keresztül, biztosítva az azonnali frissítéseket.</li>
               <li><span className="text-white/70 font-medium">2.6 Tartalomszűrés:</span> A platform automatikus tartalommoderációt alkalmaz (szűrőrendszer) a nem megfelelő tartalmak kiszűrésére.</li>
@@ -150,7 +150,7 @@ export default function TermsOfServicePage() {
           <section className="mb-10">
             <h2 className="text-lg md:text-xl font-semibold text-white mb-4">11. Domain-kezelés és Tárhely</h2>
             <ul className="space-y-3 text-sm text-[#c0c2c5] leading-relaxed">
-              <li><span className="text-white/70 font-medium">11.1 Aldomain:</span> Minden közzétett weboldal alapértelmezetten egy *.sycord.com aldomain alatt érhető el.</li>
+              <li><span className="text-white/70 font-medium">11.1 Aldomain:</span> Minden közzétett weboldal alapértelmezetten egy *.sycord.site aldomain alatt érhető el.</li>
               <li><span className="text-white/70 font-medium">11.2 Egyéni domain:</span> A Sycord+ és Enterprise csomagok esetén a Felhasználó egyéni domaint csatlakoztathat. A domain regisztrációs és megújítási díjai a Felhasználót terhelik.</li>
               <li><span className="text-white/70 font-medium">11.3 Tárhelykorlátok:</span> A tárhelyhasználat az előfizetési csomagnak megfelelő korlátokhoz kötött. A korlát túllépése a további feltöltések letiltásához vezethet.</li>
               <li><span className="text-white/70 font-medium">11.4 Aldomain fenntartás:</span> A Sycord fenntartja a jogot az aldomain visszavonására, amennyiben az sértő, megtévesztő vagy jogsértő tartalmat tartalmaz.</li>

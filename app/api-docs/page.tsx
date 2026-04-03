@@ -20,7 +20,7 @@ const ENDPOINTS = [
     response: `{
   "success": true,
   "project_id": "abc123",
-  "domain": "my-site.sycord.com",
+  "domain": "my-site.sycord.site",
   "files_count": 2
 }`,
   },
@@ -34,7 +34,7 @@ const ENDPOINTS = [
   "success": true,
   "project_id": "abc123",
   "subdomain": "my-site",
-  "domain": "my-site.sycord.com",
+  "domain": "my-site.sycord.site",
   "files_count": 2,
   "deployed_at": "2026-03-30T12:00:00Z",
   "files": ["index.html", "styles/main.css"]
@@ -94,7 +94,7 @@ export default function ApiDocsPage() {
           Tunnel. Each deployed site is served via subdomain detection –
           e.g.&nbsp;
           <code className="text-zinc-300 bg-zinc-800 px-1.5 py-0.5 rounded text-xs">
-            my-site.sycord.com
+            my-site.sycord.site
           </code>
           .
         </p>
@@ -113,7 +113,7 @@ export default function ApiDocsPage() {
               The Flask server stores them on disk and creates a subdomain
               mapping so&nbsp;
               <code className="bg-zinc-800 px-1 py-0.5 rounded text-xs">
-                &lt;subdomain&gt;.sycord.com
+                &lt;subdomain&gt;.sycord.site
               </code>{" "}
               resolves to the correct content.
             </li>

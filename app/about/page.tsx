@@ -26,7 +26,7 @@ const features = [
     icon: Globe,
     title: "Instant Hosting",
     description:
-      "Every site gets a *.sycord.com subdomain with one-click publishing. Custom domains available on paid plans.",
+      "Every site gets a *.sycord.site subdomain with one-click publishing. Custom domains available on paid plans.",
     color: "text-green-400",
     bg: "bg-green-400/10",
   },

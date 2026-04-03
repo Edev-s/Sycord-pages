@@ -886,8 +886,8 @@ export default function AdminPage() {
                       <div className="flex-1 flex items-center justify-between">
                          <div className="flex flex-col">
                             <span className="text-sm font-medium">Runner Endpoint</span>
-                            <a href="https://server.sycord.com" target="_blank" className="text-xs text-muted-foreground hover:underline inline-flex items-center">
-                               server.sycord.com <ExternalLink className="ml-1 h-3 w-3" />
+                            <a href="https://server.sycord.site" target="_blank" className="text-xs text-muted-foreground hover:underline inline-flex items-center">
+                               server.sycord.site <ExternalLink className="ml-1 h-3 w-3" />
                             </a>
                          </div>
                          <Button
@@ -899,7 +899,7 @@ export default function AdminPage() {
                              btn.innerText = "Checking..."
                              btn.disabled = true
                              try {
-                               const res = await fetch("https://server.sycord.com")
+                               const res = await fetch("https://server.sycord.site")
                                if (res.ok) {
                                  toast.success("VPS Runner is Online!")
                                } else {
