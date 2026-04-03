@@ -489,7 +489,7 @@ export default function SiteSettingsPage() {
     if (!targetId) return
 
     try {
-        const vpsUrl = process.env.NEXT_PUBLIC_VPS_SERVER_URL || "https://vps.sycord.com"
+        const vpsUrl = process.env.NEXT_PUBLIC_VPS_SERVER_URL || "https://sycord.site"
         const res = await fetch(`${vpsUrl}/api/logs?project_id=${targetId}&limit=50`)
         if (res.ok) {
             const data = await res.json()
@@ -843,7 +843,7 @@ export default function SiteSettingsPage() {
       setDeploySuccess(true)
       setDeployResult({
         url: result.url,
-        message: result.message || `Successfully deployed ${result.filesCount} file(s) to GitHub`
+        message: result.message || `Successfully deployed ${result.filesCount} file(s) to VPS`
       })
 
       if (result.projectId || result.repoId) {
@@ -1487,6 +1487,14 @@ export default function SiteSettingsPage() {
                       <p className="text-muted-foreground">Manage AI-generated content (Vite + TypeScript)</p>
                     </div>
                     <div className="flex items-center gap-2">
+                      <Button
+                        onClick={handleDeploy}
+                        disabled={isDeploying || generatedPages.length === 0}
+                        className="bg-[#22a868] text-white hover:bg-[#1e955c] transition-colors"
+                      >
+                        {isDeploying ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Globe className="h-4 w-4 mr-2" />}
+                        {isDeploying ? "Deploying..." : "Deploy to Sycord"}
+                      </Button>
                       {generatedPages.length > 0 && (
                         <Button
                           variant="destructive"

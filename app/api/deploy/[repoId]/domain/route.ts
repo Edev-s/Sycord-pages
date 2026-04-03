@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth"
 import clientPromise from "@/lib/mongodb"
 
 const VPS_BASE_URL =
-  process.env.VPS_SERVER_URL || "https://vps.sycord.com"
+  process.env.VPS_SERVER_URL || "https://sycord.site"
 
 export async function GET(
     request: Request,
