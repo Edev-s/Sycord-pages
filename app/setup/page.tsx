@@ -18,6 +18,8 @@ export default function SetupPage() {
   const [loadingStep, setLoadingStep] = useState<number | null>(null)
   const [authUrl, setAuthUrl] = useState<string | null>(null)
   const [tunnelId, setTunnelId] = useState<string | null>(null)
+  const [sslCert, setSslCert] = useState("")
+  const [sslKey, setSslKey] = useState("")
 
   const copyToClipboard = (text: string, setCopied: (v: boolean) => void) => {
     navigator.clipboard.writeText(text)

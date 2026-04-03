@@ -127,31 +127,58 @@ export async function POST(request: Request) {
     if (action === "config") {
       console.log(`[VPS Setup] Running Step 3: Config...`)
 
-      // Create Tunnel
+      // Create Tunnel (may fail if it already exists – that's fine)
       const createRes = await run('./cloudflared tunnel create sycord-runner', cwd)
       const uuidMatch = createRes.stdout.match(/id ([a-f0-9-]+)/i) || createRes.stderr.match(/id ([a-f0-9-]+)/i)
 
       let tunnelId = ""
-      if (!uuidMatch) {
-         const listRes = await run('./cloudflared tunnel list', cwd)
-         const listMatch = listRes.stdout.match(/([a-f0-9-]+)\s+sycord-runner/i)
-         if (!listMatch) {
-             ssh.dispose()
-             return NextResponse.json({ error: "Failed to create or find Cloudflare tunnel UUID." }, { status: 500 })
-         }
-         tunnelId = listMatch[1]
-      } else {
+      if (uuidMatch) {
          tunnelId = uuidMatch[1]
+      } else {
+         // Tunnel probably already exists – look it up
+         console.log(`[VPS Setup] Tunnel create didn't return UUID. Checking tunnel list...`)
+         const listRes = await run('./cloudflared tunnel list', cwd)
+         const listMatch = listRes.stdout.match(/([a-f0-9-]{36})\s+sycord-runner/i)
+         if (listMatch) {
+            tunnelId = listMatch[1]
+         } else {
+            // Last resort: try to extract any UUID from the list output
+            const anyUuid = listRes.stdout.match(/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/i)
+            if (anyUuid) {
+               tunnelId = anyUuid[1]
+               console.log(`[VPS Setup] Using first tunnel UUID found: ${tunnelId}`)
+            }
+         }
       }
 
-      // Route DNS
-      await run(`./cloudflared tunnel route dns sycord-runner server.sycord.site || true`, cwd)
-      // Attempt to route wildcard (may fail if zone doesn't support it directly via CLI, so we use || true)
-      await run(`./cloudflared tunnel route dns sycord-runner "*.sycord.site" || true`, cwd)
+      // Even if we couldn't find the tunnel UUID, don't crash.
+      // Write config.yml with whatever we have and let the user proceed.
+      if (!tunnelId) {
+         console.warn("[VPS Setup] Could not determine tunnel UUID. Writing config with placeholder – tunnel start may fail but Flask will still work.")
+      }
+
+      // Route DNS (non-blocking, uses || true)
+      if (tunnelId) {
+        await run(`./cloudflared tunnel route dns sycord-runner server.sycord.site || true`, cwd)
+        await run(`./cloudflared tunnel route dns sycord-runner "*.sycord.site" || true`, cwd)
+      }
 
       // Generate config.yml
-      const configYml = `tunnel: ${tunnelId}
+      const configYml = tunnelId
+        ? `tunnel: ${tunnelId}
 credentials-file: ${homeDir}/.cloudflared/${tunnelId}.json
+
+ingress:
+  - hostname: server.sycord.site
+    service: http://127.0.0.1:5000
+  - hostname: "*.sycord.site"
+    service: http://127.0.0.1:5000
+  - service: http_status:404`
+        : `# Tunnel UUID could not be determined automatically.
+# Run: ./cloudflared tunnel list   to find your tunnel UUID,
+# then replace <TUNNEL_UUID> below.
+tunnel: <TUNNEL_UUID>
+credentials-file: ${homeDir}/.cloudflared/<TUNNEL_UUID>.json
 
 ingress:
   - hostname: server.sycord.site
@@ -165,8 +192,10 @@ ingress:
       ssh.dispose()
       return NextResponse.json({
         success: true,
-        tunnelId: tunnelId,
-        message: "Tunnel sycord-runner created! DNS routing attempted for server.sycord.site and *.sycord.site."
+        tunnelId: tunnelId || null,
+        message: tunnelId
+          ? "Tunnel sycord-runner created! DNS routing attempted for server.sycord.site and *.sycord.site."
+          : "Config written but tunnel UUID could not be determined. Flask will still start. You may need to manually check the tunnel."
       })
     }
 
@@ -201,32 +230,60 @@ ingress:
       // Force free port 5000 just in case pkill missed it
       await run('fuser -k 5000/tcp || true', cwd)
 
-      // Start processes using absolute paths to avoid environment PATH issues inside nohup over SSH
+      // --- Start Flask FIRST (this is the priority) ---
       await run(`nohup python3 ${cwd}/runner.py > ${cwd}/runner.log 2>&1 &`, cwd)
 
-      // Explicitly point to the config.yml so cloudflared knows where to route traffic
-      await run(`nohup ${cwd}/cloudflared tunnel --config ${cwd}/config.yml run sycord-runner > ${cwd}/tunnel.log 2>&1 &`, cwd)
-
-      // Wait 2 seconds to see if cloudflared crashes immediately
-      await new Promise(r => setTimeout(r, 2000))
+      // Give Flask a moment to bind its port
+      await new Promise(r => setTimeout(r, 1500))
 
       const psResFlask = await run('pgrep -f "python3.*/runner.py"', cwd)
-      if (!psResFlask.stdout) {
-         console.warn("[VPS Setup] Flask server doesn't appear to be running after start.")
-      }
+      const flaskRunning = !!psResFlask.stdout
 
-      const psResTunnel = await run('pgrep -f "cloudflared tunnel.*sycord-runner"', cwd)
-      if (!psResTunnel.stdout) {
-         console.warn("[VPS Setup] Cloudflared tunnel crashed. Fetching log...")
-         const logTail = await run(`tail -n 20 ${cwd}/tunnel.log`, cwd)
+      if (!flaskRunning) {
+         console.warn("[VPS Setup] Flask server doesn't appear to be running after start.")
+         const flaskLog = await run(`tail -n 20 ${cwd}/runner.log`, cwd)
          ssh.dispose()
          return NextResponse.json({
-           error: `Tunnel crashed immediately. Log output:\n${logTail.stdout || logTail.stderr || 'No log output found.'}`
+           error: `Flask server failed to start. Log output:\n${flaskLog.stdout || flaskLog.stderr || 'No log output found.'}`
          }, { status: 500 })
       }
 
+      // --- Now try to start tunnel (non-fatal if it fails) ---
+      let tunnelRunning = false
+      let tunnelWarning = ""
+
+      // Check if config.yml exists before trying to start the tunnel
+      const configCheck = await run(`test -f ${cwd}/config.yml && echo "exists"`, cwd)
+      if (configCheck.stdout.includes("exists")) {
+        await run(`nohup ${cwd}/cloudflared tunnel --config ${cwd}/config.yml run sycord-runner > ${cwd}/tunnel.log 2>&1 &`, cwd)
+
+        // Wait 2 seconds to see if cloudflared crashes immediately
+        await new Promise(r => setTimeout(r, 2000))
+
+        const psResTunnel = await run('pgrep -f "cloudflared tunnel.*sycord-runner"', cwd)
+        tunnelRunning = !!psResTunnel.stdout
+
+        if (!tunnelRunning) {
+          const logTail = await run(`tail -n 20 ${cwd}/tunnel.log`, cwd)
+          tunnelWarning = `Tunnel failed to start (Flask is still running). Log: ${logTail.stdout || logTail.stderr || 'No log output.'}`
+          console.warn(`[VPS Setup] ${tunnelWarning}`)
+        }
+      } else {
+        tunnelWarning = "config.yml not found – tunnel was not started. Flask is running on port 5000. Run Step 3 (Config) to set up the tunnel."
+        console.warn(`[VPS Setup] ${tunnelWarning}`)
+      }
+
       ssh.dispose()
-      return NextResponse.json({ success: true, message: "VPS Setup Complete! Flask server and Tunnel are both running." })
+
+      // Always return success if Flask is running – tunnel is secondary
+      return NextResponse.json({
+        success: true,
+        flaskRunning: true,
+        tunnelRunning,
+        message: tunnelRunning
+          ? "VPS Setup Complete! Flask server and Tunnel are both running."
+          : `Flask server is running! ${tunnelWarning}`,
+      })
     }
 
     ssh.dispose()
