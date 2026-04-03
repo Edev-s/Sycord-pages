@@ -141,6 +141,17 @@ def index():
     )
 
 
+@app.route("/api/health", methods=["GET"])
+def health():
+    """Health-check endpoint used by the keep-alive cron to ensure the runner
+    stays warm 24/7."""
+    return jsonify(
+        status="ok",
+        timestamp=datetime.now(timezone.utc).isoformat(),
+        service="sycord-runner",
+    )
+
+
 # ── API: Deploy ───────────────────────────────────────────────────────────
 
 @app.route("/api/deploy/<project_id>", methods=["POST"])

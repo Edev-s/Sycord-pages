@@ -162,6 +162,7 @@ export default function AboutPage() {
             <Link href="/tos" className="text-[#8A8E91] hover:text-white text-[11px] transition-colors">Terms</Link>
             <Link href="/pap" className="text-[#8A8E91] hover:text-white text-[11px] transition-colors">Privacy</Link>
             <Link href="/contact" className="text-[#8A8E91] hover:text-white text-[11px] transition-colors">Contact</Link>
+            <Link href="/servers" className="text-[#8A8E91] hover:text-white text-[11px] transition-colors">Servers</Link>
           </div>
         </div>
       </footer>
