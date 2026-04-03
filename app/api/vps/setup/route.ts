@@ -117,10 +117,18 @@ export async function POST(request: Request) {
       await run(`chmod +x cloudflared`, cwd)
 
       console.log(`[VPS Setup] Installing Flask & deps via pip...`)
-      // Install dependencies globally or locally for the user
+      // Install system packages needed for Python
       await ssh.execCommand('sudo apt-get update && sudo apt-get install -y python3-pip python3-venv git curl wget || true', { cwd })
-      // Install dependencies locally for the user
-      await run(`pip3 install --user flask gunicorn`, cwd)
+
+      // On modern Ubuntu (23.04+), PEP 668 marks the system Python as
+      // "externally-managed", which causes `pip3 install --user` to fail.
+      // We first try a virtual-env install (preferred), then fall back to
+      // --break-system-packages so Flask is definitely available.
+      const venvRes = await run(`python3 -m venv ${cwd}/venv && ${cwd}/venv/bin/pip install flask gunicorn`, cwd)
+      if (venvRes.stderr && venvRes.stderr.includes('Error')) {
+        console.log(`[VPS Setup] venv install failed, falling back to --break-system-packages`)
+        await run(`pip3 install --user --break-system-packages flask gunicorn || pip3 install --user flask gunicorn`, cwd)
+      }
 
       ssh.dispose()
       return NextResponse.json({ success: true, message: "VPS Initialized! Repository cloned and dependencies installed." })
@@ -333,18 +341,27 @@ ingress:
       // Force free port 5000 just in case pkill missed it
       await run('fuser -k 5000/tcp || true', cwd)
 
+      // Use venv python if the virtual-env exists, otherwise fall back to system python3
+      const venvCheck = await run(`test -f ${cwd}/venv/bin/python3 && echo EXISTS || echo MISSING`, cwd)
+      const pythonBin = venvCheck.stdout.trim() === 'EXISTS' ? `${cwd}/venv/bin/python3` : 'python3'
+
       // Start processes using absolute paths to avoid environment PATH issues inside nohup over SSH
-      await run(`nohup python3 ${cwd}/runner.py > ${cwd}/runner.log 2>&1 &`, cwd)
+      await run(`nohup ${pythonBin} ${cwd}/runner.py > ${cwd}/runner.log 2>&1 &`, cwd)
 
       // Explicitly point to the config.yml so cloudflared knows where to route traffic
       await run(`nohup ${cwd}/cloudflared tunnel --config ${cwd}/config.yml run sycord-runner > ${cwd}/tunnel.log 2>&1 &`, cwd)
 
-      // Wait 2 seconds to see if cloudflared crashes immediately
+      // Wait 2 seconds to see if processes crash immediately
       await new Promise(r => setTimeout(r, 2000))
 
       const psResFlask = await run('pgrep -f "python3.*/runner.py"', cwd)
       if (!psResFlask.stdout) {
          console.warn("[VPS Setup] Flask server doesn't appear to be running after start.")
+         const flaskLog = await run(`tail -n 30 ${cwd}/runner.log`, cwd)
+         ssh.dispose()
+         return NextResponse.json({
+           error: `Flask server crashed on startup. Log output:\n${flaskLog.stdout || flaskLog.stderr || 'No log output found.'}`
+         }, { status: 500 })
       }
 
       const psResTunnel = await run('pgrep -f "cloudflared tunnel.*sycord-runner"', cwd)
@@ -407,14 +424,26 @@ ingress:
         return NextResponse.json({ error: "runner.py not found. Run the Start Server step (Step 4) first." }, { status: 400 })
       }
 
+      // Use venv python if the virtual-env exists, otherwise fall back to system python3
+      const restartVenvCheck = await run(`test -f ${cwd}/venv/bin/python3 && echo EXISTS || echo MISSING`, cwd)
+      const restartPythonBin = restartVenvCheck.stdout.trim() === 'EXISTS' ? `${cwd}/venv/bin/python3` : 'python3'
+
       // Start
-      await run(`nohup python3 ${cwd}/runner.py > ${cwd}/runner.log 2>&1 &`, cwd)
+      await run(`nohup ${restartPythonBin} ${cwd}/runner.py > ${cwd}/runner.log 2>&1 &`, cwd)
       await run(`nohup ${cwd}/cloudflared tunnel --config ${cwd}/config.yml run sycord-runner > ${cwd}/tunnel.log 2>&1 &`, cwd)
 
       await new Promise(r => setTimeout(r, 3000))
 
       const flaskUp = await run('pgrep -f "python3.*/runner.py"', cwd)
       const tunnelUp = await run('pgrep -f "cloudflared tunnel.*sycord-runner"', cwd)
+
+      if (!flaskUp.stdout) {
+        const flaskLog = await run(`tail -n 30 ${cwd}/runner.log`, cwd)
+        ssh.dispose()
+        return NextResponse.json({
+          error: `Flask crashed after restart. Log:\n${flaskLog.stdout || flaskLog.stderr || 'No output'}`
+        }, { status: 500 })
+      }
 
       if (!tunnelUp.stdout) {
         const logTail = await run(`tail -n 20 ${cwd}/tunnel.log`, cwd)
@@ -427,7 +456,7 @@ ingress:
       ssh.dispose()
       return NextResponse.json({
         success: true,
-        message: `Restarted! Flask: ${flaskUp.stdout ? 'running' : 'NOT running'}, Tunnel: running.`
+        message: `Restarted! Flask: running, Tunnel: running.`
       })
     }
 
