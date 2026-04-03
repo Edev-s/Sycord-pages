@@ -22,6 +22,7 @@ import json
 import logging
 import os
 import shutil
+import subprocess
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -93,6 +94,82 @@ def _extract_subdomain() -> str | None:
     return None
 
 
+def _is_buildable_project(project_dir: Path) -> bool:
+    """Return *True* when the project contains a ``package.json`` with a
+    ``build`` script – indicating it is a Vite (or similar) project that
+    must be compiled before serving."""
+    pkg_json = project_dir / "package.json"
+    if not pkg_json.exists():
+        return False
+    try:
+        pkg = json.loads(pkg_json.read_text())
+        return bool(pkg.get("scripts", {}).get("build"))
+    except (json.JSONDecodeError, OSError):
+        return False
+
+
+def _build_project(project_id: str, project_dir: Path) -> dict:
+    """Run ``npm install`` followed by ``npm run build`` inside *project_dir*.
+
+    Returns a dict with ``success``, ``output``, and ``error`` keys.
+    """
+    env = {**os.environ, "NODE_ENV": "production", "CI": "true"}
+    combined_output: list[str] = []
+
+    for step, cmd in [("install", ["npm", "install", "--no-fund", "--no-audit"]),
+                      ("build", ["npm", "run", "build"])]:
+        logger.info("Build [%s] project %s – running: %s", step, project_id, " ".join(cmd))
+        try:
+            result = subprocess.run(
+                cmd,
+                cwd=str(project_dir),
+                capture_output=True,
+                text=True,
+                timeout=120,
+                env=env,
+            )
+            combined_output.append(f"--- {step} (exit {result.returncode}) ---")
+            if result.stdout:
+                combined_output.append(result.stdout)
+            if result.stderr:
+                combined_output.append(result.stderr)
+
+            if result.returncode != 0:
+                logger.error("Build [%s] failed for project %s (exit %d)",
+                             step, project_id, result.returncode)
+                return {
+                    "success": False,
+                    "step": step,
+                    "output": "\n".join(combined_output),
+                    "error": f"{step} exited with code {result.returncode}",
+                }
+        except subprocess.TimeoutExpired:
+            msg = f"{step} timed out after 120 s"
+            logger.error("Build [%s] timeout for project %s", step, project_id)
+            combined_output.append(msg)
+            return {"success": False, "step": step, "output": "\n".join(combined_output), "error": msg}
+        except FileNotFoundError:
+            msg = "npm is not installed on the server"
+            logger.error(msg)
+            combined_output.append(msg)
+            return {"success": False, "step": step, "output": "\n".join(combined_output), "error": msg}
+
+    logger.info("Build succeeded for project %s", project_id)
+    return {"success": True, "output": "\n".join(combined_output), "error": None}
+
+
+def _serve_root(project_dir: Path) -> Path:
+    """Return the directory that should be served for a project.
+
+    If the project was built (has a ``dist/`` folder), serve from there;
+    otherwise fall back to the project root (plain HTML sites).
+    """
+    dist = project_dir / "dist"
+    if dist.is_dir() and (dist / "index.html").is_file():
+        return dist
+    return project_dir
+
+
 # ── Subdomain-based content serving ───────────────────────────────────────
 
 @app.before_request
@@ -111,22 +188,31 @@ def serve_subdomain_content():
     if not project_dir.is_dir():
         return  # no matching project – fall through
 
+    # Serve from dist/ when a build has been produced, otherwise project root
+    serve_dir = _serve_root(project_dir)
+
     # Resolve requested path (default to index.html)
     rel_path = request.path.lstrip("/") or "index.html"
-    target = project_dir / rel_path
+    target = serve_dir / rel_path
 
     # Prevent directory traversal
     try:
-        target.resolve().relative_to(project_dir.resolve())
+        target.resolve().relative_to(serve_dir.resolve())
     except ValueError:
         abort(403)
 
     if target.is_file():
-        return send_from_directory(str(project_dir), rel_path)
+        return send_from_directory(str(serve_dir), rel_path)
 
     # Try appending index.html for directory-style URLs
-    if (project_dir / rel_path / "index.html").is_file():
-        return send_from_directory(str(project_dir / rel_path), "index.html")
+    if (serve_dir / rel_path / "index.html").is_file():
+        return send_from_directory(str(serve_dir / rel_path), "index.html")
+
+    # SPA fallback: if the serve directory has an index.html, serve it for
+    # any path that does not match a real file (client-side routing).
+    spa_index = serve_dir / "index.html"
+    if spa_index.is_file():
+        return send_from_directory(str(serve_dir), "index.html")
 
     abort(404)
 
@@ -215,6 +301,12 @@ def deploy(project_id: str):
         if not link.exists():
             link.symlink_to(project_dir)
 
+    # ── Build step (Vite / npm projects) ─────────────────────────────────
+    build_result: dict | None = None
+    if _is_buildable_project(project_dir):
+        logger.info("Detected buildable project %s – starting build", project_id)
+        build_result = _build_project(project_id, project_dir)
+
     # Persist metadata
     domain = f"{subdomain}.sycord.com" if subdomain else None
     meta = _read_meta(project_id) or {}
@@ -225,18 +317,33 @@ def deploy(project_id: str):
             "domain": domain,
             "files_count": written,
             "deployed_at": datetime.now(timezone.utc).isoformat(),
+            "build": {
+                "attempted": build_result is not None,
+                "success": build_result["success"] if build_result else None,
+                "error": build_result.get("error") if build_result else None,
+            },
         },
     )
     _write_meta(project_id, meta)
 
-    logger.info("Deployed project %s (%d files, subdomain=%s)", project_id, written, subdomain)
+    logger.info("Deployed project %s (%d files, subdomain=%s, build=%s)",
+                project_id, written, subdomain,
+                build_result["success"] if build_result else "skipped")
 
-    return jsonify(
-        success=True,
-        project_id=project_id,
-        domain=domain,
-        files_count=written,
-    )
+    response: dict = {
+        "success": True,
+        "project_id": project_id,
+        "domain": domain,
+        "files_count": written,
+    }
+    if build_result:
+        response["build"] = {
+            "success": build_result["success"],
+            "output": build_result["output"],
+            "error": build_result.get("error"),
+        }
+
+    return jsonify(response)
 
 
 # ── API: Project info ─────────────────────────────────────────────────────
