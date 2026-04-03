@@ -3,8 +3,7 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Terminal, Copy, Check, ArrowLeft, Play, Loader2, ExternalLink, ShieldCheck, Server, Globe, Power, Lock } from "lucide-react"
-import { Textarea } from "@/components/ui/textarea"
+import { Terminal, Copy, Check, ArrowLeft, Play, Loader2, ExternalLink, Server, Globe, Power } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
 
@@ -133,7 +132,7 @@ if __name__ == '__main__':
       toast(`Running Step ${stepNumber + 1}...`)
 
       const body = action === "start_server"
-        ? { action, pythonRunnerScript: pythonRunner, sslCert, sslKey }
+        ? { action, pythonRunnerScript: pythonRunner }
         : { action }
 
       const res = await fetch("/api/vps/setup", {
@@ -333,45 +332,13 @@ if __name__ == '__main__':
             </CardHeader>
             <CardContent>
                {currentStep === 3 && (
-                 <div className="space-y-4 mt-4">
-                   <div className="space-y-4 bg-accent/20 p-4 rounded-lg border border-border">
-                     <div className="flex items-center gap-2">
-                       <Lock className="h-4 w-4 text-muted-foreground" />
-                       <h4 className="text-sm font-medium">Optional: Cloudflare Origin Certificate</h4>
-                     </div>
-                     <p className="text-xs text-muted-foreground">
-                       If you are bypassing the tunnel and routing DNS directly to your VPS IP for full strict SSL control over second-level subdomains, paste your Cloudflare Origin Certificate and Private Key here. The runner will automatically bind them to port 443/8443. Leave blank if you are using standard Cloudflare Tunnels (which encrypts automatically).
-                     </p>
-                     <div className="grid gap-4 md:grid-cols-2">
-                       <div className="space-y-2">
-                         <label className="text-xs font-medium">Certificate (cert.pem)</label>
-                         <Textarea
-                           placeholder="-----BEGIN CERTIFICATE-----&#10;..."
-                           className="font-mono text-xs h-32 resize-none"
-                           value={sslCert}
-                           onChange={e => setSslCert(e.target.value)}
-                         />
-                       </div>
-                       <div className="space-y-2">
-                         <label className="text-xs font-medium">Private Key (privkey.pem)</label>
-                         <Textarea
-                           placeholder="-----BEGIN PRIVATE KEY-----&#10;..."
-                           className="font-mono text-xs h-32 resize-none"
-                           value={sslKey}
-                           onChange={e => setSslKey(e.target.value)}
-                         />
-                       </div>
-                     </div>
-                   </div>
-
-                   <Button
-                     onClick={() => runStep(3, "start_server")}
-                     disabled={loadingStep === 3}
-                     className="bg-green-600 hover:bg-green-700 text-white"
-                   >
-                     {loadingStep === 3 ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Starting...</> : <><Power className="mr-2 h-4 w-4" /> Run Step 4 (Start Server)</>}
-                   </Button>
-                 </div>
+                <Button
+                  onClick={() => runStep(3, "start_server")}
+                  disabled={loadingStep === 3}
+                  className="mt-4 bg-green-600 hover:bg-green-700 text-white"
+                >
+                  {loadingStep === 3 ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Starting...</> : <><Power className="mr-2 h-4 w-4" /> Run Step 4 (Start Server)</>}
+                </Button>
               )}
             </CardContent>
           </Card>
