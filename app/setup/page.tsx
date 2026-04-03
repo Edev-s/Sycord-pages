@@ -32,102 +32,257 @@ git clone https://github.com/MDavidka/server-sycord myapp
 cd myapp`
 
   const pythonRunner = `from flask import Flask, request, jsonify, send_from_directory, abort
+import json
+import logging
 import os
+import shutil
+from datetime import datetime, timezone
+from pathlib import Path
 
 app = Flask(__name__)
 
-# Directory to save deployments
-DEPLOY_DIR = os.path.join(os.path.expanduser("~"), "myapp", "deployments")
-os.makedirs(DEPLOY_DIR, exist_ok=True)
+# ---------------------------------------------------------------------------
+# Configuration – uses the same data directory as server/app.py
+# ---------------------------------------------------------------------------
+BASE_DIR = Path(os.environ.get("SYCORD_DATA_DIR", "/var/sycord/data"))
+PROJECTS_DIR = BASE_DIR / "projects"
+LOG_FILE = BASE_DIR / "server.log"
 
-@app.route('/', defaults={'path': ''})
-@app.route('/<path:path>')
-def wildcard_router(path):
-    host = request.headers.get('Host', '').split(':')[0]
+PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
+LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
 
-    # Serve the runner index page if accessed via the exact main server domain
-    if host == 'server.sycord.site':
-        if path.startswith('api/deploy/'):
-            return abort(405) # handled by POST below
-        return """
-        <html>
-          <head>
-            <title>Sycord VPS Runner</title>
-            <style>
-              body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0a0a0a; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-              .container { text-align: center; padding: 2rem; background: #141414; border: 1px solid #333; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-              h1 { margin-bottom: 0.5rem; color: #10b981; }
-              p { color: #a1a1aa; }
-            </style>
-          </head>
-          <body>
-            <div class="container">
-              <h1>VPS Runner is Online</h1>
-              <p>Your Sycord deployment server is running successfully behind Cloudflare.</p>
-              <p style="font-size: 0.8rem; margin-top: 1rem; color: #555;">Listening for deployments on /api/deploy/&lt;project_id&gt;</p>
-            </div>
-          </body>
-        </html>
-        """
+# ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
+file_handler = logging.FileHandler(str(LOG_FILE))
+file_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
 
-    # Otherwise, it's a subdomain request. Try to extract subdomain and serve from deployments.
-    # E.g. myproject.sycord.site -> subdomain 'myproject'
-    subdomain = host.split('.')[0]
-    project_path = os.path.join(DEPLOY_DIR, subdomain)
+logger = logging.getLogger("sycord")
+logger.setLevel(logging.INFO)
+logger.addHandler(file_handler)
+logger.addHandler(logging.StreamHandler())
 
-    if not os.path.exists(project_path):
-        return jsonify({'error': f'Deployment not found for subdomain: {subdomain}'}), 404
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+def _project_dir(project_id):
+    return PROJECTS_DIR / os.path.basename(project_id)
 
-    if not path:
-        path = 'index.html'
+def _meta_path(project_id):
+    return _project_dir(project_id) / ".meta.json"
+
+def _read_meta(project_id):
+    meta = _meta_path(project_id)
+    if meta.exists():
+        return json.loads(meta.read_text())
+    return None
+
+def _write_meta(project_id, data):
+    _meta_path(project_id).write_text(json.dumps(data, default=str))
+
+# ---------------------------------------------------------------------------
+# Subdomain-based content serving
+# ---------------------------------------------------------------------------
+@app.before_request
+def serve_subdomain_content():
+    host = request.host.split(":")[0]
+    parts = host.split(".")
+    if len(parts) <= 2:
+        return  # bare domain / localhost – fall through to routes
+
+    subdomain = parts[0]
+    if request.path.startswith("/api/"):
+        return  # let API routes handle it
+
+    project_dir = PROJECTS_DIR / subdomain
+    if not project_dir.is_dir():
+        return
+
+    rel_path = request.path.lstrip("/") or "index.html"
+    target = project_dir / rel_path
 
     try:
-        return send_from_directory(project_path, path)
-    except FileNotFoundError:
-        # Fallback to index for SPA routing
-        try:
-            return send_from_directory(project_path, 'index.html')
-        except FileNotFoundError:
-            return jsonify({'error': 'File not found'}), 404
+        target.resolve().relative_to(project_dir.resolve())
+    except ValueError:
+        abort(403)
 
-@app.route('/api/deploy/<project_id>', methods=['POST'])
+    if target.is_file():
+        return send_from_directory(str(project_dir), rel_path)
+
+    if (project_dir / rel_path / "index.html").is_file():
+        return send_from_directory(str(project_dir / rel_path), "index.html")
+
+    abort(404)
+
+# ---------------------------------------------------------------------------
+# Health-check landing page
+# ---------------------------------------------------------------------------
+@app.route("/")
+def index():
+    return """
+    <html>
+      <head>
+        <title>Sycord VPS Runner</title>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0a0a0a; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+          .container { text-align: center; padding: 2rem; background: #141414; border: 1px solid #333; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+          h1 { margin-bottom: 0.5rem; color: #10b981; }
+          p { color: #a1a1aa; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h1>VPS Runner is Online</h1>
+          <p>Your Sycord deployment server is running successfully behind Cloudflare.</p>
+          <p style="font-size: 0.8rem; margin-top: 1rem; color: #555;">API: /api/deploy/&lt;project_id&gt;, /api/projects/&lt;project_id&gt;, /api/logs</p>
+        </div>
+      </body>
+    </html>
+    """
+
+# ---------------------------------------------------------------------------
+# API: Deploy
+# ---------------------------------------------------------------------------
+@app.route("/api/deploy/<project_id>", methods=["POST"])
 def deploy(project_id):
     try:
-        data = request.json
-        if not data or 'files' not in data:
-            return jsonify({'error': 'No files provided'}), 400
+        data = request.get_json(silent=True)
+        if not data or "files" not in data:
+            return jsonify({"success": False, "error": "Request body must include 'files'"}), 400
 
-        subdomain = data.get('subdomain', project_id)
-        project_dir = os.path.join(DEPLOY_DIR, subdomain)
-        os.makedirs(project_dir, exist_ok=True)
+        files = data["files"]
+        subdomain = data.get("subdomain")
 
-        files_saved = 0
-        for file in data['files']:
-            path = file.get('path')
-            content = file.get('content')
-            if not path or not content:
+        if not files:
+            return jsonify({"success": False, "error": "No files provided"}), 400
+
+        project_dir = _project_dir(project_id)
+
+        if project_dir.exists():
+            for item in project_dir.iterdir():
+                if item.name == ".meta.json":
+                    continue
+                if item.is_dir():
+                    shutil.rmtree(item)
+                else:
+                    item.unlink()
+        else:
+            project_dir.mkdir(parents=True, exist_ok=True)
+
+        written = 0
+        for f in files:
+            rel_path = f.get("path", "")
+            content = f.get("content", "")
+            if not rel_path:
                 continue
+            safe_path = os.path.normpath(rel_path).lstrip(os.sep)
+            if safe_path.startswith(".."):
+                continue
+            dest = project_dir / safe_path
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_text(content, encoding="utf-8")
+            written += 1
 
-            file_path = os.path.join(project_dir, path)
-            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        if subdomain:
+            link = PROJECTS_DIR / subdomain
+            if link.exists() or link.is_symlink():
+                if link.is_symlink():
+                    link.unlink()
+                elif link.resolve() != project_dir.resolve():
+                    shutil.rmtree(link)
+            if not link.exists():
+                link.symlink_to(project_dir)
 
-            with open(file_path, 'w', encoding='utf-8') as f:
-                f.write(content)
-            files_saved += 1
+        domain = f"{subdomain}.sycord.site" if subdomain else None
+        meta = _read_meta(project_id) or {}
+        meta.update({
+            "project_id": project_id,
+            "subdomain": subdomain,
+            "domain": domain,
+            "files_count": written,
+            "deployed_at": datetime.now(timezone.utc).isoformat(),
+        })
+        _write_meta(project_id, meta)
 
-        domain_name = f'{subdomain}.sycord.site'
+        logger.info("Deployed project %s (%d files, subdomain=%s)", project_id, written, subdomain)
 
         return jsonify({
-            'success': True,
-            'message': f'Saved {files_saved} files. Cloudflare Edge SSL automatically secured.',
-            'domain': domain_name
+            "success": True,
+            "project_id": project_id,
+            "domain": domain,
+            "files_count": written,
         })
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.error("Deploy error for %s: %s", project_id, e)
+        return jsonify({"success": False, "error": str(e)}), 500
 
-if __name__ == '__main__':
-    print("Starting Flask on HTTP port 5000 (for Cloudflare Tunnel)...")
-    app.run(host='127.0.0.1', port=5000)`
+# ---------------------------------------------------------------------------
+# API: Project info
+# ---------------------------------------------------------------------------
+@app.route("/api/projects/<project_id>", methods=["GET"])
+def project_info(project_id):
+    meta = _read_meta(project_id)
+    if meta is None:
+        return jsonify({"success": False, "error": "Project not found"}), 404
+
+    project_dir = _project_dir(project_id)
+    file_list = []
+    if project_dir.is_dir():
+        for p in sorted(project_dir.rglob("*")):
+            if p.is_file() and p.name != ".meta.json":
+                file_list.append(str(p.relative_to(project_dir)))
+
+    meta["files"] = file_list
+    meta["success"] = True
+    return jsonify(meta)
+
+# ---------------------------------------------------------------------------
+# API: Logs
+# ---------------------------------------------------------------------------
+@app.route("/api/logs", methods=["GET"])
+def logs():
+    project_id = request.args.get("project_id")
+    limit = min(int(request.args.get("limit", 200)), 500)
+
+    if not project_id:
+        return jsonify({"success": False, "error": "project_id is required"}), 400
+
+    lines = []
+    if LOG_FILE.exists():
+        all_lines = LOG_FILE.read_text().splitlines()
+        relevant = [ln for ln in all_lines if project_id in ln]
+        lines = relevant[-limit:] if relevant else all_lines[-limit:]
+
+    return jsonify({"success": True, "project_id": project_id, "logs": lines})
+
+# ---------------------------------------------------------------------------
+# API: Delete project
+# ---------------------------------------------------------------------------
+@app.route("/api/projects/<project_id>", methods=["DELETE"])
+def delete_project(project_id):
+    project_dir = _project_dir(project_id)
+
+    if not project_dir.exists():
+        return jsonify({"success": False, "error": "Project not found"}), 404
+
+    meta = _read_meta(project_id)
+    if meta and meta.get("subdomain"):
+        link = PROJECTS_DIR / meta["subdomain"]
+        if link.is_symlink():
+            link.unlink()
+
+    shutil.rmtree(project_dir)
+    logger.info("Deleted project %s", project_id)
+
+    return jsonify({"success": True, "message": "Project deleted successfully"})
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    logger.info("Starting Sycord Pages server on port %d", port)
+    app.run(host="0.0.0.0", port=port)`
 
   const runStep = async (stepNumber: number, action: string) => {
     try {

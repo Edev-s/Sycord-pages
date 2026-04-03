@@ -57,10 +57,9 @@ export async function POST(request: Request) {
       await run(`chmod +x cloudflared`, cwd)
 
       console.log(`[VPS Setup] Installing Flask & deps via pip...`)
-      // Install dependencies globally or locally for the user
+      // Install dependencies system-wide so nohup subprocesses can find them
       await ssh.execCommand('sudo apt-get update && sudo apt-get install -y python3-pip || true', { cwd })
-      // Install dependencies locally for the user
-      await run(`pip3 install --user flask`, cwd)
+      await run(`python3 -m pip install flask`, cwd)
 
       ssh.dispose()
       return NextResponse.json({ success: true, message: "VPS Initialized! Repository cloned and dependencies installed." })
@@ -221,7 +220,22 @@ ingress:
 
       // Write runner.py (force remove old one first)
       await run(`rm -f runner.py`, cwd)
-      await ssh.execCommand(`cat > runner.py`, { cwd, stdin: pythonRunnerScript })
+      const writeRes = await ssh.execCommand(`cat > runner.py`, { cwd, stdin: pythonRunnerScript })
+      if (writeRes.code !== null && writeRes.code !== 0) {
+         ssh.dispose()
+         return NextResponse.json({
+           error: `Failed to write runner.py on VPS. stderr: ${writeRes.stderr || 'unknown error'}`
+         }, { status: 500 })
+      }
+
+      // Verify the file was actually written and has content
+      const verifyRes = await run(`test -s runner.py && echo "ok"`, cwd)
+      if (!verifyRes.stdout.includes("ok")) {
+         ssh.dispose()
+         return NextResponse.json({
+           error: "runner.py was not written correctly (file is empty or missing)."
+         }, { status: 500 })
+      }
 
       // Kill existing processes forcefully
       await run('pkill -9 -f "runner\\.py" || true', cwd)
@@ -233,15 +247,15 @@ ingress:
       // --- Start Flask FIRST (this is the priority) ---
       await run(`nohup python3 ${cwd}/runner.py > ${cwd}/runner.log 2>&1 &`, cwd)
 
-      // Give Flask a moment to bind its port
-      await new Promise(r => setTimeout(r, 1500))
+      // Give Flask more time to start up and bind its port
+      await new Promise(r => setTimeout(r, 3000))
 
       const psResFlask = await run('pgrep -f "python3.*/runner.py"', cwd)
       const flaskRunning = !!psResFlask.stdout
 
       if (!flaskRunning) {
          console.warn("[VPS Setup] Flask server doesn't appear to be running after start.")
-         const flaskLog = await run(`tail -n 20 ${cwd}/runner.log`, cwd)
+         const flaskLog = await run(`tail -n 50 ${cwd}/runner.log`, cwd)
          ssh.dispose()
          return NextResponse.json({
            error: `Flask server failed to start. Log output:\n${flaskLog.stdout || flaskLog.stderr || 'No log output found.'}`
