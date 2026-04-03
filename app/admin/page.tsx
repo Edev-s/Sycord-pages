@@ -62,7 +62,8 @@ import {
   User,
   ChevronDown,
   Calendar,
-  ExternalLink
+  ExternalLink,
+  Terminal
 } from "lucide-react"
 
 const availableIcons = [
@@ -97,10 +98,11 @@ const tabs = [
   { id: "users" as const, label: "Users", icon: Users },
   { id: "server" as const, label: "Server", icon: Server },
   { id: "tickets" as const, label: "Tickets", icon: AlertCircle },
+  { id: "vps" as const, label: "VPS", icon: Terminal },
   { id: "paptos" as const, label: "Legal", icon: BookOpen },
 ]
 
-type TabId = "overview" | "users" | "server" | "tickets" | "paptos"
+type TabId = "overview" | "users" | "server" | "tickets" | "vps" | "paptos"
 
 export default function AdminPage() {
   const router = useRouter()
@@ -857,6 +859,77 @@ export default function AdminPage() {
               <p className="text-sm font-medium text-foreground">Coming soon</p>
               <p className="text-xs text-muted-foreground mt-1">Support ticket system is under development</p>
             </div>
+          </div>
+        )}
+
+        {/* VPS Tab */}
+        {activeTab === "vps" && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">VPS Management</h2>
+              <p className="text-sm text-muted-foreground">Manage and configure your VPS deployment runner</p>
+            </div>
+
+            <Card className="border-border">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Terminal className="h-5 w-5 text-primary" />
+                  VPS Status & Setup
+                </CardTitle>
+                <CardDescription>
+                  Check the status of your runner or configure a new VPS to receive deployments via Cloudflare Tunnel.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                   <div className="flex items-center gap-3 p-4 bg-accent/30 rounded-lg border border-border">
+                      <div className="flex-1 flex items-center justify-between">
+                         <div className="flex flex-col">
+                            <span className="text-sm font-medium">Runner Endpoint</span>
+                            <a href="https://server.sycord.com" target="_blank" className="text-xs text-muted-foreground hover:underline inline-flex items-center">
+                               server.sycord.com <ExternalLink className="ml-1 h-3 w-3" />
+                            </a>
+                         </div>
+                         <Button
+                           variant="outline"
+                           size="sm"
+                           onClick={async (e) => {
+                             const btn = e.currentTarget
+                             const originalText = btn.innerText
+                             btn.innerText = "Checking..."
+                             btn.disabled = true
+                             try {
+                               const res = await fetch("https://server.sycord.com")
+                               if (res.ok) {
+                                 toast.success("VPS Runner is Online!")
+                               } else {
+                                 throw new Error("Runner returned error")
+                               }
+                             } catch(err) {
+                               toast.error("VPS Runner is Offline or unreachable")
+                             } finally {
+                               btn.innerText = originalText
+                               btn.disabled = false
+                             }
+                           }}
+                         >
+                           <Activity className="h-4 w-4 mr-2" />
+                           Ping
+                         </Button>
+                      </div>
+                   </div>
+
+                  <div className="flex flex-col sm:flex-row gap-4 pt-2">
+                    <Button asChild>
+                      <Link href="/setup">
+                        <Terminal className="h-4 w-4 mr-2" />
+                        Run Setup Configuration
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         )}
 

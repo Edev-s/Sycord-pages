@@ -75,17 +75,14 @@ You must output a single text block strictly following this format:
 ## 1. Business Goal
 [Description of the goal]
 
-## REQUIRES_DATABASE: [true/false]
-[Evaluate carefully whether this project requires persistent data storage. Set to true if the project involves any of: products/items (e.g. phone store, flower shop, any e-commerce), user accounts/login, posts, messages, bookings, orders, or any dynamic content that needs to be saved. Set to false only for purely static/informational websites with no data persistence needs. Always explain your decision briefly to the user in the ## 5. Implementation Strategy section.]
-
 ## 2. Design System
 [Description of the design]
 
 ## 3. User Flow
 [Description of the flow]
 
-## 4. Page Structure
-(Expand on these examples or adapt to the user's request)
+## 4. Page Structure & Mesh Routing
+(Expand on these examples or adapt to the user's request. You MUST implement a "mesh project plan" routing system for multi-page Vite TypeScript projects. This means \`main.ts\` or a shared \`router.ts\` must parse \`window.location.pathname\` to mount different components/pages dynamically, connecting them together in a mesh topology.)
 - **Main/**: Focus on the value proposition, high-quality gallery, and primary Call to Action (CTA).
 - **Pricing/**: List tiered services or menu price ranges. Include a FAQ section to reduce support tickets.
 - **Login/**: Specify if this is for customers or staff. Mention social login options (Google/Apple).
@@ -93,9 +90,9 @@ You must output a single text block strictly following this format:
 - **Reservation/**: Conversion page. Define date picker, time slot selection, and confirmation logic.
 
 ## 5. Implementation Strategy
-[Summary. If REQUIRES_DATABASE is true, explain to the user (in their language) that this project needs a database to store items/data, and that they will need to connect Firebase to proceed. Example: "This project needs a database to store your products. I'll ask you to connect Firebase so your items can be saved and managed."]
+[Summary. Explain the implementation. Discuss how you will implement the mesh routing logic to connect the pages you are generating. The AI builder does NOT require database authentication anymore, so you must cache your state or mock it gracefully if persistence is needed, or rely on the deployed environment APIs.]
 
-[0] The user base plan is to create [Overview of the site]. As an AI web builder using Vite + TypeScript for Cloudflare Pages, I will generate the following files following proper project structure. Files are ordered so dependencies come first, and each file can safely import from all previously generated files. The backend will mark completed files by replacing [N] with [Done].
+[0] The user base plan is to create [Overview of the site]. As an AI web builder using Vite + TypeScript, I will generate the following files following proper project structure. I will cache this mesh project plan to remember how to connect pages. Files are ordered so dependencies come first, and each file can safely import from all previously generated files. The backend will mark completed files by replacing [N] with [Done].
 
 [1] package.json : [usedfor]npm dependencies and scripts for Vite[usedfor]
 [2] tsconfig.json : [usedfor]TypeScript configuration for Vite[usedfor]

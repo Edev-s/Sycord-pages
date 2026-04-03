@@ -10,7 +10,7 @@ import { ObjectId } from "mongodb"
  * sites via subdomain detection.
  */
 const VPS_BASE_URL =
-  process.env.VPS_SERVER_URL || "https://vps.sycord.com"
+  process.env.VPS_SERVER_URL || "https://server.sycord.site"
 
 export async function POST(request: Request) {
   try {
@@ -59,7 +59,62 @@ export async function POST(request: Request) {
     if (files.length === 0)
       return NextResponse.json({ error: "No files to deploy." }, { status: 400 })
 
-    // 4. Deploy to VPS Flask server
+    // 4. Create Cloudflare DNS Record
+    console.log(`[Deploy] Updating DNS for ${subdomain}.sycord.site via Cloudflare API...`)
+    const cfApiKey = process.env.CLOUDFLARE_API_KEY
+    const cfZoneId = process.env.CLOUDFLARE_ZONE_ID
+
+    if (cfApiKey && cfZoneId) {
+      try {
+        // Step 4a: Check if record exists
+        const dnsCheck = await fetch(`https://api.cloudflare.com/client/v4/zones/${cfZoneId}/dns_records?name=${subdomain}.sycord.site`, {
+          headers: {
+            "Authorization": `Bearer ${cfApiKey}`,
+            "Content-Type": "application/json"
+          }
+        })
+        const dnsCheckData = await dnsCheck.json()
+
+        // Step 4b: Create or update CNAME to route to the tunnel
+        const dnsPayload = {
+          type: "CNAME",
+          name: subdomain,
+          content: "server.sycord.site",
+          proxied: true,
+          ttl: 1
+        }
+
+        if (dnsCheckData.success && dnsCheckData.result.length > 0) {
+          // Update existing
+          const recordId = dnsCheckData.result[0].id
+          await fetch(`https://api.cloudflare.com/client/v4/zones/${cfZoneId}/dns_records/${recordId}`, {
+            method: "PUT",
+            headers: {
+              "Authorization": `Bearer ${cfApiKey}`,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(dnsPayload)
+          })
+        } else {
+          // Create new
+          await fetch(`https://api.cloudflare.com/client/v4/zones/${cfZoneId}/dns_records`, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${cfApiKey}`,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(dnsPayload)
+          })
+        }
+      } catch (dnsErr) {
+        console.error(`[Deploy] Cloudflare DNS configuration failed for ${subdomain}:`, dnsErr)
+        // Non-blocking error, we still try to deploy to VPS
+      }
+    } else {
+      console.warn("[Deploy] Missing CLOUDFLARE_API_KEY or CLOUDFLARE_ZONE_ID, skipping automated DNS configuration.")
+    }
+
+    // 5. Deploy to VPS Flask server
     console.log(`[Deploy] Sending ${files.length} file(s) to VPS for project ${projectId}…`)
     const deployRes = await fetch(`${VPS_BASE_URL}/api/deploy/${projectId}`, {
       method: "POST",
