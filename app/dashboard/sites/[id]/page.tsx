@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -58,6 +58,7 @@ import {
   Server,
   Mail,
   HardDrive,
+  Terminal,
 } from "lucide-react"
 import { currencySymbols } from "@/lib/webshop-types"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -607,6 +608,8 @@ export default function SiteSettingsPage() {
   const [hasDeployError, setHasDeployError] = useState(false)
   const [autoFixLogs, setAutoFixLogs] = useState<string[] | null>(null)
   const [showAutoFix, setShowAutoFix] = useState(false)
+  const [showDeployLogs, setShowDeployLogs] = useState(false)
+  const logPanelRef = useRef<HTMLDivElement>(null)
 
   // Database / Firebase connection state
   const [databaseConnected, setDatabaseConnected] = useState(false)
@@ -622,6 +625,23 @@ export default function SiteSettingsPage() {
             const data = await res.json()
             if (data.success && Array.isArray(data.logs)) {
                 setLogs(data.logs)
+
+                // Debug: output deploy logs to browser console
+                console.group(`[Deploy Logs] project_id=${targetId}`)
+                data.logs.forEach((line: string) => {
+                  if (line.toLowerCase().includes('error') || line.toLowerCase().includes('fail')) {
+                    console.error(line)
+                  } else {
+                    console.log(line)
+                  }
+                })
+                console.groupEnd()
+
+                // Auto-scroll the log panel to the bottom
+                setTimeout(() => {
+                  logPanelRef.current?.scrollTo({ top: logPanelRef.current.scrollHeight, behavior: 'smooth' })
+                }, 100)
+
                 // Extract URL from logs if present
                 const combinedLogs = data.logs.join('\n')
                 const urlMatch = combinedLogs.match(/Take a peek over at[\s\S]*?(https:\/\/[a-zA-Z0-9.-]+\.pages\.dev)/)
@@ -948,6 +968,8 @@ export default function SiteSettingsPage() {
     setDeploySuccess(false)
     setDeployResult(null)
     setDeployError(null)
+    setShowDeployLogs(true)
+    setLogs(["[Sycord] Starting deployment…"])
 
     const PROGRESS_INTERVAL_MS = 400
     const PROGRESS_INCREMENT = 10
@@ -979,6 +1001,7 @@ export default function SiteSettingsPage() {
       }
 
       const result = await response.json()
+      setLogs(prev => [...prev, `[Sycord] Files sent to server (${result.filesCount} files)`])
 
       setDeployProgress(100)
       setDeploySuccess(true)
@@ -990,6 +1013,7 @@ export default function SiteSettingsPage() {
       if (result.projectId || result.repoId) {
           const deployId = result.projectId || result.repoId
           setProject((prev: any) => ({ ...prev, vpsProjectId: deployId, githubRepoId: deployId, deployedAt: new Date().toISOString() }))
+          setLogs(prev => [...prev, `[Sycord] Building on server… fetching build logs`])
           if (!result.cloudflareUrl) {
               pollForDomain(deployId)
           } else {
@@ -1017,6 +1041,7 @@ export default function SiteSettingsPage() {
       setDeployError(err.message || "Deployment failed")
       setDeployProgress(0)
       setHasDeployError(true)
+      setLogs(prev => [...prev, `[Sycord] ERROR: ${err.message || "Deployment failed"}`])
       // Fetch logs after short delay to capture VPS-side error details
       const LOG_FETCH_DELAY_MS = 2000
       setTimeout(async () => {
@@ -1399,6 +1424,78 @@ export default function SiteSettingsPage() {
                       >
                         <AlertCircle className="h-4 w-4 shrink-0" />
                         {deployError}
+                      </div>
+                    )}
+
+                    {/* DEPLOY LOG TERMINAL — visible during/after deployment */}
+                    {(logs.length > 0 || isDeploying) && (
+                      <div
+                        className="rounded-2xl overflow-hidden"
+                        style={{ background: "#1a1a1c", border: "1px solid rgba(255,255,255,0.08)" }}
+                      >
+                        {/* Header */}
+                        <button
+                          onClick={() => setShowDeployLogs(prev => !prev)}
+                          className="flex items-center justify-between w-full px-4 py-2.5 text-left hover:bg-white/5 transition-colors"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Terminal className="h-3.5 w-3.5 text-zinc-400" />
+                            <span className="text-[12px] font-semibold text-zinc-300">Deploy Logs</span>
+                            {/* Status dot */}
+                            {isDeploying ? (
+                              <span className="flex items-center gap-1">
+                                <span className="h-1.5 w-1.5 rounded-full bg-yellow-400 animate-pulse" />
+                                <span className="text-[10px] text-yellow-400">building</span>
+                              </span>
+                            ) : hasDeployError ? (
+                              <span className="flex items-center gap-1">
+                                <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
+                                <span className="text-[10px] text-red-400">error</span>
+                              </span>
+                            ) : logs.length > 0 ? (
+                              <span className="flex items-center gap-1">
+                                <span className="h-1.5 w-1.5 rounded-full bg-green-400" />
+                                <span className="text-[10px] text-green-400">deployed</span>
+                              </span>
+                            ) : null}
+                          </div>
+                          <ChevronRight
+                            className={cn(
+                              "h-3.5 w-3.5 text-zinc-500 transition-transform duration-200",
+                              showDeployLogs && "rotate-90"
+                            )}
+                          />
+                        </button>
+                        {/* Log content */}
+                        {showDeployLogs && (
+                          <div
+                            ref={logPanelRef}
+                            className="px-4 pb-3 overflow-y-auto custom-scrollbar"
+                            style={{ maxHeight: "200px" }}
+                          >
+                            <div className="font-mono text-[11px] leading-[1.6] text-zinc-400 whitespace-pre-wrap">
+                              {logs.map((line, i) => {
+                                const lower = line.toLowerCase()
+                                const isError = lower.includes('error') || lower.includes('fail') || lower.includes('exception')
+                                const isSuccess = lower.includes('success') || lower.includes('deployed') || lower.includes('take a peek')
+                                return (
+                                  <div
+                                    key={i}
+                                    className={cn(
+                                      isError && "text-red-400",
+                                      isSuccess && "text-green-400"
+                                    )}
+                                  >
+                                    {line}
+                                  </div>
+                                )
+                              })}
+                              {isDeploying && logs.length <= 1 && (
+                                <div className="text-yellow-400 animate-pulse">Waiting for server logs…</div>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
 
