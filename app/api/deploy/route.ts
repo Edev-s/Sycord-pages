@@ -191,7 +191,32 @@ export async function POST(request: Request) {
       ? `https://${deployData.domain}`
       : null
 
-    // 5. Persist deployment metadata in MongoDB
+    // 5a. Fetch logs from VPS to verify deployment status
+    let deployLogs: string[] = []
+    let buildSuccess = true
+    try {
+      const logsRes = await fetch(
+        `${VPS_BASE_URL}/api/logs?project_id=${projectId}&limit=50`,
+      )
+      if (logsRes.ok) {
+        const logsData = await logsRes.json()
+        deployLogs = logsData.logs || []
+        // Check logs for build failure indicators
+        buildSuccess = !deployLogs.some(
+          (line: string) =>
+            /\[ERROR\].*build failed/i.test(line) ||
+            /npm ERR!/i.test(line),
+        )
+      }
+    } catch (logsErr) {
+      console.error("[Deploy] Failed to fetch deployment logs:", logsErr)
+    }
+
+    // 5b. Resolve git token for this project (user-level only, never env-level)
+    const gitToken: string | null =
+      userDoc?.github_tokens?.[projectId]?.token || null
+
+    // 6. Persist deployment metadata in MongoDB
     await db.collection("users").updateOne(
       { id: session.user.id, "projects._id": new ObjectId(projectId) },
       {
@@ -200,6 +225,12 @@ export async function POST(request: Request) {
           "projects.$.deployedAt": new Date(),
           "projects.$.cloudflareUrl": deployedDomain,
           "projects.$.vpsProjectId": projectId,
+          "projects.$.git_connection": {
+            git_url: `${VPS_BASE_URL}/api/deploy/${projectId}`,
+            git_token: gitToken,
+            repo_id: projectId,
+            updated_at: new Date(),
+          },
         },
       },
     )
@@ -215,6 +246,8 @@ export async function POST(request: Request) {
         ? "Deployed to VPS!"
         : "Deployed – domain will be available shortly.",
       projectId,
+      buildSuccess,
+      logs: deployLogs,
     })
   } catch (error: any) {
     console.error("[Deploy] Error:", error)
