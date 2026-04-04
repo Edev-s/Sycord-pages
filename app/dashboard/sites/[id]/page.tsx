@@ -627,7 +627,8 @@ export default function SiteSettingsPage() {
                 setLogs(data.logs)
 
                 // Debug: output deploy logs to browser console
-                console.group(`[Deploy Logs] project_id=${targetId}`)
+                const sanitizedId = String(targetId).replace(/[^a-zA-Z0-9_-]/g, '')
+                console.group(`[Deploy Logs] project_id=${sanitizedId}`)
                 data.logs.forEach((line: string) => {
                   if (line.toLowerCase().includes('error') || line.toLowerCase().includes('fail')) {
                     console.error(line)
@@ -1019,11 +1020,12 @@ export default function SiteSettingsPage() {
           } else {
               setProject((prev: any) => ({ ...prev, cloudflareUrl: result.cloudflareUrl }))
           }
-          // Poll logs a few times to catch VPS build errors that occur after the deploy request succeeds
+          // Poll logs to catch VPS build errors that occur after the deploy request succeeds
           const LOG_POLL_ATTEMPTS = 3
           const LOG_POLL_DELAY_MS = 5000
           const pollLogs = async (attempts: number, delayMs: number) => {
-            for (let attempt = 0; attempt < attempts; attempt++) {
+            await fetchLogs(deployId)
+            for (let attempt = 1; attempt < attempts; attempt++) {
               await new Promise(r => setTimeout(r, delayMs))
               await fetchLogs(deployId)
             }
@@ -2098,15 +2100,19 @@ export default function SiteSettingsPage() {
         // Save fixed pages then re-deploy
         const saveAndRedeploy = async () => {
           try {
-            await fetch(`/api/projects/${id}/pages`, {
+            const saveRes = await fetch(`/api/projects/${id}/pages`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ pages: generatedPages }),
             })
+            if (!saveRes.ok) {
+              console.error("Failed to save fixed pages before redeploy: HTTP", saveRes.status)
+              return
+            }
+            handleDeploy()
           } catch (e) {
             console.error("Failed to save fixed pages before redeploy:", e)
           }
-          handleDeploy()
         }
         saveAndRedeploy()
       }}
