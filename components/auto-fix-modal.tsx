@@ -244,7 +244,8 @@ export function AutoFixModal({ isOpen, onClose, projectId, logs, pages, setPages
       // Notify parent that fixes were applied so it can re-deploy
       if (onFixComplete) {
         addStep("Re-deploying with fixes…", "processing")
-        await new Promise(r => setTimeout(r, 500))
+        const REDEPLOY_DELAY_MS = 500
+        await new Promise(r => setTimeout(r, REDEPLOY_DELAY_MS))
         onFixComplete()
       }
 

@@ -996,13 +996,15 @@ export default function SiteSettingsPage() {
               setProject((prev: any) => ({ ...prev, cloudflareUrl: result.cloudflareUrl }))
           }
           // Poll logs a few times to catch VPS build errors that occur after the deploy request succeeds
+          const LOG_POLL_ATTEMPTS = 3
+          const LOG_POLL_DELAY_MS = 5000
           const pollLogs = async (attempts: number, delayMs: number) => {
-            for (let i = 0; i < attempts; i++) {
+            for (let attempt = 0; attempt < attempts; attempt++) {
               await new Promise(r => setTimeout(r, delayMs))
               await fetchLogs(deployId)
             }
           }
-          pollLogs(3, 5000)
+          pollLogs(LOG_POLL_ATTEMPTS, LOG_POLL_DELAY_MS)
       }
 
       const SUCCESS_DISPLAY_DURATION_MS = 5000
@@ -1016,9 +1018,10 @@ export default function SiteSettingsPage() {
       setDeployProgress(0)
       setHasDeployError(true)
       // Fetch logs after short delay to capture VPS-side error details
+      const LOG_FETCH_DELAY_MS = 2000
       setTimeout(async () => {
         await fetchLogs()
-      }, 2000)
+      }, LOG_FETCH_DELAY_MS)
     } finally {
       setIsDeploying(false)
     }
@@ -1365,7 +1368,7 @@ export default function SiteSettingsPage() {
                         style={{ background: "#252527", border: "1px solid rgba(255,255,255,0.08)" }}
                       >
                         <p className="text-[13px] text-zinc-300 text-center flex-1 leading-snug">
-                          some changes are not deployed,{"\n"}please deploy to see
+                          Some changes are not deployed,{"\n"}please deploy to see
                         </p>
                         <button
                           onClick={handleDeploy}
@@ -2003,7 +2006,9 @@ export default function SiteSettingsPage() {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ pages: generatedPages }),
             })
-          } catch {}
+          } catch (e) {
+            console.error("Failed to save fixed pages before redeploy:", e)
+          }
           handleDeploy()
         }
         saveAndRedeploy()
