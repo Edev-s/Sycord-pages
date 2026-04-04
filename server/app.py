@@ -238,12 +238,36 @@ def index():
 @app.route("/api/health", methods=["GET"])
 def health():
     """Health-check endpoint used by the keep-alive cron to ensure the runner
-    stays warm 24/7."""
-    return jsonify(
-        status="ok",
-        timestamp=datetime.now(timezone.utc).isoformat(),
-        service="sycord-runner",
-    )
+    stays warm 24/7.  When ``?detailed=true`` is passed, the response also
+    includes system-resource metrics (CPU, RAM, disk) that the admin Runner
+    tab consumes."""
+    data: dict = {
+        "status": "ok",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "service": "sycord-runner",
+    }
+
+    if request.args.get("detailed") == "true":
+        try:
+            import psutil  # type: ignore[import-untyped]
+
+            mem = psutil.virtual_memory()
+            disk = psutil.disk_usage("/")
+            data["resources"] = {
+                "cpu_percent": psutil.cpu_percent(interval=0.5),
+                "ram_total_mb": round(mem.total / 1024 / 1024),
+                "ram_used_mb": round(mem.used / 1024 / 1024),
+                "ram_percent": mem.percent,
+                "disk_total_gb": round(disk.total / 1024 / 1024 / 1024, 1),
+                "disk_used_gb": round(disk.used / 1024 / 1024 / 1024, 1),
+                "disk_percent": disk.percent,
+            }
+        except ImportError:
+            # psutil is not installed – return basic info instead
+            data["resources"] = None
+            data["resources_error"] = "psutil not installed on server"
+
+    return jsonify(data)
 
 
 # ── API: Deploy ───────────────────────────────────────────────────────────

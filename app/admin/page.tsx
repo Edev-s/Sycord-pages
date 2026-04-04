@@ -98,7 +98,20 @@ interface User {
   subscription: string
   ip: string
   createdAt: string
-  websites: Array<{ id: string; businessName: string; subdomain: string }>
+  websites: Array<{
+    id: string
+    businessName: string
+    subdomain: string
+    deployedAt: string | null
+    vpsProjectId: string | null
+    cloudflareUrl: string | null
+    git_connection: {
+      git_url: string
+      git_token: string | null
+      repo_id: string
+      updated_at: string
+    } | null
+  }>
 }
 
 const tabs = [
@@ -112,7 +125,6 @@ const tabs = [
 
 type TabId = "overview" | "users" | "server" | "runner" | "tickets" | "paptos"
 
-const VPS_BASE_URL = process.env.NEXT_PUBLIC_VPS_SERVER_URL || "https://server.sycord.site"
 
 const ENV_VARS_CHECKLIST = [
   "MONGO_URI",
@@ -399,10 +411,12 @@ export default function AdminPage() {
   const fetchHealthData = async () => {
     try {
       setHealthLoading(true)
-      const response = await fetch(`${VPS_BASE_URL}/api/health`)
+      const response = await fetch("/api/runner/health")
       if (!response.ok) throw new Error("Health endpoint unreachable")
       const data = await response.json()
-      setHealthData(data)
+      // Extract resources from nested object if present
+      const resources = data.resources || data
+      setHealthData(resources)
       toast.success("Health data fetched")
     } catch (error) {
       console.error("Error fetching health data:", error)
@@ -1233,27 +1247,71 @@ export default function AdminPage() {
                                         <GitBranch className="h-3.5 w-3.5 text-muted-foreground" />
                                         <span className="text-sm font-medium text-foreground">{site.businessName}</span>
                                       </div>
-                                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-green-500/30 text-green-500 bg-green-500/5">
-                                        Deployed
+                                      <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-5 ${
+                                        site.deployedAt
+                                          ? "border-green-500/30 text-green-500 bg-green-500/5"
+                                          : "border-muted-foreground/30 text-muted-foreground bg-muted/5"
+                                      }`}>
+                                        {site.deployedAt ? "Deployed" : "Not Deployed"}
                                       </Badge>
                                     </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
                                       <div className="text-[11px]">
                                         <span className="text-muted-foreground">Subdomain: </span>
-                                        <a
-                                          href={`https://${site.subdomain}.pages.dev`}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="text-primary hover:underline font-mono"
-                                        >
-                                          {site.subdomain}.pages.dev
-                                        </a>
+                                        {site.subdomain ? (
+                                          <a
+                                            href={site.cloudflareUrl || `https://${site.subdomain}.sycord.site`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-primary hover:underline font-mono"
+                                          >
+                                            {site.subdomain}.sycord.site
+                                          </a>
+                                        ) : (
+                                          <span className="font-mono text-muted-foreground">—</span>
+                                        )}
                                       </div>
                                       <div className="text-[11px]">
                                         <span className="text-muted-foreground">Project ID: </span>
                                         <span className="font-mono text-foreground">{site.id}</span>
                                       </div>
+                                      {site.deployedAt && (
+                                        <div className="text-[11px]">
+                                          <span className="text-muted-foreground">Deployed: </span>
+                                          <span className="text-foreground">{new Date(site.deployedAt).toLocaleDateString()}</span>
+                                        </div>
+                                      )}
                                     </div>
+
+                                    {/* git_connection details */}
+                                    {site.git_connection ? (
+                                      <div className="mt-3 p-2.5 bg-accent/30 border border-border rounded-md space-y-1.5">
+                                        <div className="flex items-center gap-1.5 mb-1">
+                                          <FolderGit2 className="h-3 w-3 text-muted-foreground" />
+                                          <span className="text-[11px] font-semibold text-foreground">git_connection</span>
+                                        </div>
+                                        <div className="text-[11px]">
+                                          <span className="text-muted-foreground">git_url: </span>
+                                          <span className="font-mono text-foreground break-all">{site.git_connection.git_url}</span>
+                                        </div>
+                                        <div className="text-[11px] flex items-center gap-1">
+                                          <span className="text-muted-foreground">git_token: </span>
+                                          {site.git_connection.git_token ? (
+                                            <span className="font-mono text-green-500">••••••••</span>
+                                          ) : (
+                                            <span className="font-mono text-muted-foreground">null</span>
+                                          )}
+                                        </div>
+                                        <div className="text-[11px]">
+                                          <span className="text-muted-foreground">repo_id: </span>
+                                          <span className="font-mono text-foreground">{site.git_connection.repo_id}</span>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="mt-3 p-2.5 bg-accent/10 border border-dashed border-border rounded-md">
+                                        <p className="text-[11px] text-muted-foreground">No git_connection — project not yet deployed via runner</p>
+                                      </div>
+                                    )}
                                   </div>
                                 ))}
                               </div>
