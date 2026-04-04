@@ -61,9 +61,17 @@ import {
   Settings,
   User,
   ChevronDown,
+  ChevronRight,
   Calendar,
   ExternalLink,
-  Terminal
+  Terminal,
+  Play,
+  RefreshCw,
+  GitBranch,
+  FolderGit2,
+  Eye,
+  EyeOff,
+  AlertTriangle
 } from "lucide-react"
 
 const availableIcons = [
@@ -97,11 +105,35 @@ const tabs = [
   { id: "overview" as const, label: "Overview", icon: BarChart3 },
   { id: "users" as const, label: "Users", icon: Users },
   { id: "server" as const, label: "Server", icon: Server },
+  { id: "runner" as const, label: "Runner", icon: Terminal },
   { id: "tickets" as const, label: "Tickets", icon: AlertCircle },
   { id: "paptos" as const, label: "Legal", icon: BookOpen },
 ]
 
-type TabId = "overview" | "users" | "server" | "tickets" | "paptos"
+type TabId = "overview" | "users" | "server" | "runner" | "tickets" | "paptos"
+
+const VPS_BASE_URL = process.env.NEXT_PUBLIC_VPS_SERVER_URL || "https://server.sycord.site"
+
+const ENV_VARS_CHECKLIST = [
+  "MONGO_URI",
+  "CLOUDFLARE_API_KEY",
+  "CLOUDFLARE_ZONE_ID",
+  "VPS_IP",
+  "VPS_USERNAME",
+  "VPS_PASSWORD",
+  "VPS_SERVER_URL",
+  "GOOGLE_AI_API",
+  "GITHUB_API_TOKEN",
+  "GITHUB_OWNER",
+]
+
+const SENSITIVE_ENV_VARS = new Set([
+  "MONGO_URI",
+  "CLOUDFLARE_API_KEY",
+  "VPS_PASSWORD",
+  "GOOGLE_AI_API",
+  "GITHUB_API_TOKEN",
+])
 
 export default function AdminPage() {
   const router = useRouter()
@@ -130,6 +162,15 @@ export default function AdminPage() {
   // PAP & TOS State
   const [privacyPolicy, setPrivacyPolicy] = useState("Edit your privacy policy here...")
   const [termsOfService, setTermsOfService] = useState("Edit your terms of service here...")
+
+  // Runner State
+  const [runnerStatus, setRunnerStatus] = useState<any>(null)
+  const [runnerLoading, setRunnerLoading] = useState(false)
+  const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set())
+  const [healthData, setHealthData] = useState<any>(null)
+  const [healthLoading, setHealthLoading] = useState(false)
+  const [setupExpanded, setSetupExpanded] = useState(false)
+  const [showTokens, setShowTokens] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (session?.user?.email !== "dmarton336@gmail.com") {
@@ -312,6 +353,99 @@ export default function AdminPage() {
     } finally {
       setUpdatingUser(null)
     }
+  }
+
+  const fetchRunnerStatus = async () => {
+    try {
+      setRunnerLoading(true)
+      const response = await fetch("/api/vps/setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "status" }),
+      })
+      if (!response.ok) throw new Error("Failed to fetch runner status")
+      const data = await response.json()
+      setRunnerStatus(data)
+      toast.success("Runner status updated")
+    } catch (error) {
+      console.error("Error fetching runner status:", error)
+      toast.error("Failed to fetch runner status")
+    } finally {
+      setRunnerLoading(false)
+    }
+  }
+
+  const restartRunner = async () => {
+    if (!confirm("Are you sure you want to restart the Flask server? This will briefly interrupt all deployments.")) return
+    try {
+      setRunnerLoading(true)
+      const response = await fetch("/api/vps/setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "restart" }),
+      })
+      if (!response.ok) throw new Error("Failed to restart runner")
+      const data = await response.json()
+      setRunnerStatus(data)
+      toast.success("Runner restarted successfully")
+    } catch (error) {
+      console.error("Error restarting runner:", error)
+      toast.error("Failed to restart runner")
+    } finally {
+      setRunnerLoading(false)
+    }
+  }
+
+  const fetchHealthData = async () => {
+    try {
+      setHealthLoading(true)
+      const response = await fetch(`${VPS_BASE_URL}/api/health`)
+      if (!response.ok) throw new Error("Health endpoint unreachable")
+      const data = await response.json()
+      setHealthData(data)
+      toast.success("Health data fetched")
+    } catch (error) {
+      console.error("Error fetching health data:", error)
+      toast.error("Could not reach VPS health endpoint")
+    } finally {
+      setHealthLoading(false)
+    }
+  }
+
+  const toggleUserExpanded = (userId: string) => {
+    setExpandedUsers(prev => {
+      const next = new Set(prev)
+      if (next.has(userId)) next.delete(userId)
+      else next.add(userId)
+      return next
+    })
+  }
+
+  const toggleTokenVisibility = (key: string) => {
+    setShowTokens(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  const getUsageColor = (percent: number) => {
+    if (percent >= 90) return "bg-red-500"
+    if (percent >= 70) return "bg-yellow-500"
+    return "bg-green-500"
+  }
+
+  const getUsageTextColor = (percent: number) => {
+    if (percent >= 90) return "text-red-500"
+    if (percent >= 70) return "text-yellow-500"
+    return "text-green-500"
+  }
+
+  const maskToken = (token: string | undefined) => {
+    if (!token) return "—"
+    if (token.length <= 8) return "••••••••"
+    return token.slice(0, 4) + "••••" + token.slice(-4)
   }
 
   const formatDate = (dateString: string) => {
@@ -843,6 +977,352 @@ export default function AdminPage() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Runner Tab */}
+        {activeTab === "runner" && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">Runner Management</h2>
+                <p className="text-sm text-muted-foreground">VPS server controls, health monitoring &amp; deployed projects</p>
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" className="h-8 text-xs" onClick={fetchHealthData} disabled={healthLoading}>
+                  {healthLoading ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Activity className="h-3.5 w-3.5 mr-1.5" />}
+                  Fetch Status
+                </Button>
+              </div>
+            </div>
+
+            {/* System Resources */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Card className="border-border">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="h-9 w-9 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                      <Cpu className="h-4 w-4 text-blue-500" />
+                    </div>
+                    <span className={`text-xs font-semibold ${getUsageTextColor(healthData?.cpu_percent ?? 0)}`}>
+                      {healthData?.cpu_percent != null ? `${healthData.cpu_percent}%` : "—"}
+                    </span>
+                  </div>
+                  <p className="text-sm font-semibold text-foreground">CPU Usage</p>
+                  <div className="mt-2 h-2 w-full rounded-full bg-accent/50 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${getUsageColor(healthData?.cpu_percent ?? 0)}`}
+                      style={{ width: `${healthData?.cpu_percent ?? 0}%` }}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="h-9 w-9 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                      <Database className="h-4 w-4 text-purple-500" />
+                    </div>
+                    <span className={`text-xs font-semibold ${getUsageTextColor(healthData?.ram_percent ?? 0)}`}>
+                      {healthData?.ram_percent != null ? `${healthData.ram_percent}%` : "—"}
+                    </span>
+                  </div>
+                  <p className="text-sm font-semibold text-foreground">RAM Usage</p>
+                  <div className="mt-2 h-2 w-full rounded-full bg-accent/50 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${getUsageColor(healthData?.ram_percent ?? 0)}`}
+                      style={{ width: `${healthData?.ram_percent ?? 0}%` }}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="h-9 w-9 rounded-lg bg-orange-500/10 flex items-center justify-center">
+                      <HardDrive className="h-4 w-4 text-orange-500" />
+                    </div>
+                    <span className={`text-xs font-semibold ${getUsageTextColor(healthData?.disk_percent ?? 0)}`}>
+                      {healthData?.disk_percent != null ? `${healthData.disk_percent}%` : "—"}
+                    </span>
+                  </div>
+                  <p className="text-sm font-semibold text-foreground">Storage</p>
+                  <div className="mt-2 h-2 w-full rounded-full bg-accent/50 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${getUsageColor(healthData?.disk_percent ?? 0)}`}
+                      style={{ width: `${healthData?.disk_percent ?? 0}%` }}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Server Status & Controls */}
+            <Card className="border-border">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <CardTitle className="text-sm font-semibold">Server Status</CardTitle>
+                    <div className="flex items-center gap-1.5">
+                      <div className={`h-2.5 w-2.5 rounded-full ${
+                        runnerStatus?.flask_running
+                          ? "bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.4)]"
+                          : "bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.4)]"
+                      }`} />
+                      <span className="text-xs text-muted-foreground">
+                        {runnerStatus?.flask_running ? "Running" : runnerStatus ? "Stopped" : "Unknown"}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" className="h-8 text-xs" onClick={fetchRunnerStatus} disabled={runnerLoading}>
+                      {runnerLoading ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
+                      Check Status
+                    </Button>
+                    <Button size="sm" variant="destructive" className="h-8 text-xs" onClick={restartRunner} disabled={runnerLoading}>
+                      {runnerLoading ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Play className="h-3.5 w-3.5 mr-1.5" />}
+                      Restart Server
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {runnerStatus && (
+                  <>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div className="bg-accent/30 border border-border rounded-lg p-3">
+                        <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Flask PID</p>
+                        <p className="text-sm font-mono font-semibold text-foreground mt-1">
+                          {runnerStatus.flask_pid || "—"}
+                        </p>
+                      </div>
+                      <div className="bg-accent/30 border border-border rounded-lg p-3">
+                        <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Tunnel PID</p>
+                        <p className="text-sm font-mono font-semibold text-foreground mt-1">
+                          {runnerStatus.tunnel_pid || "—"}
+                        </p>
+                      </div>
+                      <div className="bg-accent/30 border border-border rounded-lg p-3">
+                        <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Uptime</p>
+                        <p className="text-sm font-mono font-semibold text-foreground mt-1">
+                          {runnerStatus.uptime || "—"}
+                        </p>
+                      </div>
+                      <div className="bg-accent/30 border border-border rounded-lg p-3">
+                        <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Status</p>
+                        <p className="text-sm font-mono font-semibold text-foreground mt-1">
+                          {runnerStatus.flask_running ? "Active" : "Inactive"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Flask Log (collapsible) */}
+                    {runnerStatus.flask_log && (
+                      <details className="group">
+                        <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5">
+                          <ChevronRight className="h-3.5 w-3.5 transition-transform group-open:rotate-90" />
+                          Flask Log (last 10 lines)
+                        </summary>
+                        <pre className="mt-2 p-3 bg-accent/20 border border-border rounded-lg text-[11px] font-mono text-muted-foreground overflow-x-auto max-h-48 whitespace-pre-wrap">
+                          {runnerStatus.flask_log}
+                        </pre>
+                      </details>
+                    )}
+
+                    {/* Tunnel Log (collapsible) */}
+                    {runnerStatus.tunnel_log && (
+                      <details className="group">
+                        <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5">
+                          <ChevronRight className="h-3.5 w-3.5 transition-transform group-open:rotate-90" />
+                          Tunnel Log (last 10 lines)
+                        </summary>
+                        <pre className="mt-2 p-3 bg-accent/20 border border-border rounded-lg text-[11px] font-mono text-muted-foreground overflow-x-auto max-h-48 whitespace-pre-wrap">
+                          {runnerStatus.tunnel_log}
+                        </pre>
+                      </details>
+                    )}
+                  </>
+                )}
+
+                {!runnerStatus && !runnerLoading && (
+                  <div className="text-center py-8 border border-dashed border-border rounded-lg">
+                    <Terminal className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                    <p className="text-xs text-muted-foreground">Click &quot;Check Status&quot; to fetch server information</p>
+                  </div>
+                )}
+
+                {runnerLoading && !runnerStatus && (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mb-2" />
+                    <p className="text-xs text-muted-foreground">Contacting VPS...</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Deployed Projects Browser */}
+            <Card className="border-border">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <FolderGit2 className="h-4 w-4 text-muted-foreground" />
+                  Deployed Projects
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Browse user projects and their Git connections
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="flex flex-col items-center justify-center py-10">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mb-2" />
+                    <p className="text-xs text-muted-foreground">Loading projects...</p>
+                  </div>
+                ) : users.length === 0 ? (
+                  <div className="text-center py-10 border border-dashed border-border rounded-lg">
+                    <Users className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                    <p className="text-xs text-muted-foreground">No users found</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {users.map((user) => (
+                      <div key={user.userId} className="border border-border rounded-lg overflow-hidden">
+                        <button
+                          onClick={() => toggleUserExpanded(user.userId)}
+                          className="w-full flex items-center justify-between px-4 py-3 hover:bg-accent/30 transition-colors text-left"
+                        >
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-7 w-7">
+                              <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-semibold">
+                                {user.name.charAt(0).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="text-sm font-medium text-foreground">{user.name}</p>
+                              <p className="text-[11px] text-muted-foreground">{user.email}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">
+                              {user.projectCount} project{user.projectCount !== 1 ? "s" : ""}
+                            </Badge>
+                            <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${expandedUsers.has(user.userId) ? "rotate-90" : ""}`} />
+                          </div>
+                        </button>
+
+                        {expandedUsers.has(user.userId) && (
+                          <div className="border-t border-border bg-accent/10 px-4 py-3">
+                            {/* Breadcrumb */}
+                            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-3">
+                              <span>Users</span>
+                              <ChevronRight className="h-3 w-3" />
+                              <span className="text-foreground font-medium">{user.name}</span>
+                              <ChevronRight className="h-3 w-3" />
+                              <span>git_connection</span>
+                            </div>
+
+                            {user.websites.length === 0 ? (
+                              <p className="text-xs text-muted-foreground py-2">No projects deployed</p>
+                            ) : (
+                              <div className="space-y-2">
+                                {user.websites.map((site) => (
+                                  <div key={site.id} className="bg-background border border-border rounded-lg p-3">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <div className="flex items-center gap-2">
+                                        <GitBranch className="h-3.5 w-3.5 text-muted-foreground" />
+                                        <span className="text-sm font-medium text-foreground">{site.businessName}</span>
+                                      </div>
+                                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-green-500/30 text-green-500 bg-green-500/5">
+                                        Deployed
+                                      </Badge>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                                      <div className="text-[11px]">
+                                        <span className="text-muted-foreground">Subdomain: </span>
+                                        <a
+                                          href={`https://${site.subdomain}.pages.dev`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-primary hover:underline font-mono"
+                                        >
+                                          {site.subdomain}.pages.dev
+                                        </a>
+                                      </div>
+                                      <div className="text-[11px]">
+                                        <span className="text-muted-foreground">Project ID: </span>
+                                        <span className="font-mono text-foreground">{site.id}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* First-time Setup (collapsed) */}
+            <Card className="border-border">
+              <CardHeader className="pb-0">
+                <button
+                  onClick={() => setSetupExpanded(!setupExpanded)}
+                  className="w-full flex items-center justify-between text-left"
+                >
+                  <div>
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <Settings className="h-4 w-4 text-muted-foreground" />
+                      Initial Configuration (Setup)
+                    </CardTitle>
+                    <CardDescription className="text-xs mt-1">
+                      Only needed when the Ubuntu VPS is not responding
+                    </CardDescription>
+                  </div>
+                  <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${setupExpanded ? "" : "-rotate-90"}`} />
+                </button>
+              </CardHeader>
+
+              {setupExpanded && (
+                <CardContent className="pt-4 space-y-4">
+                  <div className="flex items-start gap-2 p-3 bg-yellow-500/5 border border-yellow-500/20 rounded-lg">
+                    <AlertTriangle className="h-4 w-4 text-yellow-500 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-yellow-600 dark:text-yellow-400">
+                      Only 1 Flask server + tunnel should run on the Ubuntu. Do not overload.
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-medium text-foreground mb-3">Environment Variables Checklist</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {ENV_VARS_CHECKLIST.map((envVar) => (
+                        <div key={envVar} className="flex items-center gap-2 bg-accent/20 border border-border rounded-md px-3 py-2">
+                          <div className="h-2 w-2 rounded-full bg-green-500/50 flex-shrink-0" />
+                          <span className="text-xs font-mono text-foreground flex-1">{envVar}</span>
+                          {SENSITIVE_ENV_VARS.has(envVar) && (
+                            <Lock className="h-3 w-3 text-muted-foreground" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 pt-2">
+                    <Link href="/setup">
+                      <Button size="sm" className="h-8 text-xs">
+                        <Play className="h-3.5 w-3.5 mr-1.5" />
+                        Run Setup
+                      </Button>
+                    </Link>
+                    <span className="text-[11px] text-muted-foreground">Opens the full SSH setup wizard</span>
+                  </div>
+                </CardContent>
+              )}
+            </Card>
           </div>
         )}
 
