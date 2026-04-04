@@ -22,6 +22,8 @@ export async function POST(request: Request) {
     if (!projectId)
       return NextResponse.json({ error: "Missing projectId" }, { status: 400 })
 
+    console.log(`[Deploy] Starting deployment for projectId=${projectId}`)
+
     const client = await clientPromise
     const db = client.db()
 
@@ -32,6 +34,8 @@ export async function POST(request: Request) {
     )
     if (!project)
       return NextResponse.json({ error: "Project not found" }, { status: 404 })
+
+    console.log(`[Deploy] Project found: businessName=${project.businessName ?? "(none)"}, subdomain=${project.subdomain ?? "(none)"}, githubUrl=${project.githubUrl ?? "(none)"}, pagesCount=${project.pages?.length ?? 0}`)
 
     // 2. Derive a subdomain from the project
     const subdomain =
@@ -58,6 +62,8 @@ export async function POST(request: Request) {
 
     if (htmlFiles.length === 0)
       return NextResponse.json({ error: "No files to deploy." }, { status: 400 })
+
+    console.log(`[Deploy] Prepared ${htmlFiles.length} HTML file(s):`, htmlFiles.map(f => f.path))
 
     // 3b. Wrap in a Vite project structure for a proper production build
     const files: { path: string; content: string }[] = []
@@ -175,10 +181,12 @@ export async function POST(request: Request) {
 
     if (!deployRes.ok) {
       const errBody = await deployRes.json().catch(() => ({}))
+      console.error(`[Deploy] VPS deploy failed — HTTP ${deployRes.status}:`, errBody)
       throw new Error(errBody.error || `VPS deploy failed (HTTP ${deployRes.status})`)
     }
 
     const deployData = await deployRes.json()
+    console.log(`[Deploy] VPS response:`, JSON.stringify(deployData))
     const deployedDomain = deployData.domain
       ? `https://${deployData.domain}`
       : null

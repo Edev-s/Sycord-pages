@@ -28,13 +28,21 @@ export async function GET(
 
         // Query the VPS Flask server for project info
         try {
-            const res = await fetch(`${VPS_BASE_URL}/api/projects/${repoId}`)
+            const vpsEndpoint = `${VPS_BASE_URL}/api/projects/${repoId}`
+            console.log(`[Domain Check] Querying VPS: ${vpsEndpoint}`)
+            const res = await fetch(vpsEndpoint)
+            console.log(`[Domain Check] VPS response status: ${res.status}`)
             if (res.ok) {
                 const data = await res.json()
+                console.log(`[Domain Check] VPS response body:`, JSON.stringify(data))
                 if (data.success && data.domain) {
                     domain = `https://${data.domain}`
-                    console.log(`[Domain Check] Found via VPS: ${domain}`)
+                    console.log(`[Domain Check] ✅ Found domain via VPS: ${domain}`)
+                } else {
+                    console.log(`[Domain Check] VPS responded but no domain yet. success=${data.success}, domain=${data.domain ?? "(null)"}`)
                 }
+            } else {
+                console.warn(`[Domain Check] VPS returned non-OK: ${res.status}`)
             }
         } catch (apiError) {
             console.error(`[Domain Check] VPS fetch error:`, apiError)

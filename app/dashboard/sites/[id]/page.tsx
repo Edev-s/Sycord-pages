@@ -616,13 +616,24 @@ export default function SiteSettingsPage() {
 
   const fetchLogs = async (repoIdOverride?: string) => {
     const targetId = repoIdOverride || project?.vpsProjectId || project?.githubRepoId
-    if (!targetId) return
+    if (!targetId) {
+      console.warn("[Deploy Debug] fetchLogs skipped — no targetId available.", {
+        repoIdOverride,
+        vpsProjectId: project?.vpsProjectId ?? "(not set)",
+        githubRepoId: project?.githubRepoId ?? "(not set)",
+      })
+      return
+    }
 
     try {
         const vpsUrl = process.env.NEXT_PUBLIC_VPS_SERVER_URL || "https://server.sycord.site"
-        const res = await fetch(`${vpsUrl}/api/logs?project_id=${targetId}&limit=50`)
+        const logsEndpoint = `${vpsUrl}/api/logs?project_id=${targetId}&limit=50`
+        console.log(`[Deploy Debug] Fetching logs from: ${logsEndpoint}`)
+        const res = await fetch(logsEndpoint)
+        console.log(`[Deploy Debug] Logs response status: ${res.status} ${res.statusText}`)
         if (res.ok) {
             const data = await res.json()
+            console.log(`[Deploy Debug] Logs response:`, { success: data.success, logCount: data.logs?.length ?? 0 })
             if (data.success && Array.isArray(data.logs)) {
                 setLogs(data.logs)
 
@@ -649,10 +660,16 @@ export default function SiteSettingsPage() {
 
                 if (urlMatch && urlMatch[1]) {
                     const url = urlMatch[1].trim().replace(/\.$/, '')
+                    console.log(`[Deploy Debug] ✅ Extracted deploy URL from logs: ${url}`)
                     setProject((prev: any) => ({ ...prev, cloudflareUrl: url }))
                     setDeployResult((prev: any) => ({ ...prev, url, message: "Deployed to Cloudflare Pages!" }))
                     setDeploySuccess(true)
                     setHasDeployError(false)
+                } else {
+                    console.warn("[Deploy Debug] ⚠️ No deploy URL found in logs. Pattern 'Take a peek over at ... .pages.dev' not matched.")
+                    // Log last 5 lines for quick debugging
+                    const tail = data.logs.slice(-5)
+                    console.log("[Deploy Debug] Last 5 log lines:", tail)
                 }
 
                 // Simple error detection in logs
@@ -665,15 +682,22 @@ export default function SiteSettingsPage() {
                     log.toLowerCase().includes('exception')
                 )
 
+                console.log("[Deploy Debug] Log analysis:", { successFound, errorFound, urlExtracted: !!urlMatch })
+
                 // Only set error if we haven't already found success (URL extraction above sets it to false)
                 if (!urlMatch) {
                     setHasDeployError(errorFound)
                     // Auto-open the AI auto-fix modal when deploy errors are detected
                     if (errorFound && generatedPages.length > 0) {
+                        console.warn("[Deploy Debug] 🔧 Deploy errors detected, opening auto-fix modal")
                         setShowAutoFix(true)
                     }
                 }
+            } else {
+                console.warn("[Deploy Debug] Logs response was not successful or logs not an array:", { success: data.success, logsType: typeof data.logs })
             }
+        } else {
+            console.warn(`[Deploy Debug] Logs endpoint returned non-OK status: ${res.status}`)
         }
     } catch (e) {
         console.error("Failed to fetch logs", e)
@@ -690,6 +714,15 @@ export default function SiteSettingsPage() {
           .then((r) => r.json())
           .then((data) => {
             console.log("[v0] Project data fetched:", data ? "Success" : "Empty")
+            console.log("[Deploy Debug] Initial project state:", {
+              cloudflareUrl: data?.cloudflareUrl ?? "(not set)",
+              vpsProjectId: data?.vpsProjectId ?? "(not set)",
+              githubRepoId: data?.githubRepoId ?? "(not set)",
+              subdomain: data?.subdomain ?? "(not set)",
+              deployedAt: data?.deployedAt ?? "(never deployed)",
+              pagesCount: data?.pages?.length ?? 0,
+              githubUrl: data?.githubUrl ?? "(not set)",
+            })
             if (data.message) throw new Error(data.message)
             setProject(data)
             setShopName(data.businessName || "")
@@ -758,6 +791,18 @@ export default function SiteSettingsPage() {
       })
       .catch(() => { console.warn("[Sycord] Could not fetch user status from /api/user/status; defaulting to free Sycord plan credits.") })
   }, [])
+
+  // Debug: log key deployment state whenever it changes
+  useEffect(() => {
+    console.log("[Deploy Debug] Deployment state update:", {
+      previewUrl: project?.cloudflareUrl ?? "(not set — site will NOT display)",
+      vpsProjectId: project?.vpsProjectId ?? "(not set)",
+      deployedAt: project?.deployedAt ?? "(never)",
+      isDeploying,
+      hasDeployError,
+      logCount: logs.length,
+    })
+  }, [project?.cloudflareUrl, project?.vpsProjectId, project?.deployedAt, isDeploying, hasDeployError, logs.length])
 
   const handleStyleSelect = (style: string) => {
     console.log("[v0] Selected style:", style)
@@ -939,13 +984,20 @@ export default function SiteSettingsPage() {
   }
 
   const pollForDomain = async (repoId: string, attempts = 0) => {
-    if (attempts >= 40) return
+    const MAX_POLL_ATTEMPTS = 40
+    if (attempts >= MAX_POLL_ATTEMPTS) {
+      console.error(`[Deploy Debug] ❌ Domain polling exhausted all ${MAX_POLL_ATTEMPTS} attempts for repoId=${repoId}. Site may not have deployed.`)
+      return
+    }
 
     try {
+      console.log(`[Deploy Debug] Polling domain attempt ${attempts + 1}/${MAX_POLL_ATTEMPTS} for repoId=${repoId}`)
       const res = await fetch(`/api/deploy/${repoId}/domain`)
       const data = await res.json()
+      console.log(`[Deploy Debug] Domain poll response:`, { success: data.success, domain: data.domain ?? "(not found)", message: data.message ?? "" })
 
       if (data.success && data.domain) {
+        console.log(`[Deploy Debug] ✅ Domain found: ${data.domain}`)
         setProject((prev: any) => ({ ...prev, cloudflareUrl: data.domain }))
         setDeployResult((prev: any) => ({
             ...prev,
@@ -957,13 +1009,14 @@ export default function SiteSettingsPage() {
         setTimeout(() => pollForDomain(repoId, attempts + 1), 3000)
       }
     } catch (e) {
-      console.error("Polling error:", e)
+      console.error(`[Deploy Debug] Polling error (attempt ${attempts + 1}):`, e)
     }
   }
 
   const handleDeploy = async () => {
     if (isDeploying) return
     
+    console.log("[Deploy Debug] 🚀 handleDeploy started", { projectId: id })
     setIsDeploying(true)
     setDeployProgress(0)
     setDeploySuccess(false)
@@ -988,6 +1041,7 @@ export default function SiteSettingsPage() {
         })
       }, PROGRESS_INTERVAL_MS)
 
+      console.log("[Deploy Debug] POSTing to /api/deploy with projectId:", id)
       const response = await fetch("/api/deploy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -995,13 +1049,24 @@ export default function SiteSettingsPage() {
       })
 
       clearInterval(progressInterval)
+      console.log(`[Deploy Debug] Deploy API response status: ${response.status} ${response.statusText}`)
 
       if (!response.ok) {
         const errorData = await response.json()
+        console.error("[Deploy Debug] ❌ Deploy API error response:", errorData)
         throw new Error(errorData.error || "Deployment failed")
       }
 
       const result = await response.json()
+      console.log("[Deploy Debug] Deploy API success response:", {
+        success: result.success,
+        url: result.url ?? "(null)",
+        cloudflareUrl: result.cloudflareUrl ?? "(null)",
+        filesCount: result.filesCount,
+        projectId: result.projectId ?? "(null)",
+        repoId: result.repoId ?? "(null)",
+        message: result.message,
+      })
       setLogs(prev => [...prev, `[Sycord] Files sent to server (${result.filesCount} files)`])
 
       setDeployProgress(100)
@@ -1013,16 +1078,20 @@ export default function SiteSettingsPage() {
 
       if (result.projectId || result.repoId) {
           const deployId = result.projectId || result.repoId
+          console.log(`[Deploy Debug] Deploy ID: ${deployId}, cloudflareUrl in response: ${result.cloudflareUrl ?? "(null)"}`)
           setProject((prev: any) => ({ ...prev, vpsProjectId: deployId, githubRepoId: deployId, deployedAt: new Date().toISOString() }))
           setLogs(prev => [...prev, `[Sycord] Building on server… fetching build logs`])
           if (!result.cloudflareUrl) {
+              console.log("[Deploy Debug] No cloudflareUrl in deploy response — starting domain polling…")
               pollForDomain(deployId)
           } else {
+              console.log(`[Deploy Debug] ✅ cloudflareUrl set from deploy response: ${result.cloudflareUrl}`)
               setProject((prev: any) => ({ ...prev, cloudflareUrl: result.cloudflareUrl }))
           }
           // Poll logs to catch VPS build errors that occur after the deploy request succeeds
           const LOG_POLL_ATTEMPTS = 3
           const LOG_POLL_DELAY_MS = 5000
+          console.log(`[Deploy Debug] Starting log polling: ${LOG_POLL_ATTEMPTS} attempts, ${LOG_POLL_DELAY_MS}ms interval`)
           const pollLogs = async (attempts: number, delayMs: number) => {
             await fetchLogs(deployId)
             for (let attempt = 1; attempt < attempts; attempt++) {
@@ -1031,6 +1100,8 @@ export default function SiteSettingsPage() {
             }
           }
           pollLogs(LOG_POLL_ATTEMPTS, LOG_POLL_DELAY_MS)
+      } else {
+          console.warn("[Deploy Debug] ⚠️ No projectId or repoId in deploy response — cannot poll for domain or logs")
       }
 
       const SUCCESS_DISPLAY_DURATION_MS = 5000
@@ -1040,17 +1111,20 @@ export default function SiteSettingsPage() {
       }, SUCCESS_DISPLAY_DURATION_MS)
 
     } catch (err: any) {
+      console.error("[Deploy Debug] ❌ handleDeploy caught error:", err.message || err)
       setDeployError(err.message || "Deployment failed")
       setDeployProgress(0)
       setHasDeployError(true)
       setLogs(prev => [...prev, `[Sycord] ERROR: ${err.message || "Deployment failed"}`])
       // Fetch logs after short delay to capture VPS-side error details
       const LOG_FETCH_DELAY_MS = 2000
+      console.log(`[Deploy Debug] Will fetch VPS logs in ${LOG_FETCH_DELAY_MS}ms to capture server-side errors…`)
       setTimeout(async () => {
         await fetchLogs()
       }, LOG_FETCH_DELAY_MS)
     } finally {
       setIsDeploying(false)
+      console.log("[Deploy Debug] handleDeploy finished")
     }
   }
 
