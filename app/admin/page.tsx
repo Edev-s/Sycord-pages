@@ -183,6 +183,16 @@ export default function AdminPage() {
   const [healthLoading, setHealthLoading] = useState(false)
   const [setupExpanded, setSetupExpanded] = useState(false)
   const [showTokens, setShowTokens] = useState<Set<string>>(new Set())
+  const [envValues, setEnvValues] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {}
+    ENV_VARS_CHECKLIST.forEach(k => init[k] = "")
+    return init
+  })
+  const [envSaving, setEnvSaving] = useState(false)
+  const [setupAction, setSetupAction] = useState<string | null>(null)
+  const [setupMessage, setSetupMessage] = useState<string | null>(null)
+  const [deployingProject, setDeployingProject] = useState<string | null>(null)
+  const [projectLogs, setProjectLogs] = useState<Record<string, string[]>>({})
 
   useEffect(() => {
     if (session?.user?.email !== "dmarton336@gmail.com") {
@@ -442,6 +452,82 @@ export default function AdminPage() {
       else next.add(key)
       return next
     })
+  }
+
+  const saveEnvToVps = async () => {
+    try {
+      setEnvSaving(true)
+      const response = await fetch("/api/vps/setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "write_env", envVars: envValues }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Failed to save env")
+      toast.success(data.message || "Environment variables saved")
+    } catch (error: any) {
+      toast.error(error.message || "Failed to save env variables")
+    } finally {
+      setEnvSaving(false)
+    }
+  }
+
+  const runSetupAction = async (action: string) => {
+    try {
+      setSetupAction(action)
+      setSetupMessage(null)
+      const response = await fetch("/api/vps/setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Setup action failed")
+      setSetupMessage(data.message || "Success")
+      toast.success(data.message || "Done")
+      if (data.authUrl) {
+        window.open(data.authUrl, "_blank")
+        setSetupMessage("Auth URL opened in new tab. Complete authorization, then run 'Config DNS'.")
+      }
+    } catch (error: any) {
+      setSetupMessage(`Error: ${error.message}`)
+      toast.error(error.message)
+    } finally {
+      setSetupAction(null)
+    }
+  }
+
+  const deployProject = async (projectId: string) => {
+    try {
+      setDeployingProject(projectId)
+      const response = await fetch("/api/deploy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Deploy failed")
+      toast.success(data.message || "Deployed successfully")
+      if (data.logs) {
+        setProjectLogs(prev => ({ ...prev, [projectId]: data.logs }))
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Deploy failed")
+    } finally {
+      setDeployingProject(null)
+    }
+  }
+
+  const fetchProjectLogs = async (projectId: string) => {
+    try {
+      const response = await fetch(`/api/logs?project_id=${projectId}&limit=30`)
+      const data = await response.json()
+      if (data.success && data.logs) {
+        setProjectLogs(prev => ({ ...prev, [projectId]: data.logs }))
+      }
+    } catch {
+      toast.error("Failed to fetch logs")
+    }
   }
 
   const getUsageColor = (percent: number) => {
@@ -997,6 +1083,7 @@ export default function AdminPage() {
         {/* Runner Tab */}
         {activeTab === "runner" && (
           <div className="space-y-6 animate-in fade-in duration-300">
+            {/* Section 1: Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Runner Management</h2>
@@ -1010,7 +1097,7 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* System Resources */}
+            {/* Section 2: System Resources */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Card className="border-border">
                 <CardContent className="p-5">
@@ -1073,21 +1160,39 @@ export default function AdminPage() {
               </Card>
             </div>
 
-            {/* Server Status & Controls */}
+            {/* Section 3: Server Status & Controls — Compact */}
             <Card className="border-border">
               <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex items-center gap-4">
                     <CardTitle className="text-sm font-semibold">Server Status</CardTitle>
-                    <div className="flex items-center gap-1.5">
-                      <div className={`h-2.5 w-2.5 rounded-full ${
-                        runnerStatus?.flask_running
-                          ? "bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.4)]"
-                          : "bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.4)]"
-                      }`} />
-                      <span className="text-xs text-muted-foreground">
-                        {runnerStatus?.flask_running ? "Running" : runnerStatus ? "Stopped" : "Unknown"}
-                      </span>
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-1.5">
+                        <div className={`h-2.5 w-2.5 rounded-full ${
+                          runnerStatus?.flask_running
+                            ? "bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.4)]"
+                            : "bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.4)]"
+                        }`} />
+                        <span className="text-xs text-muted-foreground">
+                          Flask {runnerStatus?.flask_running ? "Running" : runnerStatus ? "Stopped" : "—"}
+                        </span>
+                        {runnerStatus?.flask_pid && (
+                          <span className="text-[10px] font-mono text-muted-foreground/70">PID {runnerStatus.flask_pid}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className={`h-2.5 w-2.5 rounded-full ${
+                          runnerStatus?.tunnel_running
+                            ? "bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.4)]"
+                            : "bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.4)]"
+                        }`} />
+                        <span className="text-xs text-muted-foreground">
+                          Tunnel {runnerStatus?.tunnel_running ? "Running" : runnerStatus ? "Stopped" : "—"}
+                        </span>
+                        {runnerStatus?.tunnel_pid && (
+                          <span className="text-[10px] font-mono text-muted-foreground/70">PID {runnerStatus.tunnel_pid}</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -1102,37 +1207,9 @@ export default function AdminPage() {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-3 pt-0">
                 {runnerStatus && (
                   <>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      <div className="bg-accent/30 border border-border rounded-lg p-3">
-                        <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Flask PID</p>
-                        <p className="text-sm font-mono font-semibold text-foreground mt-1">
-                          {runnerStatus.flask_pid || "—"}
-                        </p>
-                      </div>
-                      <div className="bg-accent/30 border border-border rounded-lg p-3">
-                        <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Tunnel PID</p>
-                        <p className="text-sm font-mono font-semibold text-foreground mt-1">
-                          {runnerStatus.tunnel_pid || "—"}
-                        </p>
-                      </div>
-                      <div className="bg-accent/30 border border-border rounded-lg p-3">
-                        <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Uptime</p>
-                        <p className="text-sm font-mono font-semibold text-foreground mt-1">
-                          {runnerStatus.uptime || "—"}
-                        </p>
-                      </div>
-                      <div className="bg-accent/30 border border-border rounded-lg p-3">
-                        <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Status</p>
-                        <p className="text-sm font-mono font-semibold text-foreground mt-1">
-                          {runnerStatus.flask_running ? "Active" : "Inactive"}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Flask Log (collapsible) */}
                     {runnerStatus.flask_log && (
                       <details className="group">
                         <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5">
@@ -1145,7 +1222,6 @@ export default function AdminPage() {
                       </details>
                     )}
 
-                    {/* Tunnel Log (collapsible) */}
                     {runnerStatus.tunnel_log && (
                       <details className="group">
                         <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5">
@@ -1161,22 +1237,145 @@ export default function AdminPage() {
                 )}
 
                 {!runnerStatus && !runnerLoading && (
-                  <div className="text-center py-8 border border-dashed border-border rounded-lg">
-                    <Terminal className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                  <div className="text-center py-6 border border-dashed border-border rounded-lg">
+                    <Terminal className="h-7 w-7 text-muted-foreground/30 mx-auto mb-2" />
                     <p className="text-xs text-muted-foreground">Click &quot;Check Status&quot; to fetch server information</p>
                   </div>
                 )}
 
                 {runnerLoading && !runnerStatus && (
-                  <div className="flex flex-col items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mb-2" />
+                  <div className="flex flex-col items-center justify-center py-6">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mb-2" />
                     <p className="text-xs text-muted-foreground">Contacting VPS...</p>
                   </div>
                 )}
               </CardContent>
             </Card>
 
-            {/* Deployed Projects Browser */}
+            {/* Section 4: Server Setup (accordion) */}
+            <Card className="border-border">
+              <CardHeader className="pb-0">
+                <button
+                  onClick={() => setSetupExpanded(!setupExpanded)}
+                  className="w-full flex items-center justify-between text-left"
+                >
+                  <div>
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <Settings className="h-4 w-4 text-muted-foreground" />
+                      Server Setup
+                    </CardTitle>
+                    <CardDescription className="text-xs mt-1">
+                      Environment variables, quick actions &amp; initial configuration
+                    </CardDescription>
+                  </div>
+                  <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${setupExpanded ? "" : "-rotate-90"}`} />
+                </button>
+              </CardHeader>
+
+              {setupExpanded && (
+                <CardContent className="pt-4 space-y-5">
+                  {/* Warning banner */}
+                  <div className="flex items-start gap-2 p-3 bg-yellow-500/5 border border-yellow-500/20 rounded-lg">
+                    <AlertTriangle className="h-4 w-4 text-yellow-500 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-yellow-600 dark:text-yellow-400">
+                      ⚠ Only 1 Flask server + tunnel on the Ubuntu. Don&apos;t overload.
+                    </p>
+                  </div>
+
+                  {/* 4a: Environment Variables Editor */}
+                  <div className="space-y-3">
+                    <p className="text-xs font-semibold text-foreground flex items-center gap-2">
+                      <FileJson className="h-3.5 w-3.5 text-muted-foreground" />
+                      Environment Variables (.env)
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {ENV_VARS_CHECKLIST.map((envVar) => (
+                        <div key={envVar} className="flex items-center gap-2">
+                          <label className="text-[11px] font-mono text-muted-foreground w-36 flex-shrink-0 truncate" title={envVar}>
+                            {envVar}
+                          </label>
+                          <div className="relative flex-1">
+                            <Input
+                              type={SENSITIVE_ENV_VARS.has(envVar) && !showTokens.has(envVar) ? "password" : "text"}
+                              value={envValues[envVar] || ""}
+                              onChange={(e) => setEnvValues(prev => ({ ...prev, [envVar]: e.target.value }))}
+                              placeholder={envVar}
+                              className="h-8 text-xs font-mono pr-8"
+                            />
+                            {SENSITIVE_ENV_VARS.has(envVar) && (
+                              <button
+                                type="button"
+                                onClick={() => toggleTokenVisibility(envVar)}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                              >
+                                {showTokens.has(envVar) ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <Button size="sm" className="h-8 text-xs" onClick={saveEnvToVps} disabled={envSaving}>
+                      {envSaving ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}
+                      Save .env to VPS
+                    </Button>
+                  </div>
+
+                  {/* 4b: Quick Setup Actions */}
+                  <div className="space-y-3">
+                    <p className="text-xs font-semibold text-foreground">Quick Setup Actions</p>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { label: "Init VPS", action: "init" },
+                        { label: "Auth Tunnel", action: "auth" },
+                        { label: "Config DNS", action: "config" },
+                        { label: "Start Server", action: "start_server" },
+                      ].map(({ label, action }) => (
+                        <Button
+                          key={action}
+                          size="sm"
+                          variant="outline"
+                          className="h-8 text-xs"
+                          disabled={setupAction !== null}
+                          onClick={() => {
+                            if (action === "start_server") {
+                              runSetupAction("start_server")
+                            } else {
+                              runSetupAction(action)
+                            }
+                          }}
+                        >
+                          {setupAction === action ? (
+                            <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                          ) : (
+                            <Play className="h-3.5 w-3.5 mr-1.5" />
+                          )}
+                          {label}
+                        </Button>
+                      ))}
+                    </div>
+                    {setupMessage && (
+                      <div className={`p-2.5 rounded-lg border text-xs ${
+                        setupMessage.startsWith("Error")
+                          ? "bg-red-500/5 border-red-500/20 text-red-600 dark:text-red-400"
+                          : "bg-green-500/5 border-green-500/20 text-green-600 dark:text-green-400"
+                      }`}>
+                        {setupMessage}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 4c: Link to full wizard */}
+                  <div className="pt-1">
+                    <Link href="/setup" className="text-xs text-primary hover:underline inline-flex items-center gap-1">
+                      Need full SSH wizard? Open Setup Page <ArrowRight className="h-3 w-3" />
+                    </Link>
+                  </div>
+                </CardContent>
+              )}
+            </Card>
+
+            {/* Section 5: Deployed Projects */}
             <Card className="border-border">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -1184,7 +1383,7 @@ export default function AdminPage() {
                   Deployed Projects
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Browse user projects and their Git connections
+                  Browse user projects, deploy &amp; view logs
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -1227,17 +1426,16 @@ export default function AdminPage() {
 
                         {expandedUsers.has(user.userId) && (
                           <div className="border-t border-border bg-accent/10 px-4 py-3">
-                            {/* Breadcrumb */}
                             <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-3">
                               <span>Users</span>
                               <ChevronRight className="h-3 w-3" />
                               <span className="text-foreground font-medium">{user.name}</span>
                               <ChevronRight className="h-3 w-3" />
-                              <span>git_connection</span>
+                              <span>projects</span>
                             </div>
 
                             {user.websites.length === 0 ? (
-                              <p className="text-xs text-muted-foreground py-2">No projects deployed</p>
+                              <p className="text-xs text-muted-foreground py-2">No projects</p>
                             ) : (
                               <div className="space-y-2">
                                 {user.websites.map((site) => (
@@ -1247,13 +1445,38 @@ export default function AdminPage() {
                                         <GitBranch className="h-3.5 w-3.5 text-muted-foreground" />
                                         <span className="text-sm font-medium text-foreground">{site.businessName}</span>
                                       </div>
-                                      <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-5 ${
-                                        site.deployedAt
-                                          ? "border-green-500/30 text-green-500 bg-green-500/5"
-                                          : "border-muted-foreground/30 text-muted-foreground bg-muted/5"
-                                      }`}>
-                                        {site.deployedAt ? "Deployed" : "Not Deployed"}
-                                      </Badge>
+                                      <div className="flex items-center gap-2">
+                                        <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-5 ${
+                                          site.deployedAt
+                                            ? "border-green-500/30 text-green-500 bg-green-500/5"
+                                            : "border-muted-foreground/30 text-muted-foreground bg-muted/5"
+                                        }`}>
+                                          {site.deployedAt ? "Deployed" : "Not Deployed"}
+                                        </Badge>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-6 text-[10px] px-2"
+                                          disabled={deployingProject === site.id}
+                                          onClick={(e) => { e.stopPropagation(); deployProject(site.id) }}
+                                        >
+                                          {deployingProject === site.id ? (
+                                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                          ) : (
+                                            <Upload className="h-3 w-3 mr-1" />
+                                          )}
+                                          Deploy
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          className="h-6 text-[10px] px-2"
+                                          onClick={(e) => { e.stopPropagation(); fetchProjectLogs(site.id) }}
+                                        >
+                                          <Terminal className="h-3 w-3 mr-1" />
+                                          View Logs
+                                        </Button>
+                                      </div>
                                     </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
                                       <div className="text-[11px]">
@@ -1297,7 +1520,7 @@ export default function AdminPage() {
                                         <div className="text-[11px] flex items-center gap-1">
                                           <span className="text-muted-foreground">git_token: </span>
                                           {site.git_connection.git_token ? (
-                                            <span className="font-mono text-green-500">••••••••</span>
+                                            <span className="font-mono text-green-500">{maskToken(site.git_connection.git_token)}</span>
                                           ) : (
                                             <span className="font-mono text-muted-foreground">null</span>
                                           )}
@@ -1312,6 +1535,24 @@ export default function AdminPage() {
                                         <p className="text-[11px] text-muted-foreground">No git_connection — project not yet deployed via runner</p>
                                       </div>
                                     )}
+
+                                    {/* Inline logs panel */}
+                                    {projectLogs[site.id] && projectLogs[site.id].length > 0 && (
+                                      <div className="mt-3">
+                                        <div className="flex items-center justify-between mb-1">
+                                          <span className="text-[11px] font-medium text-muted-foreground">Recent Logs</span>
+                                          <button
+                                            onClick={() => setProjectLogs(prev => { const next = { ...prev }; delete next[site.id]; return next })}
+                                            className="text-[10px] text-muted-foreground hover:text-foreground"
+                                          >
+                                            Close
+                                          </button>
+                                        </div>
+                                        <pre className="p-2.5 bg-accent/20 border border-border rounded-lg text-[10px] font-mono text-muted-foreground overflow-x-auto max-h-36 whitespace-pre-wrap">
+                                          {projectLogs[site.id].join("\n")}
+                                        </pre>
+                                      </div>
+                                    )}
                                   </div>
                                 ))}
                               </div>
@@ -1323,63 +1564,6 @@ export default function AdminPage() {
                   </div>
                 )}
               </CardContent>
-            </Card>
-
-            {/* First-time Setup (collapsed) */}
-            <Card className="border-border">
-              <CardHeader className="pb-0">
-                <button
-                  onClick={() => setSetupExpanded(!setupExpanded)}
-                  className="w-full flex items-center justify-between text-left"
-                >
-                  <div>
-                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                      <Settings className="h-4 w-4 text-muted-foreground" />
-                      Initial Configuration (Setup)
-                    </CardTitle>
-                    <CardDescription className="text-xs mt-1">
-                      Only needed when the Ubuntu VPS is not responding
-                    </CardDescription>
-                  </div>
-                  <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${setupExpanded ? "" : "-rotate-90"}`} />
-                </button>
-              </CardHeader>
-
-              {setupExpanded && (
-                <CardContent className="pt-4 space-y-4">
-                  <div className="flex items-start gap-2 p-3 bg-yellow-500/5 border border-yellow-500/20 rounded-lg">
-                    <AlertTriangle className="h-4 w-4 text-yellow-500 flex-shrink-0 mt-0.5" />
-                    <p className="text-xs text-yellow-600 dark:text-yellow-400">
-                      Only 1 Flask server + tunnel should run on the Ubuntu. Do not overload.
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-xs font-medium text-foreground mb-3">Environment Variables Checklist</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {ENV_VARS_CHECKLIST.map((envVar) => (
-                        <div key={envVar} className="flex items-center gap-2 bg-accent/20 border border-border rounded-md px-3 py-2">
-                          <div className="h-2 w-2 rounded-full bg-green-500/50 flex-shrink-0" />
-                          <span className="text-xs font-mono text-foreground flex-1">{envVar}</span>
-                          {SENSITIVE_ENV_VARS.has(envVar) && (
-                            <Lock className="h-3 w-3 text-muted-foreground" />
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 pt-2">
-                    <Link href="/setup">
-                      <Button size="sm" className="h-8 text-xs">
-                        <Play className="h-3.5 w-3.5 mr-1.5" />
-                        Run Setup
-                      </Button>
-                    </Link>
-                    <span className="text-[11px] text-muted-foreground">Opens the full SSH setup wizard</span>
-                  </div>
-                </CardContent>
-              )}
             </Card>
           </div>
         )}
