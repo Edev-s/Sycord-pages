@@ -983,7 +983,7 @@ export default function SiteSettingsPage() {
 
       if (result.projectId || result.repoId) {
           const deployId = result.projectId || result.repoId
-          setProject((prev: any) => ({ ...prev, vpsProjectId: deployId, githubRepoId: deployId }))
+          setProject((prev: any) => ({ ...prev, vpsProjectId: deployId, githubRepoId: deployId, deployedAt: new Date().toISOString() }))
           if (!result.cloudflareUrl) {
               pollForDomain(deployId)
           } else {
@@ -1113,6 +1113,17 @@ export default function SiteSettingsPage() {
   const userInitials = session?.user?.name?.split(" ").map((n) => n[0]).join("").toUpperCase() || "U"
   const previewUrl = project?.cloudflareUrl || null
   const displayUrl = previewUrl ? previewUrl.replace(/^https?:\/\//, "") : null
+
+  // Determine if there are undeployed changes
+  const needsDeploy = (() => {
+    if (!project) return false
+    // If never deployed but has pages, needs deploy
+    if (!project.deployedAt && generatedPages.length > 0) return true
+    if (!project.deployedAt) return false
+    // If any page was updated after the last deploy
+    const deployedTime = new Date(project.deployedAt).getTime()
+    return generatedPages.some((p) => p.timestamp > deployedTime)
+  })()
 
   return (
     <div className="flex h-[100dvh] bg-background overflow-hidden relative"
@@ -1329,6 +1340,47 @@ export default function SiteSettingsPage() {
             {activeTab === "overview" && (() => {
               return (
                 <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+
+                    {/* DEPLOY NOTICE BANNER */}
+                    {(needsDeploy || (!previewUrl && generatedPages.length > 0)) && (
+                      <div
+                        className="flex items-center justify-between gap-3 px-4 py-3 rounded-2xl"
+                        style={{ background: "#252527", border: "1px solid rgba(255,255,255,0.08)" }}
+                      >
+                        <p className="text-[13px] text-zinc-300 text-center flex-1 leading-snug">
+                          some changes are not deployed,{"\n"}please deploy to see
+                        </p>
+                        <button
+                          onClick={handleDeploy}
+                          disabled={isDeploying}
+                          className="h-9 px-5 rounded-full text-[12px] font-semibold text-white shrink-0 transition-opacity hover:opacity-85 active:opacity-70 disabled:opacity-60"
+                          style={{ background: "#3a3a3c" }}
+                        >
+                          {isDeploying ? "deploying…" : "deploy"}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* DEPLOY PROGRESS BAR */}
+                    {isDeploying && (
+                      <div className="h-1 w-full rounded-full overflow-hidden" style={{ background: "#2e2e30" }}>
+                        <div
+                          className="h-full rounded-full transition-all duration-300"
+                          style={{ width: `${deployProgress}%`, background: "#22a846" }}
+                        />
+                      </div>
+                    )}
+
+                    {/* DEPLOY ERROR */}
+                    {deployError && (
+                      <div
+                        className="flex items-center gap-2 px-4 py-3 rounded-2xl text-[13px] text-red-400"
+                        style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)" }}
+                      >
+                        <AlertCircle className="h-4 w-4 shrink-0" />
+                        {deployError}
+                      </div>
+                    )}
 
                     {/* PRIMARY PREVIEW CARD (4:3) */}
                     <div

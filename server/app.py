@@ -205,7 +205,12 @@ def serve_subdomain_content():
         abort(403)
 
     if target.is_file():
-        return send_from_directory(str(serve_dir), rel_path)
+        # Vite hashed assets (e.g. /assets/index-abc123.js) are immutable;
+        # set long cache headers so browsers don't re-fetch them.
+        resp = send_from_directory(str(serve_dir), rel_path)
+        if rel_path.startswith("assets/"):
+            resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        return resp
 
     # Try appending index.html for directory-style URLs
     if (serve_dir / rel_path / "index.html").is_file():

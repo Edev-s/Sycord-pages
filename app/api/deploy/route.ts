@@ -44,20 +44,71 @@ export async function POST(request: Request) {
 
     // 3. Prepare Files
     const pages = project.pages || []
-    const files: { path: string; content: string }[] = []
+    const htmlFiles: { path: string; content: string }[] = []
 
     if (pages.length > 0) {
       for (const page of pages) {
         let path = page.name
         if (path.startsWith("/")) path = path.substring(1)
-        files.push({ path, content: page.content })
+        htmlFiles.push({ path, content: page.content })
       }
     } else if (project.aiGeneratedCode) {
-      files.push({ path: "index.html", content: project.aiGeneratedCode })
+      htmlFiles.push({ path: "index.html", content: project.aiGeneratedCode })
     }
 
-    if (files.length === 0)
+    if (htmlFiles.length === 0)
       return NextResponse.json({ error: "No files to deploy." }, { status: 400 })
+
+    // 3b. Wrap in a Vite project structure for a proper production build
+    const files: { path: string; content: string }[] = []
+
+    // Generate Vite multi-page input entries
+    const inputEntries: Record<string, string> = {}
+    for (const f of htmlFiles) {
+      files.push({ path: f.path, content: f.content })
+      // Register each HTML file as a Vite input entry for multi-page build
+      const entryName = f.path.replace(/\.html$/, "").replace(/\//g, "_") || "main"
+      inputEntries[entryName] = f.path
+    }
+
+    // package.json – minimal Vite project
+    files.push({
+      path: "package.json",
+      content: JSON.stringify(
+        {
+          name: subdomain || "sycord-site",
+          private: true,
+          type: "module",
+          scripts: { build: "vite build", preview: "vite preview" },
+          devDependencies: { vite: "^6.0.0" },
+        },
+        null,
+        2,
+      ),
+    })
+
+    // vite.config.js – multi-page build config
+    const inputLines = Object.entries(inputEntries)
+      .map(([key, val]) => `        ${key}: resolve(__dirname, "${val}"),`)
+      .join("\n")
+
+    files.push({
+      path: "vite.config.js",
+      content: [
+        `import { defineConfig } from "vite";`,
+        `import { resolve } from "path";`,
+        ``,
+        `export default defineConfig({`,
+        `  build: {`,
+        `    rollupOptions: {`,
+        `      input: {`,
+        inputLines,
+        `      },`,
+        `    },`,
+        `  },`,
+        `});`,
+      ].join("\n"),
+    })
 
     // 4. Create Cloudflare DNS Record
     console.log(`[Deploy] Updating DNS for ${subdomain}.sycord.site via Cloudflare API...`)
