@@ -73,6 +73,7 @@ import { useSession, signOut } from "next-auth/react"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { SitePreviewDashboard } from "@/components/site-preview-dashboard"
+import { AutoFixModal } from "@/components/auto-fix-modal"
 
 const headerComponents = {
   simple: { name: "Simple", description: "A clean, minimalist header" },
@@ -605,6 +606,7 @@ export default function SiteSettingsPage() {
   const [logs, setLogs] = useState<string[]>([])
   const [hasDeployError, setHasDeployError] = useState(false)
   const [autoFixLogs, setAutoFixLogs] = useState<string[] | null>(null)
+  const [showAutoFix, setShowAutoFix] = useState(false)
 
   // Database / Firebase connection state
   const [databaseConnected, setDatabaseConnected] = useState(false)
@@ -645,6 +647,10 @@ export default function SiteSettingsPage() {
                 // Only set error if we haven't already found success (URL extraction above sets it to false)
                 if (!urlMatch) {
                     setHasDeployError(errorFound)
+                    // Auto-open the AI auto-fix modal when deploy errors are detected
+                    if (errorFound && generatedPages.length > 0) {
+                        setShowAutoFix(true)
+                    }
                 }
             }
         }
@@ -989,7 +995,14 @@ export default function SiteSettingsPage() {
           } else {
               setProject((prev: any) => ({ ...prev, cloudflareUrl: result.cloudflareUrl }))
           }
-          fetchLogs(deployId)
+          // Poll logs a few times to catch VPS build errors that occur after the deploy request succeeds
+          const pollLogs = async (attempts: number, delayMs: number) => {
+            for (let i = 0; i < attempts; i++) {
+              await new Promise(r => setTimeout(r, delayMs))
+              await fetchLogs(deployId)
+            }
+          }
+          pollLogs(3, 5000)
       }
 
       const SUCCESS_DISPLAY_DURATION_MS = 5000
@@ -1002,7 +1015,10 @@ export default function SiteSettingsPage() {
       setDeployError(err.message || "Deployment failed")
       setDeployProgress(0)
       setHasDeployError(true)
-      setTimeout(fetchLogs, 1000)
+      // Fetch logs after short delay to capture VPS-side error details
+      setTimeout(async () => {
+        await fetchLogs()
+      }, 2000)
     } finally {
       setIsDeploying(false)
     }
@@ -1126,6 +1142,7 @@ export default function SiteSettingsPage() {
   })()
 
   return (
+    <>
     <div className="flex h-[100dvh] bg-background overflow-hidden relative"
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
@@ -1965,5 +1982,33 @@ export default function SiteSettingsPage() {
       </div>
 
     </div>
+
+    {/* Auto-Fix Modal — opens automatically when deploy logs show errors */}
+    <AutoFixModal
+      isOpen={showAutoFix}
+      onClose={() => setShowAutoFix(false)}
+      projectId={id as string}
+      logs={logs}
+      pages={generatedPages}
+      setPages={setGeneratedPages}
+      autoStart
+      onFixComplete={() => {
+        setShowAutoFix(false)
+        setHasDeployError(false)
+        // Save fixed pages then re-deploy
+        const saveAndRedeploy = async () => {
+          try {
+            await fetch(`/api/projects/${id}/pages`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ pages: generatedPages }),
+            })
+          } catch {}
+          handleDeploy()
+        }
+        saveAndRedeploy()
+      }}
+    />
+    </>
   )
 }
