@@ -452,8 +452,8 @@ ingress:
       // Wait 2 seconds to see if processes crash immediately
       await new Promise(r => setTimeout(r, 2000))
 
-      const psResFlask = await run('pgrep -f "python3.*/runner.py"', cwd)
-      if (!psResFlask.stdout) {
+      const psResFlask = await run('pgrep -f "runner\\.py" || true', cwd)
+      if (!psResFlask.stdout.trim()) {
          console.warn("[VPS Setup] Flask server doesn't appear to be running after start.")
          const flaskLog = await run(`tail -n 30 ${cwd}/runner.log`, cwd)
          ssh.dispose()
@@ -462,8 +462,8 @@ ingress:
          }, { status: 500 })
       }
 
-      const psResTunnel = await run('pgrep -f "cloudflared tunnel.*sycord-runner"', cwd)
-      if (!psResTunnel.stdout) {
+      const psResTunnel = await run('pgrep -f "cloudflared.*tunnel" || true', cwd)
+      if (!psResTunnel.stdout.trim()) {
          console.warn("[VPS Setup] Cloudflared tunnel crashed. Fetching log...")
          const logTail = await run(`tail -n 20 ${cwd}/tunnel.log`, cwd)
          ssh.dispose()
@@ -478,24 +478,30 @@ ingress:
 
     // --- STATUS CHECK ---
     if (action === "status") {
-      const flaskPid = await run('pgrep -f "python3.*/runner.py"', cwd)
-      const tunnelPid = await run('pgrep -f "cloudflared tunnel.*sycord-runner"', cwd)
+      // Use multiple detection strategies for the Flask process:
+      // 1. pgrep with broader pattern (handles venv python paths)
+      // 2. Check if port 5000 is in use (most reliable)
+      const flaskPgrep = await run('pgrep -f "runner\\.py" || true', cwd)
+      const portCheck = await run('ss -tlnp 2>/dev/null | grep ":5000 " || lsof -i :5000 -t 2>/dev/null || true', cwd)
+      const tunnelPid = await run('pgrep -f "cloudflared.*tunnel" || true', cwd)
       const tunnelLog = await run(`tail -n 10 ${cwd}/tunnel.log 2>/dev/null`, cwd)
       const runnerLog = await run(`tail -n 10 ${cwd}/runner.log 2>/dev/null`, cwd)
 
+      const flaskPidStr = flaskPgrep.stdout.trim()
+      const portInUse = !!portCheck.stdout.trim()
+      const flaskRunning = !!flaskPidStr || portInUse
+      const tunnelPidStr = tunnelPid.stdout.trim()
+
       ssh.dispose()
+      // Return flat keys so the admin UI can read them directly
       return NextResponse.json({
         success: true,
-        flask: {
-          running: !!flaskPid.stdout.trim(),
-          pid: flaskPid.stdout.trim() || null,
-          log: runnerLog.stdout || null,
-        },
-        tunnel: {
-          running: !!tunnelPid.stdout.trim(),
-          pid: tunnelPid.stdout.trim() || null,
-          log: tunnelLog.stdout || null,
-        },
+        flask_running: flaskRunning,
+        flask_pid: flaskPidStr || (portInUse ? "(port 5000 active)" : null),
+        tunnel_running: !!tunnelPidStr,
+        tunnel_pid: tunnelPidStr || null,
+        flask_log: runnerLog.stdout || null,
+        tunnel_log: tunnelLog.stdout || null,
       })
     }
 
@@ -532,10 +538,10 @@ ingress:
 
       await new Promise(r => setTimeout(r, 3000))
 
-      const flaskUp = await run('pgrep -f "python3.*/runner.py"', cwd)
-      const tunnelUp = await run('pgrep -f "cloudflared tunnel.*sycord-runner"', cwd)
+      const flaskUp = await run('pgrep -f "runner\\.py" || true', cwd)
+      const tunnelUp = await run('pgrep -f "cloudflared.*tunnel" || true', cwd)
 
-      if (!flaskUp.stdout) {
+      if (!flaskUp.stdout.trim()) {
         const flaskLog = await run(`tail -n 30 ${cwd}/runner.log`, cwd)
         ssh.dispose()
         return NextResponse.json({
@@ -543,7 +549,7 @@ ingress:
         }, { status: 500 })
       }
 
-      if (!tunnelUp.stdout) {
+      if (!tunnelUp.stdout.trim()) {
         const logTail = await run(`tail -n 20 ${cwd}/tunnel.log`, cwd)
         ssh.dispose()
         return NextResponse.json({
@@ -555,6 +561,29 @@ ingress:
       return NextResponse.json({
         success: true,
         message: `Restarted! Flask: running, Tunnel: running.`
+      })
+    }
+
+    // --- WRITE ENV FILE ---
+    if (action === "write_env") {
+      const { envVars } = body
+      if (!envVars || typeof envVars !== "object") {
+        ssh.dispose()
+        return NextResponse.json({ error: "envVars object is required" }, { status: 400 })
+      }
+
+      // Build .env content from key-value pairs
+      const envContent = Object.entries(envVars)
+        .filter(([, v]) => v !== undefined && v !== null && v !== "")
+        .map(([k, v]) => `${k}=${v}`)
+        .join("\n")
+
+      await ssh.execCommand(`cat > .env`, { cwd, stdin: envContent + "\n" })
+
+      ssh.dispose()
+      return NextResponse.json({
+        success: true,
+        message: `.env file written with ${Object.keys(envVars).length} variables.`
       })
     }
 
