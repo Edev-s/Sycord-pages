@@ -416,7 +416,7 @@ const SidebarContent = ({
                       {hasChildren && (
                         <ChevronRight className={cn("h-3 w-3 shrink-0 transition-transform duration-200", isExpanded ? "rotate-90" : "rotate-0")} />
                       )}
-                      <FolderIcon className={cn("h-4 w-4 flex-shrink-0", hasChildren ? "text-yellow-500/80" : "")} />
+                      <FolderIcon className="h-4 w-4 flex-shrink-0" />
                       <span className="truncate flex-1 text-left">{item.label}</span>
                       {item.badge && (
                         <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border border-white/25 bg-transparent text-foreground/70 shrink-0">
@@ -1067,24 +1067,19 @@ export default function SiteSettingsPage() {
             { id: "ai", label: "Syra", icon: Zap },
           ],
         },
-        { id: "settings", label: "Settings", icon: Settings },
-      ],
-    },
-    {
-      title: "Integrations",
-      items: [
-        { id: "int-pterodactyl", label: "Pterodactyl", icon: Server },
-        { id: "int-mongodb", label: "MongoDB", icon: Database },
-        { id: "int-stripe", label: "Stripe", icon: CreditCard },
         {
-          id: "int-google",
-          label: "Google",
-          icon: Mail,
+          id: "integrations",
+          label: "Integrations",
+          icon: Plug,
           children: [
-            { id: "int-google-drive", label: "Drive", icon: HardDrive },
-            { id: "int-google-mail", label: "Mail", icon: Mail },
+            { id: "int-pterodactyl", label: "Pterodactyl", icon: Server },
+            { id: "int-mongodb", label: "MongoDB", icon: Database },
+            { id: "int-stripe", label: "Stripe", icon: CreditCard },
+            { id: "int-google-drive", label: "Google Drive", icon: HardDrive },
+            { id: "int-google-mail", label: "Google Mail", icon: Mail },
           ],
         },
+        { id: "settings", label: "Settings", icon: Settings },
       ],
     },
     ...(siteType === "blog"
@@ -1126,7 +1121,7 @@ export default function SiteSettingsPage() {
         onTouchEnd={onTouchEnd}
     >
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex flex-col w-64 border-r border-white/10 bg-black/40 backdrop-blur-xl shrink-0">
+      <aside className="hidden md:flex flex-col w-64 frosted-glass !border-0 rounded-r-2xl shrink-0">
         <SidebarContent
           project={project}
           activeTab={activeTab}
@@ -1147,7 +1142,7 @@ export default function SiteSettingsPage() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className={cn("frosted-glass z-20 shrink-0")}>
+        <header className={cn("frosted-glass !border-0 z-20 shrink-0")}>
           <div className="flex items-center justify-between h-14 px-4 md:px-6">
             {/* Mobile: hamburger + site name */}
             <div className="flex items-center gap-2 md:hidden">
