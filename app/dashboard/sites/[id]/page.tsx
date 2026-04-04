@@ -651,7 +651,8 @@ export default function SiteSettingsPage() {
 
                 // Auto-scroll the log panel to the bottom
                 setTimeout(() => {
-                  logPanelRef.current?.scrollTo({ top: logPanelRef.current.scrollHeight, behavior: 'smooth' })
+                  const panel = logPanelRef.current
+                  if (panel) panel.scrollTo({ top: panel.scrollHeight, behavior: 'smooth' })
                 }, 100)
 
                 // Extract URL from logs if present
@@ -1099,7 +1100,7 @@ export default function SiteSettingsPage() {
               await fetchLogs(deployId)
             }
           }
-          pollLogs(LOG_POLL_ATTEMPTS, LOG_POLL_DELAY_MS)
+          pollLogs(LOG_POLL_ATTEMPTS, LOG_POLL_DELAY_MS).catch(e => console.error("[Deploy Debug] Log polling error:", e))
       } else {
           console.warn("[Deploy Debug] ⚠️ No projectId or repoId in deploy response — cannot poll for domain or logs")
       }
