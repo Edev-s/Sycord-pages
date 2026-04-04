@@ -626,8 +626,7 @@ export default function SiteSettingsPage() {
     }
 
     try {
-        const vpsUrl = process.env.NEXT_PUBLIC_VPS_SERVER_URL || "https://server.sycord.site"
-        const logsEndpoint = `${vpsUrl}/api/logs?project_id=${targetId}&limit=50`
+        const logsEndpoint = `/api/logs?project_id=${encodeURIComponent(targetId)}&limit=50`
         console.log(`[Deploy Debug] Fetching logs from: ${logsEndpoint}`)
         const res = await fetch(logsEndpoint)
         console.log(`[Deploy Debug] Logs response status: ${res.status} ${res.statusText}`)

@@ -72,8 +72,7 @@ export function AutoFixModal({ isOpen, onClose, projectId, logs, pages, setPages
       // Fetch latest logs first
       let currentLogs = logs
       try {
-        const vpsUrl = process.env.NEXT_PUBLIC_VPS_SERVER_URL || "https://server.sycord.site"
-        const fetchUrl = `${vpsUrl}/api/logs?project_id=${projectId}&limit=50`
+        const fetchUrl = `/api/logs?project_id=${encodeURIComponent(projectId)}&limit=50`
         console.log(`[AutoFix] Fetching logs from: ${fetchUrl}`)
 
         const logRes = await fetch(fetchUrl)
