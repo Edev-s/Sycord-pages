@@ -711,6 +711,11 @@ export default function SiteSettingsPage() {
     const fetchAllData = async () => {
       console.log(`[v0] Settings page: Starting data fetch for project ${id}`)
       try {
+        // Capture the vpsProjectId from the fetched data so we can pass it to
+        // fetchLogs() directly — React state (project) hasn't updated yet when
+        // Promise.all resolves, so relying on project?.vpsProjectId would be null.
+        let fetchedVpsProjectId: string | null = null
+
         const fetchProject = fetch(`/api/projects/${id}`)
           .then((r) => r.json())
           .then((data) => {
@@ -725,6 +730,7 @@ export default function SiteSettingsPage() {
               githubUrl: data?.githubUrl ?? "(not set)",
             })
             if (data.message) throw new Error(data.message)
+            fetchedVpsProjectId = data.vpsProjectId || data.githubRepoId || null
             setProject(data)
             setShopName(data.businessName || "")
             if (data.firebaseConnected) setDatabaseConnected(true)
@@ -772,7 +778,9 @@ export default function SiteSettingsPage() {
 
         await Promise.all([fetchProject, fetchSettings, fetchProducts])
         console.log("[v0] All data fetches completed")
-        fetchLogs()
+        // Pass fetchedVpsProjectId directly because project state hasn't re-rendered yet
+        console.log(`[Deploy Debug] Calling fetchLogs with captured vpsProjectId: ${fetchedVpsProjectId ?? "(none)"}`)
+        fetchLogs(fetchedVpsProjectId ?? undefined)
       } catch (error) {
         console.error("[v0] Error in fetchAllData:", error)
       } finally {
