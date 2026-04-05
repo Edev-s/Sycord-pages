@@ -1307,7 +1307,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                 {step !== 'idle' && (
                     <div className="flex flex-col pt-8 pb-4">
 
-                        {/* Messages — plain text, no bubbles, Gemini-style */}
+                        {/* Messages — user messages in rounded pill, matching reference UI */}
                         {messages
                             .filter(m => m.role === 'user' || (m.role === 'assistant' && !m.plan && !m.isIntermediate))
                             .map((msg, i) => (
@@ -1318,12 +1318,20 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                                         msg.role === 'user' ? "flex justify-end" : "flex flex-col items-start"
                                     )}
                                 >
-                                    <p className={cn(
-                                        "text-sm leading-relaxed max-w-[82%]",
-                                        msg.role === 'user' ? "text-zinc-200 text-right" : "text-zinc-400"
-                                    )}>
-                                        {msg.content}
-                                    </p>
+                                    {msg.role === 'user' ? (
+                                        <div className="bg-white/[0.08] rounded-[1.5rem] px-5 py-3 max-w-[82%]">
+                                            <p className="text-sm leading-relaxed text-zinc-200">{msg.content}</p>
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm leading-relaxed max-w-[82%] text-zinc-400">{msg.content}</p>
+                                    )}
+
+                                    {/* Date under user message — matching reference UI */}
+                                    {msg.role === 'user' && (
+                                        <p className="text-[11px] text-zinc-600 mt-1.5 text-right w-full">
+                                            {new Date(parseInt(msg.id) || Date.now()).toISOString().split('T')[0].replace(/-/g, '.')}
+                                        </p>
+                                    )}
 
                                     {/* Feedback buttons — assistant messages only */}
                                     {msg.role === 'assistant' && (
