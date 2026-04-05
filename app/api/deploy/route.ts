@@ -274,6 +274,16 @@ export async function POST(request: Request) {
         }
     )
 
+    // Collect env vars for this project to pass to the deployer
+    const envVars: Record<string, string> = {}
+    if (Array.isArray(project.envVars)) {
+      for (const ev of project.envVars) {
+        if (ev.key && ev.value) {
+          envVars[ev.key] = ev.value
+        }
+      }
+    }
+
     // Save Git Connection for Sycord Deployer
     await db.collection("users").updateOne({ id: session.user.id }, {
         $set: { [`git_connection.${repoId}`]: {
@@ -283,7 +293,8 @@ export async function POST(request: Request) {
             git_token: token,
             repo_name: repo,
             project_id: projectId,
-            deployed_at: new Date()
+            deployed_at: new Date(),
+            env_vars: envVars,
         }}
     })
 
@@ -292,9 +303,17 @@ export async function POST(request: Request) {
     let deployMessage = "Deployed to GitHub"
 
     try {
-        // Trigger
+        // Trigger — include env vars in the deploy payload
         console.log(`[Deploy] Triggering downstream deploy for repo ${repoId}...`)
-        const triggerRes = await fetch(`${SYCORD_DEPLOY_API_BASE}/api/deploy/${repoId}`, { method: "POST" })
+        const deployBody: any = {}
+        if (Object.keys(envVars).length > 0) {
+          deployBody.env_vars = envVars
+        }
+        const triggerRes = await fetch(`${SYCORD_DEPLOY_API_BASE}/api/deploy/${repoId}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(deployBody),
+        })
         console.log(`[Deploy] Trigger status: ${triggerRes.status}`)
         
         // Wait briefly for initial provisioning

@@ -52,6 +52,7 @@ import { cn } from "@/lib/utils"
 // Updated Models List — gemini-3.1-pro-preview is the default
 const MODELS = [
   { id: "gemini-3.1-pro-preview", name: "Gemini 3.1 Pro (Preview)", provider: "Google" },
+  { id: "gemini-3.1-flash-lite-preview", name: "Gemini 3.1 Flash Lite ⚡", provider: "Google", fast: true },
   { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", provider: "Google" },
   { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", provider: "Google" },
   { id: "deepseek-v3.2-exp", name: "DeepSeek V3", provider: "DeepSeek" },
@@ -200,7 +201,181 @@ const FileTreeVisualizer = ({ pages, currentFile }: { pages: GeneratedPage[], cu
   )
 }
 
-// --- NEW UI COMPONENTS ---
+// --- GENERATION STEP ICONS (matching the reference UI) ---
+
+const BrainIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M10 21h4M12 2v1M9 17v4M15 17v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    <circle cx="9.5" cy="9" r="1" fill="currentColor"/>
+    <circle cx="14.5" cy="9" r="1" fill="currentColor"/>
+    <path d="M9.5 13c.83.83 2.17 1.5 2.5 1.5s1.67-.67 2.5-1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+  </svg>
+)
+
+const SearchWebIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" strokeWidth="1.5"/>
+    <path d="M3 9h18" stroke="currentColor" strokeWidth="1.5"/>
+    <circle cx="6" cy="6" r="0.75" fill="currentColor"/>
+    <circle cx="8.5" cy="6" r="0.75" fill="currentColor"/>
+    <circle cx="11" cy="6" r="0.75" fill="currentColor"/>
+    <path d="M7 15l2-2m0 0a3 3 0 1 0-4.24-4.24 3 3 0 0 0 4.24 4.24z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" transform="translate(5,2)"/>
+  </svg>
+)
+
+const CodeCreateIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <path d="M8 18l-4-6 4-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M16 6l4 6-4 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M14.5 4l-5 16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+  </svg>
+)
+
+const SaveCloudIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <path d="M12 16V8m0 0l-3 3m3-3l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+)
+
+/** Step data for the generation pipeline — shown as a vertical list with icons */
+interface ThinkingStep {
+  id: string
+  icon: 'thinking' | 'searching' | 'creating' | 'saving'
+  label: string
+  detail?: string
+  status: 'pending' | 'active' | 'done'
+}
+
+const StepIcon = ({ type, className }: { type: ThinkingStep['icon'], className?: string }) => {
+  switch (type) {
+    case 'thinking': return <BrainIcon className={className} />
+    case 'searching': return <SearchWebIcon className={className} />
+    case 'creating': return <CodeCreateIcon className={className} />
+    case 'saving': return <SaveCloudIcon className={className} />
+  }
+}
+
+const ThinkingStepRow = ({ step }: { step: ThinkingStep }) => (
+  <div className="flex items-start gap-3 py-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
+    <div className={cn(
+      "h-9 w-9 rounded-xl flex items-center justify-center shrink-0 border transition-colors duration-300",
+      step.status === 'active' ? "bg-white/10 border-white/10 text-zinc-200" : "bg-white/[0.04] border-white/[0.06] text-zinc-500"
+    )}>
+      {step.status === 'active' ? (
+        <StepIcon type={step.icon} className="h-4.5 w-4.5 animate-pulse" />
+      ) : step.status === 'done' ? (
+        <StepIcon type={step.icon} className="h-4.5 w-4.5" />
+      ) : (
+        <StepIcon type={step.icon} className="h-4.5 w-4.5 opacity-40" />
+      )}
+    </div>
+    <div className="flex-1 min-w-0 pt-1">
+      <p className={cn(
+        "text-sm font-medium transition-colors duration-300",
+        step.status === 'active' ? "text-zinc-300" : step.status === 'done' ? "text-zinc-500" : "text-zinc-600"
+      )}>
+        {step.label}
+      </p>
+      {step.detail && (
+        <p className={cn(
+          "text-xs mt-0.5 leading-relaxed transition-colors duration-300",
+          step.status === 'active' ? "text-zinc-500" : "text-zinc-600"
+        )}>
+          {step.detail}
+        </p>
+      )}
+    </div>
+  </div>
+)
+
+// --- SITEMAP COMPONENT ---
+
+interface SitemapNode {
+  page: string
+  path: string
+  leadsTo?: string[]
+  description?: string
+}
+
+const SitemapVisualizer = ({ nodes }: { nodes: SitemapNode[] }) => {
+  if (!nodes || nodes.length === 0) return null
+
+  return (
+    <div className="mt-4 mb-2 animate-in fade-in slide-in-from-bottom-2 duration-500">
+      <div className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold mb-2 flex items-center gap-1.5">
+        <Globe className="h-3 w-3" /> Sitemap
+      </div>
+      <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3 space-y-1">
+        {nodes.map((node, i) => (
+          <div key={i} className="flex items-center gap-2 py-1.5 px-2 rounded-lg hover:bg-white/5 transition-colors">
+            <div className="h-6 w-6 rounded-md bg-white/[0.06] flex items-center justify-center shrink-0">
+              <Globe className="h-3 w-3 text-zinc-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-zinc-300 truncate">{node.page}</p>
+              <p className="text-[10px] text-zinc-600 truncate">{node.path}</p>
+            </div>
+            {node.leadsTo && node.leadsTo.length > 0 && (
+              <div className="flex items-center gap-1">
+                <ArrowRight className="h-3 w-3 text-zinc-600" />
+                <span className="text-[10px] text-zinc-600">{node.leadsTo.join(", ")}</span>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// --- ENV VAR / INTEGRATION COMPONENTS ---
+
+interface EnvVar {
+  key: string
+  value: string
+  integration?: string | null
+}
+
+const INTEGRATION_OPTIONS = [
+  {
+    id: "mongodb",
+    name: "MongoDB",
+    envKey: "MONGODB_URI",
+    placeholder: "mongodb+srv://user:pass@cluster.mongodb.net/db",
+    logo: "https://www.mongodb.com/assets/images/global/favicon.ico",
+    color: "#00684A",
+    description: "NoSQL document database",
+  },
+  {
+    id: "supabase",
+    name: "Supabase",
+    envKey: "SUPABASE_URL",
+    placeholder: "https://abc.supabase.co",
+    logo: "https://supabase.com/favicon/favicon-32x32.png",
+    color: "#3ECF8E",
+    description: "Open source Firebase alternative",
+  },
+  {
+    id: "stripe",
+    name: "Stripe",
+    envKey: "STRIPE_SECRET_KEY",
+    placeholder: "sk_live_...",
+    logo: "https://stripe.com/favicon.ico",
+    color: "#635BFF",
+    description: "Payment processing",
+  },
+  {
+    id: "firebase",
+    name: "Firebase",
+    envKey: "FIREBASE_API_KEY",
+    placeholder: "AIzaSy...",
+    logo: "https://www.gstatic.com/devrel-devsite/prod/v0e0f589edd85502a40d78d7d0825db8ea5ef3b99ab4070381ee86977c9168730/firebase/images/favicon.png",
+    color: "#FFCA28",
+    description: "Google cloud platform for apps",
+  },
+]
 
 const GeminiIcon = ({ className }: { className?: string }) => (
     <svg
@@ -233,13 +408,13 @@ const GeminiBadge = () => (
     </div>
 )
 
-const InputBar = ({ input, setInput, onSend, disabled }: { input: string, setInput: (v: string) => void, onSend: () => void, disabled: boolean }) => (
+const InputBar = ({ input, setInput, onSend, disabled, selectedModel, setSelectedModel }: { input: string, setInput: (v: string) => void, onSend: () => void, disabled: boolean, selectedModel?: typeof MODELS[0], setSelectedModel?: (m: typeof MODELS[0]) => void }) => (
     <div className="w-full max-w-2xl mx-auto px-4 pb-6 md:pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 z-50 fixed bottom-0 left-0 right-0 md:static">
         <div className={cn(
-            "rounded-[2rem] p-1.5 relative shadow-lg transition-all duration-300 border border-white/5 bg-[#1c1c1c] flex items-center gap-2",
+            "rounded-[2.5rem] p-2 relative shadow-lg transition-all duration-300 border border-white/[0.06] bg-[#1c1c1c] flex items-center gap-2",
             disabled ? "opacity-80 pointer-events-none" : "focus-within:border-white/10"
         )}>
-            <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full text-zinc-500 hover:text-zinc-300 hover:bg-white/5 transition-all shrink-0 ml-1" disabled={disabled}>
+            <Button variant="ghost" size="icon" className="h-11 w-11 rounded-full text-zinc-500 hover:text-zinc-300 hover:bg-white/5 transition-all shrink-0 ml-1" disabled={disabled}>
                 <Paperclip className="h-5 w-5" />
             </Button>
 
@@ -248,15 +423,45 @@ const InputBar = ({ input, setInput, onSend, disabled }: { input: string, setInp
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && onSend()}
                 placeholder="Describe the website you want"
-                className="flex-1 border-none bg-transparent dark:bg-transparent h-12 text-base text-zinc-200 placeholder:text-zinc-600 focus-visible:ring-0 px-0 shadow-none"
+                className="flex-1 border-none bg-transparent dark:bg-transparent h-14 text-base text-zinc-200 placeholder:text-zinc-600 focus-visible:ring-0 px-0 shadow-none"
                 disabled={disabled}
                 autoFocus={!disabled}
             />
 
+            {/* Model selector - compact pill */}
+            {setSelectedModel && selectedModel && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-8 rounded-full text-[10px] text-zinc-600 hover:text-zinc-400 hover:bg-white/5 px-2.5 shrink-0 gap-1">
+                    {(selectedModel as any).fast ? <Zap className="h-3 w-3 text-yellow-500" /> : null}
+                    <span className="hidden sm:inline">{selectedModel.name.split(' ').slice(0,2).join(' ')}</span>
+                    <ChevronDown className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-[#1c1c1c] border-white/10 min-w-[200px]">
+                  {MODELS.map(m => (
+                    <DropdownMenuItem
+                      key={m.id}
+                      onClick={() => setSelectedModel(m)}
+                      className={cn(
+                        "text-xs",
+                        selectedModel.id === m.id ? "text-white bg-white/10" : "text-zinc-400"
+                      )}
+                    >
+                      <span className="flex items-center gap-2">
+                        {(m as any).fast ? <Zap className="h-3 w-3 text-yellow-500" /> : <Sparkles className="h-3 w-3 text-zinc-600" />}
+                        {m.name}
+                      </span>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+
             <Button
                 size="icon"
                 className={cn(
-                    "h-10 w-10 rounded-full transition-all active:scale-95 shrink-0 flex items-center justify-center bg-transparent border-none mr-1 shadow-none",
+                    "h-11 w-11 rounded-full transition-all active:scale-95 shrink-0 flex items-center justify-center bg-transparent border-none mr-1 shadow-none",
                     input.trim() && !disabled ? "text-zinc-400 hover:text-white hover:bg-white/10" : "text-zinc-700 hover:bg-transparent"
                 )}
                 onClick={onSend}
@@ -530,8 +735,61 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
   const [fixHistory, setFixHistory] = useState<any[]>([])
   const [requiresDatabase, setRequiresDatabase] = useState(false)
 
+  // Thinking steps — shown during generation with icons matching the reference UI
+  const [thinkingSteps, setThinkingSteps] = useState<ThinkingStep[]>([])
+
+  // Sitemap — parsed from the generation plan
+  const [sitemap, setSitemap] = useState<SitemapNode[]>([])
+
   // Per-message feedback: 'like' | 'dislike' | 'report' | null
   const [messageFeedback, setMessageFeedback] = useState<Record<string, 'like' | 'dislike' | 'report' | null>>({})
+
+  /** Helper: add or update a thinking step */
+  const upsertStep = (id: string, updates: Partial<ThinkingStep>) => {
+    setThinkingSteps(prev => {
+      const idx = prev.findIndex(s => s.id === id)
+      if (idx >= 0) {
+        const copy = [...prev]
+        copy[idx] = { ...copy[idx], ...updates }
+        return copy
+      }
+      return [...prev, { id, icon: 'thinking', label: '', status: 'pending', ...updates } as ThinkingStep]
+    })
+  }
+
+  /** Parse sitemap nodes from the plan instruction text */
+  const parseSitemap = (planText: string) => {
+    const nodes: SitemapNode[] = []
+    // Look for page structure section
+    const pageSection = planText.match(/## 4\. Page Structure([\s\S]*?)(?:## 5|$)/i)
+    if (pageSection) {
+      const lines = pageSection[1].split('\n')
+      for (const line of lines) {
+        const match = line.match(/[-*]\s*\*\*([^*]+)\*\*\/?:?\s*(.*)/)
+        if (match) {
+          const pageName = match[1].replace(/\/$/, '').trim()
+          const desc = match[2].trim()
+          const path = '/' + pageName.toLowerCase().replace(/\s+/g, '-')
+          // Extract navigation links mentioned in description
+          const linkMatches = desc.match(/(?:link|lead|navigate|redirect|go)\s+to\s+([^.,]+)/gi) || []
+          const leadsTo = linkMatches.map(l => l.replace(/.*to\s+/i, '').trim())
+          nodes.push({ page: pageName, path, description: desc, leadsTo })
+        }
+      }
+    }
+    // Fallback: extract from [N] file markers that look like pages
+    if (nodes.length === 0) {
+      const fileMatches = planText.matchAll(/\[\d+\]\s*(src\/components\/[\w-]+\.ts)\s*:\s*\[usedfor\](.*?)\[usedfor\]/g)
+      for (const m of fileMatches) {
+        const name = m[1].replace('src/components/', '').replace('.ts', '')
+        const desc = m[2]
+        if (name !== 'header' && name !== 'footer') {
+          nodes.push({ page: name.charAt(0).toUpperCase() + name.slice(1), path: '/' + name, description: desc })
+        }
+      }
+    }
+    setSitemap(nodes)
+  }
 
   const giveFeedback = (msgId: string, kind: 'like' | 'dislike' | 'report') => {
     setMessageFeedback(prev => ({
@@ -780,7 +1038,16 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
     setCurrentPlan("Architecting solution...")
     setShowAutoDeploy(false)
 
+    // Initialize thinking steps
+    setThinkingSteps([
+      { id: 'think', icon: 'thinking', label: 'thinking', status: 'active' },
+    ])
+    setSitemap([])
+
     try {
+      // Step 1: Web search for relevant information
+      upsertStep('search', { icon: 'searching', label: 'searching web for', detail: input.trim().substring(0, 60), status: 'pending' })
+
       const planResponse = await fetch("/api/ai/generate-plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -790,6 +1057,9 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       if (!planResponse.ok) throw new Error("Failed to generate plan")
       const planData = await planResponse.json()
       const generatedInstruction = planData.instruction
+
+      // Mark thinking as done
+      upsertStep('think', { status: 'done', detail: generatedInstruction.match(/## 1\. Business Goal\s*(.*?)(?:\n|$)/)?.[1]?.substring(0, 80) || undefined })
 
       // Check if AI needs more info
       const questionMatch = generatedInstruction.match(/\[QUESTION\]\s*(.*)/i)
@@ -802,8 +1072,23 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
           }])
           setStep("needs_info")
           setInput("")
+          setThinkingSteps([])
           return
       }
+
+      // Step 2: Web search (fire and forget — results cached for generation)
+      upsertStep('search', { status: 'active' })
+      try {
+        await fetch("/api/ai/web-search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: input.trim(), type: "general" }),
+        })
+      } catch { /* non-critical */ }
+      upsertStep('search', { status: 'done' })
+
+      // Parse sitemap from plan
+      parseSitemap(generatedInstruction)
 
       // Check if database is required
       if (generatedInstruction.includes("## REQUIRES_DATABASE: true")) {
@@ -824,12 +1109,16 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       }
       setMessages(prev => [...prev, planMessage])
 
+      // Start coding step
+      upsertStep('code', { icon: 'creating', label: 'creating code for frontend', status: 'pending' })
+
       if (!generatedInstruction.includes("## REQUIRES_DATABASE: true")) {
           processNextStep(generatedInstruction, [...messages, userMessage, planMessage])
       }
     } catch (err: any) {
       setError(err.message || "Planning failed")
       setStep("idle")
+      setThinkingSteps([])
     }
   }
 
@@ -837,12 +1126,16 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
     setStep("coding")
     setCurrentPlan("Generating next file...")
 
+    // Update thinking step: coding is now active
+    upsertStep('code', { status: 'active' })
+
     // Pattern matches: [N] filename.ext [usedfor]description[/usedfor]
     // e.g. [1] index.html [usedfor]Main entry point[usedfor]
     const nextFileMatch = /\[\d+\]\s*([^\s:]+)(?:[:\-]?\s*\[usedfor\](.*?)\[usedfor\])?/.exec(currentInstruction)
     if (nextFileMatch) {
       setActiveFile(nextFileMatch[1])
       setActiveFileUsedFor(nextFileMatch[2]?.trim() || undefined)
+      upsertStep('code', { detail: `creating ${nextFileMatch[1]}` })
     }
 
     try {
@@ -862,10 +1155,14 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       const data = await response.json()
 
       if (data.isComplete) {
+        upsertStep('code', { status: 'done', label: 'creating code for frontend', detail: undefined })
+        upsertStep('save', { icon: 'saving', label: 'saving', status: 'active' })
         setStep("done")
         setCurrentPlan("All files generated.")
         setActiveFile(undefined)
         setActiveFileUsedFor(undefined)
+        // Mark saving as done after a brief delay
+        setTimeout(() => upsertStep('save', { status: 'done' }), 800)
         // Auto-deploy for testing when Appwrite is connected
         if (requiresDatabase) {
           handleDeploy()
@@ -914,6 +1211,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       setStep("idle")
       setActiveFile(undefined)
       setActiveFileUsedFor(undefined)
+      setThinkingSteps([])
     }
   }
 
@@ -1089,42 +1387,33 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                             ))
                         }
 
-                        {/* ── Status indicators at bottom — inline, chat-style ── */}
+                        {/* ── Thinking Steps — icon-based like the reference UI ── */}
 
-                        {step === 'planning' && (
-                            <div className="flex items-center gap-2.5 py-3 mt-2 animate-in fade-in duration-300">
-                                <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-zinc-500" />
-                                <span className="text-sm text-zinc-500">Thinking…</span>
+                        {thinkingSteps.length > 0 && (step === 'planning' || step === 'coding' || step === 'fixing' || step === 'done') && (
+                            <div className="mt-3 space-y-0 animate-in fade-in duration-300">
+                                {thinkingSteps.map(s => (
+                                    <ThinkingStepRow key={s.id} step={s} />
+                                ))}
                             </div>
                         )}
 
-                        {(step === 'coding' || step === 'fixing') && (
-                            <div className="py-3 mt-2 space-y-2.5 animate-in fade-in duration-300">
-                                <div className="flex items-center gap-2.5">
-                                    <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-zinc-500" />
-                                    <span className="text-sm text-zinc-400 truncate">
-                                        {activeFile === 'src/appwrite.ts'
-                                          ? 'Retrieving Appwrite data…'
-                                          : activeFile ? `Generating ${activeFile}` : 'Building your website…'}
-                                    </span>
+                        {/* Sitemap visualization (parsed from plan) */}
+                        {sitemap.length > 0 && (step === 'coding' || step === 'done') && (
+                            <SitemapVisualizer nodes={sitemap} />
+                        )}
+
+                        {/* Progress bar for coding */}
+                        {(step === 'coding' || step === 'fixing') && progress.total > 0 && (
+                            <div className="mt-2 px-1 space-y-1 animate-in fade-in duration-300">
+                                <div className="flex items-center justify-between text-[11px] text-zinc-600">
+                                    <span>{progress.done} of {progress.total} files</span>
+                                    <span>{progress.percent}%</span>
                                 </div>
-                                {activeFile === 'src/appwrite.ts' && (
-                                    <p className="text-xs text-[#FD366E]/70 pl-6 leading-relaxed animate-pulse">Integrating Appwrite SDK with your project credentials</p>
-                                )}
-                                {activeFileUsedFor && activeFile !== 'src/appwrite.ts' && (
-                                    <p className="text-xs text-zinc-600 pl-6 leading-relaxed">{activeFileUsedFor}</p>
-                                )}
-                                <div className="pl-6 space-y-1">
-                                    <div className="flex items-center justify-between text-[11px] text-zinc-600">
-                                        <span>{progress.done} of {progress.total} files</span>
-                                        <span>{progress.percent}%</span>
-                                    </div>
-                                    <div className="h-[2px] bg-zinc-800/80 rounded-full overflow-hidden">
-                                        <div
-                                            className="h-full bg-zinc-500 rounded-full transition-all duration-500 ease-out"
-                                            style={{ width: `${progress.percent}%` }}
-                                        />
-                                    </div>
+                                <div className="h-[2px] bg-zinc-800/80 rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-zinc-500 rounded-full transition-all duration-500 ease-out"
+                                        style={{ width: `${progress.percent}%` }}
+                                    />
                                 </div>
                             </div>
                         )}
@@ -1211,6 +1500,8 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                 setInput={setInput}
                 onSend={startGeneration}
                 disabled={step !== 'idle' && step !== 'needs_info'}
+                selectedModel={selectedModel}
+                setSelectedModel={setSelectedModel}
             />
         </div>
     </div>
