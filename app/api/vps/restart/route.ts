@@ -3,6 +3,8 @@ import { NodeSSH } from "node-ssh"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 
+export const runtime = "nodejs"
+
 /**
  * POST /api/vps/restart
  * Restarts the Flask runner process on the VPS.

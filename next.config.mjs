@@ -3,6 +3,7 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  serverExternalPackages: ['ssh2', 'node-ssh'],
   async rewrites() {
     // NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN is the custom authDomain (e.g. sycord.com).
     // NEXT_PUBLIC_FIREBASE_PROJECT_DOMAIN is the actual Firebase hosting origin

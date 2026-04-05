@@ -3,6 +3,8 @@ import { NodeSSH } from "node-ssh"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 
+export const runtime = "nodejs"
+
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
