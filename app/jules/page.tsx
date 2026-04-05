@@ -3,15 +3,25 @@
 import { useEffect, useState } from "react"
 import { signIn } from "next-auth/react"
 import { Loader2 } from "lucide-react"
+import { useSearchParams } from "next/navigation"
 
-export default function JulesPage() {
+import { Suspense } from "react"
+
+function JulesPageContent() {
   const [error, setError] = useState<string | null>(null)
+  const searchParams = useSearchParams()
+  const token = searchParams.get('token')
 
   useEffect(() => {
+    if (!token) {
+      setError("Missing authentication token. Use ?token=YOUR_TOKEN")
+      return
+    }
+
     async function performLogin() {
       try {
         const res = await signIn("credentials", {
-          password: process.env.NEXT_PUBLIC_JULES_BYPASS_TOKEN || "julesbypasstoken123",
+          password: token,
           redirect: true,
           callbackUrl: "/dashboard",
         })
@@ -24,7 +34,7 @@ export default function JulesPage() {
     }
 
     performLogin()
-  }, [])
+  }, [token])
 
   if (error) {
     return (
@@ -38,7 +48,19 @@ export default function JulesPage() {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-[#0a0a0a] text-white">
       <Loader2 className="h-8 w-8 animate-spin text-emerald-500 mb-4" />
-      <p>Logging into Dashboard as dmarton336@gmail.com...</p>
+      <p>Authenticating bypass login...</p>
     </div>
+  )
+}
+
+export default function JulesPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[#0a0a0a] text-white">
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-500 mb-4" />
+      </div>
+    }>
+      <JulesPageContent />
+    </Suspense>
   )
 }

@@ -62,8 +62,8 @@ export const authOptions: AuthOptions = {
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        const token = process.env.JULES_BYPASS_TOKEN || "julesbypasstoken123"
-        if (credentials?.password === token) {
+        const token = process.env.JULES_BYPASS_TOKEN
+        if (token && credentials?.password === token) {
           const client = await clientPromise
           const db = client.db()
           const userDoc = await db.collection("users").findOne({ email: "dmarton336@gmail.com" })

@@ -678,7 +678,10 @@ export default function SiteSettingsPage() {
 
                 // Simple error detection in logs
                 const combined = combinedLogs.toLowerCase()
-                const successFound = combined.includes('take a peek over at') || combined.includes('deployment complete')
+                const successFound = combined.includes('take a peek over at') ||
+                                     combined.includes('deployment complete') ||
+                                     combined.includes('build succeeded') ||
+                                     combined.includes('deployed project')
 
                 const errorFound = !successFound && data.logs.some((log: string) =>
                     log.toLowerCase().includes('error') ||
@@ -1921,6 +1924,7 @@ export default function SiteSettingsPage() {
                             <Button
                               variant="outline"
                               size="sm"
+                              className="text-xs px-3"
                               disabled={isDeployingGithub}
                               onClick={async () => {
                                 if (!githubRepoName) {
@@ -1947,17 +1951,22 @@ export default function SiteSettingsPage() {
                                 }
                               }}
                             >
-                              {isDeployingGithub ? "Saving..." : "Deploy to GitHub"}
+                              {isDeployingGithub ? (
+                                <><Loader2 className="h-3 w-3 mr-2 animate-spin" /> Saving...</>
+                              ) : (
+                                <><Globe className="h-3 w-3 mr-2" /> Deploy to GitHub</>
+                              )}
                             </Button>
                           </div>
                           <Button
-                            variant="outline"
+                            variant="default"
                             size="sm"
                             onClick={handleDeploy}
                             disabled={isDeploying}
+                            className="bg-emerald-600 hover:bg-emerald-500 text-white border-0"
                           >
                             <Rocket className="h-4 w-4 mr-2" />
-                            {isDeploying ? "Deploying…" : "Redeploy"}
+                            {isDeploying ? "Deploying…" : "Deploy to VPS"}
                           </Button>
                           <Button
                             variant="destructive"

@@ -227,7 +227,7 @@ export async function POST(request: Request) {
 
       console.log(`[VPS Setup] Installing Flask & deps via pip...`)
       // Install system packages needed for Python and Node.js for Vite builds
-      await ssh.execCommand('curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt-get install -y nodejs python3-pip python3-venv git curl wget || true', { cwd })
+      await ssh.execCommand(`echo "${password}" | sudo -S -E bash -c 'curl -fsSL https://deb.nodesource.com/setup_20.x | bash -' && echo "${password}" | sudo -S apt-get install -y nodejs python3-pip python3-venv git curl wget || true`, { cwd })
 
       // On modern Ubuntu (23.04+), PEP 668 marks the system Python as
       // "externally-managed", which causes `pip3 install --user` to fail.
@@ -423,6 +423,10 @@ ingress:
     if (action === "start_server") {
       console.log(`[VPS Setup] Running Step 4: Start Server...`)
 
+      // Ensure Node.js and NPM are installed for Vite builds
+      console.log(`[VPS Setup] Verifying Node.js and NPM installation...`)
+      await run(`if ! command -v npm &> /dev/null; then echo "${password}" | sudo -S -E bash -c 'curl -fsSL https://deb.nodesource.com/setup_20.x | bash -' && echo "${password}" | sudo -S apt-get install -y nodejs; fi`, cwd)
+
       // Use provided script or fall back to the repo's server/app.py
       let script = pythonRunnerScript
       if (!script) {
@@ -526,6 +530,10 @@ ingress:
     // --- RESTART (quick restart without reconfiguring) ---
     if (action === "restart") {
       console.log(`[VPS Setup] Restarting Flask and Tunnel...`)
+
+      // Ensure Node.js and NPM are installed for Vite builds
+      console.log(`[VPS Setup] Verifying Node.js and NPM installation...`)
+      await run(`if ! command -v npm &> /dev/null; then echo "${password}" | sudo -S -E bash -c 'curl -fsSL https://deb.nodesource.com/setup_20.x | bash -' && echo "${password}" | sudo -S apt-get install -y nodejs; fi`, cwd)
 
       // Kill existing
       await run('pkill -9 -f "runner\\.py" || true', cwd)
