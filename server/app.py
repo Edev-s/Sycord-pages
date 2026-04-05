@@ -139,8 +139,10 @@ def _build_project(project_id: str, project_dir: Path) -> dict:
             )
             combined_output.append(f"--- {step} (exit {result.returncode}) ---")
             if result.stdout:
+                logger.info(f"Build [{step}] stdout for project {project_id}:\n{result.stdout}")
                 combined_output.append(result.stdout)
             if result.stderr:
+                logger.warning(f"Build [{step}] stderr for project {project_id}:\n{result.stderr}")
                 combined_output.append(result.stderr)
 
             if result.returncode != 0:
@@ -237,7 +239,53 @@ def serve_subdomain_content():
 
 @app.route("/")
 def index():
-    html = """
+    mongo_uri = os.environ.get("MONGO_URI")
+    projects_list_html = ""
+
+    if mongo_uri:
+        try:
+            from pymongo import MongoClient
+            client = MongoClient(mongo_uri)
+            db = client.get_default_database() or client["test"]
+            users = db.users.find({"projects": {"$exists": True}})
+
+            project_rows = []
+            for user in users:
+                username = user.get("name", "Unknown User")
+                for project in user.get("projects", []):
+                    # Check if there is a github URL or git connection
+                    git_url = project.get("githubUrl")
+                    if not git_url and "git_connection" in project:
+                        git_url = project["git_connection"].get("git_url")
+
+                    if git_url:
+                        pid = str(project.get("_id", ""))
+                        subdomain = project.get("subdomain", "")
+
+                        project_rows.append(f'''
+                        <div class="project-row">
+                            <div class="project-info">
+                                <strong>{username}</strong><br>
+                                <span class="project-detail">ID: {pid}</span><br>
+                                <span class="project-detail">Git: <a href="{git_url}" target="_blank">{git_url}</a></span>
+                            </div>
+                            <button onclick="fillForm('{pid}', '{subdomain}', '{git_url}')" class="fill-btn">Deploy</button>
+                        </div>
+                        ''')
+
+            if project_rows:
+                projects_list_html = f'''
+                <div class="projects-list-container">
+                    <h2>Available Projects</h2>
+                    <div class="projects-list">
+                        {''.join(project_rows)}
+                    </div>
+                </div>
+                '''
+        except Exception as e:
+            logger.error("Failed to fetch projects from MongoDB: %s", str(e))
+
+    html = f"""
     <!DOCTYPE html>
     <html lang="en">
     <head>
@@ -245,20 +293,34 @@ def index():
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Sycord VPS Runner - Manual Deploy</title>
         <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0a0a0a; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-            .container { max-width: 400px; width: 100%; padding: 2rem; background: #141414; border: 1px solid #333; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-            h1 { margin-bottom: 1.5rem; font-size: 1.5rem; text-align: center; color: #10b981; }
-            label { display: block; margin-bottom: 0.5rem; color: #a1a1aa; font-size: 0.875rem; }
-            input { width: 100%; padding: 0.75rem; margin-bottom: 1.5rem; background: #1e1e1e; border: 1px solid #333; color: #fff; border-radius: 4px; box-sizing: border-box; }
-            button { width: 100%; padding: 0.75rem; background: #10b981; color: #fff; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
-            button:hover { background: #059669; }
-            button:disabled { background: #064e3b; cursor: not-allowed; }
-            #message { margin-top: 1rem; text-align: center; font-size: 0.875rem; }
-            .success { color: #10b981; }
-            .error { color: #ef4444; }
+            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0a0a0a; color: #fff; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; gap: 2rem; padding: 2rem; box-sizing: border-box; flex-wrap: wrap; }}
+            .container {{ max-width: 400px; width: 100%; padding: 2rem; background: #141414; border: 1px solid #333; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }}
+            h1 {{ margin-bottom: 1.5rem; font-size: 1.5rem; text-align: center; color: #10b981; }}
+            label {{ display: block; margin-bottom: 0.5rem; color: #a1a1aa; font-size: 0.875rem; }}
+            input {{ width: 100%; padding: 0.75rem; margin-bottom: 1.5rem; background: #1e1e1e; border: 1px solid #333; color: #fff; border-radius: 4px; box-sizing: border-box; }}
+            button {{ width: 100%; padding: 0.75rem; background: #10b981; color: #fff; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; transition: background 0.2s; }}
+            button:hover {{ background: #059669; }}
+            button:disabled {{ background: #064e3b; cursor: not-allowed; }}
+            #message {{ margin-top: 1rem; text-align: center; font-size: 0.875rem; }}
+            .success {{ color: #10b981; }}
+            .error {{ color: #ef4444; }}
+
+            .projects-list-container {{ max-width: 400px; width: 100%; padding: 2rem; background: #141414; border: 1px solid #333; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); max-height: 600px; display: flex; flex-direction: column; }}
+            .projects-list-container h2 {{ margin-top: 0; margin-bottom: 1.5rem; font-size: 1.25rem; color: #10b981; }}
+            .projects-list {{ overflow-y: auto; flex-grow: 1; display: flex; flex-direction: column; gap: 1rem; padding-right: 0.5rem; }}
+            .projects-list::-webkit-scrollbar {{ width: 6px; }}
+            .projects-list::-webkit-scrollbar-thumb {{ background: #333; border-radius: 3px; }}
+            .project-row {{ background: #1e1e1e; padding: 1rem; border-radius: 6px; border: 1px solid #333; display: flex; flex-direction: column; gap: 0.75rem; }}
+            .project-info {{ font-size: 0.9rem; word-break: break-all; }}
+            .project-detail {{ color: #a1a1aa; font-size: 0.8rem; }}
+            .project-detail a {{ color: #60a5fa; text-decoration: none; }}
+            .project-detail a:hover {{ text-decoration: underline; }}
+            .fill-btn {{ padding: 0.5rem; font-size: 0.8rem; background: #3b82f6; }}
+            .fill-btn:hover {{ background: #2563eb; }}
         </style>
     </head>
     <body>
+        {projects_list_html}
         <div class="container">
             <h1>Deploy from GitHub</h1>
             <form id="deploy-form">
@@ -277,7 +339,13 @@ def index():
         </div>
 
         <script>
-            document.getElementById('deploy-form').addEventListener('submit', async (e) => {
+            function fillForm(projectId, subdomain, gitUrl) {{
+                document.getElementById('project-id').value = projectId;
+                document.getElementById('subdomain').value = subdomain;
+                document.getElementById('github-url').value = gitUrl;
+            }}
+
+            document.getElementById('deploy-form').addEventListener('submit', async (e) => {{
                 e.preventDefault();
 
                 const projectId = document.getElementById('project-id').value.trim();
@@ -324,7 +392,7 @@ def index():
                     btn.disabled = false;
                     btn.textContent = 'Deploy Application';
                 }
-            });
+            }});
         </script>
     </body>
     </html>
