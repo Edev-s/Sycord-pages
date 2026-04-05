@@ -59,8 +59,25 @@ export async function POST(request: Request) {
       console.log(`[VPS Setup] Installing Flask & deps via pip...`)
       // Install dependencies system-wide so nohup subprocesses can find them
       // Use --break-system-packages for PEP 668 compatibility on newer Ubuntu
-      await ssh.execCommand('sudo apt-get update && sudo apt-get install -y python3-pip || true', { cwd })
-      await run(`python3 -m pip install flask requests --break-system-packages || python3 -m pip install flask requests`, cwd)
+      await ssh.execCommand('sudo apt-get update && sudo apt-get install -y python3-pip python3-venv || true', { cwd })
+      // Try multiple pip install strategies to handle different OS configurations
+      await run(`python3 -m pip install flask requests --break-system-packages 2>/dev/null || python3 -m pip install flask requests 2>/dev/null || pip3 install flask requests --break-system-packages 2>/dev/null || pip3 install flask requests 2>/dev/null || true`, cwd)
+
+      // Verify Flask was actually installed
+      const flaskCheck = await run('python3 -c "import flask; print(flask.__version__)" 2>&1')
+      if (!flaskCheck.stdout.trim() || flaskCheck.stdout.includes("No module")) {
+        console.warn(`[VPS Setup] Flask pip install failed, trying apt fallback...`)
+        await ssh.execCommand('sudo apt-get install -y python3-flask || true', { cwd })
+        // Re-verify
+        const flaskCheck2 = await run('python3 -c "import flask; print(flask.__version__)" 2>&1')
+        if (!flaskCheck2.stdout.trim() || flaskCheck2.stdout.includes("No module")) {
+          console.error(`[VPS Setup] Flask installation failed after all attempts`)
+        } else {
+          console.log(`[VPS Setup] Flask ${flaskCheck2.stdout.trim()} installed via apt`)
+        }
+      } else {
+        console.log(`[VPS Setup] Flask ${flaskCheck.stdout.trim()} installed via pip`)
+      }
 
       console.log(`[VPS Setup] Installing Node.js & npm for project builds...`)
       // Install Node.js (LTS) via NodeSource if not already installed
@@ -246,6 +263,24 @@ ingress:
          return NextResponse.json({
            error: "runner.py was not written correctly (file is empty or missing)."
          }, { status: 500 })
+      }
+
+      // Pre-flight: ensure Flask is installed before starting runner
+      const flaskPreCheck = await run('python3 -c "import flask; print(flask.__version__)" 2>&1')
+      if (!flaskPreCheck.stdout.trim() || flaskPreCheck.stdout.includes("No module") || flaskPreCheck.stdout.includes("Traceback")) {
+        console.warn("[VPS Setup] Flask not found, attempting to install before start...")
+        await run(`python3 -m pip install flask requests --break-system-packages 2>/dev/null || python3 -m pip install flask requests 2>/dev/null || pip3 install flask requests --break-system-packages 2>/dev/null || pip3 install flask requests 2>/dev/null || sudo apt-get install -y python3-flask 2>/dev/null || true`, cwd)
+        // Re-verify
+        const flaskReCheck = await run('python3 -c "import flask; print(flask.__version__)" 2>&1')
+        if (!flaskReCheck.stdout.trim() || flaskReCheck.stdout.includes("No module") || flaskReCheck.stdout.includes("Traceback")) {
+          ssh.dispose()
+          return NextResponse.json({
+            error: "Flask is not installed and could not be auto-installed. Run Step 1 (Init) first, or manually run: python3 -m pip install flask requests --break-system-packages"
+          }, { status: 500 })
+        }
+        console.log(`[VPS Setup] Flask ${flaskReCheck.stdout.trim()} installed successfully`)
+      } else {
+        console.log(`[VPS Setup] Flask ${flaskPreCheck.stdout.trim()} already available`)
       }
 
       // Kill existing processes forcefully
