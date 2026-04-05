@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { useSession, signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
@@ -103,6 +103,135 @@ const tabs = [
 ]
 
 type TabId = "overview" | "users" | "server" | "tickets" | "vps" | "paptos"
+
+// ── VPS Tab Component ─────────────────────────────────────────────────────
+function VpsTab() {
+  const [vpsStatus, setVpsStatus] = useState<{
+    online: boolean; runner: boolean; tunnel: boolean; httpOk?: boolean;
+    uptime?: string | null; flaskVersion?: string | null; warnings?: string[];
+    error?: string;
+  } | null>(null)
+  const [vpsLoading, setVpsLoading] = useState(true)
+  const [vpsAction, setVpsAction] = useState<string | null>(null)
+
+  const fetchVpsStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/vps/status")
+      const data = await res.json()
+      setVpsStatus(data)
+    } catch {
+      setVpsStatus({ online: false, runner: false, tunnel: false, error: "Network error" })
+    } finally {
+      setVpsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchVpsStatus()
+    const i = setInterval(fetchVpsStatus, 20000)
+    return () => clearInterval(i)
+  }, [fetchVpsStatus])
+
+  const runVpsAction = async (action: "start" | "stop" | "restart") => {
+    setVpsAction(action)
+    try {
+      const res = await fetch("/api/vps/restart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed")
+      toast.success(data.message)
+      setTimeout(fetchVpsStatus, 2000)
+    } catch (e: any) {
+      toast.error(e.message)
+    } finally {
+      setVpsAction(null)
+    }
+  }
+
+  const isOnline = vpsStatus?.runner === true
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-300">
+      <div>
+        <h2 className="text-lg font-semibold text-foreground">VPS Management</h2>
+        <p className="text-sm text-muted-foreground">Real-time runner status and controls</p>
+      </div>
+
+      {/* Status Card */}
+      <Card className="border-border">
+        <CardContent className="p-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${isOnline ? "bg-green-500/10" : "bg-red-500/10"}`}>
+                <Server className={`h-6 w-6 ${isOnline ? "text-green-500" : "text-red-500"}`} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold">
+                    {vpsLoading ? "Checking…" : isOnline ? "Runner Online" : "Runner Offline"}
+                  </h3>
+                  <div className={`h-2 w-2 rounded-full ${vpsLoading ? "bg-yellow-500 animate-pulse" : isOnline ? "bg-green-500" : "bg-red-500"}`} />
+                </div>
+                <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
+                  {vpsStatus?.uptime && <span>Uptime: {vpsStatus.uptime}</span>}
+                  {vpsStatus?.flaskVersion && <span>Flask {vpsStatus.flaskVersion}</span>}
+                  {vpsStatus?.tunnel && <span className="text-blue-400">Tunnel ✓</span>}
+                  {vpsStatus?.online && !vpsStatus?.tunnel && <span className="text-yellow-500">No tunnel</span>}
+                  <a href="https://server.sycord.site" target="_blank" className="text-primary hover:underline inline-flex items-center">
+                    server.sycord.site <ExternalLink className="ml-1 h-3 w-3" />
+                  </a>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {!isOnline && !vpsLoading && (
+                <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => runVpsAction("start")} disabled={!!vpsAction}>
+                  {vpsAction === "start" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Activity className="h-3 w-3 mr-1" />}
+                  Start
+                </Button>
+              )}
+              {isOnline && (
+                <>
+                  <Button size="sm" variant="outline" onClick={() => runVpsAction("restart")} disabled={!!vpsAction}>
+                    {vpsAction === "restart" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RotateCcw className="h-3 w-3 mr-1" />}
+                    Restart
+                  </Button>
+                  <Button size="sm" variant="outline" className="text-red-500 border-red-500/30" onClick={() => runVpsAction("stop")} disabled={!!vpsAction}>
+                    {vpsAction === "stop" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <X className="h-3 w-3 mr-1" />}
+                    Stop
+                  </Button>
+                </>
+              )}
+              <Button asChild size="sm" variant="outline">
+                <Link href="/setup">
+                  <Terminal className="h-3 w-3 mr-1" />
+                  Setup
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Warnings */}
+      {vpsStatus?.warnings && vpsStatus.warnings.length > 0 && (
+        <Card className="border-yellow-500/30 bg-yellow-500/5">
+          <CardContent className="p-4 space-y-2">
+            {vpsStatus.warnings.map((w, i) => (
+              <div key={i} className="flex items-start gap-2 text-sm">
+                <AlertCircle className="h-4 w-4 text-yellow-500 mt-0.5 shrink-0" />
+                <span className="text-yellow-200">{w}</span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  )
+}
 
 export default function AdminPage() {
   const router = useRouter()
@@ -864,73 +993,7 @@ export default function AdminPage() {
 
         {/* VPS Tab */}
         {activeTab === "vps" && (
-          <div className="space-y-6 animate-in fade-in duration-300">
-            <div>
-              <h2 className="text-lg font-semibold text-foreground">VPS Management</h2>
-              <p className="text-sm text-muted-foreground">Manage and configure your VPS deployment runner</p>
-            </div>
-
-            <Card className="border-border">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Terminal className="h-5 w-5 text-primary" />
-                  VPS Status & Setup
-                </CardTitle>
-                <CardDescription>
-                  Check the status of your runner or configure a new VPS to receive deployments via Cloudflare Tunnel.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                   <div className="flex items-center gap-3 p-4 bg-accent/30 rounded-lg border border-border">
-                      <div className="flex-1 flex items-center justify-between">
-                         <div className="flex flex-col">
-                            <span className="text-sm font-medium">Runner Endpoint</span>
-                            <a href="https://server.sycord.site" target="_blank" className="text-xs text-muted-foreground hover:underline inline-flex items-center">
-                               server.sycord.site <ExternalLink className="ml-1 h-3 w-3" />
-                            </a>
-                         </div>
-                         <Button
-                           variant="outline"
-                           size="sm"
-                           onClick={async (e) => {
-                             const btn = e.currentTarget
-                             const originalText = btn.innerText
-                             btn.innerText = "Checking..."
-                             btn.disabled = true
-                             try {
-                               const res = await fetch("https://server.sycord.site")
-                               if (res.ok) {
-                                 toast.success("VPS Runner is Online!")
-                               } else {
-                                 throw new Error("Runner returned error")
-                               }
-                             } catch(err) {
-                               toast.error("VPS Runner is Offline or unreachable")
-                             } finally {
-                               btn.innerText = originalText
-                               btn.disabled = false
-                             }
-                           }}
-                         >
-                           <Activity className="h-4 w-4 mr-2" />
-                           Ping
-                         </Button>
-                      </div>
-                   </div>
-
-                  <div className="flex flex-col sm:flex-row gap-4 pt-2">
-                    <Button asChild>
-                      <Link href="/setup">
-                        <Terminal className="h-4 w-4 mr-2" />
-                        Run Setup Configuration
-                      </Link>
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          <VpsTab />
         )}
 
         {/* PAP & TOS Tab */}
