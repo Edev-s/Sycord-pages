@@ -193,6 +193,8 @@ export default function AdminPage() {
   const [setupMessage, setSetupMessage] = useState<string | null>(null)
   const [deployingProject, setDeployingProject] = useState<string | null>(null)
   const [projectLogs, setProjectLogs] = useState<Record<string, string[]>>({})
+  const [vpsProjects, setVpsProjects] = useState<any[]>([])
+  const [vpsProjectsLoading, setVpsProjectsLoading] = useState(false)
 
   useEffect(() => {
     if (session?.user?.email !== "dmarton336@gmail.com") {
@@ -527,6 +529,21 @@ export default function AdminPage() {
       }
     } catch {
       toast.error("Failed to fetch logs")
+    }
+  }
+
+  const fetchVpsProjects = async () => {
+    try {
+      setVpsProjectsLoading(true)
+      const response = await fetch("/api/runner/projects")
+      if (!response.ok) throw new Error("Failed to fetch VPS projects")
+      const data = await response.json()
+      setVpsProjects(data.projects || [])
+      toast.success(`Found ${(data.projects || []).length} project(s) on VPS`)
+    } catch (error: any) {
+      toast.error(error.message || "Failed to fetch VPS projects")
+    } finally {
+      setVpsProjectsLoading(false)
     }
   }
 
@@ -1557,6 +1574,96 @@ export default function AdminPage() {
                                 ))}
                               </div>
                             )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Section 6: VPS On-Disk Projects */}
+            <Card className="border-border">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <HardDrive className="h-4 w-4 text-muted-foreground" />
+                      VPS On-Disk Projects
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      Projects deployed on the Flask VPS server — what visitors actually see
+                    </CardDescription>
+                  </div>
+                  <Button size="sm" variant="outline" className="h-8 text-xs" onClick={fetchVpsProjects} disabled={vpsProjectsLoading}>
+                    {vpsProjectsLoading ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
+                    Refresh
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {vpsProjectsLoading ? (
+                  <div className="flex flex-col items-center justify-center py-10">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mb-2" />
+                    <p className="text-xs text-muted-foreground">Fetching projects from VPS...</p>
+                  </div>
+                ) : vpsProjects.length === 0 ? (
+                  <div className="text-center py-10 border border-dashed border-border rounded-lg">
+                    <HardDrive className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                    <p className="text-xs text-muted-foreground">No projects on VPS yet. Click &quot;Refresh&quot; to scan.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {vpsProjects.map((proj: any) => (
+                      <div key={proj.project_id} className="bg-accent/20 border border-border rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Globe2 className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span className="text-sm font-medium text-foreground font-mono">{proj.project_id}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {proj.subdomain && (
+                              <a
+                                href={`https://${proj.subdomain}.sycord.site`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[11px] text-primary hover:underline flex items-center gap-1"
+                              >
+                                {proj.subdomain}.sycord.site
+                                <ExternalLink className="h-2.5 w-2.5" />
+                              </a>
+                            )}
+                            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-5 ${
+                              proj.build?.success === true
+                                ? "border-green-500/30 text-green-500 bg-green-500/5"
+                                : proj.build?.success === false
+                                ? "border-red-500/30 text-red-500 bg-red-500/5"
+                                : "border-muted-foreground/30 text-muted-foreground bg-muted/5"
+                            }`}>
+                              {proj.build?.success === true ? "Built" : proj.build?.success === false ? "Build Failed" : proj.build?.attempted ? "Building" : "Static"}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px]">
+                          <div>
+                            <span className="text-muted-foreground">Files: </span>
+                            <span className="text-foreground font-medium">{proj.files_count ?? "—"}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Domain: </span>
+                            <span className="text-foreground font-mono">{proj.domain || "—"}</span>
+                          </div>
+                          {proj.deployed_at && (
+                            <div>
+                              <span className="text-muted-foreground">Deployed: </span>
+                              <span className="text-foreground">{new Date(proj.deployed_at).toLocaleDateString()}</span>
+                            </div>
+                          )}
+                        </div>
+                        {proj.build?.error && (
+                          <div className="mt-2 p-2 bg-red-500/5 border border-red-500/20 rounded text-[11px] text-red-500">
+                            Build error: {proj.build.error}
                           </div>
                         )}
                       </div>
