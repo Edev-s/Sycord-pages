@@ -48,73 +48,86 @@ export async function POST(request: Request) {
 
     // 3. Prepare Files
     const pages = project.pages || []
-    const htmlFiles: { path: string; content: string }[] = []
+    const projectFiles: { path: string; content: string }[] = []
 
     if (pages.length > 0) {
       for (const page of pages) {
         let path = page.name
         if (path.startsWith("/")) path = path.substring(1)
-        htmlFiles.push({ path, content: page.content })
+        projectFiles.push({ path, content: page.content })
       }
     } else if (project.aiGeneratedCode) {
-      htmlFiles.push({ path: "index.html", content: project.aiGeneratedCode })
+      projectFiles.push({ path: "index.html", content: project.aiGeneratedCode })
     }
 
-    if (htmlFiles.length === 0)
+    if (projectFiles.length === 0)
       return NextResponse.json({ error: "No files to deploy." }, { status: 400 })
 
-    console.log(`[Deploy] Prepared ${htmlFiles.length} HTML file(s):`, htmlFiles.map(f => f.path))
+    console.log(`[Deploy] Prepared ${projectFiles.length} file(s):`, projectFiles.map(f => f.path))
 
     // 3b. Wrap in a Vite project structure for a proper production build
     const files: { path: string; content: string }[] = []
 
     // Generate Vite multi-page input entries
     const inputEntries: Record<string, string> = {}
-    for (const f of htmlFiles) {
+    let hasPackageJson = false
+    let hasViteConfig = false
+
+    for (const f of projectFiles) {
       files.push({ path: f.path, content: f.content })
+
+      if (f.path === 'package.json') hasPackageJson = true
+      if (f.path === 'vite.config.ts' || f.path === 'vite.config.js') hasViteConfig = true
+
       // Register each HTML file as a Vite input entry for multi-page build
-      const entryName = f.path.replace(/\.html$/, "").replace(/\//g, "_") || "main"
-      inputEntries[entryName] = f.path
+      if (f.path.endsWith('.html')) {
+        const entryName = f.path.replace(/\.html$/, "").replace(/\//g, "_") || "main"
+        inputEntries[entryName] = f.path
+      }
     }
 
-    // package.json – minimal Vite project
-    files.push({
-      path: "package.json",
-      content: JSON.stringify(
-        {
-          name: subdomain || "sycord-site",
-          private: true,
-          type: "module",
-          scripts: { build: "vite build", preview: "vite preview" },
-          devDependencies: { vite: "^6.0.0" },
-        },
-        null,
-        2,
-      ),
-    })
+    if (!hasPackageJson) {
+      // package.json – minimal Vite project
+      files.push({
+        path: "package.json",
+        content: JSON.stringify(
+          {
+            name: subdomain || "sycord-site",
+            private: true,
+            type: "module",
+            scripts: { build: "vite build", preview: "vite preview" },
+            devDependencies: { vite: "^6.0.0" },
+          },
+          null,
+          2,
+        ),
+      })
+    }
 
-    // vite.config.js – multi-page build config
-    const inputLines = Object.entries(inputEntries)
-      .map(([key, val]) => `        ${key}: resolve(__dirname, "${val}"),`)
-      .join("\n")
+    if (!hasViteConfig && Object.keys(inputEntries).length > 0) {
+      // vite.config.js – multi-page build config
+      const inputLines = Object.entries(inputEntries)
+        .map(([key, val]) => `        ${key}: resolve(__dirname, "${val}"),`)
+        .join("\n")
 
-    files.push({
-      path: "vite.config.js",
-      content: [
-        `import { defineConfig } from "vite";`,
-        `import { resolve } from "path";`,
-        ``,
-        `export default defineConfig({`,
-        `  build: {`,
-        `    rollupOptions: {`,
-        `      input: {`,
-        inputLines,
-        `      },`,
-        `    },`,
-        `  },`,
-        `});`,
-      ].join("\n"),
-    })
+      files.push({
+        path: "vite.config.js",
+        content: [
+          `import { defineConfig } from "vite";`,
+          `import { resolve } from "path";`,
+          ``,
+          `export default defineConfig({`,
+          `  build: {`,
+          `    rollupOptions: {`,
+          `      input: {`,
+          inputLines,
+          `      },`,
+          `    },`,
+          `  },`,
+          `});`,
+        ].join("\n"),
+      })
+    }
 
     // 4. Create Cloudflare DNS Record
     console.log(`[Deploy] Updating DNS for ${subdomain}.sycord.site via Cloudflare API...`)
