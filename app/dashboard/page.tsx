@@ -5,7 +5,7 @@ import Image from "next/image"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useSession, signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
-import { Settings, Plus, LogOut, User, Menu, TriangleAlert, Search, LayoutTemplate } from "lucide-react"
+import { Settings, Plus, LogOut, User, TriangleAlert, Search, LayoutTemplate, CreditCard } from "lucide-react"
 import { useState, useEffect, Suspense } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import {
@@ -17,16 +17,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { WebsitePreviewCard } from "@/components/website-preview-card"
-import { CreateProjectModal } from "@/components/create-project-modal"
 import { Skeleton } from "@/components/ui/skeleton"
 
 function DashboardContent() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [isModalOpen, setIsModalOpen] = useState(false)
   const [projects, setProjects] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [deletingDeployments, setDeletingDeployments] = useState<Set<string>>(new Set())
@@ -48,12 +45,12 @@ function DashboardContent() {
     }
 
     if (openCreateModal === "true") {
-        setIsModalOpen(true)
         const newUrl = new URL(window.location.href)
         newUrl.searchParams.delete("open_create_modal")
         window.history.replaceState({}, "", newUrl.toString())
+        router.push("/dashboard/create")
     }
-  }, [searchParams])
+  }, [searchParams, router])
 
   useEffect(() => {
     async function fetchProjects() {
@@ -123,53 +120,6 @@ function DashboardContent() {
       .join("")
       .toUpperCase() || "U"
 
-  const MobileNav = () => (
-    <Sheet>
-      <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="md:hidden">
-          <Menu className="h-5 w-5" />
-        </Button>
-      </SheetTrigger>
-      <SheetContent side="left" className="w-72">
-        <nav className="flex flex-col gap-4 mt-8">
-          <Link href="/dashboard" className="text-sm text-foreground font-medium px-4 py-2 hover:bg-accent rounded-md">
-            Áttekintés
-          </Link>
-          <Link
-            href="#"
-            className="text-sm text-muted-foreground hover:text-foreground px-4 py-2 hover:bg-accent rounded-md"
-          >
-            Projektek
-          </Link>
-          <Link
-            href="/subscriptions"
-            className="text-sm text-muted-foreground hover:text-foreground px-4 py-2 hover:bg-accent rounded-md"
-          >
-            Plans
-          </Link>
-          <Link
-            href="#"
-            className="text-sm text-muted-foreground hover:text-foreground px-4 py-2 hover:bg-accent rounded-md"
-          >
-            Analitika
-          </Link>
-          <Link
-            href="/dashboard/webshop-demo"
-            className="text-sm text-muted-foreground hover:text-foreground px-4 py-2 hover:bg-accent rounded-md"
-          >
-            Webshop Demo
-          </Link>
-          <Link
-            href="/dashboard/credits"
-            className="text-sm text-muted-foreground hover:text-foreground px-4 py-2 hover:bg-accent rounded-md"
-          >
-            Credits
-          </Link>
-        </nav>
-      </SheetContent>
-    </Sheet>
-  )
-
   const handleDeleteProject = async (projectId: string) => {
     // The actual API call is handled inside WebsitePreviewCard for now,
     // or we can move it here.
@@ -222,45 +172,16 @@ function DashboardContent() {
             <div className="flex items-center gap-4 md:gap-8">
               <Link href="/" className="flex items-center gap-2">
                 <Image src="/logo.png" alt="Logo" width={32} height={32} />
-                <span className="text-xl font-semibold text-foreground">Sycord</span>
-                {userStatus.isPremium && (
-                  <span className="ml-1 px-1.5 py-0.5 text-[10px] font-bold bg-yellow-500/20 text-yellow-500 rounded-full border border-yellow-500/30">
-                    {userStatus.subscription === "Sycord Enterprise" ? "Enterprise" : "+"}
-                  </span>
-                )}
+                <span className="text-xl font-semibold text-foreground">
+                  {userStatus.isPremium
+                    ? userStatus.subscription === "Sycord Enterprise"
+                      ? "Sycord Enterprise"
+                      : "Sycord+"
+                    : "Sycord"}
+                </span>
               </Link>
-              <nav className="hidden md:flex items-center gap-6">
-                <Link href="/dashboard" className="text-sm text-foreground font-medium">
-                  Áttekintés
-                </Link>
-                <Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                  Projektek
-                </Link>
-                <Link
-                  href="/subscriptions"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Plans
-                </Link>
-                <Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                  Analitika
-                </Link>
-                <Link
-                  href="/dashboard/webshop-demo"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Webshop Demo
-                </Link>
-                <Link
-                  href="/dashboard/credits"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Credits
-                </Link>
-              </nav>
             </div>
             <div className="flex items-center gap-2 md:gap-3">
-              <MobileNav />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0">
@@ -281,6 +202,10 @@ function DashboardContent() {
                   <DropdownMenuItem>
                     <User className="mr-2 h-4 w-4" />
                     <span>Profil</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => router.push("/subscriptions")}>
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    <span>Plans</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem>
                     <Settings className="mr-2 h-4 w-4" />
@@ -313,7 +238,7 @@ function DashboardContent() {
           <div className="flex flex-col gap-4 mb-6 md:mb-8">
             <div className="flex items-center justify-between">
               <h1 className="text-lg font-semibold text-foreground">Projektek</h1>
-              <Button onClick={() => setIsModalOpen(true)} className="w-auto">
+              <Button onClick={() => router.push("/dashboard/create")} className="w-auto">
                 <Plus className="h-4 w-4 mr-2" />
                 Új Projekt
               </Button>
@@ -348,7 +273,7 @@ function DashboardContent() {
                 <p className="text-sm text-muted-foreground mb-6">
                   Kezdje el első projektjét, és indítsa el weboldalát {"{"}name{"}"}.pages.dev címen
                 </p>
-                <Button onClick={() => setIsModalOpen(true)}>
+                <Button onClick={() => router.push("/dashboard/create")}>
                   <Plus className="h-4 w-4 mr-2" />
                   Első Projekt Létrehozása
                 </Button>
@@ -391,13 +316,6 @@ function DashboardContent() {
           )}
         </main>
       </div>
-
-      <CreateProjectModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)}
-        projectCount={projects.length}
-        userSubscription={userStatus.subscription}
-      />
 
       {/* Debug Error Popup */}
       <Dialog open={!!debugError} onOpenChange={(open) => !open && setDebugError(null)}>

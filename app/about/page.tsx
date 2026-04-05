@@ -26,7 +26,7 @@ const features = [
     icon: Globe,
     title: "Instant Hosting",
     description:
-      "Every site gets a *.sycord.site subdomain with one-click publishing. Custom domains available on paid plans.",
+      "Every site gets a *.sycord.com subdomain with one-click publishing. Custom domains available on paid plans.",
     color: "text-green-400",
     bg: "bg-green-400/10",
   },
@@ -162,6 +162,7 @@ export default function AboutPage() {
             <Link href="/tos" className="text-[#8A8E91] hover:text-white text-[11px] transition-colors">Terms</Link>
             <Link href="/pap" className="text-[#8A8E91] hover:text-white text-[11px] transition-colors">Privacy</Link>
             <Link href="/contact" className="text-[#8A8E91] hover:text-white text-[11px] transition-colors">Contact</Link>
+            <Link href="/business-report" className="text-[#8A8E91] hover:text-white text-[11px] transition-colors">Business Report</Link>
           </div>
         </div>
       </footer>

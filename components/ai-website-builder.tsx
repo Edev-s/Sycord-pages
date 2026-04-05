@@ -48,7 +48,6 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
-import { signInWithGoogle } from "@/lib/firebase-client"
 
 // Updated Models List — gemini-3.1-pro-preview is the default
 const MODELS = [
@@ -65,7 +64,7 @@ const LOG_ERROR_PATTERNS   = ['error', 'fail', 'exception']
 // How long to wait after deploy before the first log check (build pipeline startup time)
 const DEPLOY_LOG_CHECK_DELAY_MS = 8000
 
-type Step = "idle" | "planning" | "needs_info" | "firebase_auth" | "coding" | "fixing" | "done"
+type Step = "idle" | "planning" | "needs_info" | "appwrite_auth" | "coding" | "fixing" | "done"
 
 interface Message {
   id: string
@@ -224,17 +223,12 @@ const GeminiIcon = ({ className }: { className?: string }) => (
     </svg>
 )
 
-const GeminiBadge = ({ isFastMode, toggleMode }: { isFastMode: boolean, toggleMode: () => void }) => (
+const GeminiBadge = () => (
     <div className="absolute top-0 left-0 right-0 flex items-center justify-center animate-in fade-in zoom-in duration-700 delay-100 z-50 pt-6">
-        <div
-            onClick={toggleMode}
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-zinc-900 border border-zinc-800 shadow-sm transition-all hover:bg-zinc-800/80 cursor-pointer select-none group"
-        >
-            <GeminiIcon className={`h-4 w-4 transition-colors ${isFastMode ? 'text-blue-400' : 'text-purple-500'}`} />
-            <span className="text-xs font-medium text-zinc-300">
-              {isFastMode ? "Faster Thinking" : "State of the Art"}
-            </span>
-            <span className="text-[10px] text-zinc-500 ml-1 opacity-0 group-hover:opacity-100 transition-opacity">Click to swap</span>
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-zinc-900 border border-zinc-800 shadow-sm transition-all hover:bg-zinc-800/80 cursor-default">
+            <GeminiIcon className="h-4 w-4" />
+            <span className="text-xs font-medium text-zinc-300">State of the Art</span>
+            <Info className="h-3 w-3 text-zinc-600 ml-1" />
         </div>
     </div>
 )
@@ -387,7 +381,7 @@ const HexagonIcon = ({ className }: { className?: string }) => (
     </svg>
 )
 
-const FirebaseConnectionCard = ({
+const AppwriteConnectionCard = ({
     projectId,
     onConnect,
 }: {
@@ -396,48 +390,39 @@ const FirebaseConnectionCard = ({
 }) => {
     const [isConnecting, setIsConnecting] = useState(false)
     const [connectError, setConnectError] = useState<string | null>(null)
+    const [endpoint, setEndpoint] = useState(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || "https://cloud.appwrite.io/v1")
+    const [appwriteProjectId, setAppwriteProjectId] = useState(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || "")
+    const [apiKey, setApiKey] = useState("")
 
-    const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
-    const projectDomain = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_DOMAIN
-    const proxyLoopDetected = !!authDomain && !!projectDomain && authDomain === projectDomain
-    // The exact URLs Google Cloud Console must have for the popup to work
-    const oauthRedirectUri = authDomain ? `https://${authDomain}/__/auth/handler` : null
-    const oauthJsOrigin   = authDomain ? `https://${authDomain}` : null
+    const envPreFilled = !!(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT && process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID)
 
     const handleConnect = async () => {
+        if (!endpoint.trim() || !appwriteProjectId.trim()) {
+            setConnectError("Endpoint and Project ID are required")
+            return
+        }
         setIsConnecting(true)
         setConnectError(null)
         try {
-            const credential = await signInWithGoogle()
-            const user = credential.user
-
-            const res = await fetch(`/api/projects/${projectId}/firebase`, {
+            const res = await fetch(`/api/projects/${projectId}/appwrite`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    firebaseUid: user.uid,
-                    firebaseEmail: user.email,
-                    firebaseDisplayName: user.displayName,
+                    appwriteEndpoint: endpoint.trim(),
+                    appwriteProjectId: appwriteProjectId.trim(),
+                    appwriteApiKey: apiKey.trim() || null,
                 }),
             })
 
             if (!res.ok) {
                 const data = await res.json()
-                throw new Error(data.message || "Failed to save Firebase connection")
+                throw new Error(data.message || "Failed to save Appwrite connection")
             }
 
             onConnect()
         } catch (err: unknown) {
-            const firebaseErr = err as { code?: string; message?: string }
-            if (firebaseErr?.code === "auth/popup-closed-by-user" || firebaseErr?.code === "auth/cancelled-popup-request") {
-                setConnectError(null)
-            } else if (firebaseErr?.code === "auth/redirect-uri-mismatch") {
-                setConnectError(
-                    `redirect_uri_mismatch — open the debug panel below and add the listed Redirect URI to your Google Cloud OAuth client.`
-                )
-            } else {
-                setConnectError(firebaseErr?.message || "Connection failed. Please try again.")
-            }
+            const error = err as { message?: string }
+            setConnectError(error?.message || "Connection failed. Please try again.")
         } finally {
             setIsConnecting(false)
         }
@@ -446,27 +431,54 @@ const FirebaseConnectionCard = ({
     return (
         <div className="flex flex-col items-center justify-center py-6 gap-5 animate-in fade-in slide-in-from-bottom-2 duration-700">
             <div className="flex items-center gap-3 mb-2">
-                <HexagonIcon className="h-5 w-5 text-[#f97316]" />
-                <h3 className="text-base font-medium text-zinc-100">Let's connect you to a database</h3>
+                <Database className="h-5 w-5 text-[#f02e65]" />
+                <h3 className="text-base font-medium text-zinc-100">Connect to Appwrite</h3>
             </div>
             <p className="text-xs text-zinc-500 text-center max-w-xs -mt-2">
-                This project needs a database to store your items. Connect with Google to enable Firebase.
+                This project needs a backend to store data. Connect your Appwrite project to enable databases, auth, and functions.
             </p>
 
-            <div className="flex items-center justify-between p-4 rounded-2xl bg-[#1c1c1c] border border-white/5 w-full max-w-sm">
-                <div className="flex items-center gap-3">
+            <div className="flex flex-col gap-3 p-4 rounded-2xl bg-[#1c1c1c] border border-white/5 w-full max-w-sm">
+                <div className="flex items-center gap-3 mb-1">
                     <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M11.603 21.056c.23.125.503.125.732 0l8.913-4.838a.333.333 0 0 0 .15-.357L17.765 2.112a.333.333 0 0 0-.585-.145l-4.717 6.945-2.03-3.61a.333.333 0 0 0-.585.003L2.618 15.86a.333.333 0 0 0 .154.357l8.831 4.839Z" fill="#FFCA28"/>
-                        <path d="m11.969 21.056 8.913-4.838a.333.333 0 0 0 .15-.357L17.765 2.112a.333.333 0 0 0-.585-.145L11.969 21.056Z" fill="#FFA000"/>
-                        <path d="M11.969 21.056 2.618 15.86a.333.333 0 0 1-.154-.357L8.985 3.033a.333.333 0 0 1 .585-.003L11.969 21.056Z" fill="#F57C00"/>
-                        <path d="M11.969 21.056 12.463 8.91l-2.03-3.61a.333.333 0 0 0-.585.003l-7.23 10.558 8.831 4.839a.5.5 0 0 0 .52 0Z" fill="#FF8A65"/>
+                        <rect width="24" height="24" rx="4" fill="#FD366E"/>
+                        <path d="M18.29 10.04c-.2-.25-.51-.39-.83-.39h-4.43l1.72-4.53a.88.88 0 00-.81-1.18.88.88 0 00-.82.55l-2.1 5.55H7.5c-.32 0-.63.14-.83.39a1.04 1.04 0 00-.2.9l1.44 5.76c.1.38.44.65.83.65h6.53c.39 0 .73-.27.83-.65l1.44-5.77c.07-.31 0-.64-.2-.89l-.05.01z" fill="white"/>
                     </svg>
-                    <span className="font-semibold text-white">Firebase</span>
+                    <span className="font-semibold text-white">Appwrite</span>
                 </div>
+
+                {envPreFilled ? (
+                    <p className="text-[11px] text-zinc-500">Pre-configured from environment</p>
+                ) : (
+                    <>
+                        <input
+                            type="text"
+                            placeholder="Endpoint (e.g. https://cloud.appwrite.io/v1)"
+                            value={endpoint}
+                            onChange={(e) => setEndpoint(e.target.value)}
+                            className="w-full h-9 rounded-lg border border-white/10 bg-white/5 px-3 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-white/20"
+                        />
+                        <input
+                            type="text"
+                            placeholder="Project ID"
+                            value={appwriteProjectId}
+                            onChange={(e) => setAppwriteProjectId(e.target.value)}
+                            className="w-full h-9 rounded-lg border border-white/10 bg-white/5 px-3 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-white/20"
+                        />
+                        <input
+                            type="password"
+                            placeholder="API Key (optional)"
+                            value={apiKey}
+                            onChange={(e) => setApiKey(e.target.value)}
+                            className="w-full h-9 rounded-lg border border-white/10 bg-white/5 px-3 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-white/20"
+                        />
+                    </>
+                )}
+
                 <Button
                     onClick={handleConnect}
                     disabled={isConnecting}
-                    className="bg-[#3c3c3e] text-white hover:bg-[#4c4c4e] rounded-full px-6 py-2 h-9 font-medium border-none"
+                    className="w-full bg-[#FD366E] text-white hover:bg-[#e0305f] rounded-full px-6 py-2 h-9 font-medium border-none mt-1"
                 >
                     {isConnecting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Connect"}
                 </Button>
@@ -476,60 +488,12 @@ const FirebaseConnectionCard = ({
                 <p className="text-xs text-red-400 text-center max-w-xs">{connectError}</p>
             )}
 
-            {/* Debug panel — always available so operators can verify the required OAuth setup */}
-            <details className="w-full max-w-sm text-[10px] text-zinc-600 border border-white/5 rounded-xl px-3 py-2 bg-[#1c1c1c]">
-                <summary className="cursor-pointer text-zinc-500 font-mono select-none">
-                    {proxyLoopDetected || !projectDomain ? "⚠ " : ""}Firebase OAuth debug
-                </summary>
-                <div className="mt-2 flex flex-col gap-2 font-mono">
-
-                    {/* Env var status */}
-                    <div className="flex flex-col gap-1">
-                        <div>
-                            <span className="text-zinc-600">AUTH_DOMAIN: </span>
-                            <span className={authDomain ? "text-zinc-300" : "text-red-500"}>{authDomain || "(not set)"}</span>
-                        </div>
-                        <div>
-                            <span className="text-zinc-600">PROJECT_DOMAIN: </span>
-                            <span className={projectDomain ? "text-zinc-300" : "text-red-500"}>{projectDomain || "(not set)"}</span>
-                        </div>
-                    </div>
-
-                    {/* Proxy misconfiguration warnings */}
-                    {proxyLoopDetected && (
-                        <p className="text-red-400 leading-snug">
-                            AUTH_DOMAIN and PROJECT_DOMAIN are identical — the /__/auth proxy would loop back to itself (508).
-                            Set NEXT_PUBLIC_FIREBASE_PROJECT_DOMAIN to your {"<project-id>"}.firebaseapp.com hostname.
-                        </p>
-                    )}
-                    {!projectDomain && (
-                        <p className="text-amber-400 leading-snug">
-                            NEXT_PUBLIC_FIREBASE_PROJECT_DOMAIN is not set — the /__/auth proxy is disabled.
-                            Add this env var (e.g. my-project.firebaseapp.com) to enable Google Sign-In via popup.
-                        </p>
-                    )}
-
-                    {/* Google Cloud Console required setup */}
-                    {authDomain && (
-                        <div className="border-t border-white/5 pt-2 flex flex-col gap-1">
-                            <p className="text-zinc-500 mb-1">
-                                Google Cloud Console → APIs &amp; Services → Credentials → OAuth 2.0 Client must have:
-                            </p>
-                            <div>
-                                <span className="text-zinc-600">Authorized JavaScript origins:</span>
-                                <div className="mt-0.5 px-2 py-1 rounded bg-zinc-800 text-zinc-200 break-all select-all">{oauthJsOrigin ?? "(AUTH_DOMAIN not set)"}</div>
-                            </div>
-                            <div className="mt-1">
-                                <span className="text-zinc-600">Authorized redirect URIs:</span>
-                                <div className="mt-0.5 px-2 py-1 rounded bg-zinc-800 text-zinc-200 break-all select-all">{oauthRedirectUri ?? "(AUTH_DOMAIN not set)"}</div>
-                            </div>
-                            <p className="text-zinc-600 mt-1 leading-snug">
-                                Firebase Console → Authentication → Settings → Authorized domains must also include <span className="text-zinc-400">{authDomain}</span>.
-                            </p>
-                        </div>
-                    )}
-                </div>
-            </details>
+            <p className="text-[10px] text-zinc-600 text-center max-w-xs">
+                Learn more at{" "}
+                <a href="https://appwrite.io/docs" target="_blank" rel="noopener noreferrer" className="underline hover:text-zinc-400">
+                    appwrite.io/docs
+                </a>
+            </p>
         </div>
     )
 }
@@ -562,7 +526,6 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
 
   const [instruction, setInstruction] = useState<string>("")
   const [selectedModel, setSelectedModel] = useState(MODELS[0])
-  const [isFastMode, setIsFastMode] = useState(false)
 
   const [fixHistory, setFixHistory] = useState<any[]>([])
   const [requiresDatabase, setRequiresDatabase] = useState(false)
@@ -821,7 +784,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       const planResponse = await fetch("/api/ai/generate-plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: [...messages, userMessage], isFastMode }),
+        body: JSON.stringify({ messages: [...messages, userMessage] }),
       })
 
       if (!planResponse.ok) throw new Error("Failed to generate plan")
@@ -842,8 +805,14 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
           return
       }
 
-      // No longer requiring database auth based on user's new rules
-      setRequiresDatabase(false)
+      // Check if database is required
+      if (generatedInstruction.includes("## REQUIRES_DATABASE: true")) {
+          setRequiresDatabase(true)
+          setStep("appwrite_auth")
+          // We will wait for user to authenticate
+      } else {
+          setRequiresDatabase(false)
+      }
 
       setInstruction(generatedInstruction)
 
@@ -855,7 +824,9 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       }
       setMessages(prev => [...prev, planMessage])
 
-      processNextStep(generatedInstruction, [...messages, userMessage, planMessage])
+      if (!generatedInstruction.includes("## REQUIRES_DATABASE: true")) {
+          processNextStep(generatedInstruction, [...messages, userMessage, planMessage])
+      }
     } catch (err: any) {
       setError(err.message || "Planning failed")
       setStep("idle")
@@ -882,7 +853,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
           projectId,
           messages: currentHistory,
           instruction: currentInstruction,
-          model: isFastMode ? "gemini-3-flash-preview" : selectedModel.id,
+          model: selectedModel.id,
           generatedPages: generatedPages.map(p => ({ name: p.name, code: p.code })),
         }),
       })
@@ -895,6 +866,10 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
         setCurrentPlan("All files generated.")
         setActiveFile(undefined)
         setActiveFileUsedFor(undefined)
+        // Auto-deploy for testing when Appwrite is connected
+        if (requiresDatabase) {
+          handleDeploy()
+        }
         return
       }
 
@@ -947,8 +922,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
     if (attempt >= 8) return
 
     try {
-      const vpsUrl = process.env.NEXT_PUBLIC_VPS_SERVER_URL || "https://server.sycord.site"
-      const res = await fetch(`${vpsUrl}/api/logs?project_id=${repoId}`)
+      const res = await fetch(`https://micro1.sycord.com/api/logs?project_id=${repoId}`)
       if (!res.ok) {
         setTimeout(() => checkDeployLogs(repoId, attempt + 1), 5000)
         return
@@ -1000,9 +974,8 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
               setDeployResult(data)
               setShowAutoDeploy(false)
               // After deploy succeeds, wait for the build then check logs for errors
-              const logId = data.projectId || data.repoId
-              if (logId) {
-                  setTimeout(() => checkDeployLogs(logId), DEPLOY_LOG_CHECK_DELAY_MS)
+              if (data.repoId) {
+                  setTimeout(() => checkDeployLogs(data.repoId), DEPLOY_LOG_CHECK_DELAY_MS)
               }
           } else {
               setError(data.error)
@@ -1034,7 +1007,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                 {/* IDLE STATE */}
                 {step === 'idle' && (
                     <div className="flex-1 flex flex-col items-center justify-center text-center py-20 animate-in fade-in slide-in-from-bottom-8 duration-700 relative">
-                        <GeminiBadge isFastMode={isFastMode} toggleMode={() => setIsFastMode(!isFastMode)} />
+                        <GeminiBadge />
                         <div className="mt-4 space-y-1">
                             <h1 className="text-4xl md:text-5xl font-medium tracking-tight text-white">
                                 Hi {userName},
@@ -1130,10 +1103,15 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                                 <div className="flex items-center gap-2.5">
                                     <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-zinc-500" />
                                     <span className="text-sm text-zinc-400 truncate">
-                                        {activeFile ? `Generating ${activeFile}` : 'Building your website…'}
+                                        {activeFile === 'src/appwrite.ts'
+                                          ? 'Retrieving Appwrite data…'
+                                          : activeFile ? `Generating ${activeFile}` : 'Building your website…'}
                                     </span>
                                 </div>
-                                {activeFileUsedFor && (
+                                {activeFile === 'src/appwrite.ts' && (
+                                    <p className="text-xs text-[#FD366E]/70 pl-6 leading-relaxed animate-pulse">Integrating Appwrite SDK with your project credentials</p>
+                                )}
+                                {activeFileUsedFor && activeFile !== 'src/appwrite.ts' && (
                                     <p className="text-xs text-zinc-600 pl-6 leading-relaxed">{activeFileUsedFor}</p>
                                 )}
                                 <div className="pl-6 space-y-1">
@@ -1148,6 +1126,22 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                                         />
                                     </div>
                                 </div>
+                            </div>
+                        )}
+
+                        {step === 'appwrite_auth' && (
+                            <div className="mt-4">
+                                <div className="flex items-center gap-2.5 py-3 mb-3 animate-in fade-in duration-300">
+                                    <Database className="h-3.5 w-3.5 shrink-0 text-[#FD366E]" />
+                                    <span className="text-sm text-zinc-400">Connect your Appwrite project to continue</span>
+                                </div>
+                                <AppwriteConnectionCard
+                                    projectId={projectId}
+                                    onConnect={() => {
+                                        onDatabaseConnected?.()
+                                        if (instruction) processNextStep(instruction, [...messages])
+                                    }}
+                                />
                             </div>
                         )}
 

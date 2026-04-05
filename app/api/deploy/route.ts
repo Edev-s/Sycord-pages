@@ -4,159 +4,352 @@ import { authOptions } from "@/lib/auth"
 import clientPromise from "@/lib/mongodb"
 import { ObjectId } from "mongodb"
 
+const GITHUB_API_BASE = "https://api.github.com"
+const SYCORD_DEPLOY_API_BASE = "https://micro1.sycord.com"
+
+// Initial delay after creating a repository before attempting file upload
+const INITIAL_REPO_DELAY_MS = 1000
+const MAX_REPO_INIT_RETRIES = 5
+
+function getEnvGitHubCredentials() {
+  const token = process.env.GITHUB_API_TOKEN || process.env.GITHUB_TOKEN
+  const owner = process.env.GITHUB_OWNER || process.env.GITHUB_USERNAME
+  
+  if (token && owner) {
+    return { token, owner }
+  }
+  return null
+}
+
+async function githubRequest(
+  endpoint: string,
+  token: string,
+  options: RequestInit = {}
+): Promise<{ data: any; status: number }> {
+  const url = endpoint.startsWith("http") ? endpoint : `${GITHUB_API_BASE}${endpoint}`
+  
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  })
+
+  const data = await response.json().catch(() => ({}))
+  
+  if (!response.ok) {
+    const errorMsg = data.message || `HTTP ${response.status}`
+    console.error(`[Deploy] GitHub API error (${url}):`, errorMsg)
+    const error = new Error(`GitHub API error: ${errorMsg}`) as Error & { status: number }
+    error.status = response.status
+    throw error
+  }
+
+  return { data, status: response.status }
+}
+
+async function checkRepoExists(owner: string, repo: string, token: string): Promise<boolean> {
+  try {
+    await githubRequest(`/repos/${owner}/${repo}`, token)
+    return true
+  } catch (error: any) {
+    if (error.status === 404) return false
+    throw error
+  }
+}
+
+async function createRepo(owner: string, repo: string, token: string): Promise<any> {
+  console.log(`[Deploy] Creating repository: ${owner}/${repo}`)
+  const { data } = await githubRequest("/user/repos", token, {
+    method: "POST",
+    body: JSON.stringify({
+      name: repo,
+      description: "Website deployed from Sycord AI Builder",
+      auto_init: true, // Important: Initialize so we have a main branch
+      private: false,
+    }),
+  })
+  return data
+}
+
+async function waitForRepoInitialization(owner: string, repo: string, token: string): Promise<void> {
+  for (let attempt = 0; attempt < MAX_REPO_INIT_RETRIES; attempt++) {
+    const delay = INITIAL_REPO_DELAY_MS * Math.pow(1.5, attempt)
+    await new Promise(resolve => setTimeout(resolve, delay))
+    
+    try {
+      await githubRequest(`/repos/${owner}/${repo}/git/ref/heads/main`, token)
+      console.log(`[Deploy] Repository initialized (attempt ${attempt + 1})`)
+      return
+    } catch (error: any) {
+      if (attempt === MAX_REPO_INIT_RETRIES - 1) {
+        console.warn(`[Deploy] Repo init timeout. Proceeding anyway.`)
+        return
+      }
+    }
+  }
+}
+
 /**
- * VPS Flask server base URL.
- * The Flask app runs on a VPS behind a Cloudflare Tunnel, serving deployed
- * sites via subdomain detection.
+ * Deploy using Git Data API (Tree -> Commit -> Ref)
+ * This is "atomic" and efficiently handles "clearing" old state by simply not including old files in the new tree.
  */
-const VPS_BASE_URL =
-  process.env.VPS_SERVER_URL || "https://server.sycord.site"
+async function deployViaGitTree(
+    owner: string,
+    repo: string,
+    files: { path: string, content: string }[],
+    token: string
+) {
+    console.log(`[Deploy] Starting atomic deployment via Git Tree API...`)
+
+    // 1. Get latest commit SHA (base_tree)
+    let latestCommitSha = null
+    try {
+        const { data: refData } = await githubRequest(`/repos/${owner}/${repo}/git/ref/heads/main`, token)
+        latestCommitSha = refData.object.sha
+    } catch (e) {
+        console.log(`[Deploy] No main branch found, assuming empty repo or first commit.`)
+    }
+
+    // 2. Create Blobs for files (to be safe with content encoding)
+    // We construct the tree array. For text files we can put content directly, but blobs are safer for size.
+    // Actually, passing 'content' directly in tree creation is limited.
+    // Let's create blobs for all files to be robust.
+    const treeItems = []
+
+    for (const file of files) {
+        const { data: blobData } = await githubRequest(`/repos/${owner}/${repo}/git/blobs`, token, {
+            method: "POST",
+            body: JSON.stringify({
+                content: file.content,
+                encoding: "utf-8"
+            })
+        })
+
+        treeItems.push({
+            path: file.path,
+            mode: "100644", // standard file
+            type: "blob",
+            sha: blobData.sha
+        })
+    }
+
+    // 3. Create Tree
+    // We DO NOT include base_tree if we want to "clear" the repo (delete missing files).
+    // If we wanted to keep existing files, we would pass 'base_tree': latestCommitSha.
+    // The requirement is "clear all current state", so we omit base_tree.
+    // This creates a snapshot containing ONLY our new files.
+    const { data: treeData } = await githubRequest(`/repos/${owner}/${repo}/git/trees`, token, {
+        method: "POST",
+        body: JSON.stringify({
+            tree: treeItems
+        })
+    })
+
+    // 4. Create Commit
+    const commitPayload: any = {
+        message: "Deploy from Sycord AI Builder (Clean Re-deploy)",
+        tree: treeData.sha,
+    }
+    if (latestCommitSha) {
+        commitPayload.parents = [latestCommitSha] // Link to history, but the state is purely the new tree
+    }
+
+    const { data: commitData } = await githubRequest(`/repos/${owner}/${repo}/git/commits`, token, {
+        method: "POST",
+        body: JSON.stringify(commitPayload)
+    })
+
+    // 5. Update Reference (Force push effectively)
+    await githubRequest(`/repos/${owner}/${repo}/git/refs/heads/main`, token, {
+        method: "PATCH", // Update existing ref
+        body: JSON.stringify({
+            sha: commitData.sha,
+            force: true
+        })
+    })
+
+    console.log(`[Deploy] Atomic deployment complete. New commit: ${commitData.sha}`)
+}
+
+// Helper to check for domain in logs (same logic as in domain route)
+async function checkLogsForDomain(repoId: string | number): Promise<string | null> {
+    try {
+        const logsRes = await fetch(`${SYCORD_DEPLOY_API_BASE}/api/logs?project_id=${repoId}&limit=100`)
+        if (logsRes.ok) {
+            const logData = await logsRes.json()
+            if (logData.success && Array.isArray(logData.logs)) {
+                const combinedLogs = logData.logs.join('\n')
+                // Matches: "Take a peek over at https://..." or "✨ Deployment complete! Take a peek over at https://..."
+                // The [\s\S]*? handles potential emoji or newlines before the URL
+                const match = combinedLogs.match(/Take a peek over at[\s\S]*?(https:\/\/[a-zA-Z0-9.-]+\.pages\.dev)/)
+                if (match && match[1]) {
+                    let domain = match[1].trim()
+                    if (domain.endsWith('.')) domain = domain.slice(0, -1)
+                    return domain
+                }
+            }
+        }
+    } catch (e) {
+        console.error("[Deploy] Log fallback check error:", e)
+    }
+    return null
+}
 
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
-    if (!session?.user?.id)
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
     const { projectId } = await request.json()
-    if (!projectId)
-      return NextResponse.json({ error: "Missing projectId" }, { status: 400 })
+    if (!projectId) return NextResponse.json({ error: "Missing projectId" }, { status: 400 })
 
     const client = await clientPromise
     const db = client.db()
 
-    // 1. Project Data
+    // 1. Credentials
+    const envCredentials = getEnvGitHubCredentials()
+    if (!envCredentials) {
+      return NextResponse.json({ error: "GitHub credentials not configured." }, { status: 400 })
+    }
+    const { token, owner } = envCredentials
+
+    // 2. Project Data
     const userDoc = await db.collection("users").findOne({ id: session.user.id })
-    const project = userDoc?.projects?.find(
-      (p: any) => p._id.toString() === projectId,
-    )
-    if (!project)
-      return NextResponse.json({ error: "Project not found" }, { status: 404 })
+    const project = userDoc?.projects?.find((p: any) => p._id.toString() === projectId)
+    if (!project) return NextResponse.json({ error: "Project not found" }, { status: 404 })
 
-    // 2. Derive a subdomain from the project
-    const subdomain =
-      project.subdomain ||
-      project.businessName
-        ?.toLowerCase()
-        .replace(/[^a-z0-9-]/g, "-")
-        .replace(/^-+|-+$/g, "") ||
-      `project-${projectId}`
+    // 3. Repo Name
+    let repo = project.githubRepo || project.businessName?.toLowerCase().replace(/[^a-z0-9-]/g, "-") || `project-${projectId}`
 
-    // 3. Prepare Files
+    // 4. Ensure Repo Exists
+    let repoId: number
+    const repoExists = await checkRepoExists(owner, repo, token)
+    if (!repoExists) {
+      const repoData = await createRepo(owner, repo, token)
+      repoId = repoData.id
+      await waitForRepoInitialization(owner, repo, token)
+    } else {
+      const { data } = await githubRequest(`/repos/${owner}/${repo}`, token)
+      repoId = data.id
+    }
+
+    // 5. Prepare Files
     const pages = project.pages || []
-    const files: { path: string; content: string }[] = []
+    const files = []
 
     if (pages.length > 0) {
-      for (const page of pages) {
-        let path = page.name
-        if (path.startsWith("/")) path = path.substring(1)
-        files.push({ path, content: page.content })
-      }
+        for (const page of pages) {
+            let path = page.name
+            if (path.startsWith('/')) path = path.substring(1)
+            files.push({ path, content: page.content })
+        }
     } else if (project.aiGeneratedCode) {
-      files.push({ path: "index.html", content: project.aiGeneratedCode })
+        files.push({ path: "index.html", content: project.aiGeneratedCode })
     }
 
-    if (files.length === 0)
-      return NextResponse.json({ error: "No files to deploy." }, { status: 400 })
+    if (files.length === 0) return NextResponse.json({ error: "No files to deploy." }, { status: 400 })
 
-    // 4. Create Cloudflare DNS Record
-    console.log(`[Deploy] Updating DNS for ${subdomain}.sycord.site via Cloudflare API...`)
-    const cfApiKey = process.env.CLOUDFLARE_API_KEY
-    const cfZoneId = process.env.CLOUDFLARE_ZONE_ID
+    // 6. Deploy using Git Tree Strategy (Atomic & Cleaner)
+    await deployViaGitTree(owner, repo, files, token)
 
-    if (cfApiKey && cfZoneId) {
-      try {
-        // Step 4a: Check if record exists
-        const dnsCheck = await fetch(`https://api.cloudflare.com/client/v4/zones/${cfZoneId}/dns_records?name=${subdomain}.sycord.site`, {
-          headers: {
-            "Authorization": `Bearer ${cfApiKey}`,
-            "Content-Type": "application/json"
-          }
-        })
-        const dnsCheckData = await dnsCheck.json()
+    // 7. Save Meta
+    const gitUrl = `https://github.com/${owner}/${repo}`
 
-        // Step 4b: Create or update CNAME to route to the tunnel
-        const dnsPayload = {
-          type: "CNAME",
-          name: subdomain,
-          content: "server.sycord.site",
-          proxied: true,
-          ttl: 1
-        }
-
-        if (dnsCheckData.success && dnsCheckData.result.length > 0) {
-          // Update existing
-          const recordId = dnsCheckData.result[0].id
-          await fetch(`https://api.cloudflare.com/client/v4/zones/${cfZoneId}/dns_records/${recordId}`, {
-            method: "PUT",
-            headers: {
-              "Authorization": `Bearer ${cfApiKey}`,
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify(dnsPayload)
-          })
-        } else {
-          // Create new
-          await fetch(`https://api.cloudflare.com/client/v4/zones/${cfZoneId}/dns_records`, {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${cfApiKey}`,
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify(dnsPayload)
-          })
-        }
-      } catch (dnsErr) {
-        console.error(`[Deploy] Cloudflare DNS configuration failed for ${subdomain}:`, dnsErr)
-        // Non-blocking error, we still try to deploy to VPS
-      }
-    } else {
-      console.warn("[Deploy] Missing CLOUDFLARE_API_KEY or CLOUDFLARE_ZONE_ID, skipping automated DNS configuration.")
-    }
-
-    // 5. Deploy to VPS Flask server
-    console.log(`[Deploy] Sending ${files.length} file(s) to VPS for project ${projectId}…`)
-    const deployRes = await fetch(`${VPS_BASE_URL}/api/deploy/${projectId}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ files, subdomain }),
-    })
-
-    if (!deployRes.ok) {
-      const errBody = await deployRes.json().catch(() => ({}))
-      throw new Error(errBody.error || `VPS deploy failed (HTTP ${deployRes.status})`)
-    }
-
-    const deployData = await deployRes.json()
-    const deployedDomain = deployData.domain
-      ? `https://${deployData.domain}`
-      : null
-
-    // 5. Persist deployment metadata in MongoDB
+    // Update User/Project DB
     await db.collection("users").updateOne(
-      { id: session.user.id, "projects._id": new ObjectId(projectId) },
-      {
-        $set: {
-          "projects.$.subdomain": subdomain,
-          "projects.$.deployedAt": new Date(),
-          "projects.$.cloudflareUrl": deployedDomain,
-          "projects.$.vpsProjectId": projectId,
-        },
-      },
+        { id: session.user.id, "projects._id": new ObjectId(projectId) },
+        {
+            $set: {
+                "projects.$.githubOwner": owner,
+                "projects.$.githubRepo": repo,
+                "projects.$.githubRepoId": repoId,
+                "projects.$.githubUrl": gitUrl,
+                "projects.$.deployedAt": new Date()
+            }
+        }
     )
 
-    console.log(`[Deploy] Project ${projectId} deployed → ${deployedDomain ?? "pending"}`)
+    // Save Git Connection for Sycord Deployer
+    await db.collection("users").updateOne({ id: session.user.id }, {
+        $set: { [`git_connection.${repoId}`]: {
+            username: owner,
+            repo_id: repoId.toString(),
+            git_url: gitUrl,
+            git_token: token,
+            repo_name: repo,
+            project_id: projectId,
+            deployed_at: new Date()
+        }}
+    })
+
+    // 8. Trigger Sycord Cloudflare Deploy
+    let cloudflareUrl = null
+    let deployMessage = "Deployed to GitHub"
+
+    try {
+        // Trigger
+        console.log(`[Deploy] Triggering downstream deploy for repo ${repoId}...`)
+        const triggerRes = await fetch(`${SYCORD_DEPLOY_API_BASE}/api/deploy/${repoId}`, { method: "POST" })
+        console.log(`[Deploy] Trigger status: ${triggerRes.status}`)
+        
+        // Wait briefly for initial provisioning
+        await new Promise(r => setTimeout(r, 2000))
+
+        // Check Domain via API
+        const domainRes = await fetch(`${SYCORD_DEPLOY_API_BASE}/api/deploy/${repoId}/domain`)
+        const domainData = await domainRes.json()
+        console.log(`[Deploy] Initial domain check:`, domainData)
+        
+        if (domainData.success && domainData.domain) {
+            // Check if it's a generic placeholder that needs refinement from logs
+            if (domainData.domain === "https://test.pages.dev") {
+                console.log(`[Deploy] Domain is generic placeholder, attempting to find specific URL in logs...`)
+                const logDomain = await checkLogsForDomain(repoId)
+                if (logDomain) {
+                    cloudflareUrl = logDomain
+                    console.log(`[Deploy] Replaced placeholder with log domain: ${cloudflareUrl}`)
+                } else {
+                    cloudflareUrl = domainData.domain // Keep generic if logs fail
+                }
+            } else {
+                cloudflareUrl = domainData.domain
+            }
+        } else {
+            // Fallback: Check logs immediately if API didn't return it yet (rare but possible if logs are faster)
+            console.log(`[Deploy] Domain API empty, checking logs fallback...`)
+            const logDomain = await checkLogsForDomain(repoId)
+            if (logDomain) {
+                cloudflareUrl = logDomain
+                console.log(`[Deploy] Found domain in logs: ${cloudflareUrl}`)
+            }
+        }
+
+        if (cloudflareUrl) {
+            deployMessage = "Deployed to Cloudflare Pages!"
+            await db.collection("users").updateOne(
+                { id: session.user.id, "projects._id": new ObjectId(projectId) },
+                { $set: { "projects.$.cloudflareUrl": cloudflareUrl } }
+            )
+        }
+    } catch (e) {
+        console.error("Sycord Deploy Error:", e)
+    }
 
     return NextResponse.json({
-      success: true,
-      url: deployedDomain,
-      cloudflareUrl: deployedDomain,
-      filesCount: files.length,
-      message: deployedDomain
-        ? "Deployed to VPS!"
-        : "Deployed – domain will be available shortly.",
-      projectId,
+        success: true,
+        url: cloudflareUrl || gitUrl,
+        githubUrl: gitUrl,
+        cloudflareUrl,
+        filesCount: files.length,
+        message: deployMessage,
+        repoId: repoId.toString()
     })
+
   } catch (error: any) {
     console.error("[Deploy] Error:", error)
     return NextResponse.json({ error: error.message }, { status: 500 })

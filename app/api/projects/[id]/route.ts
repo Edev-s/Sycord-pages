@@ -117,14 +117,6 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
        return NextResponse.json({ message: "Project not found" }, { status: 404 })
     }
 
-    // Also delete from VPS Flask server (best-effort)
-    const vpsUrl = process.env.VPS_SERVER_URL || "https://server.sycord.site"
-    try {
-      await fetch(`${vpsUrl}/api/projects/${id}`, { method: "DELETE" })
-    } catch (vpsErr) {
-      console.warn("[Delete] VPS cleanup failed (non-blocking):", vpsErr)
-    }
-
     console.log("[v0] Project deleted:", { projectId: id, userId: session.user.id })
 
     return NextResponse.json({ success: true, message: "Project deleted successfully" })

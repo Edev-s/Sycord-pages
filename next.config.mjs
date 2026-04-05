@@ -1,6 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ['node-ssh', 'ssh2'],
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -44,7 +43,6 @@ const nextConfig = {
     ]
   },
   images: {
-    unoptimized: true,
     remotePatterns: [
       {
         protocol: "https",

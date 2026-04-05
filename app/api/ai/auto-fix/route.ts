@@ -5,7 +5,6 @@ import { GoogleGenerativeAI } from "@google/generative-ai"
 import { getSystemPrompts } from "@/lib/ai-prompts"
 
 const FIX_MODEL = "gemini-2.0-flash"
-const FAST_FIX_MODEL = "gemini-3-flash-preview"
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions)
@@ -14,7 +13,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { logs, fileStructure, history, fixedFiles, projectId, isFastMode } = await request.json()
+    const { logs, fileStructure, fileContent, lastAction, history, fixedFiles } = await request.json()
 
     // Use GOOGLE_AI_API by default, fallback to GOOGLE_API_KEY
     const apiKey = process.env.GOOGLE_AI_API || process.env.GOOGLE_API_KEY
@@ -26,7 +25,7 @@ export async function POST(request: Request) {
     const { autoFixDiagnosis, autoFixResolution } = await getSystemPrompts()
 
     const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({ model: isFastMode ? FAST_FIX_MODEL : FIX_MODEL })
+    const model = genAI.getGenerativeModel({ model: FIX_MODEL })
 
     let memorySection = ""
     if (fixedFiles && fixedFiles.length > 0) {

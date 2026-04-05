@@ -5,7 +5,6 @@ import { GoogleGenerativeAI } from "@google/generative-ai"
 import { getSystemPrompts } from "@/lib/ai-prompts"
 
 const PLAN_MODEL = "gemini-3.1-pro-preview"
-const FAST_PLAN_MODEL = "gemini-3-flash-preview"
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions)
@@ -14,7 +13,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { messages, isFastMode } = await request.json()
+    const { messages } = await request.json()
 
     // Use GOOGLE_AI_API by default, fallback to GOOGLE_API_KEY
     const apiKey = process.env.GOOGLE_AI_API || process.env.GOOGLE_API_KEY
@@ -25,7 +24,7 @@ export async function POST(request: Request) {
 
     const genAI = new GoogleGenerativeAI(apiKey)
     const model = genAI.getGenerativeModel({
-        model: isFastMode ? FAST_PLAN_MODEL : PLAN_MODEL,
+        model: PLAN_MODEL,
     })
 
     const lastUserMessage = messages[messages.length - 1]

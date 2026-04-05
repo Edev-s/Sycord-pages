@@ -81,12 +81,10 @@
     "zod": "3.25.76"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
     "@tailwindcss/postcss": "^4.1.9",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "eslint": "^10.1.0",
     "framer-motion": "^12.23.26",
     "playwright": "^1.57.0",
     "postcss": "^8.5",
