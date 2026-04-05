@@ -1,10 +1,12 @@
 """
-Sycord Pages – Flask VPS Server
+Sycord Pages – Flask VPS Runner
 ================================
-A lightweight Flask application that serves deployed websites via subdomain
-detection.  The server is exposed to the internet through a Cloudflare Tunnel,
-so every ``<project>.yourdomain.com`` request lands here and is resolved to
-the correct project files stored on disk.
+Complete deployment handler that:
+- Serves deployed websites via subdomain detection
+- Auto-configures DNS CNAME records for new subdomains
+- Validates required packages and environment variables at startup
+- Provides detailed build/deploy logging
+- Exposes a health-check and status API
 
 API surface
 -----------
@@ -12,21 +14,57 @@ POST   /api/deploy/<project_id>        – upload / update project files
 GET    /api/projects/<project_id>       – project metadata
 GET    /api/logs?project_id=…&limit=…   – recent server logs
 DELETE /api/projects/<project_id>       – remove a project and its files
-
-The root path ``/`` returns a simple health-check page.
+GET    /api/status                      – runner health + diagnostics
 """
 
 from __future__ import annotations
 
+import importlib
 import json
 import logging
 import os
 import shutil
-import time
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from flask import Flask, Response, abort, jsonify, request, send_from_directory
+# ---------------------------------------------------------------------------
+# Dependency check – warn clearly about any missing packages
+# ---------------------------------------------------------------------------
+REQUIRED_PACKAGES = {
+    "flask": "flask",
+    "requests": "requests",
+}
+
+_missing: list[str] = []
+for _display, _import in REQUIRED_PACKAGES.items():
+    try:
+        importlib.import_module(_import)
+    except ImportError:
+        _missing.append(_display)
+
+if _missing:
+    print(
+        f"[WARN] Missing Python packages: {', '.join(_missing)}. "
+        f"Install them with:  pip install {' '.join(_missing)}",
+        file=sys.stderr,
+    )
+
+# Flask is mandatory – bail out with a clear message if absent
+try:
+    from flask import Flask, Response, abort, jsonify, request, send_from_directory
+except ImportError:
+    print(
+        "[FATAL] Flask is not installed. Run: python3 -m pip install flask",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+# requests is optional but needed for DNS auto-config
+try:
+    import requests as _requests_mod
+except ImportError:
+    _requests_mod = None  # type: ignore[assignment]
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -38,6 +76,10 @@ LOG_FILE = BASE_DIR / "server.log"
 # Ensure directories exist
 PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+# Environment variables used for DNS auto-config
+CF_API_KEY = os.environ.get("CLOUDFLARE_API_KEY", "")
+CF_ZONE_ID = os.environ.get("CLOUDFLARE_ZONE_ID", "")
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -53,6 +95,39 @@ logger.addHandler(file_handler)
 logger.addHandler(logging.StreamHandler())
 
 # ---------------------------------------------------------------------------
+# Startup diagnostics
+# ---------------------------------------------------------------------------
+
+def _log_startup_diagnostics() -> None:
+    """Log useful runtime info and warn about anything misconfigured."""
+    logger.info("Python %s", sys.version)
+    logger.info("Data directory: %s", BASE_DIR)
+    logger.info("Projects directory: %s", PROJECTS_DIR)
+
+    if _missing:
+        logger.warning(
+            "Missing optional packages: %s – some features may not work",
+            ", ".join(_missing),
+        )
+
+    if not CF_API_KEY or not CF_ZONE_ID:
+        logger.warning(
+            "CLOUDFLARE_API_KEY or CLOUDFLARE_ZONE_ID not set. "
+            "Automated DNS record creation for new subdomains is disabled."
+        )
+    else:
+        logger.info("Cloudflare DNS auto-config is enabled (zone %s…)", CF_ZONE_ID[:8])
+
+    # List existing projects
+    if PROJECTS_DIR.is_dir():
+        projects = [
+            p.name for p in PROJECTS_DIR.iterdir()
+            if p.is_dir() and not p.name.startswith(".")
+        ]
+        logger.info("Existing deployments: %d %s", len(projects), projects[:10])
+
+
+# ---------------------------------------------------------------------------
 # Flask App
 # ---------------------------------------------------------------------------
 app = Flask(__name__)
@@ -62,7 +137,6 @@ app = Flask(__name__)
 
 def _project_dir(project_id: str) -> Path:
     """Return the on-disk directory for *project_id*."""
-    # Prevent directory traversal
     safe_id = os.path.basename(project_id)
     return PROJECTS_DIR / safe_id
 
@@ -83,39 +157,93 @@ def _write_meta(project_id: str, data: dict) -> None:
 
 
 def _extract_subdomain() -> str | None:
-    """Return the first subdomain segment from the ``Host`` header, or *None*
-    when the request targets the bare domain / localhost."""
-    host = request.host.split(":")[0]  # strip port
+    host = request.host.split(":")[0]
     parts = host.split(".")
-    # e.g. "mysite.example.com" → ["mysite", "example", "com"]
     if len(parts) > 2:
         return parts[0]
     return None
+
+
+def _ensure_dns_record(subdomain: str) -> dict:
+    """Create or update a Cloudflare CNAME for *subdomain*.sycord.site.
+
+    Returns a dict with ``success``, ``action`` ('created'|'updated'|'skipped'),
+    and an optional ``error`` key.
+    """
+    if not CF_API_KEY or not CF_ZONE_ID:
+        logger.info("DNS auto-config skipped for %s (no Cloudflare credentials)", subdomain)
+        return {"success": False, "action": "skipped", "error": "Cloudflare credentials not configured"}
+
+    if _requests_mod is None:
+        logger.warning("DNS auto-config skipped – 'requests' package not installed")
+        return {"success": False, "action": "skipped", "error": "requests package not installed"}
+
+    fqdn = f"{subdomain}.sycord.site"
+    headers = {
+        "Authorization": f"Bearer {CF_API_KEY}",
+        "Content-Type": "application/json",
+    }
+
+    try:
+        check_url = f"https://api.cloudflare.com/client/v4/zones/{CF_ZONE_ID}/dns_records?name={fqdn}"
+        check_resp = _requests_mod.get(check_url, headers=headers, timeout=10)
+        check_data = check_resp.json()
+
+        payload = {
+            "type": "CNAME",
+            "name": subdomain,
+            "content": "server.sycord.site",
+            "proxied": True,
+            "ttl": 1,
+        }
+
+        if check_data.get("success") and check_data.get("result"):
+            record_id = check_data["result"][0]["id"]
+            update_url = (
+                f"https://api.cloudflare.com/client/v4/zones/{CF_ZONE_ID}"
+                f"/dns_records/{record_id}"
+            )
+            resp = _requests_mod.put(update_url, headers=headers, json=payload, timeout=10)
+            resp_data = resp.json()
+            if resp_data.get("success"):
+                logger.info("DNS record updated for %s", fqdn)
+                return {"success": True, "action": "updated"}
+            err = resp_data.get("errors", [])
+            logger.error("DNS update failed for %s: %s", fqdn, err)
+            return {"success": False, "action": "updated", "error": str(err)}
+
+        create_url = f"https://api.cloudflare.com/client/v4/zones/{CF_ZONE_ID}/dns_records"
+        resp = _requests_mod.post(create_url, headers=headers, json=payload, timeout=10)
+        resp_data = resp.json()
+        if resp_data.get("success"):
+            logger.info("DNS record created for %s", fqdn)
+            return {"success": True, "action": "created"}
+        err = resp_data.get("errors", [])
+        logger.error("DNS create failed for %s: %s", fqdn, err)
+        return {"success": False, "action": "created", "error": str(err)}
+    except Exception as exc:
+        logger.error("DNS auto-config exception for %s: %s", fqdn, exc)
+        return {"success": False, "action": "skipped", "error": str(exc)}
 
 
 # ── Subdomain-based content serving ───────────────────────────────────────
 
 @app.before_request
 def serve_subdomain_content():
-    """If the request arrives on a subdomain that maps to a deployed project,
-    serve the static files from that project's directory."""
     subdomain = _extract_subdomain()
     if subdomain is None:
-        return  # fall through to normal routes
+        return
 
-    # Skip API routes even on subdomains
     if request.path.startswith("/api/"):
         return
 
     project_dir = PROJECTS_DIR / subdomain
     if not project_dir.is_dir():
-        return  # no matching project – fall through
+        return
 
-    # Resolve requested path (default to index.html)
     rel_path = request.path.lstrip("/") or "index.html"
     target = project_dir / rel_path
 
-    # Prevent directory traversal
     try:
         target.resolve().relative_to(project_dir.resolve())
     except ValueError:
@@ -124,7 +252,6 @@ def serve_subdomain_content():
     if target.is_file():
         return send_from_directory(str(project_dir), rel_path)
 
-    # Try appending index.html for directory-style URLs
     if (project_dir / rel_path / "index.html").is_file():
         return send_from_directory(str(project_dir / rel_path), "index.html")
 
@@ -141,29 +268,54 @@ def index():
     )
 
 
+# ── API: Status / diagnostics ────────────────────────────────────────────
+
+@app.route("/api/status", methods=["GET"])
+def status():
+    """Return runner health information."""
+    project_count = sum(
+        1 for p in PROJECTS_DIR.iterdir()
+        if p.is_dir() and not p.name.startswith(".")
+    ) if PROJECTS_DIR.is_dir() else 0
+
+    return jsonify(
+        success=True,
+        status="running",
+        python_version=sys.version,
+        flask_installed=True,
+        requests_installed=_requests_mod is not None,
+        dns_auto_config=bool(CF_API_KEY and CF_ZONE_ID),
+        project_count=project_count,
+        data_dir=str(BASE_DIR),
+        warnings=_missing if _missing else [],
+    )
+
+
 # ── API: Deploy ───────────────────────────────────────────────────────────
 
 @app.route("/api/deploy/<project_id>", methods=["POST"])
 def deploy(project_id: str):
-    """Accept a JSON payload with a ``files`` array and optional ``subdomain``.
-
-    Each file entry must have ``path`` (relative) and ``content`` (string).
-    """
     data = request.get_json(silent=True)
     if not data or "files" not in data:
+        logger.error("Deploy %s: missing 'files' in request body", project_id)
         return jsonify(success=False, error="Request body must include 'files'"), 400
 
     files: list[dict] = data["files"]
     subdomain: str | None = data.get("subdomain")
 
     if not files:
+        logger.error("Deploy %s: empty files list", project_id)
         return jsonify(success=False, error="No files provided"), 400
+
+    logger.info(
+        "Deploy started for %s (%d files, subdomain=%s)",
+        project_id, len(files), subdomain,
+    )
 
     project_dir = _project_dir(project_id)
 
     # Clean previous deployment
     if project_dir.exists():
-        # Remove all files except meta
         for item in project_dir.iterdir():
             if item.name == ".meta.json":
                 continue
@@ -171,6 +323,7 @@ def deploy(project_id: str):
                 shutil.rmtree(item)
             else:
                 item.unlink()
+        logger.info("Deploy %s: cleaned previous deployment", project_id)
     else:
         project_dir.mkdir(parents=True, exist_ok=True)
 
@@ -182,9 +335,9 @@ def deploy(project_id: str):
         if not rel_path:
             continue
 
-        # Prevent directory traversal
         safe_path = os.path.normpath(rel_path).lstrip(os.sep)
         if safe_path.startswith(".."):
+            logger.warning("Deploy %s: blocked traversal path %s", project_id, rel_path)
             continue
 
         dest = project_dir / safe_path
@@ -192,8 +345,9 @@ def deploy(project_id: str):
         dest.write_text(content, encoding="utf-8")
         written += 1
 
-    # If a subdomain is provided, create a symlink so the subdomain resolver
-    # can find the project by subdomain name as well as by project_id.
+    logger.info("Deploy %s: wrote %d/%d files", project_id, written, len(files))
+
+    # Subdomain symlink
     if subdomain:
         link = PROJECTS_DIR / subdomain
         if link.exists() or link.is_symlink():
@@ -203,6 +357,20 @@ def deploy(project_id: str):
                 shutil.rmtree(link)
         if not link.exists():
             link.symlink_to(project_dir)
+        logger.info(
+            "Deploy %s: subdomain symlink %s → %s",
+            project_id, subdomain, project_dir,
+        )
+
+    # Auto-create DNS record
+    dns_result: dict = {"action": "skipped"}
+    if subdomain:
+        dns_result = _ensure_dns_record(subdomain)
+        if dns_result.get("error"):
+            logger.warning(
+                "Deploy %s: DNS auto-config issue: %s",
+                project_id, dns_result["error"],
+            )
 
     # Persist metadata
     domain = f"{subdomain}.sycord.site" if subdomain else None
@@ -214,17 +382,22 @@ def deploy(project_id: str):
             "domain": domain,
             "files_count": written,
             "deployed_at": datetime.now(timezone.utc).isoformat(),
+            "dns_status": dns_result.get("action", "skipped"),
         },
     )
     _write_meta(project_id, meta)
 
-    logger.info("Deployed project %s (%d files, subdomain=%s)", project_id, written, subdomain)
+    logger.info(
+        "Deploy complete: %s (%d files, domain=%s, dns=%s)",
+        project_id, written, domain, dns_result.get("action"),
+    )
 
     return jsonify(
         success=True,
         project_id=project_id,
         domain=domain,
         files_count=written,
+        dns=dns_result,
     )
 
 
@@ -236,7 +409,6 @@ def project_info(project_id: str):
     if meta is None:
         return jsonify(success=False, error="Project not found"), 404
 
-    # Include file listing
     project_dir = _project_dir(project_id)
     file_list = []
     if project_dir.is_dir():
@@ -262,7 +434,6 @@ def logs():
     lines: list[str] = []
     if LOG_FILE.exists():
         all_lines = LOG_FILE.read_text().splitlines()
-        # Filter lines relevant to this project when possible
         relevant = [ln for ln in all_lines if project_id in ln]
         if relevant:
             lines = relevant[-limit:]
@@ -281,7 +452,6 @@ def delete_project(project_id: str):
     if not project_dir.exists():
         return jsonify(success=False, error="Project not found"), 404
 
-    # Remove subdomain symlink if it exists
     meta = _read_meta(project_id)
     if meta and meta.get("subdomain"):
         link = PROJECTS_DIR / meta["subdomain"]
@@ -298,6 +468,7 @@ def delete_project(project_id: str):
 # Entry point
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
+    _log_startup_diagnostics()
     port = int(os.environ.get("PORT", 5000))
     debug = os.environ.get("FLASK_DEBUG", "0") == "1"
     logger.info("Starting Sycord Pages server on port %d", port)
