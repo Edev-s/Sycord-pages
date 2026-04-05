@@ -96,11 +96,12 @@ const tabs = [
   { id: "overview" as const, label: "Overview", icon: BarChart3 },
   { id: "users" as const, label: "Users", icon: Users },
   { id: "server" as const, label: "Server", icon: Server },
+  { id: "vps" as const, label: "VPS Runner", icon: Activity },
   { id: "tickets" as const, label: "Tickets", icon: AlertCircle },
   { id: "paptos" as const, label: "Legal", icon: BookOpen },
 ]
 
-type TabId = "overview" | "users" | "server" | "tickets" | "paptos"
+type TabId = "overview" | "users" | "server" | "vps" | "tickets" | "paptos"
 
 export default function AdminPage() {
   const router = useRouter()
@@ -125,6 +126,12 @@ export default function AdminPage() {
   })
   const [promptsLoading, setPromptsLoading] = useState(false)
   const [promptsSaving, setPromptsSaving] = useState(false)
+
+  // VPS Runner State
+  const [vpsStatus, setVpsStatus] = useState<any>(null)
+  const [vpsLoading, setVpsLoading] = useState(false)
+  const [vpsLogs, setVpsLogs] = useState<string[]>([])
+  const [vpsAction, setVpsAction] = useState<string | null>(null)
 
   // PAP & TOS State
   const [privacyPolicy, setPrivacyPolicy] = useState("Edit your privacy policy here...")
@@ -371,6 +378,56 @@ export default function AdminPage() {
     .toUpperCase() || "A"
 
   const blockedCount = users.filter(u => u.isBlocked).length
+
+  // VPS Runner functions
+  const fetchVpsStatus = async () => {
+    setVpsLoading(true)
+    try {
+      const res = await fetch("/api/vps/status")
+      if (res.ok) {
+        const data = await res.json()
+        setVpsStatus(data)
+      }
+    } catch (err) {
+      console.error("Failed to fetch VPS status:", err)
+    } finally {
+      setVpsLoading(false)
+    }
+  }
+
+  const fetchVpsLogs = async () => {
+    try {
+      const res = await fetch("/api/vps/logs?lines=100&type=all")
+      if (res.ok) {
+        const data = await res.json()
+        setVpsLogs(Array.isArray(data.logs) ? data.logs : [])
+      }
+    } catch (err) {
+      console.error("Failed to fetch VPS logs:", err)
+    }
+  }
+
+  const handleVpsAction = async (action: "start" | "stop" | "restart") => {
+    setVpsAction(action)
+    try {
+      const res = await fetch("/api/vps/restart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success(`Runner ${action} successful`)
+        setTimeout(fetchVpsStatus, 2000)
+      } else {
+        toast.error(data.error || `Failed to ${action} runner`)
+      }
+    } catch (err) {
+      toast.error(`Failed to ${action} runner`)
+    } finally {
+      setVpsAction(null)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-[#101010]">
@@ -832,6 +889,132 @@ export default function AdminPage() {
                       </div>
                     </div>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* VPS Runner Tab */}
+        {activeTab === "vps" && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-white">VPS Runner</h2>
+                <p className="text-sm text-white/40">Manage the Flask deployment runner on VPS</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { fetchVpsStatus(); fetchVpsLogs(); }}
+                className="text-white/40 hover:text-white"
+              >
+                <RotateCcw className="h-4 w-4 mr-1.5" />
+                Refresh
+              </Button>
+            </div>
+
+            {/* Connection Status */}
+            <div className="rounded-2xl bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] p-6">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="h-12 w-12 rounded-xl bg-white/[0.06] flex items-center justify-center">
+                  <Server className="h-6 w-6 text-zinc-400" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-semibold text-white">Ubuntu Server</h3>
+                    {vpsLoading ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-zinc-500" />
+                    ) : vpsStatus?.online ? (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-green-500/30 text-green-500 bg-green-500/5 rounded-full">
+                        Connected
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-red-500/30 text-red-500 bg-red-500/5 rounded-full">
+                        Offline
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-white/30 mt-0.5">
+                    {vpsStatus?.uptime || "Click refresh to check status"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Runner Status Indicators */}
+              {vpsStatus && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 pt-4 border-t border-white/[0.04]">
+                  <div className="text-center">
+                    <div className={`h-2 w-2 rounded-full mx-auto mb-1.5 ${vpsStatus.runner ? 'bg-green-500' : 'bg-red-500'}`} />
+                    <p className="text-[11px] text-white/40">Flask Runner</p>
+                  </div>
+                  <div className="text-center">
+                    <div className={`h-2 w-2 rounded-full mx-auto mb-1.5 ${vpsStatus.tunnel ? 'bg-green-500' : 'bg-red-500'}`} />
+                    <p className="text-[11px] text-white/40">Tunnel</p>
+                  </div>
+                  <div className="text-center">
+                    <div className={`h-2 w-2 rounded-full mx-auto mb-1.5 ${vpsStatus.httpOk ? 'bg-green-500' : 'bg-red-500'}`} />
+                    <p className="text-[11px] text-white/40">HTTP</p>
+                  </div>
+                  <div className="text-center">
+                    <div className={`h-2 w-2 rounded-full mx-auto mb-1.5 ${vpsStatus.npmInstalled ? 'bg-green-500' : 'bg-yellow-500'}`} />
+                    <p className="text-[11px] text-white/40">npm</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Warnings */}
+              {vpsStatus?.warnings && vpsStatus.warnings.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-white/[0.04]">
+                  {vpsStatus.warnings.map((w: string, i: number) => (
+                    <p key={i} className="text-xs text-yellow-500/70 flex items-center gap-1.5">
+                      <AlertCircle className="h-3 w-3 shrink-0" />
+                      {w}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Controls */}
+            <div className="flex items-center gap-3">
+              <Button
+                onClick={() => handleVpsAction("start")}
+                disabled={!!vpsAction}
+                className="bg-green-600 hover:bg-green-700 text-white rounded-xl"
+              >
+                {vpsAction === "start" ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
+                Start
+              </Button>
+              <Button
+                onClick={() => handleVpsAction("restart")}
+                disabled={!!vpsAction}
+                variant="outline"
+                className="border-white/10 text-white/60 hover:text-white rounded-xl"
+              >
+                {vpsAction === "restart" ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <RotateCcw className="h-4 w-4 mr-1.5" />}
+                Restart
+              </Button>
+              <Button
+                onClick={() => handleVpsAction("stop")}
+                disabled={!!vpsAction}
+                variant="outline"
+                className="border-red-500/20 text-red-400 hover:bg-red-500/10 rounded-xl"
+              >
+                Stop
+              </Button>
+            </div>
+
+            {/* Logs */}
+            {vpsLogs.length > 0 && (
+              <div className="rounded-2xl bg-black/40 border border-white/[0.06] p-4">
+                <p className="text-[11px] text-white/30 uppercase tracking-wider font-semibold mb-3">Runner Logs</p>
+                <div className="max-h-[400px] overflow-y-auto font-mono text-xs text-zinc-400 space-y-0.5 custom-scrollbar">
+                  {vpsLogs.map((line, i) => (
+                    <p key={i} className={line.toLowerCase().includes('error') ? 'text-red-400' : line.toLowerCase().includes('warn') ? 'text-yellow-400' : ''}>
+                      {line}
+                    </p>
+                  ))}
+                </div>
               </div>
             )}
           </div>

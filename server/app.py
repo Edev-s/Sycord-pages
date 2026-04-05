@@ -107,13 +107,15 @@ def _log_startup_diagnostics() -> None:
 
     if _missing:
         logger.warning(
-            "Missing optional packages: %s – some features may not work",
+            "[WARN] Missing optional packages: %s – some features may not work. "
+            "Install with: pip install %s",
             ", ".join(_missing),
+            " ".join(_missing),
         )
 
     if not CF_API_KEY or not CF_ZONE_ID:
         logger.warning(
-            "CLOUDFLARE_API_KEY or CLOUDFLARE_ZONE_ID not set. "
+            "[WARN] CLOUDFLARE_API_KEY or CLOUDFLARE_ZONE_ID not set. "
             "Automated DNS record creation for new subdomains is disabled."
         )
     else:
@@ -123,15 +125,19 @@ def _log_startup_diagnostics() -> None:
     npm_ok = _check_tool("npm")
     node_ok = _check_tool("node")
     if not npm_ok:
-        logger.error("npm is not installed on the server")
+        logger.error("[WARN] npm is not installed – project builds will fail")
     if not node_ok:
-        logger.error("node is not installed on the server")
+        logger.error("[WARN] node is not installed – project builds will fail")
     if npm_ok and node_ok:
         try:
             nv = subprocess.check_output(["node", "--version"], text=True).strip()
             logger.info("Node.js %s available for project builds", nv)
         except Exception:
             pass
+
+    # Check for git (needed for some deploy workflows)
+    if not _check_tool("git"):
+        logger.warning("[WARN] git is not installed – some deploy operations may fail")
 
     # List existing projects
     if PROJECTS_DIR.is_dir():
@@ -468,14 +474,15 @@ def deploy(project_id: str):
 
     files: list[dict] = data["files"]
     subdomain: str | None = data.get("subdomain")
+    env_vars: dict = data.get("env_vars", {})
 
     if not files:
         logger.error("Deploy %s: empty files list", project_id)
         return jsonify(success=False, error="No files provided"), 400
 
     logger.info(
-        "Deploy started for %s (%d files, subdomain=%s)",
-        project_id, len(files), subdomain,
+        "Deploy started for %s (%d files, subdomain=%s, env_vars=%d)",
+        project_id, len(files), subdomain, len(env_vars),
     )
 
     project_dir = _project_dir(project_id)
@@ -492,6 +499,13 @@ def deploy(project_id: str):
         logger.info("Deploy %s: cleaned previous deployment", project_id)
     else:
         project_dir.mkdir(parents=True, exist_ok=True)
+
+    # Write .env file if env vars provided
+    if env_vars:
+        env_content = "\n".join(f"{k}={v}" for k, v in env_vars.items())
+        env_path = project_dir / ".env"
+        env_path.write_text(env_content, encoding="utf-8")
+        logger.info("Deploy %s: wrote .env with %d variables", project_id, len(env_vars))
 
     # Write files
     written = 0
@@ -563,6 +577,7 @@ def deploy(project_id: str):
             "subdomain": subdomain,
             "domain": domain,
             "files_count": written,
+            "env_vars_count": len(env_vars),
             "deployed_at": datetime.now(timezone.utc).isoformat(),
             "dns_status": dns_result.get("action", "skipped"),
             "build": build_result.get("built", False),

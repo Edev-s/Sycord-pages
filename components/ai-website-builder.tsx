@@ -65,7 +65,7 @@ const LOG_ERROR_PATTERNS   = ['error', 'fail', 'exception']
 // How long to wait after deploy before the first log check (build pipeline startup time)
 const DEPLOY_LOG_CHECK_DELAY_MS = 8000
 
-type Step = "idle" | "planning" | "needs_info" | "appwrite_auth" | "coding" | "fixing" | "done"
+type Step = "idle" | "planning" | "needs_info" | "coding" | "fixing" | "done"
 
 interface Message {
   id: string
@@ -408,7 +408,7 @@ const GeminiBadge = () => (
     </div>
 )
 
-const InputBar = ({ input, setInput, onSend, disabled, selectedModel, setSelectedModel }: { input: string, setInput: (v: string) => void, onSend: () => void, disabled: boolean, selectedModel?: typeof MODELS[0], setSelectedModel?: (m: typeof MODELS[0]) => void }) => (
+const InputBar = ({ input, setInput, onSend, disabled }: { input: string, setInput: (v: string) => void, onSend: () => void, disabled: boolean }) => (
     <div className="w-full max-w-2xl mx-auto px-4 pb-6 md:pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 z-50 fixed bottom-0 left-0 right-0 md:static">
         <div className={cn(
             "rounded-[2.5rem] p-2 relative shadow-lg transition-all duration-300 border border-white/[0.06] bg-[#1c1c1c] flex items-center gap-2",
@@ -427,36 +427,6 @@ const InputBar = ({ input, setInput, onSend, disabled, selectedModel, setSelecte
                 disabled={disabled}
                 autoFocus={!disabled}
             />
-
-            {/* Model selector - compact pill */}
-            {setSelectedModel && selectedModel && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-8 rounded-full text-[10px] text-zinc-600 hover:text-zinc-400 hover:bg-white/5 px-2.5 shrink-0 gap-1">
-                    {(selectedModel as any).fast ? <Zap className="h-3 w-3 text-yellow-500" /> : null}
-                    <span className="hidden sm:inline">{selectedModel.name.split(' ').slice(0,2).join(' ')}</span>
-                    <ChevronDown className="h-3 w-3" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-[#1c1c1c] border-white/10 min-w-[200px]">
-                  {MODELS.map(m => (
-                    <DropdownMenuItem
-                      key={m.id}
-                      onClick={() => setSelectedModel(m)}
-                      className={cn(
-                        "text-xs",
-                        selectedModel.id === m.id ? "text-white bg-white/10" : "text-zinc-400"
-                      )}
-                    >
-                      <span className="flex items-center gap-2">
-                        {(m as any).fast ? <Zap className="h-3 w-3 text-yellow-500" /> : <Sparkles className="h-3 w-3 text-zinc-600" />}
-                        {m.name}
-                      </span>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
 
             <Button
                 size="icon"
@@ -708,10 +678,9 @@ interface AIWebsiteBuilderProps {
   generatedPages: GeneratedPage[]
   setGeneratedPages: React.Dispatch<React.SetStateAction<GeneratedPage[]>>
   autoFixLogs?: string[] | null
-  onDatabaseConnected?: () => void
 }
 
-const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFixLogs, onDatabaseConnected }: AIWebsiteBuilderProps) => {
+const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFixLogs }: AIWebsiteBuilderProps) => {
   const { data: session } = useSession()
   const userName = session?.user?.name?.split(' ')[0] || "there"
 
@@ -733,7 +702,6 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
   const [selectedModel, setSelectedModel] = useState(MODELS[0])
 
   const [fixHistory, setFixHistory] = useState<any[]>([])
-  const [requiresDatabase, setRequiresDatabase] = useState(false)
 
   // Thinking steps — shown during generation with icons matching the reference UI
   const [thinkingSteps, setThinkingSteps] = useState<ThinkingStep[]>([])
@@ -1045,9 +1013,6 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
     setSitemap([])
 
     try {
-      // Step 1: Web search for relevant information
-      upsertStep('search', { icon: 'searching', label: 'searching web for', detail: input.trim().substring(0, 60), status: 'pending' })
-
       const planResponse = await fetch("/api/ai/generate-plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1058,8 +1023,14 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       const planData = await planResponse.json()
       const generatedInstruction = planData.instruction
 
-      // Mark thinking as done
-      upsertStep('think', { status: 'done', detail: generatedInstruction.match(/## 1\. Business Goal\s*(.*?)(?:\n|$)/)?.[1]?.substring(0, 80) || undefined })
+      // Mark thinking as done with descriptive detail like the reference UI
+      const businessGoal = generatedInstruction.match(/## 1\. Business Goal\s*(.*?)(?:\n|$)/)?.[1]?.trim()
+      upsertStep('think', {
+        status: 'done',
+        detail: businessGoal
+          ? `I successfully created the plan for ${businessGoal.substring(0, 60)}. Now I proceed to create the frontend`
+          : 'I successfully analysed the request. Now I proceed to create the app'
+      })
 
       // Check if AI needs more info
       const questionMatch = generatedInstruction.match(/\[QUESTION\]\s*(.*)/i)
@@ -1076,28 +1047,22 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
           return
       }
 
-      // Step 2: Web search (fire and forget — results cached for generation)
-      upsertStep('search', { status: 'active' })
-      try {
-        await fetch("/api/ai/web-search", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: input.trim(), type: "general" }),
-        })
-      } catch { /* non-critical */ }
-      upsertStep('search', { status: 'done' })
+      // Web search — only when the plan indicates backend / data needs
+      const needsSearch = /database|backend|api|server|mongo|auth|payment|stripe|supabase/i.test(generatedInstruction)
+      if (needsSearch) {
+        upsertStep('search', { icon: 'searching', label: 'searching web for', detail: input.trim().substring(0, 60), status: 'active' })
+        try {
+          await fetch("/api/ai/web-search", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ query: input.trim(), type: "general" }),
+          })
+        } catch { /* non-critical */ }
+        upsertStep('search', { status: 'done' })
+      }
 
       // Parse sitemap from plan
       parseSitemap(generatedInstruction)
-
-      // Check if database is required
-      if (generatedInstruction.includes("## REQUIRES_DATABASE: true")) {
-          setRequiresDatabase(true)
-          setStep("appwrite_auth")
-          // We will wait for user to authenticate
-      } else {
-          setRequiresDatabase(false)
-      }
 
       setInstruction(generatedInstruction)
 
@@ -1112,9 +1077,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       // Start coding step
       upsertStep('code', { icon: 'creating', label: 'creating code for frontend', status: 'pending' })
 
-      if (!generatedInstruction.includes("## REQUIRES_DATABASE: true")) {
-          processNextStep(generatedInstruction, [...messages, userMessage, planMessage])
-      }
+      processNextStep(generatedInstruction, [...messages, userMessage, planMessage])
     } catch (err: any) {
       setError(err.message || "Planning failed")
       setStep("idle")
@@ -1163,10 +1126,6 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
         setActiveFileUsedFor(undefined)
         // Mark saving as done after a brief delay
         setTimeout(() => upsertStep('save', { status: 'done' }), 800)
-        // Auto-deploy for testing when Appwrite is connected
-        if (requiresDatabase) {
-          handleDeploy()
-        }
         return
       }
 
@@ -1287,6 +1246,33 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
 
   return (
     <div className="flex flex-col h-full bg-transparent text-zinc-100 font-sans relative">
+        {/* Model selector — pinned to top */}
+        <div className="w-full flex items-center justify-end px-4 py-2 z-20 shrink-0">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 rounded-full text-[11px] text-zinc-500 hover:text-zinc-300 hover:bg-white/5 px-3 gap-1.5 border border-white/[0.06]">
+                {(selectedModel as any).fast ? <Zap className="h-3 w-3 text-yellow-500" /> : <Sparkles className="h-3 w-3 text-zinc-600" />}
+                <span>{selectedModel.name}</span>
+                <ChevronDown className="h-3 w-3 ml-0.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-[#1c1c1c] border-white/10 min-w-[220px]">
+              {MODELS.map(m => (
+                <DropdownMenuItem
+                  key={m.id}
+                  onClick={() => setSelectedModel(m)}
+                  className={cn("text-xs", selectedModel.id === m.id ? "text-white bg-white/10" : "text-zinc-400")}
+                >
+                  <span className="flex items-center gap-2">
+                    {(m as any).fast ? <Zap className="h-3 w-3 text-yellow-500" /> : <Sparkles className="h-3 w-3 text-zinc-600" />}
+                    {m.name}
+                  </span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
         {/* Background Accents - idle only */}
         {step === 'idle' && (
             <>
@@ -1418,22 +1404,6 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                             </div>
                         )}
 
-                        {step === 'appwrite_auth' && (
-                            <div className="mt-4">
-                                <div className="flex items-center gap-2.5 py-3 mb-3 animate-in fade-in duration-300">
-                                    <Database className="h-3.5 w-3.5 shrink-0 text-[#FD366E]" />
-                                    <span className="text-sm text-zinc-400">Connect your Appwrite project to continue</span>
-                                </div>
-                                <AppwriteConnectionCard
-                                    projectId={projectId}
-                                    onConnect={() => {
-                                        onDatabaseConnected?.()
-                                        if (instruction) processNextStep(instruction, [...messages])
-                                    }}
-                                />
-                            </div>
-                        )}
-
                         {step === 'done' && (
                             <div className="py-3 mt-2 flex items-center gap-2.5 animate-in fade-in duration-300">
                                 <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
@@ -1500,8 +1470,6 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                 setInput={setInput}
                 onSend={startGeneration}
                 disabled={step !== 'idle' && step !== 'needs_info'}
-                selectedModel={selectedModel}
-                setSelectedModel={setSelectedModel}
             />
         </div>
     </div>

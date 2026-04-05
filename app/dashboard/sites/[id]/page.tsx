@@ -1536,7 +1536,6 @@ export default function SiteSettingsPage() {
                         generatedPages={generatedPages}
                         setGeneratedPages={setGeneratedPages}
                         autoFixLogs={autoFixLogs}
-                        onDatabaseConnected={() => setDatabaseConnected(true)}
                       />
                     </div>
                   ) : (
