@@ -54,6 +54,7 @@ import {
   Wallet,
   BadgeCheck,
   Coins,
+  RefreshCw,
 } from "lucide-react"
 import { currencySymbols } from "@/lib/webshop-types"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -1578,27 +1579,42 @@ export default function SiteSettingsPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       {generatedPages.length > 0 && (
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={async () => {
-                            if (!confirm("Are you sure you want to delete ALL generated pages? This cannot be undone.")) return;
-                            try {
-                              const res = await fetch(`/api/projects/${id}/pages?all=true`, { method: "DELETE" });
-                              if (res.ok) {
-                                setGeneratedPages([]);
-                                setSelectedPage(null);
-                              } else {
-                                throw new Error("Failed to delete all pages");
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleDeploy}
+                            disabled={isDeploying}
+                          >
+                            {isDeploying ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <RefreshCw className="h-4 w-4 mr-2" />
+                            )}
+                            Redeploy
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={async () => {
+                              if (!confirm("Are you sure you want to delete ALL generated pages? This cannot be undone.")) return;
+                              try {
+                                const res = await fetch(`/api/projects/${id}/pages?all=true`, { method: "DELETE" });
+                                if (res.ok) {
+                                  setGeneratedPages([]);
+                                  setSelectedPage(null);
+                                } else {
+                                  throw new Error("Failed to delete all pages");
+                                }
+                              } catch (e: any) {
+                                alert(e.message);
                               }
-                            } catch (e: any) {
-                              alert(e.message);
-                            }
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete All
-                        </Button>
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete All
+                          </Button>
+                        </>
                       )}
                       <Button onClick={() => setActiveTab("ai")}>
                          <Sparkles className="h-4 w-4 mr-2" />

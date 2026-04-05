@@ -258,35 +258,35 @@ const StepIcon = ({ type, className }: { type: ThinkingStep['icon'], className?:
 }
 
 const ThinkingStepRow = ({ step }: { step: ThinkingStep }) => (
-  <div className="flex items-start gap-3 py-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
-    <div className={cn(
-      "h-9 w-9 rounded-xl flex items-center justify-center shrink-0 border transition-colors duration-300",
-      step.status === 'active' ? "bg-white/10 border-white/10 text-zinc-200" : "bg-white/[0.04] border-white/[0.06] text-zinc-500"
-    )}>
-      {step.status === 'active' ? (
-        <StepIcon type={step.icon} className="h-4.5 w-4.5 animate-pulse" />
-      ) : step.status === 'done' ? (
-        <StepIcon type={step.icon} className="h-4.5 w-4.5" />
-      ) : (
-        <StepIcon type={step.icon} className="h-4.5 w-4.5 opacity-40" />
-      )}
-    </div>
-    <div className="flex-1 min-w-0 pt-1">
+  <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+    <div className="flex items-center gap-2.5 py-2.5">
+      <div className={cn(
+        "h-7 w-7 rounded-full flex items-center justify-center shrink-0 border transition-colors duration-300",
+        step.status === 'active' ? "border-white/10 text-zinc-300" : "border-white/[0.06] text-zinc-500"
+      )}>
+        {step.status === 'active' ? (
+          <StepIcon type={step.icon} className="h-3.5 w-3.5 animate-pulse" />
+        ) : step.status === 'done' ? (
+          <StepIcon type={step.icon} className="h-3.5 w-3.5" />
+        ) : (
+          <StepIcon type={step.icon} className="h-3.5 w-3.5 opacity-40" />
+        )}
+      </div>
       <p className={cn(
-        "text-sm font-medium transition-colors duration-300",
-        step.status === 'active' ? "text-zinc-300" : step.status === 'done' ? "text-zinc-500" : "text-zinc-600"
+        "text-sm transition-colors duration-300",
+        step.status === 'active' ? "text-zinc-400" : step.status === 'done' ? "text-zinc-500" : "text-zinc-600"
       )}>
         {step.label}
       </p>
-      {step.detail && (
-        <p className={cn(
-          "text-xs mt-0.5 leading-relaxed transition-colors duration-300",
-          step.status === 'active' ? "text-zinc-500" : "text-zinc-600"
-        )}>
-          {step.detail}
-        </p>
-      )}
     </div>
+    {step.detail && (
+      <p className={cn(
+        "text-sm leading-relaxed pl-0 mt-0 mb-2 transition-colors duration-300",
+        step.status === 'active' ? "text-zinc-500" : "text-zinc-600"
+      )}>
+        {step.detail}
+      </p>
+    )}
   </div>
 )
 
@@ -1384,7 +1384,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                         {/* ── Thinking Steps — icon-based like the reference UI ── */}
 
                         {thinkingSteps.length > 0 && (step === 'planning' || step === 'coding' || step === 'fixing' || step === 'done') && (
-                            <div className="mt-3 space-y-0 animate-in fade-in duration-300">
+                            <div className="mt-4 space-y-2 animate-in fade-in duration-300">
                                 {thinkingSteps.map(s => (
                                     <ThinkingStepRow key={s.id} step={s} />
                                 ))}
