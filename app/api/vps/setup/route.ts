@@ -58,8 +58,9 @@ export async function POST(request: Request) {
 
       console.log(`[VPS Setup] Installing Flask & deps via pip...`)
       // Install dependencies system-wide so nohup subprocesses can find them
+      // Use --break-system-packages for PEP 668 compatibility on newer Ubuntu
       await ssh.execCommand('sudo apt-get update && sudo apt-get install -y python3-pip || true', { cwd })
-      await run(`python3 -m pip install flask requests`, cwd)
+      await run(`python3 -m pip install flask requests --break-system-packages || python3 -m pip install flask requests`, cwd)
 
       ssh.dispose()
       return NextResponse.json({ success: true, message: "VPS Initialized! Repository cloned and dependencies installed." })

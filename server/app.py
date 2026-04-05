@@ -60,7 +60,7 @@ except ImportError:
     )
     sys.exit(1)
 
-# requests is optional but needed for DNS auto-config
+# requests is optional for basic serving but required for DNS auto-config
 try:
     import requests as _requests_mod
 except ImportError:
@@ -172,11 +172,11 @@ def _ensure_dns_record(subdomain: str) -> dict:
     """
     if not CF_API_KEY or not CF_ZONE_ID:
         logger.info("DNS auto-config skipped for %s (no Cloudflare credentials)", subdomain)
-        return {"success": False, "action": "skipped", "error": "Cloudflare credentials not configured"}
+        return {"success": True, "action": "skipped", "reason": "Cloudflare credentials not configured"}
 
     if _requests_mod is None:
         logger.warning("DNS auto-config skipped – 'requests' package not installed")
-        return {"success": False, "action": "skipped", "error": "requests package not installed"}
+        return {"success": True, "action": "skipped", "reason": "requests package not installed"}
 
     fqdn = f"{subdomain}.sycord.site"
     headers = {
