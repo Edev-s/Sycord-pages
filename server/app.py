@@ -237,10 +237,99 @@ def serve_subdomain_content():
 
 @app.route("/")
 def index():
-    return Response(
-        "flask is working on server",
-        content_type="text/plain; charset=utf-8",
-    )
+    html = """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Sycord VPS Runner - Manual Deploy</title>
+        <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0a0a0a; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+            .container { max-width: 400px; width: 100%; padding: 2rem; background: #141414; border: 1px solid #333; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+            h1 { margin-bottom: 1.5rem; font-size: 1.5rem; text-align: center; color: #10b981; }
+            label { display: block; margin-bottom: 0.5rem; color: #a1a1aa; font-size: 0.875rem; }
+            input { width: 100%; padding: 0.75rem; margin-bottom: 1.5rem; background: #1e1e1e; border: 1px solid #333; color: #fff; border-radius: 4px; box-sizing: border-box; }
+            button { width: 100%; padding: 0.75rem; background: #10b981; color: #fff; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+            button:hover { background: #059669; }
+            button:disabled { background: #064e3b; cursor: not-allowed; }
+            #message { margin-top: 1rem; text-align: center; font-size: 0.875rem; }
+            .success { color: #10b981; }
+            .error { color: #ef4444; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Deploy from GitHub</h1>
+            <form id="deploy-form">
+                <label for="project-id">Project ID</label>
+                <input type="text" id="project-id" placeholder="e.g., project-123" required>
+
+                <label for="subdomain">Subdomain (Optional)</label>
+                <input type="text" id="subdomain" placeholder="e.g., my-awesome-site">
+
+                <label for="github-url">GitHub Repository URL / ID</label>
+                <input type="text" id="github-url" placeholder="e.g., https://github.com/user/repo" required>
+
+                <button type="submit" id="deploy-btn">Deploy Application</button>
+            </form>
+            <div id="message"></div>
+        </div>
+
+        <script>
+            document.getElementById('deploy-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const projectId = document.getElementById('project-id').value.trim();
+                const subdomain = document.getElementById('subdomain').value.trim();
+                const githubUrl = document.getElementById('github-url').value.trim();
+
+                const btn = document.getElementById('deploy-btn');
+                const msg = document.getElementById('message');
+
+                btn.disabled = true;
+                btn.textContent = 'Deploying...';
+                msg.textContent = '';
+                msg.className = '';
+
+                try {
+                    const response = await fetch(`/api/deploy/github/${projectId}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            github_url: githubUrl,
+                            subdomain: subdomain || undefined
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok && data.success) {
+                        msg.textContent = 'Deployment successful!';
+                        msg.className = 'success';
+
+                        if (data.domain) {
+                            setTimeout(() => {
+                                window.open(`https://${data.domain}`, '_blank');
+                            }, 1500);
+                        }
+                    } else {
+                        msg.textContent = data.error || 'Deployment failed';
+                        msg.className = 'error';
+                    }
+                } catch (err) {
+                    msg.textContent = 'Network error or server unreachable';
+                    msg.className = 'error';
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = 'Deploy Application';
+                }
+            });
+        </script>
+    </body>
+    </html>
+    """
+    return Response(html, content_type="text/html; charset=utf-8")
 
 
 @app.route("/api/health", methods=["GET"])
@@ -276,6 +365,151 @@ def health():
             data["resources_error"] = "psutil not installed on server"
 
     return jsonify(data)
+
+
+# ── API: GitHub Deploy ────────────────────────────────────────────────────
+
+@app.route("/api/deploy/github/<project_id>", methods=["POST"])
+def deploy_github(project_id: str):
+    """Accept a JSON payload with ``github_url`` and optional ``subdomain``.
+
+    Clones the repository and deploys it.
+    """
+    data = request.get_json(silent=True)
+    if not data or "github_url" not in data:
+        return jsonify(success=False, error="Request body must include 'github_url'"), 400
+
+    github_url: str = data["github_url"]
+    subdomain: str | None = data.get("subdomain")
+
+    if subdomain:
+        # Prevent directory traversal
+        subdomain = os.path.basename(subdomain)
+
+    # Clean up github url to handle "owner/repo" format as well
+    if not github_url.startswith("http"):
+        if "/" in github_url:
+            github_url = f"https://github.com/{github_url}"
+        else:
+            return jsonify(success=False, error="Invalid GitHub URL or Repo ID"), 400
+
+    # Ensure it ends with .git for cloning
+    if not github_url.endswith(".git"):
+        github_url += ".git"
+
+    project_dir = _project_dir(project_id)
+
+    import tempfile
+
+    # Clean previous deployment
+    if project_dir.exists():
+        for item in project_dir.iterdir():
+            if item.name == ".meta.json":
+                continue
+            if item.is_dir():
+                shutil.rmtree(item)
+            else:
+                item.unlink()
+    else:
+        project_dir.mkdir(parents=True, exist_ok=True)
+
+    # Clone the repository
+    logger.info("Cloning repository %s for project %s", github_url, project_id)
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        try:
+            # Clone into temporary directory
+            subprocess.run(
+                ["git", "clone", "--depth", "1", github_url, temp_dir],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=60
+            )
+        except subprocess.CalledProcessError as e:
+            logger.error("Git clone failed: %s", e.stderr)
+            return jsonify(success=False, error=f"Git clone failed: {e.stderr}"), 500
+        except subprocess.TimeoutExpired:
+            logger.error("Git clone timed out")
+            return jsonify(success=False, error="Git clone timed out"), 500
+        except Exception as e:
+            logger.error("Failed to clone repository: %s", str(e))
+            return jsonify(success=False, error=f"Failed to clone repository: {str(e)}"), 500
+
+        # Remove the .git folder so we just have the raw files
+        git_dir = Path(temp_dir) / ".git"
+        if git_dir.exists():
+            shutil.rmtree(git_dir)
+
+        # Move files to project_dir
+        for item in Path(temp_dir).iterdir():
+            dest = project_dir / item.name
+            if dest.exists():
+                if dest.is_dir():
+                    shutil.rmtree(dest)
+                else:
+                    dest.unlink()
+            shutil.move(str(item), str(project_dir))
+
+    # Count files (excluding meta)
+    written = sum(1 for p in project_dir.rglob("*") if p.is_file() and p.name != ".meta.json")
+
+    # Symlink subdomain
+    if subdomain:
+        link = PROJECTS_DIR / subdomain
+        if link.exists() or link.is_symlink():
+            if link.is_symlink():
+                link.unlink()
+            elif link.resolve() != project_dir.resolve():
+                shutil.rmtree(link)
+        if not link.exists():
+            link.symlink_to(project_dir)
+
+    # Build step
+    build_result: dict | None = None
+    if _is_buildable_project(project_dir):
+        logger.info("Detected buildable project %s – starting build", project_id)
+        build_result = _build_project(project_id, project_dir)
+
+    # Persist metadata
+    domain = f"{subdomain}.sycord.site" if subdomain else None
+    meta = _read_meta(project_id) or {}
+    meta.update(
+        {
+            "project_id": project_id,
+            "subdomain": subdomain,
+            "domain": domain,
+            "files_count": written,
+            "github_url": github_url,
+            "deployed_at": datetime.now(timezone.utc).isoformat(),
+            "build": {
+                "attempted": build_result is not None,
+                "success": build_result["success"] if build_result else None,
+                "error": build_result.get("error") if build_result else None,
+            },
+        },
+    )
+    _write_meta(project_id, meta)
+
+    logger.info("Deployed project %s from GitHub (%d files, subdomain=%s, build=%s)",
+                project_id, written, subdomain,
+                build_result["success"] if build_result else "skipped")
+
+    response: dict = {
+        "success": True,
+        "project_id": project_id,
+        "domain": domain,
+        "files_count": written,
+        "source": "github"
+    }
+    if build_result:
+        response["build"] = {
+            "success": build_result["success"],
+            "output": build_result["output"],
+            "error": build_result.get("error"),
+        }
+
+    return jsonify(response)
 
 
 # ── API: Deploy ───────────────────────────────────────────────────────────

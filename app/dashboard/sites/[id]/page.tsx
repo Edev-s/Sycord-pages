@@ -605,6 +605,10 @@ export default function SiteSettingsPage() {
 
   // Auto-Fix State
   const [logs, setLogs] = useState<string[]>([])
+
+  // GitHub Deploy State
+  const [githubRepoName, setGithubRepoName] = useState("")
+  const [isDeployingGithub, setIsDeployingGithub] = useState(false)
   const [hasDeployError, setHasDeployError] = useState(false)
   const [autoFixLogs, setAutoFixLogs] = useState<string[] | null>(null)
   const [showAutoFix, setShowAutoFix] = useState(false)
@@ -1907,6 +1911,45 @@ export default function SiteSettingsPage() {
                     <div className="flex items-center gap-2">
                       {generatedPages.length > 0 && (
                         <>
+                          <div className="flex items-center gap-2 mr-2">
+                            <Input
+                              placeholder="GitHub Repo Name"
+                              value={githubRepoName}
+                              onChange={(e) => setGithubRepoName(e.target.value)}
+                              className="h-9 w-40 bg-black/20 text-xs"
+                            />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={isDeployingGithub}
+                              onClick={async () => {
+                                if (!githubRepoName) {
+                                  alert("Please enter a GitHub repo name")
+                                  return
+                                }
+                                setIsDeployingGithub(true)
+                                try {
+                                  const res = await fetch("/api/github/save", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ projectId: id, repoName: githubRepoName })
+                                  })
+                                  if (!res.ok) {
+                                    const errorData = await res.json()
+                                    throw new Error(errorData.error || "Failed to save to GitHub")
+                                  }
+                                  const data = await res.json()
+                                  alert(`Successfully saved to GitHub: ${data.url}`)
+                                } catch (e: any) {
+                                  alert(e.message)
+                                } finally {
+                                  setIsDeployingGithub(false)
+                                }
+                              }}
+                            >
+                              {isDeployingGithub ? "Saving..." : "Deploy to GitHub"}
+                            </Button>
+                          </div>
                           <Button
                             variant="outline"
                             size="sm"
