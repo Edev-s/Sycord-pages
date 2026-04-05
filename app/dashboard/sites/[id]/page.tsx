@@ -479,7 +479,7 @@ export default function SiteSettingsPage() {
   const [productError, setProductError] = useState<string | null>(null)
 
   const [activeTab, setActiveTab] = useState<
-    "overview" | "pages" | "ai" | "settings" | "items" | "promotions" | "payments" | "customers" | "posts" | "segments"
+    "overview" | "pages" | "ai" | "settings" | "items" | "promotions" | "payments" | "customers" | "posts" | "segments" | "integrations"
   >("overview")
   const [selectedStyle, setSelectedStyle] = useState<string | null>(null)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
@@ -1004,6 +1004,7 @@ export default function SiteSettingsPage() {
         { id: "overview", label: "Overview", icon: Layout },
         { id: "pages", label: "Pages", icon: FileText },
         { id: "ai", label: "Syra", icon: Zap },
+        { id: "integrations", label: "Integrations", icon: Database },
         { id: "settings", label: "Settings", icon: Settings },
       ],
     },
@@ -1687,6 +1688,124 @@ export default function SiteSettingsPage() {
                     </div>
                   )}
                </div>
+            )}
+
+            {/* TAB CONTENT: INTEGRATIONS */}
+            {activeTab === "integrations" && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-bold">Integrations</h2>
+                  <button
+                    onClick={() => {
+                      const key = prompt("Environment variable name (e.g. MY_API_KEY):")
+                      if (!key) return
+                      const val = prompt(`Value for ${key}:`)
+                      if (val === null) return
+                      fetch(`/api/projects/${project._id}/env`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ key, value: val }),
+                      }).then(() => window.location.reload())
+                    }}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/10 text-sm text-white hover:bg-white/15 transition-colors"
+                  >
+                    <Plus className="h-4 w-4" /> Add Env
+                  </button>
+                </div>
+
+                <p className="text-sm text-zinc-400">
+                  Connect services and manage environment variables for your project. When your AI-generated code requires a database or API, add the credentials here — they will be passed to the deployer.
+                </p>
+
+                {/* Integration Options */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {[
+                    {
+                      id: "mongodb",
+                      name: "MongoDB",
+                      envKey: "MONGODB_URI",
+                      placeholder: "mongodb+srv://user:pass@cluster.mongodb.net/db",
+                      logo: "https://www.mongodb.com/assets/images/global/favicon.ico",
+                      color: "#00684A",
+                      description: "NoSQL document database",
+                    },
+                    {
+                      id: "supabase",
+                      name: "Supabase",
+                      envKey: "SUPABASE_URL",
+                      placeholder: "https://abc.supabase.co",
+                      logo: "https://supabase.com/favicon/favicon-32x32.png",
+                      color: "#3ECF8E",
+                      description: "Open source Firebase alternative",
+                    },
+                    {
+                      id: "stripe",
+                      name: "Stripe",
+                      envKey: "STRIPE_SECRET_KEY",
+                      placeholder: "sk_live_...",
+                      logo: "https://stripe.com/favicon.ico",
+                      color: "#635BFF",
+                      description: "Payment processing",
+                    },
+                    {
+                      id: "firebase",
+                      name: "Firebase",
+                      envKey: "FIREBASE_API_KEY",
+                      placeholder: "AIzaSy...",
+                      logo: "https://www.gstatic.com/devrel-devsite/prod/v0e0f589edd85502a40d78d7d0825db8ea5ef3b99ab4070381ee86977c9168730/firebase/images/favicon.png",
+                      color: "#FFCA28",
+                      description: "Google cloud platform for apps",
+                    },
+                  ].map((integration) => (
+                    <Card key={integration.id} className="bg-card/50 backdrop-blur-sm border-white/10 overflow-hidden">
+                      <CardContent className="p-5">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div
+                            className="h-10 w-10 rounded-xl flex items-center justify-center"
+                            style={{ backgroundColor: `${integration.color}20` }}
+                          >
+                            <img
+                              src={integration.logo}
+                              alt={integration.name}
+                              className="h-6 w-6 object-contain"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none'
+                              }}
+                            />
+                          </div>
+                          <div>
+                            <h3 className="text-sm font-semibold text-white">{integration.name}</h3>
+                            <p className="text-xs text-zinc-500">{integration.description}</p>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => {
+                            const val = prompt(`Enter your ${integration.name} connection string (${integration.envKey}):`, integration.placeholder)
+                            if (val === null || !val.trim()) return
+                            fetch(`/api/projects/${project._id}/env`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                key: integration.envKey,
+                                value: val.trim(),
+                                integration: integration.id,
+                              }),
+                            }).then((res) => {
+                              if (res.ok) {
+                                alert(`${integration.name} connected! The env var ${integration.envKey} will be available during deployment.`)
+                              }
+                            })
+                          }}
+                          className="w-full py-2.5 rounded-xl text-xs font-medium bg-white/[0.06] text-zinc-300 hover:bg-white/10 transition-colors border border-white/[0.06]"
+                        >
+                          Connect {integration.name}
+                        </button>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
             )}
 
             {/* TAB CONTENT: SETTINGS */}

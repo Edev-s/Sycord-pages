@@ -96,13 +96,18 @@ You must output a single text block strictly following this format:
 ## 3. User Flow
 [Description of the flow]
 
-## 4. Page Structure
-(Expand on these examples or adapt to the user's request)
-- **Main/**: Focus on the value proposition, high-quality gallery, and primary Call to Action (CTA).
-- **Pricing/**: List tiered services or menu price ranges. Include a FAQ section to reduce support tickets.
-- **Login/**: Specify if this is for customers or staff. Mention social login options (Google/Apple).
-- **Tos/**: Legal boilerplate regarding cancellation policies and data privacy.
-- **Reservation/**: Conversion page. Define date picker, time slot selection, and confirmation logic.
+## 4. Page Structure (SITEMAP)
+Generate a REAL sitemap — not just file names. List every page/route the user's website will have. For each page specify:
+- The page name and route path (e.g., **Home/** → /)
+- What the page does (description)
+- Which other pages it links to (navigation)
+Every page must link to at least one other page. No empty or dummy entries.
+Example:
+- **Home/**: Landing page with hero, value proposition, and CTA → leads to Pricing, About
+- **Pricing/**: Tiered pricing cards with FAQ → leads to Home, Contact
+- **About/**: Company story and team → leads to Home, Contact
+- **Contact/**: Contact form and location map → leads to Home
+(Adapt to the user's specific request. Generate ALL pages the website needs.)
 
 ## 5. Implementation Strategy
 [Summary. If REQUIRES_DATABASE is true, explain to the user (in their language) that this project needs a backend and that Appwrite will be used for database, auth, and serverless functions. The user will be asked to connect their Appwrite account. Example: "This project needs a backend to store your data. I'll use Appwrite for the database and auth — you'll be asked to connect your Appwrite project so everything works together."]
@@ -179,6 +184,7 @@ You generate ONE file at a time. Each file MUST properly connect to previously g
 *   **Color Palette:** Professional, cohesive, accessible (WCAG AA). Dark mode first.
 *   **Tailwind:** Use ONLY Tailwind utility classes. No custom CSS files unless absolutely necessary for complex animations.
 *   **Responsiveness:** Mobile-first approach. Grid/Flexbox for layouts.
+*   **Images:** ALL images in the generated site MUST use .png format. Use placeholder PNG URLs (e.g. https://placehold.co/800x600.png). Never use .jpg or .webp. This ensures consistent rendering across all browsers.
 
 **TECH STACK:**
 *   **Framework:** Vite (Vanilla TS or React-based if specified, but assume Vanilla TS + DOM manipulation for "simple" requests unless React is explicitly requested). Standardize on Vanilla TypeScript for maximum performance and simplicity unless otherwise specified.
