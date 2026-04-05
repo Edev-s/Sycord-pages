@@ -572,6 +572,37 @@ def deploy_github(project_id: str):
                 project_id, written, subdomain,
                 build_result["success"] if build_result else "skipped")
 
+    if build_result and not build_result["success"]:
+        response: dict = {
+            "success": False,
+            "error": f"Build failed: {build_result.get('error')}",
+            "project_id": project_id,
+            "domain": domain,
+            "files_count": written,
+            "source": "github",
+            "build": {
+                "success": build_result["success"],
+                "output": build_result["output"],
+                "error": build_result.get("error"),
+            }
+        }
+        return jsonify(response), 500
+
+    if build_result and not build_result["success"]:
+        response: dict = {
+            "success": False,
+            "error": f"Build failed: {build_result.get('error')}",
+            "project_id": project_id,
+            "domain": domain,
+            "files_count": written,
+            "build": {
+                "success": build_result["success"],
+                "output": build_result["output"],
+                "error": build_result.get("error"),
+            }
+        }
+        return jsonify(response), 500
+
     response: dict = {
         "success": True,
         "project_id": project_id,

@@ -227,7 +227,7 @@ export async function POST(request: Request) {
 
       console.log(`[VPS Setup] Installing Flask & deps via pip...`)
       // Install system packages needed for Python and Node.js for Vite builds
-      await ssh.execCommand('sudo apt-get update && sudo apt-get install -y python3-pip python3-venv git curl wget nodejs npm || true', { cwd })
+      await ssh.execCommand('curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt-get install -y nodejs python3-pip python3-venv git curl wget || true', { cwd })
 
       // On modern Ubuntu (23.04+), PEP 668 marks the system Python as
       // "externally-managed", which causes `pip3 install --user` to fail.
