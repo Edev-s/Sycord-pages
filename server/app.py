@@ -3,12 +3,13 @@ Sycord Pages – Flask VPS Server
 ================================
 A lightweight Flask application that serves deployed websites via subdomain
 detection.  The server is exposed to the internet through a Cloudflare Tunnel,
-so every ``<project>.yourdomain.com`` request lands here and is resolved to
+so every ``<project>.sycord.site`` request lands here and is resolved to
 the correct project files stored on disk.
 
 API surface
 -----------
 POST   /api/deploy/<project_id>        – upload / update project files
+GET    /api/projects                    – list all deployed projects
 GET    /api/projects/<project_id>       – project metadata
 GET    /api/logs?project_id=…&limit=…   – recent server logs
 DELETE /api/projects/<project_id>       – remove a project and its files
@@ -26,6 +27,13 @@ import subprocess
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+
+# Load .env file if python-dotenv is installed
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # python-dotenv not installed, rely on system env vars
 
 from flask import Flask, Response, abort, jsonify, request, send_from_directory
 
@@ -205,7 +213,12 @@ def serve_subdomain_content():
         abort(403)
 
     if target.is_file():
-        return send_from_directory(str(serve_dir), rel_path)
+        # Vite hashed assets (e.g. /assets/index-abc123.js) are immutable;
+        # set long cache headers so browsers don't re-fetch them.
+        resp = send_from_directory(str(serve_dir), rel_path)
+        if rel_path.startswith("assets/"):
+            resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        return resp
 
     # Try appending index.html for directory-style URLs
     if (serve_dir / rel_path / "index.html").is_file():
@@ -233,12 +246,36 @@ def index():
 @app.route("/api/health", methods=["GET"])
 def health():
     """Health-check endpoint used by the keep-alive cron to ensure the runner
-    stays warm 24/7."""
-    return jsonify(
-        status="ok",
-        timestamp=datetime.now(timezone.utc).isoformat(),
-        service="sycord-runner",
-    )
+    stays warm 24/7.  When ``?detailed=true`` is passed, the response also
+    includes system-resource metrics (CPU, RAM, disk) that the admin Runner
+    tab consumes."""
+    data: dict = {
+        "status": "ok",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "service": "sycord-runner",
+    }
+
+    if request.args.get("detailed") == "true":
+        try:
+            import psutil  # type: ignore[import-untyped]
+
+            mem = psutil.virtual_memory()
+            disk = psutil.disk_usage("/")
+            data["resources"] = {
+                "cpu_percent": psutil.cpu_percent(interval=0.5),
+                "ram_total_mb": round(mem.total / 1024 / 1024),
+                "ram_used_mb": round(mem.used / 1024 / 1024),
+                "ram_percent": mem.percent,
+                "disk_total_gb": round(disk.total / 1024 / 1024 / 1024, 1),
+                "disk_used_gb": round(disk.used / 1024 / 1024 / 1024, 1),
+                "disk_percent": disk.percent,
+            }
+        except ImportError:
+            # psutil is not installed – return basic info instead
+            data["resources"] = None
+            data["resources_error"] = "psutil not installed on server"
+
+    return jsonify(data)
 
 
 # ── API: Deploy ───────────────────────────────────────────────────────────
@@ -311,7 +348,7 @@ def deploy(project_id: str):
         build_result = _build_project(project_id, project_dir)
 
     # Persist metadata
-    domain = f"{subdomain}.sycord.com" if subdomain else None
+    domain = f"{subdomain}.sycord.site" if subdomain else None
     meta = _read_meta(project_id) or {}
     meta.update(
         {
@@ -368,6 +405,31 @@ def project_info(project_id: str):
     meta["files"] = file_list
     meta["success"] = True
     return jsonify(meta)
+
+
+# ── API: List all projects ────────────────────────────────────────────────
+
+@app.route("/api/projects", methods=["GET"])
+def list_projects():
+    """Return a list of all deployed projects with their metadata."""
+    projects = []
+    if PROJECTS_DIR.is_dir():
+        for entry in sorted(PROJECTS_DIR.iterdir()):
+            # Skip symlinks (subdomain aliases) to avoid duplicates
+            if entry.is_symlink():
+                continue
+            if not entry.is_dir():
+                continue
+            meta = _read_meta(entry.name)
+            projects.append({
+                "project_id": entry.name,
+                "subdomain": meta.get("subdomain") if meta else None,
+                "domain": meta.get("domain") if meta else None,
+                "deployed_at": meta.get("deployed_at") if meta else None,
+                "files_count": meta.get("files_count", 0) if meta else 0,
+                "build": meta.get("build") if meta else None,
+            })
+    return jsonify(success=True, projects=projects)
 
 
 # ── API: Logs ──────────────────────────────────────────────────────────────

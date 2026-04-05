@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 import { NodeSSH } from "node-ssh"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
+import { readFileSync } from "fs"
+import { join } from "path"
 
 /**
  * Helper: Ensure a proxied CNAME record exists for the given hostname.
@@ -161,6 +163,15 @@ async function upsertCfCname(
   }
 }
 
+/**
+ * Read the Flask server code from `server/app.py` in the repository.
+ * Used as the default `runner.py` when no custom script is provided.
+ */
+function readDefaultFlaskApp(): string {
+  const appPyPath = join(process.cwd(), "server", "app.py")
+  return readFileSync(appPyPath, "utf-8")
+}
+
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
@@ -222,10 +233,10 @@ export async function POST(request: Request) {
       // "externally-managed", which causes `pip3 install --user` to fail.
       // We first try a virtual-env install (preferred), then fall back to
       // --break-system-packages so Flask is definitely available.
-      const venvRes = await run(`python3 -m venv ${cwd}/venv && ${cwd}/venv/bin/pip install flask gunicorn`, cwd)
+      const venvRes = await run(`python3 -m venv ${cwd}/venv && ${cwd}/venv/bin/pip install flask gunicorn python-dotenv psutil`, cwd)
       if (venvRes.stderr && venvRes.stderr.includes('Error')) {
         console.log(`[VPS Setup] venv install failed, falling back to --break-system-packages`)
-        await run(`pip3 install --user --break-system-packages flask gunicorn || pip3 install --user flask gunicorn`, cwd)
+        await run(`pip3 install --user --break-system-packages flask gunicorn python-dotenv psutil || pip3 install --user flask gunicorn python-dotenv psutil`, cwd)
       }
 
       ssh.dispose()
@@ -412,9 +423,16 @@ ingress:
     if (action === "start_server") {
       console.log(`[VPS Setup] Running Step 4: Start Server...`)
 
-      if (!pythonRunnerScript) {
-        ssh.dispose()
-        return NextResponse.json({ error: "Missing python runner script" }, { status: 400 })
+      // Use provided script or fall back to the repo's server/app.py
+      let script = pythonRunnerScript
+      if (!script) {
+        try {
+          script = readDefaultFlaskApp()
+          console.log(`[VPS Setup] No custom runner script provided, using server/app.py from repo (${script.length} bytes)`)
+        } catch (readErr: any) {
+          ssh.dispose()
+          return NextResponse.json({ error: `Missing python runner script and failed to read server/app.py: ${readErr.message}` }, { status: 400 })
+        }
       }
 
       // Write optional SSL Certs if provided
@@ -430,7 +448,7 @@ ingress:
 
       // Write runner.py (force remove old one first)
       await run(`rm -f runner.py`, cwd)
-      await ssh.execCommand(`cat > runner.py`, { cwd, stdin: pythonRunnerScript })
+      await ssh.execCommand(`cat > runner.py`, { cwd, stdin: script })
 
       // Kill existing processes forcefully
       await run('pkill -9 -f "runner\\.py" || true', cwd)
@@ -452,8 +470,8 @@ ingress:
       // Wait 2 seconds to see if processes crash immediately
       await new Promise(r => setTimeout(r, 2000))
 
-      const psResFlask = await run('pgrep -f "python3.*/runner.py"', cwd)
-      if (!psResFlask.stdout) {
+      const psResFlask = await run('pgrep -f "runner\\.py" || true', cwd)
+      if (!psResFlask.stdout.trim()) {
          console.warn("[VPS Setup] Flask server doesn't appear to be running after start.")
          const flaskLog = await run(`tail -n 30 ${cwd}/runner.log`, cwd)
          ssh.dispose()
@@ -462,8 +480,8 @@ ingress:
          }, { status: 500 })
       }
 
-      const psResTunnel = await run('pgrep -f "cloudflared tunnel.*sycord-runner"', cwd)
-      if (!psResTunnel.stdout) {
+      const psResTunnel = await run('pgrep -f "cloudflared.*tunnel" || true', cwd)
+      if (!psResTunnel.stdout.trim()) {
          console.warn("[VPS Setup] Cloudflared tunnel crashed. Fetching log...")
          const logTail = await run(`tail -n 20 ${cwd}/tunnel.log`, cwd)
          ssh.dispose()
@@ -478,24 +496,30 @@ ingress:
 
     // --- STATUS CHECK ---
     if (action === "status") {
-      const flaskPid = await run('pgrep -f "python3.*/runner.py"', cwd)
-      const tunnelPid = await run('pgrep -f "cloudflared tunnel.*sycord-runner"', cwd)
+      // Use multiple detection strategies for the Flask process:
+      // 1. pgrep with broader pattern (handles venv python paths)
+      // 2. Check if port 5000 is in use (most reliable)
+      const flaskPgrep = await run('pgrep -f "runner\\.py" || true', cwd)
+      const portCheck = await run('ss -tlnp 2>/dev/null | grep ":5000 " || lsof -i :5000 -t 2>/dev/null || true', cwd)
+      const tunnelPid = await run('pgrep -f "cloudflared.*tunnel" || true', cwd)
       const tunnelLog = await run(`tail -n 10 ${cwd}/tunnel.log 2>/dev/null`, cwd)
       const runnerLog = await run(`tail -n 10 ${cwd}/runner.log 2>/dev/null`, cwd)
 
+      const flaskPidStr = flaskPgrep.stdout.trim()
+      const portInUse = !!portCheck.stdout.trim()
+      const flaskRunning = !!flaskPidStr || portInUse
+      const tunnelPidStr = tunnelPid.stdout.trim()
+
       ssh.dispose()
+      // Return flat keys so the admin UI can read them directly
       return NextResponse.json({
         success: true,
-        flask: {
-          running: !!flaskPid.stdout.trim(),
-          pid: flaskPid.stdout.trim() || null,
-          log: runnerLog.stdout || null,
-        },
-        tunnel: {
-          running: !!tunnelPid.stdout.trim(),
-          pid: tunnelPid.stdout.trim() || null,
-          log: tunnelLog.stdout || null,
-        },
+        flask_running: flaskRunning,
+        flask_pid: flaskPidStr || (portInUse ? "(port 5000 active)" : null),
+        tunnel_running: !!tunnelPidStr,
+        tunnel_pid: tunnelPidStr || null,
+        flask_log: runnerLog.stdout || null,
+        tunnel_log: tunnelLog.stdout || null,
       })
     }
 
@@ -515,11 +539,21 @@ ingress:
         return NextResponse.json({ error: "config.yml not found. Run the Config step (Step 3) first." }, { status: 400 })
       }
 
-      // Verify runner.py exists
-      const runnerCheck = await run(`test -f ${cwd}/runner.py && echo EXISTS || echo MISSING`, cwd)
-      if (runnerCheck.stdout.trim() !== 'EXISTS') {
-        ssh.dispose()
-        return NextResponse.json({ error: "runner.py not found. Run the Start Server step (Step 4) first." }, { status: 400 })
+      // Always update runner.py with the latest server/app.py so subdomain
+      // serving, .env loading and new API endpoints are available.
+      try {
+        const latestApp = readDefaultFlaskApp()
+        await run(`rm -f runner.py`, cwd)
+        await ssh.execCommand(`cat > runner.py`, { cwd, stdin: latestApp })
+        console.log(`[VPS Setup] Updated runner.py with latest server/app.py (${latestApp.length} bytes)`)
+      } catch (readErr: any) {
+        // Fall back to existing runner.py if we can't read the repo file
+        console.warn(`[VPS Setup] Could not update runner.py from repo: ${readErr.message}`)
+        const runnerCheck = await run(`test -f ${cwd}/runner.py && echo EXISTS || echo MISSING`, cwd)
+        if (runnerCheck.stdout.trim() !== 'EXISTS') {
+          ssh.dispose()
+          return NextResponse.json({ error: "runner.py not found and could not read server/app.py from repo." }, { status: 400 })
+        }
       }
 
       // Use venv python if the virtual-env exists, otherwise fall back to system python3
@@ -532,10 +566,10 @@ ingress:
 
       await new Promise(r => setTimeout(r, 3000))
 
-      const flaskUp = await run('pgrep -f "python3.*/runner.py"', cwd)
-      const tunnelUp = await run('pgrep -f "cloudflared tunnel.*sycord-runner"', cwd)
+      const flaskUp = await run('pgrep -f "runner\\.py" || true', cwd)
+      const tunnelUp = await run('pgrep -f "cloudflared.*tunnel" || true', cwd)
 
-      if (!flaskUp.stdout) {
+      if (!flaskUp.stdout.trim()) {
         const flaskLog = await run(`tail -n 30 ${cwd}/runner.log`, cwd)
         ssh.dispose()
         return NextResponse.json({
@@ -543,7 +577,7 @@ ingress:
         }, { status: 500 })
       }
 
-      if (!tunnelUp.stdout) {
+      if (!tunnelUp.stdout.trim()) {
         const logTail = await run(`tail -n 20 ${cwd}/tunnel.log`, cwd)
         ssh.dispose()
         return NextResponse.json({
@@ -555,6 +589,29 @@ ingress:
       return NextResponse.json({
         success: true,
         message: `Restarted! Flask: running, Tunnel: running.`
+      })
+    }
+
+    // --- WRITE ENV FILE ---
+    if (action === "write_env") {
+      const { envVars } = body
+      if (!envVars || typeof envVars !== "object") {
+        ssh.dispose()
+        return NextResponse.json({ error: "envVars object is required" }, { status: 400 })
+      }
+
+      // Build .env content from key-value pairs
+      const envContent = Object.entries(envVars)
+        .filter(([, v]) => v !== undefined && v !== null && v !== "")
+        .map(([k, v]) => `${k}=${v}`)
+        .join("\n")
+
+      await ssh.execCommand(`cat > .env`, { cwd, stdin: envContent + "\n" })
+
+      ssh.dispose()
+      return NextResponse.json({
+        success: true,
+        message: `.env file written with ${Object.keys(envVars).length} variables.`
       })
     }
 

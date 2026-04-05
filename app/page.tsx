@@ -95,16 +95,19 @@ export default function LandingPage() {
       src: "https://github.com/user-attachments/assets/6f4659c9-0989-47c0-b282-731ae5961df7",
       alt: "Best AI model on the market — Gemini 3.1",
       label: "Best AI model on the market",
+      description: "Powered by the latest Gemini AI models for intelligent website generation",
     },
     {
       src: "https://github.com/user-attachments/assets/95665e35-5f9c-4a6d-9255-8a5b9dfd5d01",
       alt: "Share it! better with friend",
       label: "Share it! better with friend",
+      description: "Share your creations and collaborate with friends seamlessly",
     },
     {
       src: "https://github.com/user-attachments/assets/9c1a2ed9-1179-4e69-9c24-40058dc0e53d",
       alt: "building never been this easy",
       label: "building never been this easy",
+      description: "From idea to live website in just a few clicks",
     },
   ]
   const { scrollRef: featuresScrollRef, activeIndex: featuresActiveIndex } = useCarouselIndex(featureImages.length)
@@ -130,7 +133,7 @@ export default function LandingPage() {
       <main className="w-full flex-1 flex flex-col">
 
         {/* ── Hero Section (Mobile + Desktop) ── */}
-        <section className="relative w-full overflow-visible min-h-[75vh] md:min-h-[70vh] pb-32 md:pb-40">
+        <section className="relative w-full overflow-visible min-h-[75vh] md:min-h-[60vh] pb-32 md:pb-40">
           {/* Metallic corrugated background - optimized with Next.js Image for instant loading */}
           <Image
             src="https://github.com/user-attachments/assets/2f738fc4-174b-45f8-9831-25fcf4fd788f"
@@ -190,6 +193,26 @@ export default function LandingPage() {
                 <Link href="#pricing">View pricing</Link>
               </Button>
             </div>
+
+            {/* Decorative SVG illustration — desktop only */}
+            <svg className="hidden md:block absolute right-0 top-1/2 -translate-y-1/2 w-[340px] h-[340px] opacity-20 pointer-events-none" viewBox="0 0 340 340" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="170" cy="170" r="140" stroke="white" strokeWidth="0.5" strokeDasharray="4 6"/>
+              <circle cx="170" cy="170" r="100" stroke="white" strokeWidth="0.5" strokeDasharray="3 5"/>
+              <circle cx="170" cy="170" r="60" stroke="white" strokeWidth="0.5"/>
+              <circle cx="170" cy="70" r="3" fill="white" fillOpacity="0.4"/>
+              <circle cx="270" cy="170" r="3" fill="white" fillOpacity="0.4"/>
+              <circle cx="170" cy="270" r="3" fill="white" fillOpacity="0.4"/>
+              <circle cx="70" cy="170" r="3" fill="white" fillOpacity="0.4"/>
+              <circle cx="240" cy="100" r="2" fill="white" fillOpacity="0.3"/>
+              <circle cx="100" cy="240" r="2" fill="white" fillOpacity="0.3"/>
+              <circle cx="240" cy="240" r="2" fill="white" fillOpacity="0.3"/>
+              <circle cx="100" cy="100" r="2" fill="white" fillOpacity="0.3"/>
+              <line x1="170" y1="30" x2="170" y2="310" stroke="white" strokeWidth="0.3" strokeDasharray="2 4"/>
+              <line x1="30" y1="170" x2="310" y2="170" stroke="white" strokeWidth="0.3" strokeDasharray="2 4"/>
+              <line x1="70" y1="70" x2="270" y2="270" stroke="white" strokeWidth="0.3" strokeDasharray="2 4"/>
+              <line x1="270" y1="70" x2="70" y2="270" stroke="white" strokeWidth="0.3" strokeDasharray="2 4"/>
+              <circle cx="170" cy="170" r="4" fill="white" fillOpacity="0.5"/>
+            </svg>
           </div>
         </section>
 
@@ -205,7 +228,7 @@ export default function LandingPage() {
             }`}
           >
             <RevealSection className="w-full py-8 md:py-16 md:px-8 relative">
-              <div className="max-w-6xl md:mx-auto">
+              <div className="max-w-7xl md:mx-auto">
                 {/* Heading — desktop only; on mobile the cards speak for themselves */}
                 <h2 className="hidden md:block text-xl md:text-3xl font-bold text-white text-center mb-4 md:mb-2">Why Choose Sycord?</h2>
                 <p className="hidden md:block text-sm md:text-base text-[#8A8E91] text-center mb-10 md:mb-12 max-w-xl mx-auto">
@@ -223,21 +246,24 @@ export default function LandingPage() {
                     <div
                       key={i}
                       data-carousel-card
-                      className="relative w-[75vw] md:w-auto h-64 sm:h-72 md:h-96 flex-shrink-0 md:flex-shrink rounded-3xl overflow-hidden"
+                      className="flex-shrink-0 md:flex-shrink"
                       style={{ scrollSnapAlign: "center" }}
                     >
-                      {/* Badge label — mobile only */}
-                      <div className="md:hidden absolute top-3 left-3 z-10 bg-black/55 backdrop-blur-md border border-white/10 text-white text-[11px] font-medium px-3 py-1.5 rounded-full whitespace-nowrap">
-                        {img.label}
+                      <div className="relative w-[75vw] md:w-auto h-64 sm:h-72 md:h-96 rounded-3xl overflow-hidden">
+                        {/* Badge label — mobile only */}
+                        <div className="md:hidden absolute top-3 left-3 z-10 bg-black/55 backdrop-blur-md border border-white/10 text-white text-[11px] font-medium px-3 py-1.5 rounded-full whitespace-nowrap">
+                          {img.label}
+                        </div>
+                        <Image
+                          src={img.src}
+                          alt={img.alt}
+                          fill
+                          className="object-cover"
+                          loading="lazy"
+                          sizes="(max-width: 640px) 75vw, (max-width: 768px) 80vw, 33vw"
+                        />
                       </div>
-                      <Image
-                        src={img.src}
-                        alt={img.alt}
-                        fill
-                        className="object-cover"
-                        loading="lazy"
-                        sizes="(max-width: 640px) 75vw, (max-width: 768px) 80vw, 33vw"
-                      />
+                      <p className="hidden md:block text-sm text-[#8A8E91] text-center mt-3">{img.description}</p>
                     </div>
                   ))}
                 </div>
@@ -281,8 +307,8 @@ export default function LandingPage() {
         </section>
 
         {/* Pricing Section */}
-        <RevealSection id="pricing" className="w-full px-4 md:px-8 py-12 md:py-20">
-          <div className="max-w-6xl mx-auto">
+        <RevealSection id="pricing" className="w-full px-4 md:px-8 py-12 md:py-16">
+          <div className="max-w-7xl mx-auto">
             <h2 className="text-2xl md:text-4xl font-bold text-white text-center mb-3">Simple, Transparent Pricing</h2>
             <p className="text-sm md:text-base text-[#8A8E91] text-center mb-10 md:mb-12 max-w-xl mx-auto">
               Choose the perfect plan for your needs. Always flexible to scale as you grow.
@@ -584,7 +610,7 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="w-full border-t border-white/5 frosted-glass-light mt-8 md:mt-16">
-        <div className="max-w-6xl mx-auto px-4 md:px-8 py-10 md:py-14">
+        <div className="max-w-7xl mx-auto px-4 md:px-8 py-10 md:py-14">
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-10 md:gap-16 mb-10">
             <div className="flex-shrink-0">
               <div className="flex items-center gap-2 mb-3">

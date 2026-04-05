@@ -133,37 +133,7 @@ function DashboardContent() {
       <SheetContent side="left" className="w-72">
         <nav className="flex flex-col gap-4 mt-8">
           <Link href="/dashboard" className="text-sm text-foreground font-medium px-4 py-2 hover:bg-accent rounded-md">
-            Áttekintés
-          </Link>
-          <Link
-            href="#"
-            className="text-sm text-muted-foreground hover:text-foreground px-4 py-2 hover:bg-accent rounded-md"
-          >
-            Projektek
-          </Link>
-          <Link
-            href="/subscriptions"
-            className="text-sm text-muted-foreground hover:text-foreground px-4 py-2 hover:bg-accent rounded-md"
-          >
-            Plans
-          </Link>
-          <Link
-            href="#"
-            className="text-sm text-muted-foreground hover:text-foreground px-4 py-2 hover:bg-accent rounded-md"
-          >
-            Analitika
-          </Link>
-          <Link
-            href="/dashboard/webshop-demo"
-            className="text-sm text-muted-foreground hover:text-foreground px-4 py-2 hover:bg-accent rounded-md"
-          >
-            Webshop Demo
-          </Link>
-          <Link
-            href="/dashboard/credits"
-            className="text-sm text-muted-foreground hover:text-foreground px-4 py-2 hover:bg-accent rounded-md"
-          >
-            Credits
+            Dashboard
           </Link>
         </nav>
       </SheetContent>
@@ -229,35 +199,7 @@ function DashboardContent() {
                   </span>
                 )}
               </Link>
-              <nav className="hidden md:flex items-center gap-6">
-                <Link href="/dashboard" className="text-sm text-foreground font-medium">
-                  Áttekintés
-                </Link>
-                <Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                  Projektek
-                </Link>
-                <Link
-                  href="/subscriptions"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Plans
-                </Link>
-                <Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                  Analitika
-                </Link>
-                <Link
-                  href="/dashboard/webshop-demo"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Webshop Demo
-                </Link>
-                <Link
-                  href="/dashboard/credits"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Credits
-                </Link>
-              </nav>
+              
             </div>
             <div className="flex items-center gap-2 md:gap-3">
               <MobileNav />
@@ -313,7 +255,7 @@ function DashboardContent() {
           <div className="flex flex-col gap-4 mb-6 md:mb-8">
             <div className="flex items-center justify-between">
               <h1 className="text-lg font-semibold text-foreground">Projektek</h1>
-              <Button onClick={() => setIsModalOpen(true)} className="w-auto frosted-card hover:bg-white/10 border-white/10">
+              <Button onClick={() => setIsModalOpen(true)} className="w-auto frosted-glass-light hover:bg-white/15 text-foreground border-white/10">
                 <Plus className="h-4 w-4 mr-2" />
                 Új Projekt
               </Button>
@@ -348,7 +290,7 @@ function DashboardContent() {
                 <p className="text-sm text-muted-foreground mb-6">
                   Kezdje el első projektjét, és indítsa el weboldalát {"{"}name{"}"}.pages.dev címen
                 </p>
-                <Button onClick={() => setIsModalOpen(true)} className="frosted-card hover:bg-white/10 border-white/10">
+                <Button onClick={() => setIsModalOpen(true)} className="frosted-glass-light hover:bg-white/15 text-foreground border-white/10">
                   <Plus className="h-4 w-4 mr-2" />
                   Első Projekt Létrehozása
                 </Button>

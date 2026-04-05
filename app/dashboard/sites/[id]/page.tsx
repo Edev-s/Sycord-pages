@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -44,7 +44,6 @@ import {
   FileCode,
   FileType,
   ChevronRight,
-  ChevronDown,
   Code,
   Lock,
   Database,
@@ -59,6 +58,7 @@ import {
   Server,
   Mail,
   HardDrive,
+  Terminal,
 } from "lucide-react"
 import { currencySymbols } from "@/lib/webshop-types"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -74,6 +74,7 @@ import { useSession, signOut } from "next-auth/react"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { SitePreviewDashboard } from "@/components/site-preview-dashboard"
+import { AutoFixModal } from "@/components/auto-fix-modal"
 
 const headerComponents = {
   simple: { name: "Simple", description: "A clean, minimalist header" },
@@ -380,14 +381,14 @@ const SidebarContent = ({
                 {group.title}
               </h3>
             )}
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               {group.items.map((item: any) => {
-                const Icon = item.icon
                 const hasChildren = item.children && item.children.length > 0
                 const isExpanded = expandedFolders.has(item.id)
                 const isActive = activeTab === item.id
                 const isLocked = item.requiresDatabase && !databaseConnected
                 const isChildActive = hasChildren && item.children.some((c: any) => activeTab === c.id)
+                const FolderIcon = hasChildren ? (isExpanded ? FolderOpen : Folder) : item.icon
 
                 return (
                   <div key={item.id}>
@@ -404,7 +405,7 @@ const SidebarContent = ({
                       disabled={isLocked}
                       title={isLocked ? "Connect a database to unlock this feature" : undefined}
                       className={cn(
-                        "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 text-sm font-medium text-left",
+                        "w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md transition-all duration-200 text-sm font-medium text-left",
                         isActive && !hasChildren
                           ? "bg-primary text-primary-foreground shadow-sm"
                           : isChildActive
@@ -414,7 +415,10 @@ const SidebarContent = ({
                           : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
                       )}
                     >
-                      <Icon className="h-4 w-4 flex-shrink-0" />
+                      {hasChildren && (
+                        <ChevronRight className={cn("h-3 w-3 shrink-0 transition-transform duration-200", isExpanded ? "rotate-90" : "rotate-0")} />
+                      )}
+                      <FolderIcon className="h-4 w-4 flex-shrink-0" />
                       <span className="truncate flex-1 text-left">{item.label}</span>
                       {item.badge && (
                         <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border border-white/25 bg-transparent text-foreground/70 shrink-0">
@@ -422,12 +426,9 @@ const SidebarContent = ({
                         </span>
                       )}
                       {isLocked && <Lock className="h-3 w-3 shrink-0 opacity-50" />}
-                      {hasChildren && (
-                        <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 transition-transform duration-200", isExpanded ? "" : "-rotate-90")} />
-                      )}
                     </button>
                     {hasChildren && isExpanded && (
-                      <div className="ml-4 mt-1 space-y-0.5 border-l border-white/10 pl-3">
+                      <div className="ml-[18px] mt-0.5 space-y-0.5 border-l border-white/8 pl-3">
                         {item.children.map((child: any) => {
                           const ChildIcon = child.icon
                           const isChildItemActive = activeTab === child.id
@@ -606,31 +607,69 @@ export default function SiteSettingsPage() {
   const [logs, setLogs] = useState<string[]>([])
   const [hasDeployError, setHasDeployError] = useState(false)
   const [autoFixLogs, setAutoFixLogs] = useState<string[] | null>(null)
+  const [showAutoFix, setShowAutoFix] = useState(false)
+  const [showDeployLogs, setShowDeployLogs] = useState(false)
+  const logPanelRef = useRef<HTMLDivElement>(null)
 
   // Database / Firebase connection state
   const [databaseConnected, setDatabaseConnected] = useState(false)
 
   const fetchLogs = async (repoIdOverride?: string) => {
     const targetId = repoIdOverride || project?.vpsProjectId || project?.githubRepoId
-    if (!targetId) return
+    if (!targetId) {
+      console.warn("[Deploy Debug] fetchLogs skipped — no targetId available.", {
+        repoIdOverride,
+        vpsProjectId: project?.vpsProjectId ?? "(not set)",
+        githubRepoId: project?.githubRepoId ?? "(not set)",
+      })
+      return
+    }
 
     try {
-        const vpsUrl = process.env.NEXT_PUBLIC_VPS_SERVER_URL || "https://server.sycord.site"
-        const res = await fetch(`${vpsUrl}/api/logs?project_id=${targetId}&limit=50`)
+        const logsEndpoint = `/api/logs?project_id=${encodeURIComponent(targetId)}&limit=50`
+        console.log(`[Deploy Debug] Fetching logs from: ${logsEndpoint}`)
+        const res = await fetch(logsEndpoint)
+        console.log(`[Deploy Debug] Logs response status: ${res.status} ${res.statusText}`)
         if (res.ok) {
             const data = await res.json()
+            console.log(`[Deploy Debug] Logs response:`, { success: data.success, logCount: data.logs?.length ?? 0 })
             if (data.success && Array.isArray(data.logs)) {
                 setLogs(data.logs)
+
+                // Debug: output deploy logs to browser console
+                const sanitizedId = String(targetId).replace(/[^a-zA-Z0-9_-]/g, '')
+                console.group(`[Deploy Logs] project_id=${sanitizedId}`)
+                data.logs.forEach((line: string) => {
+                  if (line.toLowerCase().includes('error') || line.toLowerCase().includes('fail')) {
+                    console.error(line)
+                  } else {
+                    console.log(line)
+                  }
+                })
+                console.groupEnd()
+
+                // Auto-scroll the log panel to the bottom
+                setTimeout(() => {
+                  const panel = logPanelRef.current
+                  if (panel) panel.scrollTo({ top: panel.scrollHeight, behavior: 'smooth' })
+                }, 100)
+
                 // Extract URL from logs if present
                 const combinedLogs = data.logs.join('\n')
                 const urlMatch = combinedLogs.match(/Take a peek over at[\s\S]*?(https:\/\/[a-zA-Z0-9.-]+\.pages\.dev)/)
 
                 if (urlMatch && urlMatch[1]) {
                     const url = urlMatch[1].trim().replace(/\.$/, '')
+                    console.log(`[Deploy Debug] ✅ Extracted deploy URL from logs: ${url}`)
                     setProject((prev: any) => ({ ...prev, cloudflareUrl: url }))
                     setDeployResult((prev: any) => ({ ...prev, url, message: "Deployed to Cloudflare Pages!" }))
                     setDeploySuccess(true)
                     setHasDeployError(false)
+                } else {
+                    console.warn("[Deploy Debug] ⚠️ No deploy URL found in logs. Pattern 'Take a peek over at ... .pages.dev' not matched.")
+                    // Log last 5 lines for quick debugging
+                    const tail = data.logs.slice(-5)
+                    console.log("[Deploy Debug] Last 5 log lines:", tail)
                 }
 
                 // Simple error detection in logs
@@ -643,11 +682,22 @@ export default function SiteSettingsPage() {
                     log.toLowerCase().includes('exception')
                 )
 
+                console.log("[Deploy Debug] Log analysis:", { successFound, errorFound, urlExtracted: !!urlMatch })
+
                 // Only set error if we haven't already found success (URL extraction above sets it to false)
                 if (!urlMatch) {
                     setHasDeployError(errorFound)
+                    // Auto-open the AI auto-fix modal when deploy errors are detected
+                    if (errorFound && generatedPages.length > 0) {
+                        console.warn("[Deploy Debug] 🔧 Deploy errors detected, opening auto-fix modal")
+                        setShowAutoFix(true)
+                    }
                 }
+            } else {
+                console.warn("[Deploy Debug] Logs response was not successful or logs not an array:", { success: data.success, logsType: typeof data.logs })
             }
+        } else {
+            console.warn(`[Deploy Debug] Logs endpoint returned non-OK status: ${res.status}`)
         }
     } catch (e) {
         console.error("Failed to fetch logs", e)
@@ -660,11 +710,26 @@ export default function SiteSettingsPage() {
     const fetchAllData = async () => {
       console.log(`[v0] Settings page: Starting data fetch for project ${id}`)
       try {
+        // Capture the vpsProjectId from the fetched data so we can pass it to
+        // fetchLogs() directly — React state (project) hasn't updated yet when
+        // Promise.all resolves, so relying on project?.vpsProjectId would be null.
+        let fetchedVpsProjectId: string | null = null
+
         const fetchProject = fetch(`/api/projects/${id}`)
           .then((r) => r.json())
           .then((data) => {
             console.log("[v0] Project data fetched:", data ? "Success" : "Empty")
+            console.log("[Deploy Debug] Initial project state:", {
+              cloudflareUrl: data?.cloudflareUrl ?? "(not set)",
+              vpsProjectId: data?.vpsProjectId ?? "(not set)",
+              githubRepoId: data?.githubRepoId ?? "(not set)",
+              subdomain: data?.subdomain ?? "(not set)",
+              deployedAt: data?.deployedAt ?? "(never deployed)",
+              pagesCount: data?.pages?.length ?? 0,
+              githubUrl: data?.githubUrl ?? "(not set)",
+            })
             if (data.message) throw new Error(data.message)
+            fetchedVpsProjectId = data.vpsProjectId || data.githubRepoId || null
             setProject(data)
             setShopName(data.businessName || "")
             if (data.firebaseConnected) setDatabaseConnected(true)
@@ -712,7 +777,9 @@ export default function SiteSettingsPage() {
 
         await Promise.all([fetchProject, fetchSettings, fetchProducts])
         console.log("[v0] All data fetches completed")
-        fetchLogs()
+        // Pass fetchedVpsProjectId directly because project state hasn't re-rendered yet
+        console.log(`[Deploy Debug] Calling fetchLogs with captured vpsProjectId: ${fetchedVpsProjectId ?? "(none)"}`)
+        fetchLogs(fetchedVpsProjectId ?? undefined)
       } catch (error) {
         console.error("[v0] Error in fetchAllData:", error)
       } finally {
@@ -732,6 +799,18 @@ export default function SiteSettingsPage() {
       })
       .catch(() => { console.warn("[Sycord] Could not fetch user status from /api/user/status; defaulting to free Sycord plan credits.") })
   }, [])
+
+  // Debug: log key deployment state whenever it changes
+  useEffect(() => {
+    console.log("[Deploy Debug] Deployment state update:", {
+      previewUrl: project?.cloudflareUrl ?? "(not set — site will NOT display)",
+      vpsProjectId: project?.vpsProjectId ?? "(not set)",
+      deployedAt: project?.deployedAt ?? "(never)",
+      isDeploying,
+      hasDeployError,
+      logCount: logs.length,
+    })
+  }, [project?.cloudflareUrl, project?.vpsProjectId, project?.deployedAt, isDeploying, hasDeployError, logs.length])
 
   const handleStyleSelect = (style: string) => {
     console.log("[v0] Selected style:", style)
@@ -913,13 +992,20 @@ export default function SiteSettingsPage() {
   }
 
   const pollForDomain = async (repoId: string, attempts = 0) => {
-    if (attempts >= 40) return
+    const MAX_POLL_ATTEMPTS = 40
+    if (attempts >= MAX_POLL_ATTEMPTS) {
+      console.error(`[Deploy Debug] ❌ Domain polling exhausted all ${MAX_POLL_ATTEMPTS} attempts for repoId=${repoId}. Site may not have deployed.`)
+      return
+    }
 
     try {
+      console.log(`[Deploy Debug] Polling domain attempt ${attempts + 1}/${MAX_POLL_ATTEMPTS} for repoId=${repoId}`)
       const res = await fetch(`/api/deploy/${repoId}/domain`)
       const data = await res.json()
+      console.log(`[Deploy Debug] Domain poll response:`, { success: data.success, domain: data.domain ?? "(not found)", message: data.message ?? "" })
 
       if (data.success && data.domain) {
+        console.log(`[Deploy Debug] ✅ Domain found: ${data.domain}`)
         setProject((prev: any) => ({ ...prev, cloudflareUrl: data.domain }))
         setDeployResult((prev: any) => ({
             ...prev,
@@ -931,18 +1017,21 @@ export default function SiteSettingsPage() {
         setTimeout(() => pollForDomain(repoId, attempts + 1), 3000)
       }
     } catch (e) {
-      console.error("Polling error:", e)
+      console.error(`[Deploy Debug] Polling error (attempt ${attempts + 1}):`, e)
     }
   }
 
   const handleDeploy = async () => {
     if (isDeploying) return
     
+    console.log("[Deploy Debug] 🚀 handleDeploy started", { projectId: id })
     setIsDeploying(true)
     setDeployProgress(0)
     setDeploySuccess(false)
     setDeployResult(null)
     setDeployError(null)
+    setShowDeployLogs(true)
+    setLogs(["[Sycord] Starting deployment…"])
 
     const PROGRESS_INTERVAL_MS = 400
     const PROGRESS_INCREMENT = 10
@@ -960,6 +1049,7 @@ export default function SiteSettingsPage() {
         })
       }, PROGRESS_INTERVAL_MS)
 
+      console.log("[Deploy Debug] POSTing to /api/deploy with projectId:", id)
       const response = await fetch("/api/deploy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -967,13 +1057,25 @@ export default function SiteSettingsPage() {
       })
 
       clearInterval(progressInterval)
+      console.log(`[Deploy Debug] Deploy API response status: ${response.status} ${response.statusText}`)
 
       if (!response.ok) {
         const errorData = await response.json()
+        console.error("[Deploy Debug] ❌ Deploy API error response:", errorData)
         throw new Error(errorData.error || "Deployment failed")
       }
 
       const result = await response.json()
+      console.log("[Deploy Debug] Deploy API success response:", {
+        success: result.success,
+        url: result.url ?? "(null)",
+        cloudflareUrl: result.cloudflareUrl ?? "(null)",
+        filesCount: result.filesCount,
+        projectId: result.projectId ?? "(null)",
+        repoId: result.repoId ?? "(null)",
+        message: result.message,
+      })
+      setLogs(prev => [...prev, `[Sycord] Files sent to server (${result.filesCount} files)`])
 
       setDeployProgress(100)
       setDeploySuccess(true)
@@ -984,13 +1086,30 @@ export default function SiteSettingsPage() {
 
       if (result.projectId || result.repoId) {
           const deployId = result.projectId || result.repoId
-          setProject((prev: any) => ({ ...prev, vpsProjectId: deployId, githubRepoId: deployId }))
+          console.log(`[Deploy Debug] Deploy ID: ${deployId}, cloudflareUrl in response: ${result.cloudflareUrl ?? "(null)"}`)
+          setProject((prev: any) => ({ ...prev, vpsProjectId: deployId, githubRepoId: deployId, deployedAt: new Date().toISOString() }))
+          setLogs(prev => [...prev, `[Sycord] Building on server… fetching build logs`])
           if (!result.cloudflareUrl) {
+              console.log("[Deploy Debug] No cloudflareUrl in deploy response — starting domain polling…")
               pollForDomain(deployId)
           } else {
+              console.log(`[Deploy Debug] ✅ cloudflareUrl set from deploy response: ${result.cloudflareUrl}`)
               setProject((prev: any) => ({ ...prev, cloudflareUrl: result.cloudflareUrl }))
           }
-          fetchLogs(deployId)
+          // Poll logs to catch VPS build errors that occur after the deploy request succeeds
+          const LOG_POLL_ATTEMPTS = 3
+          const LOG_POLL_DELAY_MS = 5000
+          console.log(`[Deploy Debug] Starting log polling: ${LOG_POLL_ATTEMPTS} attempts, ${LOG_POLL_DELAY_MS}ms interval`)
+          const pollLogs = async (attempts: number, delayMs: number) => {
+            await fetchLogs(deployId)
+            for (let attempt = 1; attempt < attempts; attempt++) {
+              await new Promise(r => setTimeout(r, delayMs))
+              await fetchLogs(deployId)
+            }
+          }
+          pollLogs(LOG_POLL_ATTEMPTS, LOG_POLL_DELAY_MS).catch(e => console.error("[Deploy Debug] Log polling error:", e))
+      } else {
+          console.warn("[Deploy Debug] ⚠️ No projectId or repoId in deploy response — cannot poll for domain or logs")
       }
 
       const SUCCESS_DISPLAY_DURATION_MS = 5000
@@ -1000,12 +1119,20 @@ export default function SiteSettingsPage() {
       }, SUCCESS_DISPLAY_DURATION_MS)
 
     } catch (err: any) {
+      console.error("[Deploy Debug] ❌ handleDeploy caught error:", err.message || err)
       setDeployError(err.message || "Deployment failed")
       setDeployProgress(0)
       setHasDeployError(true)
-      setTimeout(fetchLogs, 1000)
+      setLogs(prev => [...prev, `[Sycord] ERROR: ${err.message || "Deployment failed"}`])
+      // Fetch logs after short delay to capture VPS-side error details
+      const LOG_FETCH_DELAY_MS = 2000
+      console.log(`[Deploy Debug] Will fetch VPS logs in ${LOG_FETCH_DELAY_MS}ms to capture server-side errors…`)
+      setTimeout(async () => {
+        await fetchLogs()
+      }, LOG_FETCH_DELAY_MS)
     } finally {
       setIsDeploying(false)
+      console.log("[Deploy Debug] handleDeploy finished")
     }
   }
 
@@ -1068,24 +1195,19 @@ export default function SiteSettingsPage() {
             { id: "ai", label: "Syra", icon: Zap },
           ],
         },
-        { id: "settings", label: "Settings", icon: Settings },
-      ],
-    },
-    {
-      title: "Integrations",
-      items: [
-        { id: "int-pterodactyl", label: "Pterodactyl", icon: Server },
-        { id: "int-mongodb", label: "MongoDB", icon: Database },
-        { id: "int-stripe", label: "Stripe", icon: CreditCard },
         {
-          id: "int-google",
-          label: "Google",
-          icon: Mail,
+          id: "integrations",
+          label: "Integrations",
+          icon: Plug,
           children: [
-            { id: "int-google-drive", label: "Drive", icon: HardDrive },
-            { id: "int-google-mail", label: "Mail", icon: Mail },
+            { id: "int-pterodactyl", label: "Pterodactyl", icon: Server },
+            { id: "int-mongodb", label: "MongoDB", icon: Database },
+            { id: "int-stripe", label: "Stripe", icon: CreditCard },
+            { id: "int-google-drive", label: "Google Drive", icon: HardDrive },
+            { id: "int-google-mail", label: "Google Mail", icon: Mail },
           ],
         },
+        { id: "settings", label: "Settings", icon: Settings },
       ],
     },
     ...(siteType === "blog"
@@ -1120,14 +1242,26 @@ export default function SiteSettingsPage() {
   const previewUrl = project?.cloudflareUrl || null
   const displayUrl = previewUrl ? previewUrl.replace(/^https?:\/\//, "") : null
 
+  // Determine if there are undeployed changes
+  const needsDeploy = (() => {
+    if (!project) return false
+    // If never deployed but has pages, needs deploy
+    if (!project.deployedAt && generatedPages.length > 0) return true
+    if (!project.deployedAt) return false
+    // If any page was updated after the last deploy
+    const deployedTime = new Date(project.deployedAt).getTime()
+    return generatedPages.some((p) => p.timestamp > deployedTime)
+  })()
+
   return (
+    <>
     <div className="flex h-[100dvh] bg-background overflow-hidden relative"
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
     >
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex flex-col w-64 border-r border-white/10 bg-black/40 backdrop-blur-xl shrink-0">
+      <aside className="hidden md:flex flex-col w-64 frosted-glass !border-0 rounded-r-2xl shrink-0">
         <SidebarContent
           project={project}
           activeTab={activeTab}
@@ -1148,7 +1282,7 @@ export default function SiteSettingsPage() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className={cn("border-b border-white/10 frosted-glass z-20 shrink-0")}>
+        <header className={cn("frosted-glass !border-0 z-20 shrink-0")}>
           <div className="flex items-center justify-between h-14 px-4 md:px-6">
             {/* Mobile: hamburger + site name */}
             <div className="flex items-center gap-2 md:hidden">
@@ -1335,6 +1469,119 @@ export default function SiteSettingsPage() {
             {activeTab === "overview" && (() => {
               return (
                 <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+
+                    {/* DEPLOY NOTICE BANNER */}
+                    {(needsDeploy || (!previewUrl && generatedPages.length > 0)) && (
+                      <div
+                        className="flex items-center justify-between gap-3 px-4 py-3 rounded-2xl"
+                        style={{ background: "#252527", border: "1px solid rgba(255,255,255,0.08)" }}
+                      >
+                        <p className="text-[13px] text-zinc-300 text-center flex-1 leading-snug">
+                          Some changes are not deployed,{"\n"}please deploy to see
+                        </p>
+                        <button
+                          onClick={handleDeploy}
+                          disabled={isDeploying}
+                          className="h-9 px-5 rounded-full text-[12px] font-semibold text-white shrink-0 transition-opacity hover:opacity-85 active:opacity-70 disabled:opacity-60"
+                          style={{ background: "#3a3a3c" }}
+                        >
+                          {isDeploying ? "deploying…" : "deploy"}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* DEPLOY PROGRESS BAR */}
+                    {isDeploying && (
+                      <div className="h-1 w-full rounded-full overflow-hidden" style={{ background: "#2e2e30" }}>
+                        <div
+                          className="h-full rounded-full transition-all duration-300"
+                          style={{ width: `${deployProgress}%`, background: "#22a846" }}
+                        />
+                      </div>
+                    )}
+
+                    {/* DEPLOY ERROR */}
+                    {deployError && (
+                      <div
+                        className="flex items-center gap-2 px-4 py-3 rounded-2xl text-[13px] text-red-400"
+                        style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)" }}
+                      >
+                        <AlertCircle className="h-4 w-4 shrink-0" />
+                        {deployError}
+                      </div>
+                    )}
+
+                    {/* DEPLOY LOG TERMINAL — visible during/after deployment */}
+                    {(logs.length > 0 || isDeploying) && (
+                      <div
+                        className="rounded-2xl overflow-hidden"
+                        style={{ background: "#1a1a1c", border: "1px solid rgba(255,255,255,0.08)" }}
+                      >
+                        {/* Header */}
+                        <button
+                          onClick={() => setShowDeployLogs(prev => !prev)}
+                          className="flex items-center justify-between w-full px-4 py-2.5 text-left hover:bg-white/5 transition-colors"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Terminal className="h-3.5 w-3.5 text-zinc-400" />
+                            <span className="text-[12px] font-semibold text-zinc-300">Deploy Logs</span>
+                            {/* Status dot */}
+                            {isDeploying ? (
+                              <span className="flex items-center gap-1">
+                                <span className="h-1.5 w-1.5 rounded-full bg-yellow-400 animate-pulse" />
+                                <span className="text-[10px] text-yellow-400">building</span>
+                              </span>
+                            ) : hasDeployError ? (
+                              <span className="flex items-center gap-1">
+                                <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
+                                <span className="text-[10px] text-red-400">error</span>
+                              </span>
+                            ) : logs.length > 0 ? (
+                              <span className="flex items-center gap-1">
+                                <span className="h-1.5 w-1.5 rounded-full bg-green-400" />
+                                <span className="text-[10px] text-green-400">deployed</span>
+                              </span>
+                            ) : null}
+                          </div>
+                          <ChevronRight
+                            className={cn(
+                              "h-3.5 w-3.5 text-zinc-500 transition-transform duration-200",
+                              showDeployLogs && "rotate-90"
+                            )}
+                          />
+                        </button>
+                        {/* Log content */}
+                        {showDeployLogs && (
+                          <div
+                            ref={logPanelRef}
+                            className="px-4 pb-3 overflow-y-auto custom-scrollbar"
+                            style={{ maxHeight: "200px" }}
+                          >
+                            <div className="font-mono text-[11px] leading-[1.6] text-zinc-400 whitespace-pre-wrap">
+                              {logs.map((line, i) => {
+                                const lower = line.toLowerCase()
+                                const isError = lower.includes('error') || lower.includes('fail') || lower.includes('exception')
+                                const isSuccess = lower.includes('success') || lower.includes('deployed') || lower.includes('take a peek')
+                                return (
+                                  <div
+                                    key={i}
+                                    className={cn(
+                                      isError && "text-red-400",
+                                      isSuccess && "text-green-400"
+                                    )}
+                                  >
+                                    {line}
+                                  </div>
+                                )
+                              })}
+                              {isDeploying && logs.length <= 1 && (
+                                <div className="text-yellow-400 animate-pulse">Waiting for server logs…</div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* PRIMARY PREVIEW CARD (4:3) */}
                     <div
@@ -1659,27 +1906,38 @@ export default function SiteSettingsPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       {generatedPages.length > 0 && (
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={async () => {
-                            if (!confirm("Are you sure you want to delete ALL generated pages? This cannot be undone.")) return;
-                            try {
-                              const res = await fetch(`/api/projects/${id}/pages?all=true`, { method: "DELETE" });
-                              if (res.ok) {
-                                setGeneratedPages([]);
-                                setSelectedPage(null);
-                              } else {
-                                throw new Error("Failed to delete all pages");
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleDeploy}
+                            disabled={isDeploying}
+                          >
+                            <Rocket className="h-4 w-4 mr-2" />
+                            {isDeploying ? "Deploying…" : "Redeploy"}
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={async () => {
+                              if (!confirm("Are you sure you want to delete ALL generated pages? This cannot be undone.")) return;
+                              try {
+                                const res = await fetch(`/api/projects/${id}/pages?all=true`, { method: "DELETE" });
+                                if (res.ok) {
+                                  setGeneratedPages([]);
+                                  setSelectedPage(null);
+                                } else {
+                                  throw new Error("Failed to delete all pages");
+                                }
+                              } catch (e: any) {
+                                alert(e.message);
                               }
-                            } catch (e: any) {
-                              alert(e.message);
-                            }
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete All
-                        </Button>
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete All
+                          </Button>
+                        </>
                       )}
                       <Button onClick={() => setActiveTab("ai")}>
                          <Sparkles className="h-4 w-4 mr-2" />
@@ -1908,5 +2166,39 @@ export default function SiteSettingsPage() {
       </div>
 
     </div>
+
+    {/* Auto-Fix Modal — opens automatically when deploy logs show errors */}
+    <AutoFixModal
+      isOpen={showAutoFix}
+      onClose={() => setShowAutoFix(false)}
+      projectId={id as string}
+      logs={logs}
+      pages={generatedPages}
+      setPages={setGeneratedPages}
+      autoStart
+      onFixComplete={() => {
+        setShowAutoFix(false)
+        setHasDeployError(false)
+        // Save fixed pages then re-deploy
+        const saveAndRedeploy = async () => {
+          try {
+            const saveRes = await fetch(`/api/projects/${id}/pages`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ pages: generatedPages }),
+            })
+            if (!saveRes.ok) {
+              console.error("Failed to save fixed pages before redeploy: HTTP", saveRes.status)
+              return
+            }
+            handleDeploy()
+          } catch (e) {
+            console.error("Failed to save fixed pages before redeploy:", e)
+          }
+        }
+        saveAndRedeploy()
+      }}
+    />
+    </>
   )
 }

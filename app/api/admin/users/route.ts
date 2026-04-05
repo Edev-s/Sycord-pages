@@ -30,7 +30,11 @@ export async function GET() {
             websites: userProjects.map((p: any) => ({
                 id: p._id,
                 businessName: p.businessName,
-                subdomain: p.subdomain
+                subdomain: p.subdomain,
+                deployedAt: p.deployedAt || null,
+                vpsProjectId: p.vpsProjectId || null,
+                cloudflareUrl: p.cloudflareUrl || null,
+                git_connection: p.git_connection || null,
             }))
         }
     })

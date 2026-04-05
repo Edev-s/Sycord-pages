@@ -14,7 +14,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { logs, fileStructure, history, fixedFiles, projectId, isFastMode } = await request.json()
+    const { logs, fileStructure, history, fixedFiles, projectId, isFastMode, lastAction, fileContent } = await request.json()
 
     // Use GOOGLE_AI_API by default, fallback to GOOGLE_API_KEY
     const apiKey = process.env.GOOGLE_AI_API || process.env.GOOGLE_API_KEY

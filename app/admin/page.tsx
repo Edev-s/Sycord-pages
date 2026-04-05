@@ -61,9 +61,17 @@ import {
   Settings,
   User,
   ChevronDown,
+  ChevronRight,
   Calendar,
   ExternalLink,
-  Terminal
+  Terminal,
+  Play,
+  RefreshCw,
+  GitBranch,
+  FolderGit2,
+  Eye,
+  EyeOff,
+  AlertTriangle
 } from "lucide-react"
 
 const availableIcons = [
@@ -90,18 +98,54 @@ interface User {
   subscription: string
   ip: string
   createdAt: string
-  websites: Array<{ id: string; businessName: string; subdomain: string }>
+  websites: Array<{
+    id: string
+    businessName: string
+    subdomain: string
+    deployedAt: string | null
+    vpsProjectId: string | null
+    cloudflareUrl: string | null
+    git_connection: {
+      git_url: string
+      git_token: string | null
+      repo_id: string
+      updated_at: string
+    } | null
+  }>
 }
 
 const tabs = [
   { id: "overview" as const, label: "Overview", icon: BarChart3 },
   { id: "users" as const, label: "Users", icon: Users },
   { id: "server" as const, label: "Server", icon: Server },
+  { id: "runner" as const, label: "Runner", icon: Terminal },
   { id: "tickets" as const, label: "Tickets", icon: AlertCircle },
   { id: "paptos" as const, label: "Legal", icon: BookOpen },
 ]
 
-type TabId = "overview" | "users" | "server" | "tickets" | "paptos"
+type TabId = "overview" | "users" | "server" | "runner" | "tickets" | "paptos"
+
+
+const ENV_VARS_CHECKLIST = [
+  "MONGO_URI",
+  "CLOUDFLARE_API_KEY",
+  "CLOUDFLARE_ZONE_ID",
+  "VPS_IP",
+  "VPS_USERNAME",
+  "VPS_PASSWORD",
+  "VPS_SERVER_URL",
+  "GOOGLE_AI_API",
+  "GITHUB_API_TOKEN",
+  "GITHUB_OWNER",
+]
+
+const SENSITIVE_ENV_VARS = new Set([
+  "MONGO_URI",
+  "CLOUDFLARE_API_KEY",
+  "VPS_PASSWORD",
+  "GOOGLE_AI_API",
+  "GITHUB_API_TOKEN",
+])
 
 export default function AdminPage() {
   const router = useRouter()
@@ -130,6 +174,27 @@ export default function AdminPage() {
   // PAP & TOS State
   const [privacyPolicy, setPrivacyPolicy] = useState("Edit your privacy policy here...")
   const [termsOfService, setTermsOfService] = useState("Edit your terms of service here...")
+
+  // Runner State
+  const [runnerStatus, setRunnerStatus] = useState<any>(null)
+  const [runnerLoading, setRunnerLoading] = useState(false)
+  const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set())
+  const [healthData, setHealthData] = useState<any>(null)
+  const [healthLoading, setHealthLoading] = useState(false)
+  const [setupExpanded, setSetupExpanded] = useState(false)
+  const [showTokens, setShowTokens] = useState<Set<string>>(new Set())
+  const [envValues, setEnvValues] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {}
+    ENV_VARS_CHECKLIST.forEach(k => init[k] = "")
+    return init
+  })
+  const [envSaving, setEnvSaving] = useState(false)
+  const [setupAction, setSetupAction] = useState<string | null>(null)
+  const [setupMessage, setSetupMessage] = useState<string | null>(null)
+  const [deployingProject, setDeployingProject] = useState<string | null>(null)
+  const [projectLogs, setProjectLogs] = useState<Record<string, string[]>>({})
+  const [vpsProjects, setVpsProjects] = useState<any[]>([])
+  const [vpsProjectsLoading, setVpsProjectsLoading] = useState(false)
 
   useEffect(() => {
     if (session?.user?.email !== "dmarton336@gmail.com") {
@@ -312,6 +377,192 @@ export default function AdminPage() {
     } finally {
       setUpdatingUser(null)
     }
+  }
+
+  const fetchRunnerStatus = async () => {
+    try {
+      setRunnerLoading(true)
+      const response = await fetch("/api/vps/setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "status" }),
+      })
+      if (!response.ok) throw new Error("Failed to fetch runner status")
+      const data = await response.json()
+      setRunnerStatus(data)
+      toast.success("Runner status updated")
+    } catch (error) {
+      console.error("Error fetching runner status:", error)
+      toast.error("Failed to fetch runner status")
+    } finally {
+      setRunnerLoading(false)
+    }
+  }
+
+  const restartRunner = async () => {
+    if (!confirm("Are you sure you want to restart the Flask server? This will briefly interrupt all deployments.")) return
+    try {
+      setRunnerLoading(true)
+      const response = await fetch("/api/vps/setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "restart" }),
+      })
+      if (!response.ok) throw new Error("Failed to restart runner")
+      const data = await response.json()
+      setRunnerStatus(data)
+      toast.success("Runner restarted successfully")
+    } catch (error) {
+      console.error("Error restarting runner:", error)
+      toast.error("Failed to restart runner")
+    } finally {
+      setRunnerLoading(false)
+    }
+  }
+
+  const fetchHealthData = async () => {
+    try {
+      setHealthLoading(true)
+      const response = await fetch("/api/runner/health")
+      if (!response.ok) throw new Error("Health endpoint unreachable")
+      const data = await response.json()
+      // Extract resources from nested object if present
+      const resources = data.resources || data
+      setHealthData(resources)
+      toast.success("Health data fetched")
+    } catch (error) {
+      console.error("Error fetching health data:", error)
+      toast.error("Could not reach VPS health endpoint")
+    } finally {
+      setHealthLoading(false)
+    }
+  }
+
+  const toggleUserExpanded = (userId: string) => {
+    setExpandedUsers(prev => {
+      const next = new Set(prev)
+      if (next.has(userId)) next.delete(userId)
+      else next.add(userId)
+      return next
+    })
+  }
+
+  const toggleTokenVisibility = (key: string) => {
+    setShowTokens(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  const saveEnvToVps = async () => {
+    try {
+      setEnvSaving(true)
+      const response = await fetch("/api/vps/setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "write_env", envVars: envValues }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Failed to save env")
+      toast.success(data.message || "Environment variables saved")
+    } catch (error: any) {
+      toast.error(error.message || "Failed to save env variables")
+    } finally {
+      setEnvSaving(false)
+    }
+  }
+
+  const runSetupAction = async (action: string) => {
+    try {
+      setSetupAction(action)
+      setSetupMessage(null)
+      const response = await fetch("/api/vps/setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Setup action failed")
+      setSetupMessage(data.message || "Success")
+      toast.success(data.message || "Done")
+      if (data.authUrl) {
+        window.open(data.authUrl, "_blank")
+        setSetupMessage("Auth URL opened in new tab. Complete authorization, then run 'Config DNS'.")
+      }
+    } catch (error: any) {
+      setSetupMessage(`Error: ${error.message}`)
+      toast.error(error.message)
+    } finally {
+      setSetupAction(null)
+    }
+  }
+
+  const deployProject = async (projectId: string) => {
+    try {
+      setDeployingProject(projectId)
+      const response = await fetch("/api/deploy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Deploy failed")
+      toast.success(data.message || "Deployed successfully")
+      if (data.logs) {
+        setProjectLogs(prev => ({ ...prev, [projectId]: data.logs }))
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Deploy failed")
+    } finally {
+      setDeployingProject(null)
+    }
+  }
+
+  const fetchProjectLogs = async (projectId: string) => {
+    try {
+      const response = await fetch(`/api/logs?project_id=${projectId}&limit=30`)
+      const data = await response.json()
+      if (data.success && data.logs) {
+        setProjectLogs(prev => ({ ...prev, [projectId]: data.logs }))
+      }
+    } catch {
+      toast.error("Failed to fetch logs")
+    }
+  }
+
+  const fetchVpsProjects = async () => {
+    try {
+      setVpsProjectsLoading(true)
+      const response = await fetch("/api/runner/projects")
+      if (!response.ok) throw new Error("Failed to fetch VPS projects")
+      const data = await response.json()
+      setVpsProjects(data.projects || [])
+      toast.success(`Found ${(data.projects || []).length} project(s) on VPS`)
+    } catch (error: any) {
+      toast.error(error.message || "Failed to fetch VPS projects")
+    } finally {
+      setVpsProjectsLoading(false)
+    }
+  }
+
+  const getUsageColor = (percent: number) => {
+    if (percent >= 90) return "bg-red-500"
+    if (percent >= 70) return "bg-yellow-500"
+    return "bg-green-500"
+  }
+
+  const getUsageTextColor = (percent: number) => {
+    if (percent >= 90) return "text-red-500"
+    if (percent >= 70) return "text-yellow-500"
+    return "text-green-500"
+  }
+
+  const maskToken = (token: string | undefined) => {
+    if (!token) return "—"
+    if (token.length <= 8) return "••••••••"
+    return token.slice(0, 4) + "••••" + token.slice(-4)
   }
 
   const formatDate = (dateString: string) => {
@@ -843,6 +1094,584 @@ export default function AdminPage() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Runner Tab */}
+        {activeTab === "runner" && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            {/* Section 1: Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">Runner Management</h2>
+                <p className="text-sm text-muted-foreground">VPS server controls, health monitoring &amp; deployed projects</p>
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" className="h-8 text-xs" onClick={fetchHealthData} disabled={healthLoading}>
+                  {healthLoading ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Activity className="h-3.5 w-3.5 mr-1.5" />}
+                  Fetch Status
+                </Button>
+              </div>
+            </div>
+
+            {/* Section 2: System Resources */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Card className="border-border">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="h-9 w-9 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                      <Cpu className="h-4 w-4 text-blue-500" />
+                    </div>
+                    <span className={`text-xs font-semibold ${getUsageTextColor(healthData?.cpu_percent ?? 0)}`}>
+                      {healthData?.cpu_percent != null ? `${healthData.cpu_percent}%` : "—"}
+                    </span>
+                  </div>
+                  <p className="text-sm font-semibold text-foreground">CPU Usage</p>
+                  <div className="mt-2 h-2 w-full rounded-full bg-accent/50 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${getUsageColor(healthData?.cpu_percent ?? 0)}`}
+                      style={{ width: `${healthData?.cpu_percent ?? 0}%` }}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="h-9 w-9 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                      <Database className="h-4 w-4 text-purple-500" />
+                    </div>
+                    <span className={`text-xs font-semibold ${getUsageTextColor(healthData?.ram_percent ?? 0)}`}>
+                      {healthData?.ram_percent != null ? `${healthData.ram_percent}%` : "—"}
+                    </span>
+                  </div>
+                  <p className="text-sm font-semibold text-foreground">RAM Usage</p>
+                  <div className="mt-2 h-2 w-full rounded-full bg-accent/50 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${getUsageColor(healthData?.ram_percent ?? 0)}`}
+                      style={{ width: `${healthData?.ram_percent ?? 0}%` }}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="h-9 w-9 rounded-lg bg-orange-500/10 flex items-center justify-center">
+                      <HardDrive className="h-4 w-4 text-orange-500" />
+                    </div>
+                    <span className={`text-xs font-semibold ${getUsageTextColor(healthData?.disk_percent ?? 0)}`}>
+                      {healthData?.disk_percent != null ? `${healthData.disk_percent}%` : "—"}
+                    </span>
+                  </div>
+                  <p className="text-sm font-semibold text-foreground">Storage</p>
+                  <div className="mt-2 h-2 w-full rounded-full bg-accent/50 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${getUsageColor(healthData?.disk_percent ?? 0)}`}
+                      style={{ width: `${healthData?.disk_percent ?? 0}%` }}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Section 3: Server Status & Controls — Compact */}
+            <Card className="border-border">
+              <CardHeader className="pb-3">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex items-center gap-4">
+                    <CardTitle className="text-sm font-semibold">Server Status</CardTitle>
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-1.5">
+                        <div className={`h-2.5 w-2.5 rounded-full ${
+                          runnerStatus?.flask_running
+                            ? "bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.4)]"
+                            : "bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.4)]"
+                        }`} />
+                        <span className="text-xs text-muted-foreground">
+                          Flask {runnerStatus?.flask_running ? "Running" : runnerStatus ? "Stopped" : "—"}
+                        </span>
+                        {runnerStatus?.flask_pid && (
+                          <span className="text-[10px] font-mono text-muted-foreground/70">PID {runnerStatus.flask_pid}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className={`h-2.5 w-2.5 rounded-full ${
+                          runnerStatus?.tunnel_running
+                            ? "bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.4)]"
+                            : "bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.4)]"
+                        }`} />
+                        <span className="text-xs text-muted-foreground">
+                          Tunnel {runnerStatus?.tunnel_running ? "Running" : runnerStatus ? "Stopped" : "—"}
+                        </span>
+                        {runnerStatus?.tunnel_pid && (
+                          <span className="text-[10px] font-mono text-muted-foreground/70">PID {runnerStatus.tunnel_pid}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" className="h-8 text-xs" onClick={fetchRunnerStatus} disabled={runnerLoading}>
+                      {runnerLoading ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
+                      Check Status
+                    </Button>
+                    <Button size="sm" variant="destructive" className="h-8 text-xs" onClick={restartRunner} disabled={runnerLoading}>
+                      {runnerLoading ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Play className="h-3.5 w-3.5 mr-1.5" />}
+                      Restart Server
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3 pt-0">
+                {runnerStatus && (
+                  <>
+                    {runnerStatus.flask_log && (
+                      <details className="group">
+                        <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5">
+                          <ChevronRight className="h-3.5 w-3.5 transition-transform group-open:rotate-90" />
+                          Flask Log (last 10 lines)
+                        </summary>
+                        <pre className="mt-2 p-3 bg-accent/20 border border-border rounded-lg text-[11px] font-mono text-muted-foreground overflow-x-auto max-h-48 whitespace-pre-wrap">
+                          {runnerStatus.flask_log}
+                        </pre>
+                      </details>
+                    )}
+
+                    {runnerStatus.tunnel_log && (
+                      <details className="group">
+                        <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5">
+                          <ChevronRight className="h-3.5 w-3.5 transition-transform group-open:rotate-90" />
+                          Tunnel Log (last 10 lines)
+                        </summary>
+                        <pre className="mt-2 p-3 bg-accent/20 border border-border rounded-lg text-[11px] font-mono text-muted-foreground overflow-x-auto max-h-48 whitespace-pre-wrap">
+                          {runnerStatus.tunnel_log}
+                        </pre>
+                      </details>
+                    )}
+                  </>
+                )}
+
+                {!runnerStatus && !runnerLoading && (
+                  <div className="text-center py-6 border border-dashed border-border rounded-lg">
+                    <Terminal className="h-7 w-7 text-muted-foreground/30 mx-auto mb-2" />
+                    <p className="text-xs text-muted-foreground">Click &quot;Check Status&quot; to fetch server information</p>
+                  </div>
+                )}
+
+                {runnerLoading && !runnerStatus && (
+                  <div className="flex flex-col items-center justify-center py-6">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mb-2" />
+                    <p className="text-xs text-muted-foreground">Contacting VPS...</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Section 4: Server Setup (accordion) */}
+            <Card className="border-border">
+              <CardHeader className="pb-0">
+                <button
+                  onClick={() => setSetupExpanded(!setupExpanded)}
+                  className="w-full flex items-center justify-between text-left"
+                >
+                  <div>
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <Settings className="h-4 w-4 text-muted-foreground" />
+                      Server Setup
+                    </CardTitle>
+                    <CardDescription className="text-xs mt-1">
+                      Environment variables, quick actions &amp; initial configuration
+                    </CardDescription>
+                  </div>
+                  <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${setupExpanded ? "" : "-rotate-90"}`} />
+                </button>
+              </CardHeader>
+
+              {setupExpanded && (
+                <CardContent className="pt-4 space-y-5">
+                  {/* Warning banner */}
+                  <div className="flex items-start gap-2 p-3 bg-yellow-500/5 border border-yellow-500/20 rounded-lg">
+                    <AlertTriangle className="h-4 w-4 text-yellow-500 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-yellow-600 dark:text-yellow-400">
+                      ⚠ Only 1 Flask server + tunnel on the Ubuntu. Don&apos;t overload.
+                    </p>
+                  </div>
+
+                  {/* 4a: Environment Variables Editor */}
+                  <div className="space-y-3">
+                    <p className="text-xs font-semibold text-foreground flex items-center gap-2">
+                      <FileJson className="h-3.5 w-3.5 text-muted-foreground" />
+                      Environment Variables (.env)
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {ENV_VARS_CHECKLIST.map((envVar) => (
+                        <div key={envVar} className="flex items-center gap-2">
+                          <label className="text-[11px] font-mono text-muted-foreground w-36 flex-shrink-0 truncate" title={envVar}>
+                            {envVar}
+                          </label>
+                          <div className="relative flex-1">
+                            <Input
+                              type={SENSITIVE_ENV_VARS.has(envVar) && !showTokens.has(envVar) ? "password" : "text"}
+                              value={envValues[envVar] || ""}
+                              onChange={(e) => setEnvValues(prev => ({ ...prev, [envVar]: e.target.value }))}
+                              placeholder={envVar}
+                              className="h-8 text-xs font-mono pr-8"
+                            />
+                            {SENSITIVE_ENV_VARS.has(envVar) && (
+                              <button
+                                type="button"
+                                onClick={() => toggleTokenVisibility(envVar)}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                              >
+                                {showTokens.has(envVar) ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <Button size="sm" className="h-8 text-xs" onClick={saveEnvToVps} disabled={envSaving}>
+                      {envSaving ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}
+                      Save .env to VPS
+                    </Button>
+                  </div>
+
+                  {/* 4b: Quick Setup Actions */}
+                  <div className="space-y-3">
+                    <p className="text-xs font-semibold text-foreground">Quick Setup Actions</p>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { label: "Init VPS", action: "init" },
+                        { label: "Auth Tunnel", action: "auth" },
+                        { label: "Config DNS", action: "config" },
+                        { label: "Start Server", action: "start_server" },
+                      ].map(({ label, action }) => (
+                        <Button
+                          key={action}
+                          size="sm"
+                          variant="outline"
+                          className="h-8 text-xs"
+                          disabled={setupAction !== null}
+                          onClick={() => {
+                            if (action === "start_server") {
+                              runSetupAction("start_server")
+                            } else {
+                              runSetupAction(action)
+                            }
+                          }}
+                        >
+                          {setupAction === action ? (
+                            <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                          ) : (
+                            <Play className="h-3.5 w-3.5 mr-1.5" />
+                          )}
+                          {label}
+                        </Button>
+                      ))}
+                    </div>
+                    {setupMessage && (
+                      <div className={`p-2.5 rounded-lg border text-xs ${
+                        setupMessage.startsWith("Error")
+                          ? "bg-red-500/5 border-red-500/20 text-red-600 dark:text-red-400"
+                          : "bg-green-500/5 border-green-500/20 text-green-600 dark:text-green-400"
+                      }`}>
+                        {setupMessage}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 4c: Link to full wizard */}
+                  <div className="pt-1">
+                    <Link href="/setup" className="text-xs text-primary hover:underline inline-flex items-center gap-1">
+                      Need full SSH wizard? Open Setup Page <ArrowRight className="h-3 w-3" />
+                    </Link>
+                  </div>
+                </CardContent>
+              )}
+            </Card>
+
+            {/* Section 5: Deployed Projects */}
+            <Card className="border-border">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <FolderGit2 className="h-4 w-4 text-muted-foreground" />
+                  Deployed Projects
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Browse user projects, deploy &amp; view logs
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="flex flex-col items-center justify-center py-10">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mb-2" />
+                    <p className="text-xs text-muted-foreground">Loading projects...</p>
+                  </div>
+                ) : users.length === 0 ? (
+                  <div className="text-center py-10 border border-dashed border-border rounded-lg">
+                    <Users className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                    <p className="text-xs text-muted-foreground">No users found</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {users.map((user) => (
+                      <div key={user.userId} className="border border-border rounded-lg overflow-hidden">
+                        <button
+                          onClick={() => toggleUserExpanded(user.userId)}
+                          className="w-full flex items-center justify-between px-4 py-3 hover:bg-accent/30 transition-colors text-left"
+                        >
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-7 w-7">
+                              <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-semibold">
+                                {user.name.charAt(0).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="text-sm font-medium text-foreground">{user.name}</p>
+                              <p className="text-[11px] text-muted-foreground">{user.email}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">
+                              {user.projectCount} project{user.projectCount !== 1 ? "s" : ""}
+                            </Badge>
+                            <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${expandedUsers.has(user.userId) ? "rotate-90" : ""}`} />
+                          </div>
+                        </button>
+
+                        {expandedUsers.has(user.userId) && (
+                          <div className="border-t border-border bg-accent/10 px-4 py-3">
+                            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-3">
+                              <span>Users</span>
+                              <ChevronRight className="h-3 w-3" />
+                              <span className="text-foreground font-medium">{user.name}</span>
+                              <ChevronRight className="h-3 w-3" />
+                              <span>projects</span>
+                            </div>
+
+                            {user.websites.length === 0 ? (
+                              <p className="text-xs text-muted-foreground py-2">No projects</p>
+                            ) : (
+                              <div className="space-y-2">
+                                {user.websites.map((site) => (
+                                  <div key={site.id} className="bg-background border border-border rounded-lg p-3">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <div className="flex items-center gap-2">
+                                        <GitBranch className="h-3.5 w-3.5 text-muted-foreground" />
+                                        <span className="text-sm font-medium text-foreground">{site.businessName}</span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-5 ${
+                                          site.deployedAt
+                                            ? "border-green-500/30 text-green-500 bg-green-500/5"
+                                            : "border-muted-foreground/30 text-muted-foreground bg-muted/5"
+                                        }`}>
+                                          {site.deployedAt ? "Deployed" : "Not Deployed"}
+                                        </Badge>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-6 text-[10px] px-2"
+                                          disabled={deployingProject === site.id}
+                                          onClick={(e) => { e.stopPropagation(); deployProject(site.id) }}
+                                        >
+                                          {deployingProject === site.id ? (
+                                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                          ) : (
+                                            <Upload className="h-3 w-3 mr-1" />
+                                          )}
+                                          Deploy
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          className="h-6 text-[10px] px-2"
+                                          onClick={(e) => { e.stopPropagation(); fetchProjectLogs(site.id) }}
+                                        >
+                                          <Terminal className="h-3 w-3 mr-1" />
+                                          View Logs
+                                        </Button>
+                                      </div>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
+                                      <div className="text-[11px]">
+                                        <span className="text-muted-foreground">Subdomain: </span>
+                                        {site.subdomain ? (
+                                          <a
+                                            href={site.cloudflareUrl || `https://${site.subdomain}.sycord.site`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-primary hover:underline font-mono"
+                                          >
+                                            {site.subdomain}.sycord.site
+                                          </a>
+                                        ) : (
+                                          <span className="font-mono text-muted-foreground">—</span>
+                                        )}
+                                      </div>
+                                      <div className="text-[11px]">
+                                        <span className="text-muted-foreground">Project ID: </span>
+                                        <span className="font-mono text-foreground">{site.id}</span>
+                                      </div>
+                                      {site.deployedAt && (
+                                        <div className="text-[11px]">
+                                          <span className="text-muted-foreground">Deployed: </span>
+                                          <span className="text-foreground">{new Date(site.deployedAt).toLocaleDateString()}</span>
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* git_connection details */}
+                                    {site.git_connection ? (
+                                      <div className="mt-3 p-2.5 bg-accent/30 border border-border rounded-md space-y-1.5">
+                                        <div className="flex items-center gap-1.5 mb-1">
+                                          <FolderGit2 className="h-3 w-3 text-muted-foreground" />
+                                          <span className="text-[11px] font-semibold text-foreground">git_connection</span>
+                                        </div>
+                                        <div className="text-[11px]">
+                                          <span className="text-muted-foreground">git_url: </span>
+                                          <span className="font-mono text-foreground break-all">{site.git_connection.git_url}</span>
+                                        </div>
+                                        <div className="text-[11px] flex items-center gap-1">
+                                          <span className="text-muted-foreground">git_token: </span>
+                                          {site.git_connection.git_token ? (
+                                            <span className="font-mono text-green-500">{maskToken(site.git_connection.git_token)}</span>
+                                          ) : (
+                                            <span className="font-mono text-muted-foreground">null</span>
+                                          )}
+                                        </div>
+                                        <div className="text-[11px]">
+                                          <span className="text-muted-foreground">repo_id: </span>
+                                          <span className="font-mono text-foreground">{site.git_connection.repo_id}</span>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="mt-3 p-2.5 bg-accent/10 border border-dashed border-border rounded-md">
+                                        <p className="text-[11px] text-muted-foreground">No git_connection — project not yet deployed via runner</p>
+                                      </div>
+                                    )}
+
+                                    {/* Inline logs panel */}
+                                    {projectLogs[site.id] && projectLogs[site.id].length > 0 && (
+                                      <div className="mt-3">
+                                        <div className="flex items-center justify-between mb-1">
+                                          <span className="text-[11px] font-medium text-muted-foreground">Recent Logs</span>
+                                          <button
+                                            onClick={() => setProjectLogs(prev => { const next = { ...prev }; delete next[site.id]; return next })}
+                                            className="text-[10px] text-muted-foreground hover:text-foreground"
+                                          >
+                                            Close
+                                          </button>
+                                        </div>
+                                        <pre className="p-2.5 bg-accent/20 border border-border rounded-lg text-[10px] font-mono text-muted-foreground overflow-x-auto max-h-36 whitespace-pre-wrap">
+                                          {projectLogs[site.id].join("\n")}
+                                        </pre>
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Section 6: VPS On-Disk Projects */}
+            <Card className="border-border">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <HardDrive className="h-4 w-4 text-muted-foreground" />
+                      VPS On-Disk Projects
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      Projects deployed on the Flask VPS server — what visitors actually see
+                    </CardDescription>
+                  </div>
+                  <Button size="sm" variant="outline" className="h-8 text-xs" onClick={fetchVpsProjects} disabled={vpsProjectsLoading}>
+                    {vpsProjectsLoading ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
+                    Refresh
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {vpsProjectsLoading ? (
+                  <div className="flex flex-col items-center justify-center py-10">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mb-2" />
+                    <p className="text-xs text-muted-foreground">Fetching projects from VPS...</p>
+                  </div>
+                ) : vpsProjects.length === 0 ? (
+                  <div className="text-center py-10 border border-dashed border-border rounded-lg">
+                    <HardDrive className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                    <p className="text-xs text-muted-foreground">No projects on VPS yet. Click &quot;Refresh&quot; to scan.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {vpsProjects.map((proj: any) => (
+                      <div key={proj.project_id} className="bg-accent/20 border border-border rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Globe2 className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span className="text-sm font-medium text-foreground font-mono">{proj.project_id}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {proj.subdomain && (
+                              <a
+                                href={`https://${proj.subdomain}.sycord.site`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[11px] text-primary hover:underline flex items-center gap-1"
+                              >
+                                {proj.subdomain}.sycord.site
+                                <ExternalLink className="h-2.5 w-2.5" />
+                              </a>
+                            )}
+                            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-5 ${
+                              proj.build?.success === true
+                                ? "border-green-500/30 text-green-500 bg-green-500/5"
+                                : proj.build?.success === false
+                                ? "border-red-500/30 text-red-500 bg-red-500/5"
+                                : "border-muted-foreground/30 text-muted-foreground bg-muted/5"
+                            }`}>
+                              {proj.build?.success === true ? "Built" : proj.build?.success === false ? "Build Failed" : proj.build?.attempted ? "Building" : "Static"}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px]">
+                          <div>
+                            <span className="text-muted-foreground">Files: </span>
+                            <span className="text-foreground font-medium">{proj.files_count ?? "—"}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Domain: </span>
+                            <span className="text-foreground font-mono">{proj.domain || "—"}</span>
+                          </div>
+                          {proj.deployed_at && (
+                            <div>
+                              <span className="text-muted-foreground">Deployed: </span>
+                              <span className="text-foreground">{new Date(proj.deployed_at).toLocaleDateString()}</span>
+                            </div>
+                          )}
+                        </div>
+                        {proj.build?.error && (
+                          <div className="mt-2 p-2 bg-red-500/5 border border-red-500/20 rounded text-[11px] text-red-500">
+                            Build error: {proj.build.error}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         )}
 

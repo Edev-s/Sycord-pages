@@ -15,6 +15,8 @@ interface AutoFixModalProps {
   logs: string[]
   pages: GeneratedPage[]
   setPages: (pages: GeneratedPage[]) => void
+  autoStart?: boolean
+  onFixComplete?: () => void
 }
 
 type FixStep = {
@@ -24,7 +26,7 @@ type FixStep = {
   details?: string
 }
 
-export function AutoFixModal({ isOpen, onClose, projectId, logs, pages, setPages }: AutoFixModalProps) {
+export function AutoFixModal({ isOpen, onClose, projectId, logs, pages, setPages, autoStart = false, onFixComplete }: AutoFixModalProps) {
   const [steps, setSteps] = useState<FixStep[]>([])
   const [isFixing, setIsFixing] = useState(false)
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
@@ -34,6 +36,18 @@ export function AutoFixModal({ isOpen, onClose, projectId, logs, pages, setPages
   useEffect(() => {
     setDisplayLogs(logs)
   }, [logs])
+
+  // Auto-start fixing when modal opens with autoStart=true
+  const [hasAutoStarted, setHasAutoStarted] = useState(false)
+  useEffect(() => {
+    if (isOpen && autoStart && !hasAutoStarted && !isFixing && steps.length === 0) {
+      setHasAutoStarted(true)
+      startAutoFix()
+    }
+    if (!isOpen) {
+      setHasAutoStarted(false)
+    }
+  }, [isOpen, autoStart])
 
   const addStep = (message: string, status: FixStep['status'] = 'pending') => {
     setSteps(prev => [...prev, { message, status }])
@@ -58,8 +72,7 @@ export function AutoFixModal({ isOpen, onClose, projectId, logs, pages, setPages
       // Fetch latest logs first
       let currentLogs = logs
       try {
-        const vpsUrl = process.env.NEXT_PUBLIC_VPS_SERVER_URL || "https://server.sycord.site"
-        const fetchUrl = `${vpsUrl}/api/logs?project_id=${projectId}&limit=50`
+        const fetchUrl = `/api/logs?project_id=${encodeURIComponent(projectId)}&limit=50`
         console.log(`[AutoFix] Fetching logs from: ${fetchUrl}`)
 
         const logRes = await fetch(fetchUrl)
@@ -225,6 +238,14 @@ export function AutoFixModal({ isOpen, onClose, projectId, logs, pages, setPages
 
       if (!resolved) {
         addStep("Auto-fix session ended (max iterations reached).", "completed")
+      }
+
+      // Notify parent that fixes were applied so it can re-deploy
+      if (onFixComplete) {
+        addStep("Re-deploying with fixes…", "processing")
+        const REDEPLOY_DELAY_MS = 500
+        await new Promise(r => setTimeout(r, REDEPLOY_DELAY_MS))
+        onFixComplete()
       }
 
     } catch (error: any) {

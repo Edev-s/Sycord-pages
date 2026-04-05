@@ -22,6 +22,8 @@ export async function POST(request: Request) {
     if (!projectId)
       return NextResponse.json({ error: "Missing projectId" }, { status: 400 })
 
+    console.log(`[Deploy] Starting deployment for projectId=${projectId}`)
+
     const client = await clientPromise
     const db = client.db()
 
@@ -32,6 +34,8 @@ export async function POST(request: Request) {
     )
     if (!project)
       return NextResponse.json({ error: "Project not found" }, { status: 404 })
+
+    console.log(`[Deploy] Project found: businessName=${project.businessName ?? "(none)"}, subdomain=${project.subdomain ?? "(none)"}, githubUrl=${project.githubUrl ?? "(none)"}, pagesCount=${project.pages?.length ?? 0}`)
 
     // 2. Derive a subdomain from the project
     const subdomain =
@@ -44,20 +48,73 @@ export async function POST(request: Request) {
 
     // 3. Prepare Files
     const pages = project.pages || []
-    const files: { path: string; content: string }[] = []
+    const htmlFiles: { path: string; content: string }[] = []
 
     if (pages.length > 0) {
       for (const page of pages) {
         let path = page.name
         if (path.startsWith("/")) path = path.substring(1)
-        files.push({ path, content: page.content })
+        htmlFiles.push({ path, content: page.content })
       }
     } else if (project.aiGeneratedCode) {
-      files.push({ path: "index.html", content: project.aiGeneratedCode })
+      htmlFiles.push({ path: "index.html", content: project.aiGeneratedCode })
     }
 
-    if (files.length === 0)
+    if (htmlFiles.length === 0)
       return NextResponse.json({ error: "No files to deploy." }, { status: 400 })
+
+    console.log(`[Deploy] Prepared ${htmlFiles.length} HTML file(s):`, htmlFiles.map(f => f.path))
+
+    // 3b. Wrap in a Vite project structure for a proper production build
+    const files: { path: string; content: string }[] = []
+
+    // Generate Vite multi-page input entries
+    const inputEntries: Record<string, string> = {}
+    for (const f of htmlFiles) {
+      files.push({ path: f.path, content: f.content })
+      // Register each HTML file as a Vite input entry for multi-page build
+      const entryName = f.path.replace(/\.html$/, "").replace(/\//g, "_") || "main"
+      inputEntries[entryName] = f.path
+    }
+
+    // package.json – minimal Vite project
+    files.push({
+      path: "package.json",
+      content: JSON.stringify(
+        {
+          name: subdomain || "sycord-site",
+          private: true,
+          type: "module",
+          scripts: { build: "vite build", preview: "vite preview" },
+          devDependencies: { vite: "^6.0.0" },
+        },
+        null,
+        2,
+      ),
+    })
+
+    // vite.config.js – multi-page build config
+    const inputLines = Object.entries(inputEntries)
+      .map(([key, val]) => `        ${key}: resolve(__dirname, "${val}"),`)
+      .join("\n")
+
+    files.push({
+      path: "vite.config.js",
+      content: [
+        `import { defineConfig } from "vite";`,
+        `import { resolve } from "path";`,
+        ``,
+        `export default defineConfig({`,
+        `  build: {`,
+        `    rollupOptions: {`,
+        `      input: {`,
+        inputLines,
+        `      },`,
+        `    },`,
+        `  },`,
+        `});`,
+      ].join("\n"),
+    })
 
     // 4. Create Cloudflare DNS Record
     console.log(`[Deploy] Updating DNS for ${subdomain}.sycord.site via Cloudflare API...`)
@@ -124,15 +181,42 @@ export async function POST(request: Request) {
 
     if (!deployRes.ok) {
       const errBody = await deployRes.json().catch(() => ({}))
+      console.error(`[Deploy] VPS deploy failed — HTTP ${deployRes.status}:`, errBody)
       throw new Error(errBody.error || `VPS deploy failed (HTTP ${deployRes.status})`)
     }
 
     const deployData = await deployRes.json()
+    console.log(`[Deploy] VPS response:`, JSON.stringify(deployData))
     const deployedDomain = deployData.domain
       ? `https://${deployData.domain}`
       : null
 
-    // 5. Persist deployment metadata in MongoDB
+    // 5a. Fetch logs from VPS to verify deployment status
+    let deployLogs: string[] = []
+    let buildSuccess = true
+    try {
+      const logsRes = await fetch(
+        `${VPS_BASE_URL}/api/logs?project_id=${projectId}&limit=50`,
+      )
+      if (logsRes.ok) {
+        const logsData = await logsRes.json()
+        deployLogs = logsData.logs || []
+        // Check logs for build failure indicators
+        buildSuccess = !deployLogs.some(
+          (line: string) =>
+            /\[ERROR\].*build failed/i.test(line) ||
+            /npm ERR!/i.test(line),
+        )
+      }
+    } catch (logsErr) {
+      console.error("[Deploy] Failed to fetch deployment logs:", logsErr)
+    }
+
+    // 5b. Resolve git token for this project (user-level only, never env-level)
+    const gitToken: string | null =
+      userDoc?.github_tokens?.[projectId]?.token || null
+
+    // 6. Persist deployment metadata in MongoDB
     await db.collection("users").updateOne(
       { id: session.user.id, "projects._id": new ObjectId(projectId) },
       {
@@ -141,6 +225,12 @@ export async function POST(request: Request) {
           "projects.$.deployedAt": new Date(),
           "projects.$.cloudflareUrl": deployedDomain,
           "projects.$.vpsProjectId": projectId,
+          "projects.$.git_connection": {
+            git_url: `${VPS_BASE_URL}/api/deploy/${projectId}`,
+            git_token: gitToken,
+            repo_id: projectId,
+            updated_at: new Date(),
+          },
         },
       },
     )
@@ -156,6 +246,8 @@ export async function POST(request: Request) {
         ? "Deployed to VPS!"
         : "Deployed – domain will be available shortly.",
       projectId,
+      buildSuccess,
+      logs: deployLogs,
     })
   } catch (error: any) {
     console.error("[Deploy] Error:", error)
