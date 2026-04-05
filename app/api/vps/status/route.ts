@@ -87,10 +87,22 @@ export async function GET() {
     const flaskInstalled = !pipCheck.stderr && !pipCheck.stdout.includes("No module")
     const flaskVersion = flaskInstalled ? pipCheck.stdout.trim() : null
 
+    // Check npm/node availability
+    const npmCheck = await run("npm --version 2>/dev/null")
+    const npmInstalled = !!npmCheck.stdout.trim()
+    const nodeCheck = await run("node --version 2>/dev/null")
+    const nodeInstalled = !!nodeCheck.stdout.trim()
+
     // Check for missing dependencies
     const warnings: string[] = []
     if (!flaskInstalled) {
       warnings.push("Flask is not installed – runner.py cannot start")
+    }
+    if (!npmInstalled) {
+      warnings.push("npm is not installed – project builds will fail")
+    }
+    if (!nodeInstalled) {
+      warnings.push("node is not installed – project builds will fail")
     }
 
     // Check if config.yml exists for tunnel
@@ -122,6 +134,8 @@ export async function GET() {
       httpOk,
       uptime: uptime || null,
       flaskVersion,
+      npmInstalled,
+      nodeInstalled,
       warnings,
     })
   } catch (error: any) {

@@ -62,6 +62,16 @@ export async function POST(request: Request) {
       await ssh.execCommand('sudo apt-get update && sudo apt-get install -y python3-pip || true', { cwd })
       await run(`python3 -m pip install flask requests --break-system-packages || python3 -m pip install flask requests`, cwd)
 
+      console.log(`[VPS Setup] Installing Node.js & npm for project builds...`)
+      // Install Node.js (LTS) via NodeSource if not already installed
+      const nodeCheck = await run('node --version 2>/dev/null')
+      if (!nodeCheck.stdout.trim()) {
+        await ssh.execCommand('curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash - && sudo apt-get install -y nodejs || true', { cwd })
+      }
+      const npmCheck = await run('npm --version 2>/dev/null')
+      const nodeVer = await run('node --version 2>/dev/null')
+      console.log(`[VPS Setup] Node: ${nodeVer.stdout.trim() || 'not found'}, npm: ${npmCheck.stdout.trim() || 'not found'}`)
+
       ssh.dispose()
       return NextResponse.json({ success: true, message: "VPS Initialized! Repository cloned and dependencies installed." })
     }

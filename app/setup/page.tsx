@@ -144,6 +144,7 @@ import json
 import logging
 import os
 import shutil
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -188,6 +189,9 @@ logger.addHandler(logging.StreamHandler())
 
 app = Flask(__name__)
 
+def _check_tool(name):
+    return shutil.which(name) is not None
+
 def _project_dir(pid):
     return PROJECTS_DIR / os.path.basename(pid)
 
@@ -225,6 +229,68 @@ def _ensure_dns(subdomain):
         logger.error("DNS error for %s: %s", fqdn, e)
         return {"success": False, "action": "skipped", "error": str(e)}
 
+def _build_project(project_id, project_dir):
+    pkg_json = project_dir / "package.json"
+    if not pkg_json.is_file():
+        return {"built": False, "logs": [], "reason": "no package.json"}
+    if not _check_tool("npm"):
+        logger.error("npm is not installed on the server")
+        return {"built": False, "logs": ["npm is not installed"], "error": "npm not found"}
+    build_env = os.environ.copy()
+    node_bin = str(project_dir / "node_modules" / ".bin")
+    build_env["PATH"] = node_bin + os.pathsep + build_env.get("PATH", "")
+    build_logs = []
+    logger.info("Detected buildable project %s \\u2013 starting build", project_id)
+    install_cmd = ["npm", "install", "--no-fund", "--no-audit"]
+    logger.info("Build [install] project %s \\u2013 running: %s", project_id, " ".join(install_cmd))
+    try:
+        result = subprocess.run(install_cmd, cwd=str(project_dir), capture_output=True, text=True, timeout=120, env=build_env)
+        if result.stdout.strip():
+            logger.info("Build [install] stdout for project %s:\\n%s", project_id, result.stdout.strip())
+            build_logs.append(result.stdout.strip())
+        if result.stderr.strip():
+            logger.warning("Build [install] stderr for project %s:\\n%s", project_id, result.stderr.strip())
+            build_logs.append(result.stderr.strip())
+        if result.returncode != 0:
+            err = f"npm install exited with code {result.returncode}"
+            logger.error("Build [install] failed for %s: %s", project_id, err)
+            return {"built": False, "logs": build_logs, "error": err}
+    except subprocess.TimeoutExpired:
+        logger.error("Build [install] %s: timed out", project_id)
+        return {"built": False, "logs": build_logs, "error": "npm install timed out"}
+    except Exception as exc:
+        logger.error("Build [install] %s exception: %s", project_id, exc)
+        return {"built": False, "logs": build_logs, "error": str(exc)}
+    try:
+        pkg = json.loads(pkg_json.read_text())
+    except Exception:
+        pkg = {}
+    if "build" not in pkg.get("scripts", {}):
+        logger.info("Build [build] skipped for %s \\u2013 no build script", project_id)
+        return {"built": True, "logs": build_logs}
+    build_cmd = ["npm", "run", "build"]
+    logger.info("Build [build] project %s \\u2013 running: %s", project_id, " ".join(build_cmd))
+    try:
+        result = subprocess.run(build_cmd, cwd=str(project_dir), capture_output=True, text=True, timeout=180, env=build_env)
+        if result.stdout.strip():
+            logger.info("Build [build] stdout for project %s:\\n%s", project_id, result.stdout.strip())
+            build_logs.append(result.stdout.strip())
+        if result.stderr.strip():
+            logger.warning("Build [build] stderr for project %s:\\n%s", project_id, result.stderr.strip())
+            build_logs.append(result.stderr.strip())
+        if result.returncode != 0:
+            err = f"npm run build exited with code {result.returncode}"
+            logger.error("Build [build] failed for %s: %s", project_id, err)
+            return {"built": False, "logs": build_logs, "error": err}
+    except subprocess.TimeoutExpired:
+        logger.error("Build [build] %s: timed out", project_id)
+        return {"built": False, "logs": build_logs, "error": "npm run build timed out"}
+    except Exception as exc:
+        logger.error("Build [build] %s exception: %s", project_id, exc)
+        return {"built": False, "logs": build_logs, "error": str(exc)}
+    logger.info("Build completed successfully for %s", project_id)
+    return {"built": True, "logs": build_logs}
+
 @app.before_request
 def serve_subdomain():
     host = request.host.split(":")[0]
@@ -256,7 +322,12 @@ def index():
 @app.route("/api/status")
 def api_status():
     pc = sum(1 for p in PROJECTS_DIR.iterdir() if p.is_dir() and not p.name.startswith(".")) if PROJECTS_DIR.is_dir() else 0
-    return jsonify(success=True, status="running", python_version=sys.version, project_count=pc, dns_auto_config=bool(CF_API_KEY and CF_ZONE_ID), warnings=_missing)
+    w = list(_missing) if _missing else []
+    if not _check_tool("npm"):
+        w.append("npm is not installed")
+    if not _check_tool("node"):
+        w.append("node is not installed")
+    return jsonify(success=True, status="running", python_version=sys.version, project_count=pc, npm_installed=_check_tool("npm"), node_installed=_check_tool("node"), dns_auto_config=bool(CF_API_KEY and CF_ZONE_ID), warnings=w)
 
 @app.route("/api/deploy/<project_id>", methods=["POST"])
 def deploy(project_id):
@@ -290,22 +361,33 @@ def deploy(project_id):
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(ct, encoding="utf-8")
         written += 1
+    # Build step
+    build_result = _build_project(project_id, pd)
+    built = build_result.get("built", False)
+    # Serve from build output dir if exists
+    serve_dir = pd
+    if built:
+        for od in ("dist", "build", "out"):
+            if (pd / od).is_dir():
+                serve_dir = pd / od
+                logger.info("Deploy %s: serving from %s/", project_id, od)
+                break
     if subdomain:
         lnk = PROJECTS_DIR / subdomain
         if lnk.exists() or lnk.is_symlink():
             if lnk.is_symlink():
                 lnk.unlink()
-            elif lnk.resolve() != pd.resolve():
+            elif lnk.resolve() != serve_dir.resolve():
                 shutil.rmtree(lnk)
         if not lnk.exists():
-            lnk.symlink_to(pd)
+            lnk.symlink_to(serve_dir)
     dns = _ensure_dns(subdomain) if subdomain else {"action": "skipped"}
     domain = f"{subdomain}.sycord.site" if subdomain else None
     meta = _read_meta(project_id) or {}
-    meta.update({"project_id": project_id, "subdomain": subdomain, "domain": domain, "files_count": written, "deployed_at": datetime.now(timezone.utc).isoformat(), "dns_status": dns.get("action", "skipped")})
+    meta.update({"project_id": project_id, "subdomain": subdomain, "domain": domain, "files_count": written, "deployed_at": datetime.now(timezone.utc).isoformat(), "dns_status": dns.get("action", "skipped"), "build": built, "build_error": build_result.get("error")})
     _write_meta(project_id, meta)
-    logger.info("Deploy done: %s (%d files, domain=%s, dns=%s)", project_id, written, domain, dns.get("action"))
-    return jsonify(success=True, project_id=project_id, domain=domain, files_count=written, dns=dns)
+    logger.info("Deployed project %s (%d files, subdomain=%s, build=%s)", project_id, written, subdomain, built)
+    return jsonify(success=True, project_id=project_id, domain=domain, files_count=written, dns=dns, build=build_result)
 
 @app.route("/api/projects/<project_id>")
 def project_info(project_id):
@@ -348,10 +430,14 @@ if __name__ == "__main__":
     logger.info("Python %s", sys.version)
     if _missing:
         logger.warning("Missing packages: %s", ", ".join(_missing))
+    if not _check_tool("npm"):
+        logger.error("npm is not installed on the server")
+    if not _check_tool("node"):
+        logger.error("node is not installed on the server")
     if not CF_API_KEY or not CF_ZONE_ID:
         logger.warning("CLOUDFLARE_API_KEY/ZONE_ID not set. DNS auto-config disabled.")
     port = int(os.environ.get("PORT", 5000))
-    logger.info("Starting Sycord on port %d", port)
+    logger.info("Starting Sycord Pages server on port %d", port)
     app.run(host="0.0.0.0", port=port)`
 
   // ── Setup wizard step execution ─────────────────────────────────────────

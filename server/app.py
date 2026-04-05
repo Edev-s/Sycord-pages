@@ -24,6 +24,7 @@ import json
 import logging
 import os
 import shutil
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -118,6 +119,20 @@ def _log_startup_diagnostics() -> None:
     else:
         logger.info("Cloudflare DNS auto-config is enabled (zone %s…)", CF_ZONE_ID[:8])
 
+    # Check npm / node availability
+    npm_ok = _check_tool("npm")
+    node_ok = _check_tool("node")
+    if not npm_ok:
+        logger.error("npm is not installed on the server")
+    if not node_ok:
+        logger.error("node is not installed on the server")
+    if npm_ok and node_ok:
+        try:
+            nv = subprocess.check_output(["node", "--version"], text=True).strip()
+            logger.info("Node.js %s available for project builds", nv)
+        except Exception:
+            pass
+
     # List existing projects
     if PROJECTS_DIR.is_dir():
         projects = [
@@ -125,6 +140,149 @@ def _log_startup_diagnostics() -> None:
             if p.is_dir() and not p.name.startswith(".")
         ]
         logger.info("Existing deployments: %d %s", len(projects), projects[:10])
+
+
+def _check_tool(name: str) -> bool:
+    """Return True if *name* is available on $PATH."""
+    return shutil.which(name) is not None
+
+
+def _build_project(project_id: str, project_dir: Path) -> dict:
+    """Run npm install + npm run build inside *project_dir* if package.json exists.
+
+    Returns a dict with ``built`` (bool), ``logs`` (list[str]),
+    and optional ``error`` (str).
+    """
+    pkg_json = project_dir / "package.json"
+    if not pkg_json.is_file():
+        return {"built": False, "logs": [], "reason": "no package.json"}
+
+    if not _check_tool("npm"):
+        logger.error("npm is not installed on the server")
+        return {"built": False, "logs": ["npm is not installed"], "error": "npm not found"}
+
+    # Build environment: ensure node_modules/.bin is on PATH so tools like
+    # vite, tsc, next etc. can be found by npm scripts.
+    build_env = os.environ.copy()
+    node_bin = str(project_dir / "node_modules" / ".bin")
+    build_env["PATH"] = node_bin + os.pathsep + build_env.get("PATH", "")
+
+    build_logs: list[str] = []
+    error_msg: str | None = None
+
+    # Step 1: npm install
+    logger.info(
+        "Detected buildable project %s – starting build", project_id,
+    )
+
+    install_cmd = ["npm", "install", "--no-fund", "--no-audit"]
+    logger.info(
+        "Build [install] project %s – running: %s",
+        project_id, " ".join(install_cmd),
+    )
+    try:
+        result = subprocess.run(
+            install_cmd,
+            cwd=str(project_dir),
+            capture_output=True,
+            text=True,
+            timeout=120,
+            env=build_env,
+        )
+        if result.stdout.strip():
+            logger.info(
+                "Build [install] stdout for project %s:\n%s",
+                project_id, result.stdout.strip(),
+            )
+            build_logs.append(result.stdout.strip())
+        if result.stderr.strip():
+            logger.warning(
+                "Build [install] stderr for project %s:\n%s",
+                project_id, result.stderr.strip(),
+            )
+            build_logs.append(result.stderr.strip())
+        if result.returncode != 0:
+            error_msg = f"npm install exited with code {result.returncode}"
+            logger.error("Build [install] failed for %s: %s", project_id, error_msg)
+            return {
+                "built": False,
+                "logs": build_logs,
+                "error": error_msg,
+            }
+    except subprocess.TimeoutExpired:
+        error_msg = "npm install timed out after 120 s"
+        logger.error("Build [install] %s: %s", project_id, error_msg)
+        return {"built": False, "logs": build_logs, "error": error_msg}
+    except Exception as exc:
+        error_msg = str(exc)
+        logger.error("Build [install] %s exception: %s", project_id, exc)
+        return {"built": False, "logs": build_logs, "error": error_msg}
+
+    # Step 2: npm run build (only if "build" script exists in package.json)
+    try:
+        pkg = json.loads(pkg_json.read_text())
+    except Exception:
+        pkg = {}
+
+    if "build" not in pkg.get("scripts", {}):
+        logger.info(
+            "Build [build] skipped for %s – no 'build' script in package.json",
+            project_id,
+        )
+        return {"built": True, "logs": build_logs}
+
+    build_cmd = ["npm", "run", "build"]
+    logger.info(
+        "Build [build] project %s – running: %s",
+        project_id, " ".join(build_cmd),
+    )
+    try:
+        result = subprocess.run(
+            build_cmd,
+            cwd=str(project_dir),
+            capture_output=True,
+            text=True,
+            timeout=180,
+            env=build_env,
+        )
+        if result.stdout.strip():
+            logger.info(
+                "Build [build] stdout for project %s:\n%s",
+                project_id, result.stdout.strip(),
+            )
+            build_logs.append(result.stdout.strip())
+        if result.stderr.strip():
+            logger.warning(
+                "Build [build] stderr for project %s:\n%s",
+                project_id, result.stderr.strip(),
+            )
+            build_logs.append(result.stderr.strip())
+        if result.returncode != 0:
+            error_msg = f"npm run build exited with code {result.returncode}"
+            logger.error("Build [build] failed for %s: %s", project_id, error_msg)
+            return {"built": False, "logs": build_logs, "error": error_msg}
+    except subprocess.TimeoutExpired:
+        error_msg = "npm run build timed out after 180 s"
+        logger.error("Build [build] %s: %s", project_id, error_msg)
+        return {"built": False, "logs": build_logs, "error": error_msg}
+    except Exception as exc:
+        error_msg = str(exc)
+        logger.error("Build [build] %s exception: %s", project_id, exc)
+        return {"built": False, "logs": build_logs, "error": error_msg}
+
+    logger.info("Build completed successfully for %s", project_id)
+
+    # If there's a dist/ or build/ directory, serve from there instead
+    for output_dir_name in ("dist", "build", "out", ".next"):
+        output_dir = project_dir / output_dir_name
+        if output_dir.is_dir():
+            logger.info(
+                "Build [output] project %s – found %s/ directory, will serve from it",
+                project_id, output_dir_name,
+            )
+            break
+
+    return {"built": True, "logs": build_logs}
 
 
 # ---------------------------------------------------------------------------
@@ -278,16 +436,24 @@ def status():
         if p.is_dir() and not p.name.startswith(".")
     ) if PROJECTS_DIR.is_dir() else 0
 
+    warnings = list(_missing) if _missing else []
+    if not _check_tool("npm"):
+        warnings.append("npm is not installed – project builds will fail")
+    if not _check_tool("node"):
+        warnings.append("node is not installed – project builds will fail")
+
     return jsonify(
         success=True,
         status="running",
         python_version=sys.version,
         flask_installed=True,
         requests_installed=_requests_mod is not None,
+        npm_installed=_check_tool("npm"),
+        node_installed=_check_tool("node"),
         dns_auto_config=bool(CF_API_KEY and CF_ZONE_ID),
         project_count=project_count,
         data_dir=str(BASE_DIR),
-        warnings=_missing if _missing else [],
+        warnings=warnings,
     )
 
 
@@ -347,19 +513,35 @@ def deploy(project_id: str):
 
     logger.info("Deploy %s: wrote %d/%d files", project_id, written, len(files))
 
-    # Subdomain symlink
+    # Build step – run npm install + npm run build if package.json exists
+    build_result = _build_project(project_id, project_dir)
+    built = build_result.get("built", False)
+
+    # Subdomain symlink – point to build output dir if it exists
+    serve_dir = project_dir
+    if built:
+        for output_dir_name in ("dist", "build", "out"):
+            candidate = project_dir / output_dir_name
+            if candidate.is_dir():
+                serve_dir = candidate
+                logger.info(
+                    "Deploy %s: serving from %s/ build output",
+                    project_id, output_dir_name,
+                )
+                break
+
     if subdomain:
         link = PROJECTS_DIR / subdomain
         if link.exists() or link.is_symlink():
             if link.is_symlink():
                 link.unlink()
-            elif link.resolve() != project_dir.resolve():
+            elif link.resolve() != serve_dir.resolve():
                 shutil.rmtree(link)
         if not link.exists():
-            link.symlink_to(project_dir)
+            link.symlink_to(serve_dir)
         logger.info(
             "Deploy %s: subdomain symlink %s → %s",
-            project_id, subdomain, project_dir,
+            project_id, subdomain, serve_dir,
         )
 
     # Auto-create DNS record
@@ -383,13 +565,15 @@ def deploy(project_id: str):
             "files_count": written,
             "deployed_at": datetime.now(timezone.utc).isoformat(),
             "dns_status": dns_result.get("action", "skipped"),
+            "build": build_result.get("built", False),
+            "build_error": build_result.get("error"),
         },
     )
     _write_meta(project_id, meta)
 
     logger.info(
-        "Deploy complete: %s (%d files, domain=%s, dns=%s)",
-        project_id, written, domain, dns_result.get("action"),
+        "Deployed project %s (%d files, subdomain=%s, build=%s)",
+        project_id, written, subdomain, build_result.get("built", False),
     )
 
     return jsonify(
@@ -398,6 +582,7 @@ def deploy(project_id: str):
         domain=domain,
         files_count=written,
         dns=dns_result,
+        build=build_result,
     )
 
 
