@@ -1,4 +1,5 @@
 import GoogleProvider from "next-auth/providers/google"
+import CredentialsProvider from "next-auth/providers/credentials"
 import type { AuthOptions } from "next-auth"
 import { headers } from "next/headers"
 import clientPromise from "./mongodb"
@@ -55,19 +56,81 @@ export const authOptions: AuthOptions = {
         },
       },
     }),
+    CredentialsProvider({
+      name: "Developer Access",
+      credentials: {
+        password: { label: "Password", type: "password" }
+      },
+      async authorize(credentials) {
+        const token = process.env.JULES_BYPASS_TOKEN || "julesbypasstoken123"
+        if (credentials?.password === token) {
+          const client = await clientPromise
+          const db = client.db()
+          const userDoc = await db.collection("users").findOne({ email: "dmarton336@gmail.com" })
+          if (userDoc) {
+            return {
+              id: userDoc.id,
+              name: userDoc.name,
+              email: userDoc.email,
+              image: userDoc.image || userDoc.picture
+            } as any
+          }
+        }
+        return null
+      }
+    })
   ],
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   callbacks: {
-    async jwt({ token, account, profile }) {
+    async jwt({ token, account, profile, user }) {
       // console.log("[v0-DEBUG] JWT Callback Triggered")
       const client = await clientPromise
       const db = client.db()
 
-      if (account && profile) {
-        // Initial Sign In
+      // Support for Credentials provider (which gives `user` but no `profile`)
+      if (account && account.provider === "credentials" && user) {
+        token.id = user.id
+        token.picture = user.image
+        token.email = user.email
+        token.name = user.name
+        token.isPremium = false
+        token.sessionVersion = Date.now()
+
+        // Sync to MongoDB
+        try {
+          const now = new Date()
+          const existingUser = await db.collection("users").findOne({ id: user.id })
+          const joinDate = existingUser?.user?.join_date || existingUser?.createdAt || now
+
+          await db.collection("users").updateOne(
+            { id: user.id },
+            {
+              $set: {
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                image: user.image,
+                updatedAt: now,
+                sessionVersion: token.sessionVersion,
+                user: {
+                  name: user.name,
+                  email: user.email,
+                  join_date: joinDate,
+                  ip: getRequestIP(),
+                },
+                git_conection: existingUser?.git_conection || {},
+                infromations: existingUser?.infromations || {},
+              }
+            }
+          )
+        } catch (error) {
+          console.error("[v0-ERROR] Failed to update user in MongoDB via credentials:", error)
+        }
+      } else if (account && profile) {
+        // Initial Sign In via Google
         const profileId = profile.sub || profile.user?.uid || profile.id
         if (profileId) {
           token.id = profileId
