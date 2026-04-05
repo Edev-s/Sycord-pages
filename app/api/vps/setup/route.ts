@@ -226,17 +226,17 @@ export async function POST(request: Request) {
       await run(`chmod +x cloudflared`, cwd)
 
       console.log(`[VPS Setup] Installing Flask & deps via pip...`)
-      // Install system packages needed for Python
-      await ssh.execCommand('sudo apt-get update && sudo apt-get install -y python3-pip python3-venv git curl wget || true', { cwd })
+      // Install system packages needed for Python and Node.js for Vite builds
+      await ssh.execCommand('sudo apt-get update && sudo apt-get install -y python3-pip python3-venv git curl wget nodejs npm || true', { cwd })
 
       // On modern Ubuntu (23.04+), PEP 668 marks the system Python as
       // "externally-managed", which causes `pip3 install --user` to fail.
       // We first try a virtual-env install (preferred), then fall back to
       // --break-system-packages so Flask is definitely available.
-      const venvRes = await run(`python3 -m venv ${cwd}/venv && ${cwd}/venv/bin/pip install flask gunicorn python-dotenv psutil`, cwd)
+      const venvRes = await run(`python3 -m venv ${cwd}/venv && ${cwd}/venv/bin/pip install flask gunicorn python-dotenv psutil pymongo`, cwd)
       if (venvRes.stderr && venvRes.stderr.includes('Error')) {
         console.log(`[VPS Setup] venv install failed, falling back to --break-system-packages`)
-        await run(`pip3 install --user --break-system-packages flask gunicorn python-dotenv psutil || pip3 install --user flask gunicorn python-dotenv psutil`, cwd)
+        await run(`pip3 install --user --break-system-packages flask gunicorn python-dotenv psutil pymongo || pip3 install --user flask gunicorn python-dotenv psutil pymongo`, cwd)
       }
 
       ssh.dispose()
