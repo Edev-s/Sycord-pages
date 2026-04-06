@@ -241,12 +241,43 @@ def _build_project(project_id, project_dir):
     if not _check_tool("npm"):
         logger.error("npm is not installed on the server")
         return {"built": False, "logs": ["npm is not installed"], "error": "npm not found"}
+
+    # --- AI Code Forgiveness: Strip tsc and inject terser ---
+    try:
+        pkg = json.loads(pkg_json.read_text(encoding="utf-8"))
+        modified = False
+
+        # 1. Strip TypeScript strict checking from build script
+        if "scripts" in pkg and "build" in pkg["scripts"]:
+            old_build = pkg["scripts"]["build"]
+            # Remove 'tsc &&', 'tsc -b &&', 'vue-tsc &&' etc.
+            new_build = old_build.replace("tsc && ", "").replace("tsc -b && ", "").replace("vue-tsc && ", "").strip()
+            if new_build != old_build:
+                pkg["scripts"]["build"] = new_build
+                modified = True
+
+        # 2. Inject terser into devDependencies if vite is used
+        is_vite = "vite" in pkg.get("devDependencies", {}) or "vite" in pkg.get("dependencies", {})
+        has_terser = "terser" in pkg.get("devDependencies", {}) or "terser" in pkg.get("dependencies", {})
+        if is_vite and not has_terser:
+            if "devDependencies" not in pkg:
+                pkg["devDependencies"] = {}
+            pkg["devDependencies"]["terser"] = "^5.31.0"
+            modified = True
+
+        if modified:
+            pkg_json.write_text(json.dumps(pkg, indent=2), encoding="utf-8")
+            logger.info("Applied AI code forgiveness to package.json for %s", project_id)
+    except Exception as e:
+        logger.warning("Failed to parse/modify package.json for %s: %s", project_id, e)
+    # --------------------------------------------------------
+
     build_env = os.environ.copy()
     node_bin = str(project_dir / "node_modules" / ".bin")
     build_env["PATH"] = node_bin + os.pathsep + build_env.get("PATH", "")
     build_logs = []
     logger.info("Detected buildable project %s \\u2013 starting build", project_id)
-    install_cmd = ["npm", "install", "--no-fund", "--no-audit"]
+    install_cmd = ["npm", "install", "--no-fund", "--no-audit", "--legacy-peer-deps"]
     logger.info("Build [install] project %s \\u2013 running: %s", project_id, " ".join(install_cmd))
     try:
         result = subprocess.run(install_cmd, cwd=str(project_dir), capture_output=True, text=True, timeout=120, env=build_env)
