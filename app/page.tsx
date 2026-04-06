@@ -293,21 +293,17 @@ export default function LandingPage() {
 
             {/* Floating domain pills */}
             <div className="absolute top-28 md:top-32 right-0 md:right-4 flex flex-col gap-5 items-end pr-0">
-              <div className="animate-float-1 translate-x-[30%] md:translate-x-[20%]">
-                <div className="bg-[#2a2a2c] rounded-full px-5 py-2.5 text-sm md:text-base text-[#b0b0b0] font-medium whitespace-nowrap shadow-lg shadow-black/20">
-                  <span className="text-white font-semibold">myplant</span>.sycord.site
+              {[
+                { anim: "animate-float-1", offset: "translate-x-[30%] md:translate-x-[20%]" },
+                { anim: "animate-float-2", offset: "-translate-x-4 md:translate-x-0" },
+                { anim: "animate-float-3", offset: "translate-x-[15%] md:translate-x-[10%]" },
+              ].map((pill, i) => (
+                <div key={i} className={`${pill.anim} ${pill.offset}`}>
+                  <div className="bg-[#2a2a2c] rounded-full px-5 py-2.5 text-sm md:text-base text-[#b0b0b0] font-medium whitespace-nowrap shadow-lg shadow-black/20">
+                    <span className="text-white font-semibold">myplant</span>.sycord.site
+                  </div>
                 </div>
-              </div>
-              <div className="animate-float-2 -translate-x-4 md:translate-x-0">
-                <div className="bg-[#2a2a2c] rounded-full px-5 py-2.5 text-sm md:text-base text-[#b0b0b0] font-medium whitespace-nowrap shadow-lg shadow-black/20">
-                  <span className="text-white font-semibold">myplant</span>.sycord.site
-                </div>
-              </div>
-              <div className="animate-float-3 translate-x-[15%] md:translate-x-[10%]">
-                <div className="bg-[#2a2a2c] rounded-full px-5 py-2.5 text-sm md:text-base text-[#b0b0b0] font-medium whitespace-nowrap shadow-lg shadow-black/20">
-                  <span className="text-white font-semibold">myplant</span>.sycord.site
-                </div>
-              </div>
+              ))}
             </div>
 
             {/* Green equalizer bars */}
