@@ -126,6 +126,53 @@ export async function GET() {
       }
     }
 
+    // Gather CPU & RAM stats
+    let cpuUsage: number | null = null
+    let memTotal: number | null = null
+    let memUsed: number | null = null
+    let memPercent: number | null = null
+    let diskTotal: string | null = null
+    let diskUsed: string | null = null
+    let diskPercent: string | null = null
+
+    try {
+      // CPU: idle % from top, convert to usage
+      const cpuRes = await run("top -bn1 | grep '%Cpu' | head -1")
+      const cpuLine = cpuRes.stdout.trim()
+      // Match idle value: e.g. "97.0 id" or "97.0%id"
+      const idleMatch = cpuLine.match(/([\d.]+)\s*(?:%?\s*)?id/)
+      if (idleMatch) {
+        cpuUsage = Math.round((100 - parseFloat(idleMatch[1])) * 10) / 10
+      }
+
+      // RAM from /proc/meminfo (more reliable than free -m parsing)
+      const memRes = await run("cat /proc/meminfo | head -3")
+      const memLines = memRes.stdout.trim().split("\n")
+      for (const line of memLines) {
+        const totalMatch = line.match(/MemTotal:\s+(\d+)/)
+        const availMatch = line.match(/MemAvailable:\s+(\d+)/)
+        if (totalMatch) memTotal = Math.round(parseInt(totalMatch[1]) / 1024)
+        if (availMatch) {
+          const availMB = Math.round(parseInt(availMatch[1]) / 1024)
+          if (memTotal) {
+            memUsed = memTotal - availMB
+            memPercent = Math.round((memUsed / memTotal) * 1000) / 10
+          }
+        }
+      }
+
+      // Disk usage for root partition
+      const diskRes = await run("df -h / | tail -1")
+      const diskParts = diskRes.stdout.trim().split(/\s+/)
+      if (diskParts.length >= 5) {
+        diskTotal = diskParts[1]
+        diskUsed = diskParts[2]
+        diskPercent = diskParts[4]
+      }
+    } catch {
+      // Non-critical; stats will be null
+    }
+
     ssh.dispose()
 
     return NextResponse.json({
@@ -138,6 +185,9 @@ export async function GET() {
       npmInstalled,
       nodeInstalled,
       warnings,
+      cpu: cpuUsage,
+      mem: { total: memTotal, used: memUsed, percent: memPercent },
+      disk: { total: diskTotal, used: diskUsed, percent: diskPercent },
     })
   } catch (error: any) {
     console.error("[VPS Status] Error:", error)
