@@ -251,6 +251,7 @@ Purpose: **{{USEDFOR}}**
 - **vite.config.ts**:
     - Must include "build": { "outDir": "dist" }
     - Must export default defineConfig(...)
+    - Do NOT set build.minify to 'terser'. Use the default esbuild minifier (omit the minify key entirely).
 - **.gitignore**:
     - Must include: node_modules/, dist/, *.log
 - **src/types.ts**:

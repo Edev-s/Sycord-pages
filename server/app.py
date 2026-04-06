@@ -23,6 +23,7 @@ import importlib
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -153,6 +154,32 @@ def _check_tool(name: str) -> bool:
     return shutil.which(name) is not None
 
 
+def _sanitize_vite_config(project_dir: Path) -> None:
+    """Remove ``minify: 'terser'`` / ``minify: "terser"`` from vite.config
+    files so that Vite falls back to its default esbuild minifier.
+
+    Terser became an optional dependency in Vite v3; AI-generated configs
+    sometimes reference it even though it's not in package.json.
+    """
+    for name in ("vite.config.ts", "vite.config.js", "vite.config.mts", "vite.config.mjs"):
+        cfg = project_dir / name
+        if not cfg.is_file():
+            continue
+        original = cfg.read_text()
+        # Remove minify: 'terser' or minify: "terser" (with optional trailing comma)
+        cleaned = re.sub(
+            r"""minify\s*:\s*['"]terser['"]\s*,?""",
+            "",
+            original,
+        )
+        if cleaned != original:
+            cfg.write_text(cleaned)
+            logger.info(
+                "Sanitized %s for project in %s – removed terser minify option",
+                name, project_dir,
+            )
+
+
 def _build_project(project_id: str, project_dir: Path) -> dict:
     """Run npm install + npm run build inside *project_dir* if package.json exists.
 
@@ -175,6 +202,11 @@ def _build_project(project_id: str, project_dir: Path) -> dict:
 
     build_logs: list[str] = []
     error_msg: str | None = None
+
+    # Pre-build: ensure vite.config does not reference terser (optional dep
+    # since Vite v3).  Replace with default esbuild minifier to avoid
+    # "terser not found" build failures.
+    _sanitize_vite_config(project_dir)
 
     # Step 1: npm install
     logger.info(
