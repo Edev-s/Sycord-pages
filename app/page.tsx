@@ -274,6 +274,59 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* 24/7 Services Section */}
+        <RevealSection className="w-full py-16 md:py-24 bg-[#101010] overflow-hidden">
+          <div className="relative max-w-6xl mx-auto px-6 md:px-8 min-h-[420px] md:min-h-[480px]">
+            {/* Heading */}
+            <h2 className="text-3xl md:text-5xl font-bold text-white leading-tight mb-2 text-left max-w-md">
+              we provide{" "}
+              <span className="text-[#22c55e]">24/7</span>
+              <span className="inline-flex items-center ml-2 align-middle">
+                <span className="relative flex h-4 w-4 md:h-5 md:w-5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#22c55e] opacity-50"></span>
+                  <span className="relative inline-flex rounded-full h-4 w-4 md:h-5 md:w-5 bg-[#22c55e]"></span>
+                </span>
+              </span>
+              <br />
+              <span className="text-white">services</span>
+            </h2>
+
+            {/* Floating domain pills */}
+            <div className="absolute top-28 md:top-32 right-0 md:right-4 flex flex-col gap-5 items-end pr-0">
+              <div className="animate-float-1 translate-x-[30%] md:translate-x-[20%]">
+                <div className="bg-[#2a2a2c] rounded-full px-5 py-2.5 text-sm md:text-base text-[#b0b0b0] font-medium whitespace-nowrap shadow-lg shadow-black/20">
+                  <span className="text-white font-semibold">myplant</span>.sycord.site
+                </div>
+              </div>
+              <div className="animate-float-2 -translate-x-4 md:translate-x-0">
+                <div className="bg-[#2a2a2c] rounded-full px-5 py-2.5 text-sm md:text-base text-[#b0b0b0] font-medium whitespace-nowrap shadow-lg shadow-black/20">
+                  <span className="text-white font-semibold">myplant</span>.sycord.site
+                </div>
+              </div>
+              <div className="animate-float-3 translate-x-[15%] md:translate-x-[10%]">
+                <div className="bg-[#2a2a2c] rounded-full px-5 py-2.5 text-sm md:text-base text-[#b0b0b0] font-medium whitespace-nowrap shadow-lg shadow-black/20">
+                  <span className="text-white font-semibold">myplant</span>.sycord.site
+                </div>
+              </div>
+            </div>
+
+            {/* Green equalizer bars */}
+            <div className="absolute bottom-4 md:bottom-8 left-6 md:left-8 flex items-end gap-[3px]">
+              {[28, 40, 20, 44, 16, 36, 24, 48, 18, 32, 42, 14, 38, 26, 46].map((h, i) => (
+                <div
+                  key={i}
+                  className="w-[6px] md:w-[8px] rounded-full bg-[#22c55e]"
+                  style={{
+                    height: `${h}px`,
+                    animation: `equalizer ${1.2 + (i % 5) * 0.15}s ease-in-out infinite alternate`,
+                    animationDelay: `${i * 0.08}s`,
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        </RevealSection>
+
         {/* Pricing Section */}
         <RevealSection id="pricing" className="w-full px-4 md:px-8 py-12 md:py-20">
           <div className="max-w-6xl mx-auto">
