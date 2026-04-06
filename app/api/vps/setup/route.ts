@@ -337,7 +337,7 @@ ingress:
       }
 
       // --- Start Flask FIRST (this is the priority) ---
-      await run(`nohup python3 ${cwd}/runner.py > ${cwd}/runner.log 2>&1 &`, cwd)
+      await run(`nohup bash -c 'set -a; [ -f ${cwd}/.env.server ] && source ${cwd}/.env.server; set +a; exec python3 ${cwd}/runner.py' > ${cwd}/runner.log 2>&1 &`, cwd)
 
       // Give Flask more time to start up and bind its port
       await new Promise(r => setTimeout(r, 3000))

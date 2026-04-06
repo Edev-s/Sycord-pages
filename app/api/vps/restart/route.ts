@@ -78,7 +78,7 @@ export async function POST(request: Request) {
       }
 
       await run(
-        `nohup python3 ${cwd}/runner.py > ${cwd}/runner.log 2>&1 &`
+        `nohup bash -c 'set -a; [ -f ${cwd}/.env.server ] && source ${cwd}/.env.server; set +a; exec python3 ${cwd}/runner.py' > ${cwd}/runner.log 2>&1 &`
       )
 
       // Wait for startup
