@@ -556,7 +556,7 @@ const HexagonIcon = ({ className }: { className?: string }) => (
     </svg>
 )
 
-const AppwriteConnectionCard = ({
+const MongoDBConnectionCard = ({
     projectId,
     onConnect,
 }: {
@@ -565,33 +565,33 @@ const AppwriteConnectionCard = ({
 }) => {
     const [isConnecting, setIsConnecting] = useState(false)
     const [connectError, setConnectError] = useState<string | null>(null)
-    const [endpoint, setEndpoint] = useState(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || "https://cloud.appwrite.io/v1")
-    const [appwriteProjectId, setAppwriteProjectId] = useState(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || "")
+    const [endpoint, setEndpoint] = useState("")
+    const [dataSource, setDataSource] = useState("")
+    const [databaseName, setDatabaseName] = useState("")
     const [apiKey, setApiKey] = useState("")
 
-    const envPreFilled = !!(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT && process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID)
-
     const handleConnect = async () => {
-        if (!endpoint.trim() || !appwriteProjectId.trim()) {
-            setConnectError("Endpoint and Project ID are required")
+        if (!endpoint.trim() || !dataSource.trim() || !databaseName.trim() || !apiKey.trim()) {
+            setConnectError("All fields are required for MongoDB Atlas Data API")
             return
         }
         setIsConnecting(true)
         setConnectError(null)
         try {
-            const res = await fetch(`/api/projects/${projectId}/appwrite`, {
+            const res = await fetch(`/api/projects/${projectId}/database`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    appwriteEndpoint: endpoint.trim(),
-                    appwriteProjectId: appwriteProjectId.trim(),
-                    appwriteApiKey: apiKey.trim() || null,
+                    mongoEndpoint: endpoint.trim(),
+                    mongoDataSource: dataSource.trim(),
+                    mongoDatabase: databaseName.trim(),
+                    mongoApiKey: apiKey.trim(),
                 }),
             })
 
             if (!res.ok) {
                 const data = await res.json()
-                throw new Error(data.message || "Failed to save Appwrite connection")
+                throw new Error(data.message || "Failed to save MongoDB connection")
             }
 
             onConnect()
@@ -606,54 +606,55 @@ const AppwriteConnectionCard = ({
     return (
         <div className="flex flex-col items-center justify-center py-6 gap-5 animate-in fade-in slide-in-from-bottom-2 duration-700">
             <div className="flex items-center gap-3 mb-2">
-                <Database className="h-5 w-5 text-[#f02e65]" />
-                <h3 className="text-base font-medium text-zinc-100">Connect to Appwrite</h3>
+                <Database className="h-5 w-5 text-[#13AA52]" />
+                <h3 className="text-base font-medium text-zinc-100">Connect to MongoDB Atlas</h3>
             </div>
             <p className="text-xs text-zinc-500 text-center max-w-xs -mt-2">
-                This project needs a backend to store data. Connect your Appwrite project to enable databases, auth, and functions.
+                This project needs a backend to store data. Connect your MongoDB Atlas Data API to enable database functionality.
             </p>
 
             <div className="flex flex-col gap-3 p-4 rounded-2xl bg-[#1c1c1c] border border-white/5 w-full max-w-sm">
                 <div className="flex items-center gap-3 mb-1">
                     <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <rect width="24" height="24" rx="4" fill="#FD366E"/>
-                        <path d="M18.29 10.04c-.2-.25-.51-.39-.83-.39h-4.43l1.72-4.53a.88.88 0 00-.81-1.18.88.88 0 00-.82.55l-2.1 5.55H7.5c-.32 0-.63.14-.83.39a1.04 1.04 0 00-.2.9l1.44 5.76c.1.38.44.65.83.65h6.53c.39 0 .73-.27.83-.65l1.44-5.77c.07-.31 0-.64-.2-.89l-.05.01z" fill="white"/>
+                        <rect width="24" height="24" rx="4" fill="#13AA52"/>
+                        <path d="M12 4c-4.418 0-8 3.582-8 8s3.582 8 8 8 8-3.582 8-8-3.582-8-8-8zm-1.5 12h-2v-4h2v4zm4 0h-2V8h2v8z" fill="white"/>
                     </svg>
-                    <span className="font-semibold text-white">Appwrite</span>
+                    <span className="font-semibold text-white">MongoDB Atlas</span>
                 </div>
 
-                {envPreFilled ? (
-                    <p className="text-[11px] text-zinc-500">Pre-configured from environment</p>
-                ) : (
-                    <>
-                        <input
-                            type="text"
-                            placeholder="Endpoint (e.g. https://cloud.appwrite.io/v1)"
-                            value={endpoint}
-                            onChange={(e) => setEndpoint(e.target.value)}
-                            className="w-full h-9 rounded-lg border border-white/10 bg-white/5 px-3 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-white/20"
-                        />
-                        <input
-                            type="text"
-                            placeholder="Project ID"
-                            value={appwriteProjectId}
-                            onChange={(e) => setAppwriteProjectId(e.target.value)}
-                            className="w-full h-9 rounded-lg border border-white/10 bg-white/5 px-3 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-white/20"
-                        />
-                        <input
-                            type="password"
-                            placeholder="API Key (optional)"
-                            value={apiKey}
-                            onChange={(e) => setApiKey(e.target.value)}
-                            className="w-full h-9 rounded-lg border border-white/10 bg-white/5 px-3 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-white/20"
-                        />
-                    </>
-                )}
+                <input
+                    type="text"
+                    placeholder="Data API Endpoint"
+                    value={endpoint}
+                    onChange={(e) => setEndpoint(e.target.value)}
+                    className="w-full h-9 rounded-lg border border-white/10 bg-white/5 px-3 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-white/20"
+                />
+                <input
+                    type="text"
+                    placeholder="Data Source (e.g. Cluster0)"
+                    value={dataSource}
+                    onChange={(e) => setDataSource(e.target.value)}
+                    className="w-full h-9 rounded-lg border border-white/10 bg-white/5 px-3 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-white/20"
+                />
+                <input
+                    type="text"
+                    placeholder="Database Name (e.g. myapp_db)"
+                    value={databaseName}
+                    onChange={(e) => setDatabaseName(e.target.value)}
+                    className="w-full h-9 rounded-lg border border-white/10 bg-white/5 px-3 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-white/20"
+                />
+                <input
+                    type="password"
+                    placeholder="Data API Key"
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    className="w-full h-9 rounded-lg border border-white/10 bg-white/5 px-3 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-white/20"
+                />
 
                 <Button
                     onClick={handleConnect}
-                    disabled={isConnecting}
-                    className="w-full bg-[#FD366E] text-white hover:bg-[#e0305f] rounded-full px-6 py-2 h-9 font-medium border-none mt-1"
+                    disabled={isConnecting || !endpoint.trim() || !dataSource.trim() || !databaseName.trim() || !apiKey.trim()}
+                    className="w-full bg-[#13AA52] text-white hover:bg-[#0f8c42] rounded-full px-6 py-2 h-9 font-medium border-none mt-1"
                 >
                     {isConnecting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Connect"}
                 </Button>
@@ -665,8 +666,8 @@ const AppwriteConnectionCard = ({
 
             <p className="text-[10px] text-zinc-600 text-center max-w-xs">
                 Learn more at{" "}
-                <a href="https://appwrite.io/docs" target="_blank" rel="noopener noreferrer" className="underline hover:text-zinc-400">
-                    appwrite.io/docs
+                <a href="https://database.io/docs" target="_blank" rel="noopener noreferrer" className="underline hover:text-zinc-400">
+                    database.io/docs
                 </a>
             </p>
         </div>

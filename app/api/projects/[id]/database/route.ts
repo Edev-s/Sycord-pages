@@ -16,10 +16,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   const body = await request.json()
-  const { appwriteEndpoint, appwriteProjectId, appwriteApiKey } = body
+  const { mongoEndpoint, mongoDataSource, mongoDatabase, mongoApiKey } = body
 
-  if (!appwriteEndpoint || !appwriteProjectId) {
-    return NextResponse.json({ message: "Missing Appwrite connection details" }, { status: 400 })
+  if (!mongoEndpoint || !mongoDataSource || !mongoDatabase || !mongoApiKey) {
+    return NextResponse.json({ message: "Missing MongoDB Data API connection details" }, { status: 400 })
   }
 
   const client = await clientPromise
@@ -41,11 +41,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     },
     {
       $set: {
-        "projects.$.appwriteConnected": true,
-        "projects.$.appwriteEndpoint": appwriteEndpoint,
-        "projects.$.appwriteProjectId": appwriteProjectId,
-        "projects.$.appwriteApiKey": appwriteApiKey || null,
-        "projects.$.appwriteConnectedAt": new Date(),
+        "projects.$.databaseConnected": true,
+        "projects.$.mongoEndpoint": mongoEndpoint,
+        "projects.$.mongoDataSource": mongoDataSource,
+        "projects.$.mongoDatabase": mongoDatabase,
+        "projects.$.mongoApiKey": mongoApiKey,
+        "projects.$.databaseConnectedAt": new Date(),
         "projects.$.updatedAt": new Date(),
       },
     }
@@ -55,7 +56,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ message: "Project not found" }, { status: 404 })
   }
 
-  return NextResponse.json({ success: true, appwriteConnected: true })
+  return NextResponse.json({ success: true, databaseConnected: true })
 }
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -87,8 +88,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   }
 
   return NextResponse.json({
-    appwriteConnected: project.appwriteConnected ?? false,
-    appwriteEndpoint: project.appwriteEndpoint ?? null,
-    appwriteProjectId: project.appwriteProjectId ?? null,
+    databaseConnected: project.databaseConnected ?? false,
+    mongoEndpoint: project.mongoEndpoint ?? null,
+    mongoDataSource: project.mongoDataSource ?? null,
+    mongoDatabase: project.mongoDatabase ?? null,
+    mongoApiKey: project.mongoApiKey ? "hidden" : null, // don't return API key to client
   })
 }

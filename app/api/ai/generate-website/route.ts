@@ -118,8 +118,8 @@ export async function POST(request: Request) {
        }
     }
 
-    // Fetch Appwrite credentials for this project (if connected)
-    let appwriteContext = "Not applicable — this project does not use Appwrite."
+    // Fetch Database credentials for this project (if connected)
+    let databaseContext = "Not applicable — this project does not use an external database."
     if (projectId) {
       try {
         const mongo = await clientPromise
@@ -129,29 +129,31 @@ export async function POST(request: Request) {
           { projection: { "projects.$": 1 } }
         )
         const project = user?.projects?.[0]
-        if (project?.appwriteConnected && project?.appwriteEndpoint && project?.appwriteProjectId) {
-          appwriteContext = `This project uses Appwrite. The user has connected their Appwrite account.
-APPWRITE ENDPOINT: ${project.appwriteEndpoint}
-APPWRITE PROJECT ID: ${project.appwriteProjectId}
+        if (project?.databaseConnected && project?.mongoEndpoint && project?.mongoDataSource && project?.mongoDatabase && project?.mongoApiKey) {
+          databaseContext = `This project uses MongoDB Atlas Data API as its backend database. The user has connected their MongoDB Atlas account.
+MONGODB ENDPOINT: ${project.mongoEndpoint}
+DATA SOURCE: ${project.mongoDataSource}
+DATABASE: ${project.mongoDatabase}
+API KEY: ${project.mongoApiKey}
 
-CRITICAL APPWRITE RULES:
-1. package.json MUST include "appwrite": "^16.0.0" in dependencies.
-2. src/appwrite.ts MUST initialize the Appwrite Client with the EXACT endpoint and project ID above:
-   client.setEndpoint('${project.appwriteEndpoint}').setProject('${project.appwriteProjectId}');
-3. src/appwrite.ts MUST export: client, account (new Account(client)), databases (new Databases(client)), ID.
-4. src/appwrite.ts MUST export database/collection ID constants (e.g. DATABASE_ID, COLLECTION_PRODUCTS).
-5. Components that display or manage data MUST import { databases, DATABASE_ID, COLLECTION_PRODUCTS } from '../appwrite' and use real SDK calls:
-   - List: databases.listDocuments(DATABASE_ID, COLLECTION_PRODUCTS)
-   - Create: databases.createDocument(DATABASE_ID, COLLECTION_PRODUCTS, ID.unique(), data)
-   - Update: databases.updateDocument(DATABASE_ID, COLLECTION_PRODUCTS, documentId, data)
-   - Delete: databases.deleteDocument(DATABASE_ID, COLLECTION_PRODUCTS, documentId)
-6. For auth: import { account } from '../appwrite' and use account.createEmailPasswordSession(email, password), account.get(), account.deleteSession('current').
-7. Do NOT use mock/hardcoded data. ALL data operations MUST use real Appwrite SDK calls.
-8. Handle errors gracefully with try/catch and show user-friendly messages.
-9. The user will create databases/collections in their Appwrite Console matching the IDs in the code.`
+CRITICAL MONGODB RULES:
+1. The project is a Vite SPA. Do NOT use the \`mongodb\` or \`mongoose\` npm packages, as they cannot run in the browser.
+2. src/db.ts MUST be generated right after utils.ts. It MUST export a class or set of functions that wrap the standard \`fetch()\` API to make requests to the MongoDB Atlas Data API endpoints (e.g. \`/action/find\`, \`/action/insertOne\`, \`/action/updateOne\`, \`/action/deleteOne\`).
+3. The Data API requires these headers on EVERY fetch request:
+   - 'Content-Type': 'application/json'
+   - 'Access-Control-Request-Headers': '*'
+   - 'api-key': '${project.mongoApiKey}'
+4. src/db.ts MUST export database and collection string constants (e.g. DATABASE_NAME = '${project.mongoDatabase}', DATA_SOURCE = '${project.mongoDataSource}').
+5. Every fetch body MUST include:
+   - "dataSource": DATA_SOURCE
+   - "database": DATABASE_NAME
+   - "collection": "<collection_name>"
+6. Components that display or manage data MUST import the fetch wrappers from '../db.ts' (or './db.ts') and use them to fetch real data.
+7. Do NOT use mock/hardcoded data. ALL data operations MUST use real MongoDB Data API calls.
+8. The user will create the collections in their MongoDB Atlas UI matching the collection names you use in the code.`
         }
       } catch (e) {
-        console.warn("[v0] Failed to fetch Appwrite credentials:", e)
+        console.warn("[v0] Failed to fetch Database credentials:", e)
       }
     }
 
@@ -176,7 +178,9 @@ CRITICAL APPWRITE RULES:
         .replace("{{DESIGN_SYSTEM}}", designSystem || "No design system established yet. If generating style.css, define CSS custom properties for the project.")
         .replace("{{FILE_EXT}}", fileExt.toUpperCase())
         .replace("{{FILE_RULES}}", fileRules)
-        .replace("{{APPWRITE_CONTEXT}}", appwriteContext)
+        .replace("{{DATABASE_CONTEXT}}", databaseContext)
+        // Legacy fallback -- if the prompt still has {{APPWRITE_CONTEXT}}, fill it
+        .replace("{{APPWRITE_CONTEXT}}", databaseContext)
         // Legacy fallback -- if the prompt still has {{MEMORY}}, fill it
         .replace("{{MEMORY}}", shortTermMemory) + projectMemory
 
