@@ -133,6 +133,26 @@ export async function GET() {
       warnings.push(".env.server not found on VPS – restart the runner to auto-generate it")
     }
 
+    const envLoaded = {
+      cloudflareApiKey: !!process.env.CLOUDFLARE_API_KEY,
+      cloudflareZoneId: !!process.env.CLOUDFLARE_ZONE_ID,
+    }
+
+    // List active deployments
+    // Symlinks in /var/sycord/data/projects represent subdomains
+    const activeDeployments: string[] = []
+    try {
+      const deployRes = await run("find /var/sycord/data/projects -maxdepth 1 -type l -printf '%f\n'")
+      if (deployRes.stdout) {
+        const lines = deployRes.stdout.trim().split("\n")
+        for (const line of lines) {
+          if (line) activeDeployments.push(`${line}.sycord.site`)
+        }
+      }
+    } catch {
+      // Non-critical; activeDeployments will be empty
+    }
+
     // Gather CPU & RAM stats
     let cpuUsage: number | null = null
     let memTotal: number | null = null
@@ -206,6 +226,8 @@ export async function GET() {
       cpu: cpuUsage,
       mem: { total: memTotal, used: memUsed, percent: memPercent },
       disk: { total: diskTotal, used: diskUsed, percent: diskPercent },
+      envLoaded,
+      activeDeployments,
     })
   } catch (error: any) {
     console.error("[VPS Status] Error:", error)

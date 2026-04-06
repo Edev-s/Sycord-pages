@@ -1,14 +1,112 @@
 
-> my-v0-project@0.1.0 dev /app
+> my-v0-project@0.1.0 dev
 > next dev
 
- ⚠ Port 3000 is in use by an unknown process, using available port 3001 instead.
    ▲ Next.js 16.0.10 (Turbopack)
-   - Local:         http://localhost:3001
-   - Network:       http://192.168.0.2:3001
+   - Local:         http://localhost:3000
+   - Network:       http://192.168.0.2:3000
 
  ✓ Starting...
- ⨯ Unable to acquire lock at /app/.next/dev/lock, is another instance of next dev running?
-   Suggestion: If you intended to restart next dev, terminate the other process, and then try again.
-[?25h
- ELIFECYCLE  Command failed with exit code 1.
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+ ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+ ✓ Ready in 1457ms
+ ○ Compiling /setup ...
+ GET /setup 200 in 5.5s (compile: 4.8s, proxy.ts: 130ms, render: 621ms)
+ ⨯ Error: Missing MONGO_URI environment variable
+    at module evaluation (lib/mongodb.ts:4:9)
+    at module evaluation (lib/auth.ts:4:1)
+    at <unknown> (app/api/vps/status/route.ts:4:1)
+    at module evaluation (.next/dev/server/chunks/[root-of-the-server]__0cb030c7._.js:354:30)
+    at Object.<anonymous> (.next/dev/server/app/api/vps/status/route.js:9:3)
+  2 |
+  3 | if (!process.env.MONGO_URI) {
+> 4 |   throw new Error("Missing MONGO_URI environment variable");
+    |         ^
+  5 | }
+  6 |
+  7 | const uri = process.env.MONGO_URI; {
+  page: '/api/vps/status'
+}
+ ⨯ Error: Missing MONGO_URI environment variable
+    at module evaluation (lib/mongodb.ts:4:9)
+    at module evaluation (lib/auth.ts:4:1)
+    at <unknown> (app/api/vps/status/route.ts:4:1)
+    at module evaluation (.next/dev/server/chunks/[root-of-the-server]__0cb030c7._.js:354:30)
+    at Object.<anonymous> (.next/dev/server/app/api/vps/status/route.js:9:3)
+  2 |
+  3 | if (!process.env.MONGO_URI) {
+> 4 |   throw new Error("Missing MONGO_URI environment variable");
+    |         ^
+  5 | }
+  6 |
+  7 | const uri = process.env.MONGO_URI; {
+  page: '/api/auth/session'
+}
+ ○ Compiling /api/vps/status ...
+ GET /api/auth/session 500 in 5.0s (compile: 4.7s, proxy.ts: 68ms, render: 321ms)
+ GET /api/vps/status 500 in 5.1s (compile: 5.0s, proxy.ts: 65ms, render: 38ms)
+ ⨯ Error: Missing MONGO_URI environment variable
+    at module evaluation (lib/mongodb.ts:4:9)
+    at module evaluation (lib/auth.ts:4:1)
+    at <unknown> (app/api/vps/status/route.ts:4:1)
+    at module evaluation (.next/dev/server/chunks/[root-of-the-server]__0cb030c7._.js:354:30)
+    at Object.<anonymous> (.next/dev/server/app/api/vps/status/route.js:9:3)
+  2 |
+  3 | if (!process.env.MONGO_URI) {
+> 4 |   throw new Error("Missing MONGO_URI environment variable");
+    |         ^
+  5 | }
+  6 |
+  7 | const uri = process.env.MONGO_URI; {
+  page: '/api/auth/_log'
+}
+ POST /api/auth/_log 500 in 111ms (compile: 73ms, proxy.ts: 7ms, render: 30ms)
+ GET /setup 200 in 100ms (compile: 6ms, proxy.ts: 12ms, render: 82ms)
+ ⨯ Error: Missing MONGO_URI environment variable
+    at module evaluation (lib/mongodb.ts:4:9)
+    at module evaluation (lib/auth.ts:4:1)
+    at <unknown> (app/api/vps/status/route.ts:4:1)
+    at module evaluation (.next/dev/server/chunks/[root-of-the-server]__0cb030c7._.js:354:30)
+    at Object.<anonymous> (.next/dev/server/app/api/vps/status/route.js:9:3)
+  2 |
+  3 | if (!process.env.MONGO_URI) {
+> 4 |   throw new Error("Missing MONGO_URI environment variable");
+    |         ^
+  5 | }
+  6 |
+  7 | const uri = process.env.MONGO_URI; {
+  page: '/api/vps/status'
+}
+ ⨯ Error: Missing MONGO_URI environment variable
+    at module evaluation (lib/mongodb.ts:4:9)
+    at module evaluation (lib/auth.ts:4:1)
+    at <unknown> (app/api/vps/status/route.ts:4:1)
+    at module evaluation (.next/dev/server/chunks/[root-of-the-server]__0cb030c7._.js:354:30)
+    at Object.<anonymous> (.next/dev/server/app/api/vps/status/route.js:9:3)
+  2 |
+  3 | if (!process.env.MONGO_URI) {
+> 4 |   throw new Error("Missing MONGO_URI environment variable");
+    |         ^
+  5 | }
+  6 |
+  7 | const uri = process.env.MONGO_URI; {
+  page: '/api/auth/session'
+}
+ GET /api/vps/status 500 in 175ms (compile: 103ms, proxy.ts: 7ms, render: 65ms)
+ GET /api/auth/session 500 in 223ms (compile: 174ms, proxy.ts: 8ms, render: 41ms)
+ ⨯ Error: Missing MONGO_URI environment variable
+    at module evaluation (lib/mongodb.ts:4:9)
+    at module evaluation (lib/auth.ts:4:1)
+    at <unknown> (app/api/vps/status/route.ts:4:1)
+    at module evaluation (.next/dev/server/chunks/[root-of-the-server]__0cb030c7._.js:354:30)
+    at Object.<anonymous> (.next/dev/server/app/api/vps/status/route.js:9:3)
+  2 |
+  3 | if (!process.env.MONGO_URI) {
+> 4 |   throw new Error("Missing MONGO_URI environment variable");
+    |         ^
+  5 | }
+  6 |
+  7 | const uri = process.env.MONGO_URI; {
+  page: '/api/auth/_log'
+}
+ POST /api/auth/_log 500 in 123ms (compile: 97ms, proxy.ts: 10ms, render: 16ms)

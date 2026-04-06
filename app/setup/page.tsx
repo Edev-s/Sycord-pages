@@ -42,6 +42,11 @@ type RunnerStatus = {
   flaskVersion?: string | null
   warnings?: string[]
   error?: string
+  envLoaded?: {
+    cloudflareApiKey: boolean
+    cloudflareZoneId: boolean
+  }
+  activeDeployments?: string[]
 }
 
 // ---------------------------------------------------------------------------
@@ -546,7 +551,7 @@ if __name__ == "__main__":
                   </h2>
                   <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
                     {status?.uptime && <span>Uptime: {status.uptime}</span>}
-                    {status?.flaskVersion && <span>Flask {status.flaskVersion}</span>}
+                    {status?.httpOk ? <span className="text-green-400">Flask Serving ✓</span> : status?.runner ? <span className="text-yellow-500">Flask Starting...</span> : <span className="text-red-500">Flask Down</span>}
                     {tunnelOnline && <span className="text-blue-400">Tunnel ✓</span>}
                     {status?.online && !tunnelOnline && <span className="text-yellow-500">No tunnel</span>}
                   </div>
@@ -658,6 +663,32 @@ if __name__ == "__main__":
           )}
         </Card>
 
+        {/* ── Active Deployments ───────────────────────────────────────── */}
+        <Card className="border-border">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Globe className="h-4 w-4" />
+              Active Deployments
+            </CardTitle>
+            <CardDescription className="text-xs">
+              List of currently running mini-servers
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {status?.activeDeployments && status.activeDeployments.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {status.activeDeployments.map((domain) => (
+                  <Badge key={domain} variant="outline" className="text-green-400 border-green-500/30">
+                    {domain}
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <span className="text-sm text-muted-foreground">No active deployments found.</span>
+            )}
+          </CardContent>
+        </Card>
+
         {/* ── Setup Wizard (collapsible) ───────────────────────────────── */}
         <Card className="border-border">
           <CardHeader className="pb-2 cursor-pointer" onClick={() => setWizardOpen(!wizardOpen)}>
@@ -681,7 +712,7 @@ if __name__ == "__main__":
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${currentStep >= 0 ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"}`}>1</span>
-                    <span className="text-sm font-medium">Initialize VPS</span>
+                    <span className="text-sm font-medium">Load .env & Initialize VPS</span>
                   </div>
                   {currentStep > 0 ? <Check className="h-4 w-4 text-green-500" /> : currentStep === 0 && (
                     <Button onClick={() => runStep(0, "init")} disabled={loadingStep === 0} size="sm" variant="outline">
@@ -689,6 +720,16 @@ if __name__ == "__main__":
                     </Button>
                   )}
                 </div>
+                {currentStep === 0 && status?.envLoaded && (
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                    <Badge variant="outline" className={status.envLoaded.cloudflareZoneId ? "text-green-500 border-green-500/30" : "text-yellow-500 border-yellow-500/30"}>
+                      Zone ID: {status.envLoaded.cloudflareZoneId ? "Loaded" : "Missing"}
+                    </Badge>
+                    <Badge variant="outline" className={status.envLoaded.cloudflareApiKey ? "text-green-500 border-green-500/30" : "text-yellow-500 border-yellow-500/30"}>
+                      API Key: {status.envLoaded.cloudflareApiKey ? "Loaded" : "Missing"}
+                    </Badge>
+                  </div>
+                )}
               </div>
 
               {/* Step 2: Auth */}
