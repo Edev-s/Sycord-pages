@@ -5,7 +5,7 @@ import clientPromise from "@/lib/mongodb"
 import { ObjectId } from "mongodb"
 
 const GITHUB_API_BASE = "https://api.github.com"
-const SYCORD_DEPLOY_API_BASE = "https://micro1.sycord.com"
+const SYCORD_DEPLOY_API_BASE = process.env.VPS_SERVER_URL || "https://server.sycord.site"
 
 // Initial delay after creating a repository before attempting file upload
 const INITIAL_REPO_DELAY_MS = 1000
@@ -176,30 +176,6 @@ async function deployViaGitTree(
     console.log(`[Deploy] Atomic deployment complete. New commit: ${commitData.sha}`)
 }
 
-// Helper to check for domain in logs (same logic as in domain route)
-async function checkLogsForDomain(repoId: string | number): Promise<string | null> {
-    try {
-        const logsRes = await fetch(`${SYCORD_DEPLOY_API_BASE}/api/logs?project_id=${repoId}&limit=100`)
-        if (logsRes.ok) {
-            const logData = await logsRes.json()
-            if (logData.success && Array.isArray(logData.logs)) {
-                const combinedLogs = logData.logs.join('\n')
-                // Matches: "Take a peek over at https://..." or "✨ Deployment complete! Take a peek over at https://..."
-                // The [\s\S]*? handles potential emoji or newlines before the URL
-                const match = combinedLogs.match(/Take a peek over at[\s\S]*?(https:\/\/[a-zA-Z0-9.-]+\.pages\.dev)/)
-                if (match && match[1]) {
-                    let domain = match[1].trim()
-                    if (domain.endsWith('.')) domain = domain.slice(0, -1)
-                    return domain
-                }
-            }
-        }
-    } catch (e) {
-        console.error("[Deploy] Log fallback check error:", e)
-    }
-    return null
-}
-
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
@@ -298,13 +274,13 @@ export async function POST(request: Request) {
         }}
     })
 
-    // 8. Trigger Sycord Cloudflare Deploy
-    let cloudflareUrl = null
+    // 8. Trigger Sycord VPS Deploy
+    let vpsUrl = null
     let deployMessage = "Deployed to GitHub"
 
     try {
         // Trigger — include files and env vars in the deploy payload
-        console.log(`[Deploy] Triggering downstream deploy for repo ${repoId} with ${files.length} files...`)
+        console.log(`[Deploy] Triggering downstream VPS deploy for project ${projectId} with ${files.length} files...`)
         const deployBody: any = {
           files,
           subdomain: repo,
@@ -312,7 +288,7 @@ export async function POST(request: Request) {
         if (Object.keys(envVars).length > 0) {
           deployBody.env_vars = envVars
         }
-        const triggerRes = await fetch(`${SYCORD_DEPLOY_API_BASE}/api/deploy/${repoId}`, {
+        const triggerRes = await fetch(`${SYCORD_DEPLOY_API_BASE}/api/deploy/${projectId}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(deployBody),
@@ -321,46 +297,30 @@ export async function POST(request: Request) {
         console.log(`[Deploy] Trigger status: ${triggerRes.status}`, triggerData)
         
         if (!triggerRes.ok) {
-          console.error(`[Deploy] Downstream deploy failed:`, triggerData)
+          console.error(`[Deploy] Downstream VPS deploy failed:`, triggerData)
+        } else if (triggerData.domain) {
+          vpsUrl = triggerData.domain.startsWith('http') ? triggerData.domain : `https://${triggerData.domain}`
         }
         
-        // Wait briefly for initial provisioning
-        await new Promise(r => setTimeout(r, 2000))
+        if (!vpsUrl) {
+            // Wait briefly for initial provisioning
+            await new Promise(r => setTimeout(r, 2000))
 
-        // Check Domain via API
-        const domainRes = await fetch(`${SYCORD_DEPLOY_API_BASE}/api/deploy/${repoId}/domain`)
-        const domainData = await domainRes.json()
-        console.log(`[Deploy] Initial domain check:`, domainData)
-        
-        if (domainData.success && domainData.domain) {
-            // Check if it's a generic placeholder that needs refinement from logs
-            if (domainData.domain === "https://test.pages.dev") {
-                console.log(`[Deploy] Domain is generic placeholder, attempting to find specific URL in logs...`)
-                const logDomain = await checkLogsForDomain(repoId)
-                if (logDomain) {
-                    cloudflareUrl = logDomain
-                    console.log(`[Deploy] Replaced placeholder with log domain: ${cloudflareUrl}`)
-                } else {
-                    cloudflareUrl = domainData.domain // Keep generic if logs fail
-                }
-            } else {
-                cloudflareUrl = domainData.domain
-            }
-        } else {
-            // Fallback: Check logs immediately if API didn't return it yet (rare but possible if logs are faster)
-            console.log(`[Deploy] Domain API empty, checking logs fallback...`)
-            const logDomain = await checkLogsForDomain(repoId)
-            if (logDomain) {
-                cloudflareUrl = logDomain
-                console.log(`[Deploy] Found domain in logs: ${cloudflareUrl}`)
+            // Check Domain via API
+            const domainRes = await fetch(`${SYCORD_DEPLOY_API_BASE}/api/projects/${projectId}`)
+            const domainData = await domainRes.json()
+            console.log(`[Deploy] Project info check:`, domainData)
+
+            if (domainData.success && domainData.domain) {
+                vpsUrl = domainData.domain.startsWith('http') ? domainData.domain : `https://${domainData.domain}`
             }
         }
 
-        if (cloudflareUrl) {
-            deployMessage = "Deployed to Cloudflare Pages!"
+        if (vpsUrl) {
+            deployMessage = "Deployed to Sycord VPS!"
             await db.collection("users").updateOne(
                 { id: session.user.id, "projects._id": new ObjectId(projectId) },
-                { $set: { "projects.$.cloudflareUrl": cloudflareUrl } }
+                { $set: { "projects.$.cloudflareUrl": vpsUrl } } // Using cloudflareUrl for backward compatibility in DB schema
             )
         }
     } catch (e) {
@@ -369,9 +329,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
         success: true,
-        url: cloudflareUrl || gitUrl,
+        url: vpsUrl || gitUrl,
         githubUrl: gitUrl,
-        cloudflareUrl,
+        cloudflareUrl: vpsUrl,
         filesCount: files.length,
         message: deployMessage,
         repoId: repoId.toString()
