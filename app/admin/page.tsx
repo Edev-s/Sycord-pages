@@ -117,6 +117,8 @@ export default function AdminPage() {
   const [vpsLoading, setVpsLoading] = useState(false)
   const [vpsLogs, setVpsLogs] = useState<string[]>([])
   const [vpsAction, setVpsAction] = useState<string | null>(null)
+  const [vpsLogType, setVpsLogType] = useState<string>("all")
+  const [vpsLogLines, setVpsLogLines] = useState<number>(200)
 
   // PAP & TOS State
   const [privacyPolicy, setPrivacyPolicy] = useState("Edit your privacy policy here...")
@@ -343,9 +345,11 @@ export default function AdminPage() {
     }
   }
 
-  const fetchVpsLogs = async () => {
+  const fetchVpsLogs = async (type?: string, lines?: number) => {
     try {
-      const res = await fetch("/api/vps/logs?lines=100&type=all")
+      const logType = type || vpsLogType
+      const logLines = lines || vpsLogLines
+      const res = await fetch(`/api/vps/logs?lines=${logLines}&type=${logType}`)
       if (res.ok) {
         const data = await res.json()
         setVpsLogs(Array.isArray(data.logs) ? data.logs : [])
@@ -900,7 +904,7 @@ export default function AdminPage() {
                     )}
                   </div>
                   <p className="text-xs text-white/30 mt-0.5">
-                    {vpsStatus?.uptime || "Click refresh to check status"}
+                    {vpsStatus?.uptime ? `Uptime: ${vpsStatus.uptime}` : "Click refresh to check status"}
                   </p>
                 </div>
               </div>
@@ -923,6 +927,76 @@ export default function AdminPage() {
                   <div className="text-center">
                     <div className={`h-2 w-2 rounded-full mx-auto mb-1.5 ${vpsStatus.npmInstalled ? 'bg-green-500' : 'bg-yellow-500'}`} />
                     <p className="text-[11px] text-white/40">npm</p>
+                  </div>
+                </div>
+              )}
+
+              {/* CPU / RAM / Disk Stats */}
+              {vpsStatus?.online && (vpsStatus.cpu !== null || vpsStatus.mem?.percent !== null) && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4 pt-4 border-t border-white/[0.04]">
+                  {/* CPU */}
+                  <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Cpu className="h-3.5 w-3.5 text-blue-400" />
+                      <span className="text-[11px] font-medium text-white/50">CPU</span>
+                      <span className="ml-auto text-xs font-semibold text-white">{vpsStatus.cpu != null ? `${vpsStatus.cpu}%` : "—"}</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          (vpsStatus.cpu ?? 0) > 80 ? 'bg-red-500' : (vpsStatus.cpu ?? 0) > 50 ? 'bg-yellow-500' : 'bg-blue-500'
+                        }`}
+                        style={{ width: `${Math.min(vpsStatus.cpu ?? 0, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* RAM */}
+                  <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Activity className="h-3.5 w-3.5 text-purple-400" />
+                      <span className="text-[11px] font-medium text-white/50">RAM</span>
+                      <span className="ml-auto text-xs font-semibold text-white">
+                        {vpsStatus.mem?.used != null && vpsStatus.mem?.total != null
+                          ? `${vpsStatus.mem.used} / ${vpsStatus.mem.total} MB`
+                          : "—"}
+                      </span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          (vpsStatus.mem?.percent ?? 0) > 85 ? 'bg-red-500' : (vpsStatus.mem?.percent ?? 0) > 60 ? 'bg-yellow-500' : 'bg-purple-500'
+                        }`}
+                        style={{ width: `${Math.min(vpsStatus.mem?.percent ?? 0, 100)}%` }}
+                      />
+                    </div>
+                    {vpsStatus.mem?.percent != null && (
+                      <p className="text-[10px] text-white/30 mt-1">{vpsStatus.mem.percent}% used</p>
+                    )}
+                  </div>
+
+                  {/* Disk */}
+                  <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <HardDrive className="h-3.5 w-3.5 text-emerald-400" />
+                      <span className="text-[11px] font-medium text-white/50">Disk</span>
+                      <span className="ml-auto text-xs font-semibold text-white">
+                        {vpsStatus.disk?.used && vpsStatus.disk?.total
+                          ? `${vpsStatus.disk.used} / ${vpsStatus.disk.total}`
+                          : "—"}
+                      </span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          parseInt(vpsStatus.disk?.percent || "0") > 85 ? 'bg-red-500' : parseInt(vpsStatus.disk?.percent || "0") > 60 ? 'bg-yellow-500' : 'bg-emerald-500'
+                        }`}
+                        style={{ width: vpsStatus.disk?.percent || "0%" }}
+                      />
+                    </div>
+                    {vpsStatus.disk?.percent && (
+                      <p className="text-[10px] text-white/30 mt-1">{vpsStatus.disk.percent} used</p>
+                    )}
                   </div>
                 </div>
               )}
@@ -969,19 +1043,69 @@ export default function AdminPage() {
               </Button>
             </div>
 
-            {/* Logs */}
-            {vpsLogs.length > 0 && (
-              <div className="rounded-2xl bg-black/40 border border-white/[0.06] p-4">
-                <p className="text-[11px] text-white/30 uppercase tracking-wider font-semibold mb-3">Runner Logs</p>
-                <div className="max-h-[400px] overflow-y-auto font-mono text-xs text-zinc-400 space-y-0.5 custom-scrollbar">
+            {/* Logs Section */}
+            <div className="rounded-2xl bg-black/40 border border-white/[0.06] p-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-[11px] text-white/30 uppercase tracking-wider font-semibold">Server Logs</p>
+                <div className="flex items-center gap-2">
+                  {/* Log type selector */}
+                  <div className="flex rounded-lg overflow-hidden border border-white/[0.06]">
+                    {(["all", "runner", "tunnel", "server"] as const).map((type) => (
+                      <button
+                        key={type}
+                        onClick={() => { setVpsLogType(type); fetchVpsLogs(type); }}
+                        className={`px-2.5 py-1 text-[10px] font-medium transition-colors ${
+                          vpsLogType === type
+                            ? "bg-white/10 text-white"
+                            : "text-white/30 hover:text-white/60 hover:bg-white/[0.04]"
+                        }`}
+                      >
+                        {type}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Line count */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="flex items-center gap-1 px-2 py-1 rounded-lg border border-white/[0.06] text-[10px] font-medium text-white/40 hover:text-white/60 transition-colors">
+                        {vpsLogLines} lines
+                        <ChevronDown className="h-2.5 w-2.5" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="min-w-[80px]">
+                      {[50, 100, 200, 500].map((n) => (
+                        <DropdownMenuItem
+                          key={n}
+                          onClick={() => { setVpsLogLines(n); fetchVpsLogs(undefined, n); }}
+                          className="text-xs"
+                        >
+                          {n} lines
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
+              {vpsLogs.length > 0 ? (
+                <div className="max-h-[600px] overflow-y-auto font-mono text-xs text-zinc-400 space-y-0.5 custom-scrollbar">
                   {vpsLogs.map((line, i) => (
-                    <p key={i} className={line.toLowerCase().includes('error') ? 'text-red-400' : line.toLowerCase().includes('warn') ? 'text-yellow-400' : ''}>
+                    <p key={i} className={
+                      line.toLowerCase().includes('error') || line.toLowerCase().includes('exception')
+                        ? 'text-red-400'
+                        : line.toLowerCase().includes('warn')
+                          ? 'text-yellow-400'
+                          : line.toLowerCase().includes('success') || line.toLowerCase().includes('deployed')
+                            ? 'text-green-400'
+                            : ''
+                    }>
                       {line}
                     </p>
                   ))}
                 </div>
-              </div>
-            )}
+              ) : (
+                <p className="text-xs text-white/20 text-center py-8">No logs available. Click Refresh to load.</p>
+              )}
+            </div>
           </div>
         )}
 
