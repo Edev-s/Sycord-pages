@@ -42,6 +42,7 @@ type RunnerStatus = {
   flaskVersion?: string | null
   warnings?: string[]
   error?: string
+  deployments?: { subdomain: string; port: number | null }[]
 }
 
 // ---------------------------------------------------------------------------
@@ -604,6 +605,35 @@ if __name__ == "__main__":
                   <span className="text-yellow-200">{w}</span>
                 </div>
               ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* ── Active Deployments ───────────────────────────────────────── */}
+        {status?.deployments && status.deployments.length > 0 && (
+          <Card className="border-border">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Globe className="h-4 w-4" />
+                Active Deployments
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col gap-2">
+                {status.deployments.map((dep, i) => (
+                  <div key={i} className="flex items-center justify-between text-sm bg-muted/30 p-2 rounded-md">
+                    <span className="text-muted-foreground flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                      {dep.subdomain}
+                    </span>
+                    {dep.port && (
+                      <span className="text-xs font-mono text-muted-foreground bg-black/20 px-1.5 py-0.5 rounded">
+                        :{dep.port}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         )}

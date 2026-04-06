@@ -133,6 +133,33 @@ export async function GET() {
       warnings.push(".env.server not found on VPS – restart the runner to auto-generate it")
     }
 
+    // Gather Active Deployments (Subdomains configured)
+    const deployments: { subdomain: string; port: number | null }[] = []
+    try {
+      const dataDir = `/var/sycord/data/projects`
+      const findRes = await run(`find ${dataDir} -mindepth 1 -maxdepth 1 -type d -print 2>/dev/null`)
+      const projectDirs = findRes.stdout.trim().split('\n').filter(Boolean)
+
+      for (const dir of projectDirs) {
+        // Flask runner maps subdomain -> projectId symlinks directly in /var/sycord/data/projects
+        // and usually writes a .port file inside. We can infer the domain based on the existence of the directory.
+        const projectIdMatch = dir.match(/([a-zA-Z0-9_-]+)$/)
+        if (projectIdMatch) {
+            const projectId = projectIdMatch[1]
+            // Default subdomain convention: <projectId>.sycord.site
+            // Let's see if a .port file exists
+            const portRes = await run(`cat ${dir}/.port 2>/dev/null || echo ""`)
+            const portStr = portRes.stdout.trim()
+            deployments.push({
+               subdomain: `${projectId}.sycord.site`,
+               port: portStr ? parseInt(portStr, 10) : null
+            })
+        }
+      }
+    } catch {
+       // Ignore if not created yet
+    }
+
     // Gather CPU & RAM stats
     let cpuUsage: number | null = null
     let memTotal: number | null = null
@@ -206,6 +233,7 @@ export async function GET() {
       cpu: cpuUsage,
       mem: { total: memTotal, used: memUsed, percent: memPercent },
       disk: { total: diskTotal, used: diskUsed, percent: diskPercent },
+      deployments,
     })
   } catch (error: any) {
     console.error("[VPS Status] Error:", error)

@@ -63,9 +63,10 @@ export async function POST(request: Request) {
       // the Flask server can auto-configure DNS records on deploy.
       const serverEnvVars: Record<string, string | undefined> = {
         CLOUDFLARE_API_KEY: process.env.CLOUDFLARE_API_KEY,
+        CLOUDFLARE_EMAIL: process.env.CLOUDFLARE_EMAIL,
         CLOUDFLARE_ZONE_ID: process.env.CLOUDFLARE_ZONE_ID,
-        GITHUB_API_TOKEN: process.env.GITHUB_API_TOKEN || process.env.GITHUB_TOKEN,
-        GITHUB_OWNER: process.env.GITHUB_OWNER || process.env.GITHUB_USERNAME,
+        NEXT_PUBLIC_GITHUB_USERNAME: process.env.NEXT_PUBLIC_GITHUB_USERNAME || process.env.GITHUB_USERNAME || process.env.GITHUB_OWNER,
+        GITHUB_TOKEN: process.env.GITHUB_TOKEN || process.env.GITHUB_API_TOKEN,
       }
 
       const envLines = Object.entries(serverEnvVars)
