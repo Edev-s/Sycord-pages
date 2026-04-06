@@ -901,6 +901,21 @@ export default function SiteSettingsPage() {
     const MAX_SIMULATED_PROGRESS = 80
 
     try {
+      // Save all current pages to DB before deploying so the backend has the latest files
+      if (generatedPages.length > 0) {
+        for (const page of generatedPages) {
+          await fetch(`/api/projects/${id}/pages`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: page.name,
+              content: page.code,
+              usedFor: page.usedFor || "",
+            }),
+          })
+        }
+      }
+
       const progressInterval = setInterval(() => {
         setDeployProgress(prev => {
           const nextProgress = prev + PROGRESS_INCREMENT
