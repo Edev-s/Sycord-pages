@@ -94,17 +94,14 @@ export default function LandingPage() {
     {
       src: "https://github.com/user-attachments/assets/6f4659c9-0989-47c0-b282-731ae5961df7",
       alt: "Best AI model on the market — Gemini 3.1",
-      label: "Best AI model on the market",
     },
     {
       src: "https://github.com/user-attachments/assets/95665e35-5f9c-4a6d-9255-8a5b9dfd5d01",
       alt: "Share it! better with friend",
-      label: "Share it! better with friend",
     },
     {
       src: "https://github.com/user-attachments/assets/9c1a2ed9-1179-4e69-9c24-40058dc0e53d",
       alt: "building never been this easy",
-      label: "building never been this easy",
     },
   ]
   const { scrollRef: featuresScrollRef, activeIndex: featuresActiveIndex } = useCarouselIndex(featureImages.length)
@@ -223,20 +220,17 @@ export default function LandingPage() {
                     <div
                       key={i}
                       data-carousel-card
-                      className="relative w-[75vw] md:w-auto h-64 sm:h-72 md:h-96 flex-shrink-0 md:flex-shrink rounded-3xl overflow-hidden"
+                      className="relative w-[85vw] md:w-auto aspect-video md:aspect-auto md:h-96 flex-shrink-0 md:flex-shrink rounded-3xl overflow-hidden"
                       style={{ scrollSnapAlign: "center" }}
                     >
-                      {/* Badge label — mobile only */}
-                      <div className="md:hidden absolute top-3 left-3 z-10 bg-black/55 backdrop-blur-md border border-white/10 text-white text-[11px] font-medium px-3 py-1.5 rounded-full whitespace-nowrap">
-                        {img.label}
-                      </div>
+                      {/* Badge label — removed to only show image */}
                       <Image
                         src={img.src}
                         alt={img.alt}
                         fill
-                        className="object-cover"
+                        className="object-cover object-top md:object-center"
                         loading="lazy"
-                        sizes="(max-width: 640px) 75vw, (max-width: 768px) 80vw, 33vw"
+                        sizes="(max-width: 640px) 85vw, (max-width: 768px) 85vw, 33vw"
                       />
                     </div>
                   ))}
@@ -304,7 +298,7 @@ export default function LandingPage() {
                   <div className="w-2 h-2 rounded-full bg-[#3A3B3D]"></div>
                 </div>
                 <h3 className="text-2xl font-bold text-[#6B6E71] mb-2">Sycord</h3>
-                <p className="text-[#8A8E91] text-sm mb-6">Perfect for getting started</p>
+                <p className="text-[#8A8E91] text-sm mb-6">Basic app</p>
                 <div className="mb-6">
                   <span className="text-3xl font-bold text-white">$0</span>
                   <span className="text-[#8A8E91] text-sm">/month</span>
@@ -317,22 +311,22 @@ export default function LandingPage() {
                 </Button>
                 <ul className="space-y-3 flex-1">
                   <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-[#6B6E71] flex-shrink-0" />
-                    <span className="text-white/80 text-sm">1 Website</span>
+                    <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+                    <span className="text-white/80 text-sm">1 Project</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+                    <span className="text-white/80 text-sm">Syra Lite</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-[#6B6E71] flex-shrink-0" />
-                    <span className="text-white/80 text-sm">1 GB Storage</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-[#6B6E71] flex-shrink-0" />
-                    <span className="text-white/80 text-sm">Basic Templates</span>
+                    <span className="text-white/50 text-sm">Limited Integration</span>
                   </li>
                 </ul>
               </div>
 
               {/* Sycord+ Plan - Featured */}
-              <div className="frosted-glass-dark rounded-2xl p-8 border-2 border-yellow-500/40 flex flex-col relative overflow-hidden">
+              <div className="frosted-glass-dark rounded-2xl p-8 border-2 border-yellow-500/40 flex flex-col relative overflow-hidden transform scale-105 z-10 shadow-[0_0_40px_-10px_rgba(234,179,8,0.15)]">
                 {/* Decorative illustration - lightning pattern */}
                 <svg className="absolute -right-4 -top-4 w-32 h-32 opacity-[0.08]" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M70 8L40 56h28L54 120l40-64H66L84 8H70z" stroke="url(#yellowGrad)" strokeWidth="2" fill="none"/>
@@ -343,10 +337,6 @@ export default function LandingPage() {
                     </linearGradient>
                   </defs>
                 </svg>
-                <svg className="absolute -left-8 -bottom-8 w-24 h-24 opacity-[0.05]" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="48" cy="48" r="44" stroke="#EAB308" strokeWidth="1.5"/>
-                  <circle cx="48" cy="48" r="28" stroke="#EAB308" strokeWidth="1"/>
-                </svg>
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-yellow-500/10 border border-yellow-500/30 rounded-full px-4 py-1">
                   <span className="text-yellow-500 text-xs font-semibold">Most Popular</span>
                 </div>
@@ -354,9 +344,9 @@ export default function LandingPage() {
                   <Zap className="w-4 h-4 text-yellow-500" />
                 </div>
                 <h3 className="text-2xl font-bold text-white mb-2">Sycord+</h3>
-                <p className="text-[#8A8E91] text-sm mb-6">For growing businesses</p>
+                <p className="text-[#8A8E91] text-sm mb-6">Complex apps</p>
                 <div className="mb-6">
-                  <span className="text-3xl font-bold text-white">$9</span>
+                  <span className="text-3xl font-bold text-white">$2</span>
                   <span className="text-[#8A8E91] text-sm">/month</span>
                 </div>
                 <Button 
@@ -368,38 +358,31 @@ export default function LandingPage() {
                 <ul className="space-y-3 flex-1">
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
-                    <span className="text-white/80 text-sm">Unlimited Sites</span>
+                    <span className="text-white text-sm font-medium">3 Projects</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
-                    <span className="text-white/80 text-sm">50 GB Storage</span>
+                    <span className="text-white/80 text-sm">Syra Pro</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
-                    <span className="text-white/80 text-sm">AI Builder</span>
+                    <span className="text-white/80 text-sm">Integration</span>
                   </li>
                 </ul>
               </div>
 
               {/* Sycord Enterprise Plan */}
               <div className="frosted-card rounded-2xl p-8 flex flex-col relative overflow-hidden">
-                {/* Decorative illustration - sparkle pattern */}
                 <svg className="absolute -right-6 -top-6 w-32 h-32 opacity-[0.08]" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M64 8l4 24 24-4-24 4 4 24-4-24-24 4 24-4-4-24z" stroke="#A855F7" strokeWidth="1.5"/>
-                  <path d="M32 48l3 16 16-3-16 3 3 16-3-16-16 3 16-3-3-16z" stroke="#A855F7" strokeWidth="1"/>
-                  <path d="M88 72l3 16 16-3-16 3 3 16-3-16-16 3 16-3-3-16z" stroke="#A855F7" strokeWidth="1"/>
-                </svg>
-                <svg className="absolute -left-6 -bottom-6 w-24 h-24 opacity-[0.05]" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="12" y="12" width="72" height="72" rx="16" stroke="#A855F7" strokeWidth="1.5"/>
-                  <rect x="28" y="28" width="40" height="40" rx="8" stroke="#A855F7" strokeWidth="1"/>
                 </svg>
                 <div className="flex items-center gap-2 mb-4">
                   <Sparkles className="w-4 h-4 text-purple-500" />
                 </div>
                 <h3 className="text-2xl font-bold text-white mb-2">Sycord Enterprise</h3>
-                <p className="text-[#8A8E91] text-sm mb-6">For enterprises</p>
+                <p className="text-[#8A8E91] text-sm mb-6">Security system</p>
                 <div className="mb-6">
-                  <span className="text-3xl font-bold text-white">$29</span>
+                  <span className="text-3xl font-bold text-white">$10</span>
                   <span className="text-[#8A8E91] text-sm">/month</span>
                 </div>
                 <Button 
@@ -412,15 +395,15 @@ export default function LandingPage() {
                 <ul className="space-y-3 flex-1">
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
-                    <span className="text-white/80 text-sm">Everything in Sycord+</span>
+                    <span className="text-white/80 text-sm">5 Projects</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
-                    <span className="text-white/80 text-sm">500 GB Storage</span>
+                    <span className="text-white/80 text-sm">Syra Pro</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
-                    <span className="text-white/80 text-sm">Priority Support</span>
+                    <span className="text-white/80 text-sm">Integration</span>
                   </li>
                 </ul>
               </div>
@@ -442,7 +425,7 @@ export default function LandingPage() {
                     <div className="w-2 h-2 rounded-full bg-[#3A3B3D]"></div>
                   </div>
                   <h3 className="text-xl font-bold text-[#6B6E71] mb-1">Sycord</h3>
-                  <p className="text-[#8A8E91] text-xs mb-4">Getting started</p>
+                  <p className="text-[#8A8E91] text-xs mb-4">Basic app</p>
                   <div className="mb-4">
                     <span className="text-2xl font-bold text-white">$0</span>
                     <span className="text-[#8A8E91] text-xs">/mo</span>
@@ -455,72 +438,71 @@ export default function LandingPage() {
                   </Button>
                   <ul className="space-y-2">
                     <li className="flex items-center gap-2">
-                      <Check className="w-3 h-3 text-[#6B6E71] flex-shrink-0" />
-                      <span className="text-white/80 text-xs">1 Website</span>
+                      <Check className="w-3 h-3 text-green-500 flex-shrink-0" />
+                      <span className="text-white/80 text-xs">1 Project</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-3 h-3 text-green-500 flex-shrink-0" />
+                      <span className="text-white/80 text-xs">Syra Lite</span>
                     </li>
                     <li className="flex items-center gap-2">
                       <Check className="w-3 h-3 text-[#6B6E71] flex-shrink-0" />
-                      <span className="text-white/80 text-xs">1 GB Storage</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Check className="w-3 h-3 text-[#6B6E71] flex-shrink-0" />
-                      <span className="text-white/80 text-xs">Basic Templates</span>
+                      <span className="text-white/50 text-xs">Limited Integration</span>
                     </li>
                   </ul>
                 </div>
 
                 {/* Sycord+ Plan */}
-                <div className="w-72 frosted-glass-dark rounded-2xl p-5 flex-shrink-0 border-2 border-yellow-500/40 relative overflow-hidden">
-                  {/* Decorative illustration - lightning */}
-                  <svg className="absolute -right-3 -top-3 w-20 h-20 opacity-[0.08]" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M44 5L25 35h17L33 75l25-40H42L53 5H44z" stroke="#EAB308" strokeWidth="1.5" fill="none"/>
-                  </svg>
-                  <div className="flex items-center gap-1 mb-3">
-                    <Zap className="w-3.5 h-3.5 text-yellow-500" />
-                    <span className="text-[9px] font-semibold text-yellow-500">Popular</span>
+                <div className="w-72 frosted-glass-dark rounded-2xl p-5 flex-shrink-0 relative overflow-hidden border-2 border-yellow-500/40 shadow-[0_0_20px_-5px_rgba(234,179,8,0.15)]">
+                  <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-yellow-500/50 to-transparent"></div>
+                  <div className="absolute -right-4 -top-4 w-16 h-16 opacity-10">
+                    <Zap className="w-full h-full text-yellow-500" />
+                  </div>
+                  <div className="flex items-center gap-1.5 mb-4">
+                    <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
+                    <div className="w-2 h-2 rounded-full bg-yellow-500/50"></div>
+                    <div className="w-2 h-2 rounded-full bg-yellow-500/20"></div>
                   </div>
                   <h3 className="text-xl font-bold text-white mb-1">Sycord+</h3>
-                  <p className="text-[#8A8E91] text-xs mb-4">Growing business</p>
+                  <p className="text-[#8A8E91] text-xs mb-4">Complex apps</p>
                   <div className="mb-4">
-                    <span className="text-2xl font-bold text-white">$9</span>
+                    <span className="text-2xl font-bold text-white">$2</span>
                     <span className="text-[#8A8E91] text-xs">/mo</span>
                   </div>
                   <Button 
                     asChild
-                    className="w-full bg-white hover:bg-white/90 text-[#18191B] text-xs h-9 rounded-full font-semibold mb-4"
+                    className="w-full bg-white hover:bg-white/90 text-[#18191B] font-semibold text-xs h-9 rounded-full mb-4"
                   >
-                    <Link href="/login">Upgrade</Link>
+                    <Link href="/login">Upgrade Now</Link>
                   </Button>
                   <ul className="space-y-2">
                     <li className="flex items-center gap-2">
                       <Check className="w-3 h-3 text-green-500 flex-shrink-0" />
-                      <span className="text-white/80 text-xs">Unlimited Sites</span>
+                      <span className="text-white text-xs font-medium">3 Projects</span>
                     </li>
                     <li className="flex items-center gap-2">
                       <Check className="w-3 h-3 text-green-500 flex-shrink-0" />
-                      <span className="text-white/80 text-xs">50 GB Storage</span>
+                      <span className="text-white/80 text-xs">Syra Pro</span>
                     </li>
                     <li className="flex items-center gap-2">
                       <Check className="w-3 h-3 text-green-500 flex-shrink-0" />
-                      <span className="text-white/80 text-xs">AI Builder</span>
+                      <span className="text-white/80 text-xs">Integration</span>
                     </li>
                   </ul>
                 </div>
 
                 {/* Sycord Enterprise Plan */}
                 <div className="w-72 frosted-card rounded-2xl p-5 flex-shrink-0 relative overflow-hidden">
-                  {/* Decorative illustration - sparkles */}
-                  <svg className="absolute -right-4 -top-4 w-20 h-20 opacity-[0.08]" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M40 5l2.5 15 15-2.5-15 2.5 2.5 15-2.5-15-15 2.5 15-2.5-2.5-15z" stroke="#A855F7" strokeWidth="1"/>
-                    <path d="M20 45l2 10 10-2-10 2 2 10-2-10-10 2 10-2-2-10z" stroke="#A855F7" strokeWidth="1"/>
+                  <svg className="absolute -right-4 -top-4 w-20 h-20 opacity-[0.06]" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M40 4L70 21v36L40 74L10 57V21l30-17z" stroke="white" strokeWidth="1.5"/>
                   </svg>
                   <div className="flex items-center gap-1 mb-3">
                     <Sparkles className="w-3.5 h-3.5 text-purple-500" />
                   </div>
                   <h3 className="text-xl font-bold text-white mb-1">Sycord Enterprise</h3>
-                  <p className="text-[#8A8E91] text-xs mb-4">Enterprises</p>
+                  <p className="text-[#8A8E91] text-xs mb-4">Security system</p>
                   <div className="mb-4">
-                    <span className="text-2xl font-bold text-white">$29</span>
+                    <span className="text-2xl font-bold text-white">$10</span>
                     <span className="text-[#8A8E91] text-xs">/mo</span>
                   </div>
                   <Button 
@@ -528,20 +510,20 @@ export default function LandingPage() {
                     variant="outline"
                     className="w-full border-white/20 hover:bg-white/5 text-white text-xs h-9 rounded-full mb-4"
                   >
-                    <Link href="/contact">Contact</Link>
+                    <Link href="/contact">Contact Sales</Link>
                   </Button>
                   <ul className="space-y-2">
                     <li className="flex items-center gap-2">
                       <Check className="w-3 h-3 text-green-500 flex-shrink-0" />
-                      <span className="text-white/80 text-xs">Everything in Sycord+</span>
+                      <span className="text-white/80 text-xs">5 Projects</span>
                     </li>
                     <li className="flex items-center gap-2">
                       <Check className="w-3 h-3 text-green-500 flex-shrink-0" />
-                      <span className="text-white/80 text-xs">500 GB Storage</span>
+                      <span className="text-white/80 text-xs">Syra Pro</span>
                     </li>
                     <li className="flex items-center gap-2">
                       <Check className="w-3 h-3 text-green-500 flex-shrink-0" />
-                      <span className="text-white/80 text-xs">Priority Support</span>
+                      <span className="text-white/80 text-xs">Integration</span>
                     </li>
                   </ul>
                 </div>
