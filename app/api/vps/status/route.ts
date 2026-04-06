@@ -118,12 +118,19 @@ export async function GET() {
       warnings.push("runner.py not found on VPS")
     }
 
-    // Check required env vars for deploy DNS
+    // Check required env vars for deploy DNS (if not set here, .env.server
+    // on the VPS won't have them either)
     const envChecks = ["CLOUDFLARE_API_KEY", "CLOUDFLARE_ZONE_ID"]
     for (const envVar of envChecks) {
       if (!process.env[envVar]) {
-        warnings.push(`${envVar} not set – automated DNS for deployments will be skipped`)
+        warnings.push(`${envVar} not set in platform env – Flask DNS auto-config will be disabled`)
       }
+    }
+
+    // Verify .env.server exists on VPS
+    const envServerCheck = await run(`test -f ${cwd}/.env.server && echo "exists"`)
+    if (!envServerCheck.stdout.includes("exists")) {
+      warnings.push(".env.server not found on VPS – restart the runner to auto-generate it")
     }
 
     // Gather CPU & RAM stats

@@ -71,6 +71,33 @@ except ImportError:
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
+
+def _load_env_server() -> None:
+    """Load key=value pairs from ``.env.server`` (next to this script) into
+    ``os.environ`` so that Cloudflare / GitHub credentials are available even
+    when the process is started via plain ``nohup``.
+
+    Lines starting with ``#`` and empty lines are silently skipped.
+    Existing env vars take precedence (won't be overwritten).
+    """
+    env_file = Path(__file__).resolve().parent / ".env.server"
+    if not env_file.is_file():
+        return
+    for line in env_file.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        value = value.strip()
+        # Don't overwrite env vars that are already set
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+_load_env_server()
+
 BASE_DIR = Path(os.environ.get("SYCORD_DATA_DIR", "/var/sycord/data"))
 PROJECTS_DIR = BASE_DIR / "projects"
 LOG_FILE = BASE_DIR / "server.log"
@@ -105,6 +132,12 @@ def _log_startup_diagnostics() -> None:
     logger.info("Python %s", sys.version)
     logger.info("Data directory: %s", BASE_DIR)
     logger.info("Projects directory: %s", PROJECTS_DIR)
+
+    env_server_path = Path(__file__).resolve().parent / ".env.server"
+    if env_server_path.is_file():
+        logger.info("Loaded .env.server from %s", env_server_path)
+    else:
+        logger.info("No .env.server found (server env vars from OS environment only)")
 
     if _missing:
         logger.warning(
