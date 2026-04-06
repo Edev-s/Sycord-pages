@@ -556,6 +556,13 @@ export default function SiteSettingsPage() {
   // Database / Firebase connection state
   const [databaseConnected, setDatabaseConnected] = useState(false)
 
+  // Integration connect form state
+  const [expandedIntegration, setExpandedIntegration] = useState<string | null>(null)
+  const [integrationEnvValue, setIntegrationEnvValue] = useState("")
+  const [showAddEnv, setShowAddEnv] = useState(false)
+  const [newEnvKey, setNewEnvKey] = useState("")
+  const [newEnvValue, setNewEnvValue] = useState("")
+
   const fetchLogs = async (repoIdOverride?: string) => {
     const targetId = repoIdOverride || project?.githubRepoId
     if (!targetId) return
@@ -1574,7 +1581,7 @@ export default function SiteSettingsPage() {
                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h2 className="text-2xl font-bold">Site Pages</h2>
+                      <h2 className="text-lg font-semibold">Site Pages</h2>
                       <p className="text-muted-foreground">Manage AI-generated content (Vite + TypeScript)</p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -1707,118 +1714,353 @@ export default function SiteSettingsPage() {
 
             {/* TAB CONTENT: INTEGRATIONS */}
             {activeTab === "integrations" && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 max-w-4xl">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold">Integrations</h2>
+                  <div>
+                    <h2 className="text-lg font-semibold">Integrations</h2>
+                    <p className="text-sm text-zinc-500 mt-0.5">
+                      Connect services and manage environment variables for deployment.
+                    </p>
+                  </div>
                   <button
                     onClick={() => {
-                      const key = prompt("Environment variable name (e.g. MY_API_KEY):")
-                      if (!key) return
-                      const val = prompt(`Value for ${key}:`)
-                      if (val === null) return
-                      fetch(`/api/projects/${project._id}/env`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ key, value: val }),
-                      }).then(() => window.location.reload())
+                      setShowAddEnv(!showAddEnv)
                     }}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/10 text-sm text-white hover:bg-white/15 transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.06] text-xs font-medium text-zinc-300 hover:bg-white/10 transition-colors border border-white/[0.06]"
                   >
-                    <Plus className="h-4 w-4" /> Add Env
+                    <Plus className="h-3.5 w-3.5" /> Add Custom Env
                   </button>
                 </div>
 
-                <p className="text-sm text-zinc-400">
-                  Connect services and manage environment variables for your project. When your AI-generated code requires a database or API, add the credentials here — they will be passed to the deployer.
-                </p>
+                {/* Inline Add Env Form */}
+                {showAddEnv && (
+                  <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4 space-y-3 animate-in fade-in duration-200">
+                    <p className="text-xs font-medium text-white/60">Add Custom Environment Variable</p>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="KEY_NAME"
+                        value={newEnvKey}
+                        onChange={(e) => setNewEnvKey(e.target.value)}
+                        className="h-9 bg-white/[0.03] border-white/[0.06] text-sm font-mono flex-1"
+                      />
+                      <Input
+                        placeholder="value"
+                        value={newEnvValue}
+                        onChange={(e) => setNewEnvValue(e.target.value)}
+                        className="h-9 bg-white/[0.03] border-white/[0.06] text-sm flex-1"
+                      />
+                      <Button
+                        size="sm"
+                        className="h-9 px-4 text-xs rounded-lg"
+                        disabled={!newEnvKey.trim()}
+                        onClick={async () => {
+                          if (!newEnvKey.trim()) return
+                          await fetch(`/api/projects/${project._id}/env`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ key: newEnvKey.trim(), value: newEnvValue }),
+                          })
+                          setNewEnvKey("")
+                          setNewEnvValue("")
+                          setShowAddEnv(false)
+                        }}
+                      >
+                        Save
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
-                {/* Integration Options */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {[
-                    {
-                      id: "mongodb",
-                      name: "MongoDB",
-                      envKey: "MONGODB_URI",
-                      placeholder: "mongodb+srv://user:pass@cluster.mongodb.net/db",
-                      logo: "https://www.mongodb.com/assets/images/global/favicon.ico",
-                      color: "#00684A",
-                      description: "NoSQL document database",
-                    },
-                    {
-                      id: "supabase",
-                      name: "Supabase",
-                      envKey: "SUPABASE_URL",
-                      placeholder: "https://abc.supabase.co",
-                      logo: "https://supabase.com/favicon/favicon-32x32.png",
-                      color: "#3ECF8E",
-                      description: "Open source Firebase alternative",
-                    },
-                    {
-                      id: "stripe",
-                      name: "Stripe",
-                      envKey: "STRIPE_SECRET_KEY",
-                      placeholder: "sk_live_...",
-                      logo: "https://stripe.com/favicon.ico",
-                      color: "#635BFF",
-                      description: "Payment processing",
-                    },
-                    {
-                      id: "firebase",
-                      name: "Firebase",
-                      envKey: "FIREBASE_API_KEY",
-                      placeholder: "AIzaSy...",
-                      logo: "https://www.gstatic.com/devrel-devsite/prod/v0e0f589edd85502a40d78d7d0825db8ea5ef3b99ab4070381ee86977c9168730/firebase/images/favicon.png",
-                      color: "#FFCA28",
-                      description: "Google cloud platform for apps",
-                    },
-                  ].map((integration) => (
-                    <Card key={integration.id} className="bg-card/50 backdrop-blur-sm border-white/10 overflow-hidden">
-                      <CardContent className="p-5">
-                        <div className="flex items-center gap-3 mb-3">
+                {/* Auth & Identity */}
+                <div>
+                  <p className="text-[11px] uppercase tracking-wider text-zinc-500 font-semibold mb-3">Authentication</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {[
+                      {
+                        id: "nextauth",
+                        name: "NextAuth.js",
+                        envKey: "NEXTAUTH_SECRET",
+                        placeholder: "your-nextauth-secret",
+                        color: "#8B5CF6",
+                        description: "Auth.js / NextAuth",
+                      },
+                      {
+                        id: "clerk",
+                        name: "Clerk",
+                        envKey: "CLERK_SECRET_KEY",
+                        placeholder: "sk_live_...",
+                        color: "#6C47FF",
+                        description: "User management & auth",
+                      },
+                      {
+                        id: "supabase-auth",
+                        name: "Supabase Auth",
+                        envKey: "SUPABASE_ANON_KEY",
+                        placeholder: "eyJhbGciOi...",
+                        color: "#3ECF8E",
+                        description: "Auth with Supabase",
+                      },
+                    ].map((integration) => (
+                      <div key={integration.id} className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
+                        <div className="flex items-center gap-2.5 mb-3">
                           <div
-                            className="h-10 w-10 rounded-xl flex items-center justify-center"
-                            style={{ backgroundColor: `${integration.color}20` }}
+                            className="h-8 w-8 rounded-lg flex items-center justify-center"
+                            style={{ backgroundColor: `${integration.color}15` }}
                           >
-                            <img
-                              src={integration.logo}
-                              alt={integration.name}
-                              className="h-6 w-6 object-contain"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).style.display = 'none'
-                              }}
-                            />
+                            <Lock className="h-3.5 w-3.5" style={{ color: integration.color }} />
                           </div>
                           <div>
-                            <h3 className="text-sm font-semibold text-white">{integration.name}</h3>
-                            <p className="text-xs text-zinc-500">{integration.description}</p>
+                            <h3 className="text-xs font-semibold text-white">{integration.name}</h3>
+                            <p className="text-[10px] text-zinc-500">{integration.description}</p>
                           </div>
                         </div>
 
-                        <button
-                          onClick={() => {
-                            const val = prompt(`Enter your ${integration.name} connection string (${integration.envKey}):`, integration.placeholder)
-                            if (val === null || !val.trim()) return
-                            fetch(`/api/projects/${project._id}/env`, {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({
-                                key: integration.envKey,
-                                value: val.trim(),
-                                integration: integration.id,
-                              }),
-                            }).then((res) => {
-                              if (res.ok) {
-                                alert(`${integration.name} connected! The env var ${integration.envKey} will be available during deployment.`)
-                              }
-                            })
-                          }}
-                          className="w-full py-2.5 rounded-xl text-xs font-medium bg-white/[0.06] text-zinc-300 hover:bg-white/10 transition-colors border border-white/[0.06]"
-                        >
-                          Connect {integration.name}
-                        </button>
-                      </CardContent>
-                    </Card>
-                  ))}
+                        {expandedIntegration === integration.id ? (
+                          <div className="space-y-2 animate-in fade-in duration-150">
+                            <Input
+                              placeholder={integration.placeholder}
+                              value={integrationEnvValue}
+                              onChange={(e) => setIntegrationEnvValue(e.target.value)}
+                              className="h-8 bg-white/[0.03] border-white/[0.06] text-xs font-mono"
+                              autoFocus
+                            />
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                className="h-7 text-[11px] flex-1 rounded-lg"
+                                disabled={!integrationEnvValue.trim()}
+                                onClick={async () => {
+                                  await fetch(`/api/projects/${project._id}/env`, {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({
+                                      key: integration.envKey,
+                                      value: integrationEnvValue.trim(),
+                                      integration: integration.id,
+                                    }),
+                                  })
+                                  setExpandedIntegration(null)
+                                  setIntegrationEnvValue("")
+                                }}
+                              >
+                                Connect
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 text-[11px] rounded-lg text-zinc-500"
+                                onClick={() => { setExpandedIntegration(null); setIntegrationEnvValue("") }}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => { setExpandedIntegration(integration.id); setIntegrationEnvValue("") }}
+                            className="w-full py-2 rounded-lg text-[11px] font-medium bg-white/[0.04] text-zinc-400 hover:bg-white/[0.08] hover:text-zinc-200 transition-colors border border-white/[0.06]"
+                          >
+                            Connect
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Databases & Backend */}
+                <div>
+                  <p className="text-[11px] uppercase tracking-wider text-zinc-500 font-semibold mb-3">Databases &amp; Backend</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {[
+                      {
+                        id: "mongodb",
+                        name: "MongoDB",
+                        envKey: "MONGODB_URI",
+                        placeholder: "mongodb+srv://user:pass@cluster.mongodb.net/db",
+                        color: "#00684A",
+                        description: "NoSQL document database",
+                      },
+                      {
+                        id: "supabase",
+                        name: "Supabase",
+                        envKey: "SUPABASE_URL",
+                        placeholder: "https://abc.supabase.co",
+                        color: "#3ECF8E",
+                        description: "Open source Firebase alternative",
+                      },
+                      {
+                        id: "firebase",
+                        name: "Firebase",
+                        envKey: "FIREBASE_API_KEY",
+                        placeholder: "AIzaSy...",
+                        color: "#FFCA28",
+                        description: "Google cloud platform",
+                      },
+                    ].map((integration) => (
+                      <div key={integration.id} className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
+                        <div className="flex items-center gap-2.5 mb-3">
+                          <div
+                            className="h-8 w-8 rounded-lg flex items-center justify-center"
+                            style={{ backgroundColor: `${integration.color}15` }}
+                          >
+                            <Database className="h-3.5 w-3.5" style={{ color: integration.color }} />
+                          </div>
+                          <div>
+                            <h3 className="text-xs font-semibold text-white">{integration.name}</h3>
+                            <p className="text-[10px] text-zinc-500">{integration.description}</p>
+                          </div>
+                        </div>
+
+                        {expandedIntegration === integration.id ? (
+                          <div className="space-y-2 animate-in fade-in duration-150">
+                            <Input
+                              placeholder={integration.placeholder}
+                              value={integrationEnvValue}
+                              onChange={(e) => setIntegrationEnvValue(e.target.value)}
+                              className="h-8 bg-white/[0.03] border-white/[0.06] text-xs font-mono"
+                              autoFocus
+                            />
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                className="h-7 text-[11px] flex-1 rounded-lg"
+                                disabled={!integrationEnvValue.trim()}
+                                onClick={async () => {
+                                  await fetch(`/api/projects/${project._id}/env`, {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({
+                                      key: integration.envKey,
+                                      value: integrationEnvValue.trim(),
+                                      integration: integration.id,
+                                    }),
+                                  })
+                                  setExpandedIntegration(null)
+                                  setIntegrationEnvValue("")
+                                  setDatabaseConnected(true)
+                                }}
+                              >
+                                Connect
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 text-[11px] rounded-lg text-zinc-500"
+                                onClick={() => { setExpandedIntegration(null); setIntegrationEnvValue("") }}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => { setExpandedIntegration(integration.id); setIntegrationEnvValue("") }}
+                            className="w-full py-2 rounded-lg text-[11px] font-medium bg-white/[0.04] text-zinc-400 hover:bg-white/[0.08] hover:text-zinc-200 transition-colors border border-white/[0.06]"
+                          >
+                            Connect
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Payments & Services */}
+                <div>
+                  <p className="text-[11px] uppercase tracking-wider text-zinc-500 font-semibold mb-3">Payments &amp; Services</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {[
+                      {
+                        id: "stripe",
+                        name: "Stripe",
+                        envKey: "STRIPE_SECRET_KEY",
+                        placeholder: "sk_live_...",
+                        color: "#635BFF",
+                        description: "Payment processing",
+                      },
+                      {
+                        id: "resend",
+                        name: "Resend",
+                        envKey: "RESEND_API_KEY",
+                        placeholder: "re_...",
+                        color: "#000000",
+                        description: "Email API",
+                      },
+                      {
+                        id: "openai",
+                        name: "OpenAI",
+                        envKey: "OPENAI_API_KEY",
+                        placeholder: "sk-...",
+                        color: "#10A37F",
+                        description: "AI API access",
+                      },
+                    ].map((integration) => (
+                      <div key={integration.id} className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
+                        <div className="flex items-center gap-2.5 mb-3">
+                          <div
+                            className="h-8 w-8 rounded-lg flex items-center justify-center"
+                            style={{ backgroundColor: `${integration.color}15` }}
+                          >
+                            <Zap className="h-3.5 w-3.5" style={{ color: integration.color === "#000000" ? "#fff" : integration.color }} />
+                          </div>
+                          <div>
+                            <h3 className="text-xs font-semibold text-white">{integration.name}</h3>
+                            <p className="text-[10px] text-zinc-500">{integration.description}</p>
+                          </div>
+                        </div>
+
+                        {expandedIntegration === integration.id ? (
+                          <div className="space-y-2 animate-in fade-in duration-150">
+                            <Input
+                              placeholder={integration.placeholder}
+                              value={integrationEnvValue}
+                              onChange={(e) => setIntegrationEnvValue(e.target.value)}
+                              className="h-8 bg-white/[0.03] border-white/[0.06] text-xs font-mono"
+                              autoFocus
+                            />
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                className="h-7 text-[11px] flex-1 rounded-lg"
+                                disabled={!integrationEnvValue.trim()}
+                                onClick={async () => {
+                                  await fetch(`/api/projects/${project._id}/env`, {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({
+                                      key: integration.envKey,
+                                      value: integrationEnvValue.trim(),
+                                      integration: integration.id,
+                                    }),
+                                  })
+                                  setExpandedIntegration(null)
+                                  setIntegrationEnvValue("")
+                                }}
+                              >
+                                Connect
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 text-[11px] rounded-lg text-zinc-500"
+                                onClick={() => { setExpandedIntegration(null); setIntegrationEnvValue("") }}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => { setExpandedIntegration(integration.id); setIntegrationEnvValue("") }}
+                            className="w-full py-2 rounded-lg text-[11px] font-medium bg-white/[0.04] text-zinc-400 hover:bg-white/[0.08] hover:text-zinc-200 transition-colors border border-white/[0.06]"
+                          >
+                            Connect
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
@@ -1826,7 +2068,7 @@ export default function SiteSettingsPage() {
             {/* TAB CONTENT: SETTINGS */}
             {activeTab === "settings" && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
-                <h2 className="text-2xl font-bold">Settings</h2>
+                <h2 className="text-lg font-semibold">Settings</h2>
 
                 <Card className="bg-card/50 backdrop-blur-sm border-white/10">
                   <CardHeader>
