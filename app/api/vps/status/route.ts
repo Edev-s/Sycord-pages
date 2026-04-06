@@ -136,13 +136,24 @@ export async function GET() {
     let diskPercent: string | null = null
 
     try {
-      // CPU: idle % from top, convert to usage
-      const cpuRes = await run("top -bn1 | grep '%Cpu' | head -1")
+      // CPU: idle % from top output, convert to usage.
+      // Supports formats like "97.0 id", "97.0%id", "97.0 %id" across Ubuntu/Debian/CentOS.
+      const cpuRes = await run("top -bn1 | grep '%Cpu\\|Cpu(s)' | head -1")
       const cpuLine = cpuRes.stdout.trim()
-      // Match idle value: e.g. "97.0 id" or "97.0%id"
       const idleMatch = cpuLine.match(/([\d.]+)\s*(?:%?\s*)?id/)
       if (idleMatch) {
         cpuUsage = Math.round((100 - parseFloat(idleMatch[1])) * 10) / 10
+      } else {
+        // Fallback: parse /proc/stat (less precise but universal)
+        const statRes = await run("head -1 /proc/stat")
+        const statParts = statRes.stdout.trim().split(/\s+/)
+        if (statParts.length >= 5) {
+          const idle = parseInt(statParts[4]) || 0
+          const total = statParts.slice(1).reduce((s, v) => s + (parseInt(v) || 0), 0)
+          if (total > 0) {
+            cpuUsage = Math.round((1 - idle / total) * 1000) / 10
+          }
+        }
       }
 
       // RAM from /proc/meminfo (more reliable than free -m parsing)
