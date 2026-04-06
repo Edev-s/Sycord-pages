@@ -166,10 +166,11 @@ def _sanitize_vite_config(project_dir: Path) -> None:
         if not cfg.is_file():
             continue
         original = cfg.read_text()
-        # Remove minify: 'terser' or minify: "terser" (with optional trailing comma)
+        # Remove minify: 'terser' or minify: "terser" (with optional
+        # surrounding whitespace and trailing comma) so esbuild is used.
         cleaned = re.sub(
-            r"""minify\s*:\s*['"]terser['"]\s*,?""",
-            "",
+            r"""\s*minify\s*:\s*['"]terser['"]\s*,?\s*""",
+            "\n",
             original,
         )
         if cleaned != original:
