@@ -303,9 +303,12 @@ export async function POST(request: Request) {
     let deployMessage = "Deployed to GitHub"
 
     try {
-        // Trigger — include env vars in the deploy payload
-        console.log(`[Deploy] Triggering downstream deploy for repo ${repoId}...`)
-        const deployBody: any = {}
+        // Trigger — include files and env vars in the deploy payload
+        console.log(`[Deploy] Triggering downstream deploy for repo ${repoId} with ${files.length} files...`)
+        const deployBody: any = {
+          files,
+          subdomain: repo,
+        }
         if (Object.keys(envVars).length > 0) {
           deployBody.env_vars = envVars
         }
@@ -314,7 +317,12 @@ export async function POST(request: Request) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(deployBody),
         })
-        console.log(`[Deploy] Trigger status: ${triggerRes.status}`)
+        const triggerData = await triggerRes.json().catch(() => ({}))
+        console.log(`[Deploy] Trigger status: ${triggerRes.status}`, triggerData)
+        
+        if (!triggerRes.ok) {
+          console.error(`[Deploy] Downstream deploy failed:`, triggerData)
+        }
         
         // Wait briefly for initial provisioning
         await new Promise(r => setTimeout(r, 2000))
