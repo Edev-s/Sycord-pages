@@ -4,13 +4,11 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useSession, signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { Switch } from "@/components/ui/switch"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import {
   DropdownMenu,
@@ -52,10 +50,7 @@ import {
   Save,
   RotateCcw,
   BookOpen,
-  FileJson,
-  BrainCircuit,
   ArrowRight,
-  ArrowDown,
   Ban,
   UserCheck,
   Settings,
@@ -117,16 +112,6 @@ export default function AdminPage() {
   const [editingIcon, setEditingIcon] = useState<string | null>(null)
   const [uploadingIcon, setUploadingIcon] = useState<string | null>(null)
 
-  // Prompts State
-  const [prompts, setPrompts] = useState({
-    builderPlan: "",
-    builderCode: "",
-    autoFixDiagnosis: "",
-    autoFixResolution: ""
-  })
-  const [promptsLoading, setPromptsLoading] = useState(false)
-  const [promptsSaving, setPromptsSaving] = useState(false)
-
   // VPS Runner State
   const [vpsStatus, setVpsStatus] = useState<any>(null)
   const [vpsLoading, setVpsLoading] = useState(false)
@@ -185,43 +170,6 @@ export default function AdminPage() {
     } finally {
       setMonitorsLoading(false)
     }
-  }
-
-  const fetchPrompts = async () => {
-      try {
-          setPromptsLoading(true)
-          const res = await fetch("/api/admin/prompts")
-          if (res.ok) {
-              const data = await res.json()
-              setPrompts(data)
-          }
-      } catch (e) {
-          console.error("Failed to fetch prompts", e)
-          toast.error("Failed to fetch prompts")
-      } finally {
-          setPromptsLoading(false)
-      }
-  }
-
-  const savePrompts = async () => {
-      try {
-          setPromptsSaving(true)
-          const res = await fetch("/api/admin/prompts", {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(prompts)
-          })
-          if (res.ok) {
-              toast.success("Prompts updated globally")
-          } else {
-              throw new Error("Failed to save")
-          }
-      } catch (e) {
-          console.error("Error saving prompts", e)
-          toast.error("Failed to save prompts")
-      } finally {
-          setPromptsSaving(false)
-      }
   }
 
   const updateMonitorIcon = async (id: string, icon: string, iconType: string = 'preset') => {
@@ -695,49 +643,66 @@ export default function AdminPage() {
                       </div>
 
                       {/* Actions row */}
-                      <div className="flex items-center gap-3 mt-4 pt-3 border-t border-white/[0.04]">
-                        {/* Settings gear (plan selector) */}
-                        <div className="flex items-center gap-2">
-                          <div className="h-10 w-10 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center cursor-pointer hover:bg-white/[0.08] transition-colors group relative">
-                            <Settings className="h-4 w-4 text-white/40 group-hover:text-white/60" />
-                          </div>
-                          <select
-                            value={user.subscription || (user.isPremium ? "Sycord+" : "Free")}
-                            onChange={(e) => saveSubscription(user.userId, e.target.value)}
-                            disabled={updatingUser === user.userId}
-                            className="h-10 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 text-xs font-medium text-white/60 focus:outline-none focus:ring-1 focus:ring-white/10 disabled:opacity-50 transition-colors"
-                          >
-                            <option value="Free">Free</option>
-                            <option value="Sycord+">Sycord+</option>
-                            <option value="Sycord Enterprise">Enterprise</option>
-                          </select>
-                        </div>
+                      <div className="flex items-center gap-2 mt-4 pt-3 border-t border-white/[0.04]">
+                        {/* Plan selector dropdown */}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              disabled={updatingUser === user.userId}
+                              className="h-8 flex items-center gap-2 px-3 rounded-lg bg-white/[0.04] border border-white/[0.06] text-xs font-medium text-white/50 hover:bg-white/[0.08] hover:text-white/70 transition-colors disabled:opacity-50"
+                            >
+                              <Settings className="h-3.5 w-3.5" />
+                              {user.subscription || (user.isPremium ? "Sycord+" : "Free")}
+                              <ChevronDown className="h-3 w-3 text-white/30" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="min-w-[140px]">
+                            <DropdownMenuLabel className="text-[10px] text-muted-foreground">Change Plan</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => saveSubscription(user.userId, "Free")} className="text-xs">
+                              Free
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => saveSubscription(user.userId, "Sycord+")} className="text-xs">
+                              <Zap className="h-3 w-3 mr-1.5 text-yellow-500" />
+                              Sycord+
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => saveSubscription(user.userId, "Sycord Enterprise")} className="text-xs">
+                              <Shield className="h-3 w-3 mr-1.5 text-purple-500" />
+                              Enterprise
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
 
                         <div className="flex-1" />
 
                         {/* Suspend button */}
                         <Button
                           variant="ghost"
+                          size="sm"
                           onClick={() => toggleBlock(user.userId, user.isBlocked)}
                           disabled={updatingUser === user.userId}
-                          className={`h-10 px-5 rounded-xl text-xs font-medium border transition-colors ${
+                          className={`h-8 px-3 rounded-lg text-[11px] font-medium border transition-colors ${
                             user.isBlocked
                               ? "bg-green-500/10 border-green-500/20 text-green-400 hover:bg-green-500/20 hover:text-green-300"
                               : "bg-white/[0.03] border-white/[0.06] text-white/40 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20"
                           }`}
                         >
-                          {user.isBlocked ? "unsuspend user" : "suspend user"}
+                          {user.isBlocked ? (
+                            <><UserCheck className="h-3 w-3 mr-1.5" />Unsuspend</>
+                          ) : (
+                            <><Ban className="h-3 w-3 mr-1.5" />Suspend</>
+                          )}
                         </Button>
 
                         {/* Delete */}
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="h-10 w-10 rounded-xl bg-white/[0.03] border border-white/[0.06] text-white/20 hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/20"
+                          className="h-8 w-8 rounded-lg bg-white/[0.03] border border-white/[0.06] text-white/20 hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/20"
                           onClick={() => deleteUser(user.userId, user.name)}
                           disabled={updatingUser === user.userId}
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Trash2 className="h-3 w-3" />
                         </Button>
                       </div>
                     </div>
