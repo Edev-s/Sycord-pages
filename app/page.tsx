@@ -110,14 +110,14 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-[#101010] flex flex-col items-center overflow-x-hidden overflow-y-visible font-sans">
       {/* Header — frosted glass, curved only on bottom, sticky on all breakpoints */}
-      <header className="flex w-full px-4 md:px-8 py-2.5 md:py-4 items-center justify-between z-20 sticky top-0 rounded-b-2xl md:rounded-b-3xl frosted-header">
-        <div className="flex items-center gap-1.5 md:gap-3">
-          <Image src="/logo.png" alt="Sycord Logo" width={24} height={24} className="opacity-90 md:w-7 md:h-7" priority />
-          <span className="text-sm md:text-xl font-bold text-white tracking-tight">Sycord</span>
+      <header className="flex w-full px-5 md:px-8 py-4 md:py-4 items-center justify-between z-20 sticky top-0 rounded-b-2xl md:rounded-b-3xl frosted-header">
+        <div className="flex items-center gap-2.5 md:gap-3">
+          <Image src="/logo.png" alt="Sycord Logo" width={32} height={32} className="opacity-90 md:w-7 md:h-7" priority />
+          <span className="text-lg md:text-xl font-bold text-white tracking-tight">Sycord</span>
         </div>
         <Button 
           asChild 
-          className="bg-white text-[#18191B] hover:bg-white/90 text-[11px] md:text-sm font-semibold px-3.5 md:px-6 h-7 md:h-9 rounded-full"
+          className="bg-white text-[#18191B] hover:bg-white/90 text-sm md:text-sm font-semibold px-5 md:px-6 h-9 md:h-9 rounded-full"
         >
           <Link href="/login">Kezdés</Link>
         </Button>
@@ -127,7 +127,7 @@ export default function LandingPage() {
       <main className="w-full flex-1 flex flex-col">
 
         {/* ── Hero Section (Mobile + Desktop) — pulled behind header so bg shows through frosted glass ── */}
-        <section className="relative w-full overflow-visible min-h-[50vh] md:min-h-[70vh] pb-16 md:pb-40 -mt-12 md:-mt-16">
+        <section className="relative w-full overflow-visible min-h-[55vh] md:min-h-[70vh] pb-20 md:pb-40 -mt-14 md:-mt-16">
           {/* Metallic corrugated background - optimized with Next.js Image for instant loading */}
           <Image
             src="https://github.com/user-attachments/assets/2f738fc4-174b-45f8-9831-25fcf4fd788f"
@@ -141,10 +141,10 @@ export default function LandingPage() {
           <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-transparent z-0" />
 
           {/* Content — extra top padding to clear the header */}
-          <div className="relative z-10 flex flex-col items-center md:items-start justify-start h-full px-5 md:px-8 pt-16 md:pt-28 pb-8 md:pb-12 max-w-6xl mx-auto">
+          <div className="relative z-10 flex flex-col items-center md:items-start justify-start h-full px-6 md:px-8 pt-20 md:pt-28 pb-8 md:pb-12 max-w-6xl mx-auto">
 
             {/* Headline */}
-            <h1 className="text-2xl md:text-5xl lg:text-6xl font-bold leading-tight tracking-tight mb-4 md:mb-6 text-center md:text-left">
+            <h1 className="text-[28px] md:text-5xl lg:text-6xl font-bold leading-tight tracking-tight mb-5 md:mb-6 text-center md:text-left">
               <span className="text-white">Create </span>
               <span className="text-[#8A8E91]">your</span>
               <span className="text-[#8A8E91]"> website </span>
@@ -154,7 +154,7 @@ export default function LandingPage() {
             </h1>
 
             {/* Description */}
-            <p className="text-white text-[15px] md:text-xl font-medium leading-relaxed mb-4 md:mb-5 max-w-md text-center md:text-left">
+            <p className="text-white text-base md:text-xl font-medium leading-relaxed mb-6 md:mb-5 max-w-md text-center md:text-left">
               Describe your idea, Sycord&apos;s AI designs, codes and deploys your website instantly.
               No coding or design skills required.
             </p>
@@ -189,7 +189,7 @@ export default function LandingPage() {
             <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-4 items-center md:items-start">
               <Button
                 asChild
-                className="self-center md:self-start bg-white/10 backdrop-blur-md hover:bg-white/20 text-white rounded-full px-12 md:px-8 h-11 md:h-12 text-xs md:text-sm font-medium border border-white/20 w-[70%] md:w-auto"
+                className="self-center md:self-start bg-white/10 backdrop-blur-md hover:bg-white/20 text-white rounded-full px-12 md:px-8 h-12 md:h-12 text-sm md:text-sm font-medium border border-white/20 w-[70%] md:w-auto"
               >
                 <Link href="/login">Get started</Link>
               </Button>
@@ -207,7 +207,7 @@ export default function LandingPage() {
         {/* ── Old Desktop Hero removed - now unified ── */}
         
         {/* Features Section - overlaps the hero with frosted glass effect */}
-        <div className="relative z-10 -mt-16 md:-mt-32">
+        <div className="relative z-10 -mt-20 md:-mt-32">
           <div 
             className={`rounded-t-[40px] md:rounded-t-[72px] pt-10 md:pt-14 pb-8 md:pb-10 overflow-hidden transition-all duration-700 ${
               isVideoInView 
