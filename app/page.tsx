@@ -313,9 +313,14 @@ export default function LandingPage() {
               />
             </div>
             {/* Description */}
-            <p className="text-base md:text-lg text-[#b0b0b0] text-center leading-relaxed max-w-lg mx-auto">
-              Sycord saves you time and money by solving storage, host and security problems. Our services always online, never sleep.
-            </p>
+            <div className="max-w-lg mx-auto text-center">
+              <p className="text-white text-base md:text-lg font-medium leading-relaxed mb-3">
+                Sycord saves you time and money
+              </p>
+              <p className="text-[#8A8E91] text-sm md:text-base leading-relaxed">
+                By solving storage, host and security problems. Our services always online, never sleep.
+              </p>
+            </div>
           </div>
         </RevealSection>
 
