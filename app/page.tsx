@@ -117,7 +117,7 @@ export default function LandingPage() {
         </div>
         <Button 
           asChild 
-          className="bg-white text-[#18191B] hover:bg-white/90 text-sm md:text-sm font-semibold px-5 md:px-6 h-9 md:h-9 rounded-full"
+          className="bg-white text-[#18191B] hover:bg-white/90 text-sm font-semibold px-5 md:px-6 h-9 rounded-full"
         >
           <Link href="/login">Kezdés</Link>
         </Button>
@@ -189,7 +189,7 @@ export default function LandingPage() {
             <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-4 items-center md:items-start">
               <Button
                 asChild
-                className="self-center md:self-start bg-white/10 backdrop-blur-md hover:bg-white/20 text-white rounded-full px-12 md:px-8 h-12 md:h-12 text-sm md:text-sm font-medium border border-white/20 w-[70%] md:w-auto"
+                className="self-center md:self-start bg-white/10 backdrop-blur-md hover:bg-white/20 text-white rounded-full px-12 md:px-8 h-12 text-sm font-medium border border-white/20 w-[70%] md:w-auto"
               >
                 <Link href="/login">Get started</Link>
               </Button>
