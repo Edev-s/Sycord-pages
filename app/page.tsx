@@ -127,7 +127,7 @@ export default function LandingPage() {
       <main className="w-full flex-1 flex flex-col">
 
         {/* ── Hero Section (Mobile + Desktop) — pulled behind header so bg shows through frosted glass ── */}
-        <section className="relative w-full overflow-visible min-h-[65vh] md:min-h-[70vh] pb-24 md:pb-40 -mt-12 md:-mt-16">
+        <section className="relative w-full overflow-visible min-h-[50vh] md:min-h-[70vh] pb-16 md:pb-40 -mt-12 md:-mt-16">
           {/* Metallic corrugated background - optimized with Next.js Image for instant loading */}
           <Image
             src="https://github.com/user-attachments/assets/2f738fc4-174b-45f8-9831-25fcf4fd788f"
@@ -141,10 +141,10 @@ export default function LandingPage() {
           <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-transparent z-0" />
 
           {/* Content — extra top padding to clear the header */}
-          <div className="relative z-10 flex flex-col justify-start h-full px-5 md:px-8 pt-16 md:pt-28 pb-8 md:pb-12 max-w-6xl mx-auto">
+          <div className="relative z-10 flex flex-col items-center md:items-start justify-start h-full px-5 md:px-8 pt-16 md:pt-28 pb-8 md:pb-12 max-w-6xl mx-auto">
 
             {/* Headline */}
-            <h1 className="text-2xl md:text-5xl lg:text-6xl font-bold leading-tight tracking-tight mb-4 md:mb-6">
+            <h1 className="text-2xl md:text-5xl lg:text-6xl font-bold leading-tight tracking-tight mb-4 md:mb-6 text-center md:text-left">
               <span className="text-white">Create </span>
               <span className="text-[#8A8E91]">your</span>
               <span className="text-[#8A8E91]"> website </span>
@@ -154,13 +154,13 @@ export default function LandingPage() {
             </h1>
 
             {/* Description */}
-            <p className="text-white text-[15px] md:text-xl font-medium leading-relaxed mb-4 md:mb-5 max-w-md">
+            <p className="text-white text-[15px] md:text-xl font-medium leading-relaxed mb-4 md:mb-5 max-w-md text-center md:text-left">
               Describe your idea, Sycord&apos;s AI designs, codes and deploys your website instantly.
               No coding or design skills required.
             </p>
 
-            {/* Sponsor logos marquee */}
-            <div className="relative overflow-hidden mb-5 md:mb-6 max-w-md">
+            {/* Sponsor logos marquee — hidden on mobile per design */}
+            <div className="hidden md:block relative overflow-hidden mb-5 md:mb-6 max-w-md">
               <div className="flex animate-marquee">
                 {[...Array(2)].map((_, repeatIdx) => (
                   <div key={repeatIdx} className="flex items-center gap-10 md:gap-12 shrink-0 px-4 md:px-6">
@@ -186,10 +186,10 @@ export default function LandingPage() {
             </div>
 
             {/* CTA */}
-            <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-4">
+            <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-4 items-center md:items-start">
               <Button
                 asChild
-                className="self-start bg-white/10 backdrop-blur-md hover:bg-white/20 text-white rounded-full px-6 md:px-8 h-10 md:h-12 text-xs md:text-sm font-medium border border-white/20"
+                className="self-center md:self-start bg-white/10 backdrop-blur-md hover:bg-white/20 text-white rounded-full px-12 md:px-8 h-11 md:h-12 text-xs md:text-sm font-medium border border-white/20 w-[70%] md:w-auto"
               >
                 <Link href="/login">Get started</Link>
               </Button>
@@ -207,7 +207,7 @@ export default function LandingPage() {
         {/* ── Old Desktop Hero removed - now unified ── */}
         
         {/* Features Section - overlaps the hero with frosted glass effect */}
-        <div className="relative z-10 -mt-32 md:-mt-32">
+        <div className="relative z-10 -mt-16 md:-mt-32">
           <div 
             className={`rounded-t-[40px] md:rounded-t-[72px] pt-10 md:pt-14 pb-8 md:pb-10 overflow-hidden transition-all duration-700 ${
               isVideoInView 
@@ -215,7 +215,7 @@ export default function LandingPage() {
                 : 'bg-[#101010]/85 backdrop-blur-xl border border-white/10'
             }`}
           >
-            <RevealSection className="w-full py-8 md:py-16 md:px-8 relative">
+            <RevealSection className="w-full py-6 md:py-16 px-4 md:px-8 relative">
               <div className="max-w-6xl md:mx-auto">
                 {/* Heading — desktop only; on mobile the cards speak for themselves */}
                 <h2 className="hidden md:block text-xl md:text-3xl font-bold text-white text-center mb-4 md:mb-2">Why Choose Sycord?</h2>
@@ -226,7 +226,7 @@ export default function LandingPage() {
                 {/* Scroll container: snap-to-center on mobile, plain grid on desktop */}
                 <div
                   ref={featuresScrollRef}
-                  className="overflow-x-scroll md:overflow-x-visible scrollbar-hide pb-4 md:pb-0 px-[12.5vw] md:px-0"
+                  className="overflow-x-scroll md:overflow-x-visible scrollbar-hide pb-4 md:pb-0 px-4 md:px-0"
                   style={{ scrollSnapType: "x mandatory", scrollBehavior: "smooth" }}
                 >
                   <div className="flex gap-4 md:gap-6 w-max md:w-full md:grid md:grid-cols-3">
@@ -234,7 +234,7 @@ export default function LandingPage() {
                     <div
                       key={i}
                       data-carousel-card
-                      className="relative w-[75vw] md:w-auto aspect-square flex-shrink-0 rounded-3xl overflow-hidden"
+                      className="relative w-[40vw] md:w-auto aspect-[3/4] md:aspect-square flex-shrink-0 rounded-2xl md:rounded-3xl overflow-hidden"
                       style={{ scrollSnapAlign: "center" }}
                     >
                       {/* Badge label — removed to only show image */}
