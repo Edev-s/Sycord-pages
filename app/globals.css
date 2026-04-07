@@ -289,9 +289,3 @@
   background: rgba(30, 30, 30, 0.8);
   border-color: rgba(255, 255, 255, 0.1);
 }
-
-/* ── Equalizer bar animation for services section ── */
-@keyframes equalizer {
-  0% { transform: scaleY(0.5); }
-  100% { transform: scaleY(1.2); }
-}
