@@ -244,7 +244,7 @@ export default function LandingPage() {
                         fill
                         className="object-cover object-center"
                         loading="lazy"
-                        sizes="(max-width: 768px) 75vw, 33vw"
+                        sizes="(max-width: 768px) 40vw, 33vw"
                       />
                     </div>
                   ))}
