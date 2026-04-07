@@ -29,7 +29,14 @@ export default function RootLayout({
 export const metadata = {
   title: 'Sycord - Create Your Website Under 5 Minutes',
   description: 'Build beautiful websites in minutes with AI-powered tools. No coding required. Start for free.',
-  generator: 'v0.app'
+  generator: 'v0.app',
+  icons: {
+    icon: [
+      { url: '/icon-dark-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
+    apple: '/apple-icon.png',
+  },
 };
 
 export const viewport = {

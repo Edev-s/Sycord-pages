@@ -256,6 +256,14 @@
 .animate-dash { animation: dash-move 2s linear infinite; }
 
 /* ── Frosted Glass Utilities ── */
+.frosted-header {
+  background: rgba(24, 24, 24, 0.55);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 .frosted-glass {
   background: rgba(24, 24, 24, 0.85);
   backdrop-filter: blur(20px);
