@@ -109,8 +109,8 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-[#101010] flex flex-col items-center overflow-x-hidden overflow-y-visible font-sans">
-      {/* Header — visible on all screen sizes, frosted glass curved only on bottom */}
-      <header className="flex w-full px-5 md:px-8 py-3 md:py-4 items-center justify-between z-20 sticky top-0 rounded-b-3xl frosted-glass">
+      {/* Header — frosted glass, curved only on bottom, background visible through it */}
+      <header className="flex w-full px-5 md:px-8 py-3 md:py-4 items-center justify-between z-20 sticky top-0 rounded-b-3xl frosted-header">
         <div className="flex items-center gap-2 md:gap-3">
           <Image src="/logo.png" alt="Sycord Logo" width={28} height={28} className="opacity-90" priority />
           <span className="text-base md:text-xl font-bold text-white tracking-tight">Sycord</span>
@@ -126,8 +126,8 @@ export default function LandingPage() {
       {/* Main Content */}
       <main className="w-full flex-1 flex flex-col">
 
-        {/* ── Hero Section (Mobile + Desktop) ── */}
-        <section className="relative w-full overflow-visible min-h-[75vh] md:min-h-[70vh] pb-32 md:pb-40">
+        {/* ── Hero Section (Mobile + Desktop) — pulled behind header so bg shows through frosted glass ── */}
+        <section className="relative w-full overflow-visible min-h-[75vh] md:min-h-[70vh] pb-32 md:pb-40 -mt-14 md:-mt-16">
           {/* Metallic corrugated background - optimized with Next.js Image for instant loading */}
           <Image
             src="https://github.com/user-attachments/assets/2f738fc4-174b-45f8-9831-25fcf4fd788f"
@@ -140,8 +140,8 @@ export default function LandingPage() {
           {/* Gradient overlay — darkens for legibility */}
           <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-transparent z-0" />
 
-          {/* Content */}
-          <div className="relative z-10 flex flex-col justify-start h-full px-6 md:px-8 pt-12 md:pt-20 pb-12 max-w-6xl mx-auto">
+          {/* Content — extra top padding to clear the header */}
+          <div className="relative z-10 flex flex-col justify-start h-full px-6 md:px-8 pt-20 md:pt-28 pb-12 max-w-6xl mx-auto">
 
             {/* Headline */}
             <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold leading-tight tracking-tight mb-6">
