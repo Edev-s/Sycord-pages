@@ -306,8 +306,8 @@ export default function LandingPage() {
               <Image
                 src="/thinking.svg"
                 alt="Sycord infrastructure: storage, hosting, and security connecting to an always-online globe"
-                width={600}
-                height={340}
+                width={697}
+                height={347}
                 className="w-full h-auto"
                 priority={false}
               />
