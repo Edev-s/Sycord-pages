@@ -234,7 +234,7 @@ export default function LandingPage() {
                     <div
                       key={i}
                       data-carousel-card
-                      className="relative w-[75vw] md:w-auto aspect-square flex-shrink-0 md:flex-shrink rounded-3xl overflow-hidden"
+                      className="relative w-[75vw] md:w-auto aspect-square flex-shrink-0 rounded-3xl overflow-hidden"
                       style={{ scrollSnapAlign: "center" }}
                     >
                       {/* Badge label — removed to only show image */}
