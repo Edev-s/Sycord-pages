@@ -335,8 +335,7 @@ export default function LandingPage() {
               {Array.from({ length: 20 }).map((_, i) => (
                 <div
                   key={i}
-                  className="w-2 md:w-2.5 rounded-full bg-[#22c55e]"
-                  style={{ height: '48px' }}
+                  className="w-2 md:w-2.5 h-12 rounded-full bg-[#22c55e]"
                 />
               ))}
             </div>
