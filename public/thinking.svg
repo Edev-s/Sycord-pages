@@ -1,4 +1,5 @@
-<svg width="600" height="340" viewBox="0 0 600 340" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg width="600" height="340" viewBox="0 0 600 340" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="thinking-title">
+  <title id="thinking-title">Sycord infrastructure: storage, hosting, and security connecting to an always-online globe</title>
   <!-- Left column: three service icons -->
   <!-- Cloud/Server icon -->
   <rect x="40" y="50" width="80" height="80" rx="20" fill="#232326"/>
