@@ -109,8 +109,8 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-[#101010] flex flex-col items-center overflow-x-hidden overflow-y-visible font-sans">
-      {/* Header — visible on all screen sizes, frosted glass with rounded corners */}
-      <header className="flex w-[calc(100%-2rem)] md:w-[calc(100%-4rem)] mx-4 md:mx-8 mt-3 px-5 md:px-8 py-3 md:py-4 items-center justify-between z-20 sticky top-3 rounded-full frosted-glass">
+      {/* Header — visible on all screen sizes, frosted glass curved only on bottom */}
+      <header className="flex w-full px-5 md:px-8 py-3 md:py-4 items-center justify-between z-20 sticky top-0 rounded-b-3xl frosted-glass">
         <div className="flex items-center gap-2 md:gap-3">
           <Image src="/logo.png" alt="Sycord Logo" width={28} height={28} className="opacity-90" priority />
           <span className="text-base md:text-xl font-bold text-white tracking-tight">Sycord</span>
@@ -274,14 +274,17 @@ export default function LandingPage() {
             <p className="text-center text-[#8A8E91] text-xs md:text-sm font-medium mb-4">Introducing</p>
             <h2 className="text-center text-white text-lg md:text-2xl font-bold mb-10 md:mb-14">Meet Syra, Your AI Builder</h2>
             <div className="flex flex-col md:flex-row md:items-center md:gap-10">
-              <div className="relative w-full md:w-3/5 flex-shrink-0 rounded-2xl overflow-hidden bg-[#181818]/90 backdrop-blur-xl border border-white/10 aspect-video">
-                <Image
-                  src="https://github.com/user-attachments/assets/c8777d2f-4890-4ac9-9f7e-935a636c7be6"
-                  alt="Syra AI Builder Preview"
-                  fill
-                  className="object-cover rounded-2xl"
-                  sizes="(max-width: 768px) 100vw, 60vw"
-                />
+              <div className="relative w-full md:w-3/5 flex-shrink-0 rounded-2xl overflow-hidden bg-[#181818]/90 backdrop-blur-xl border border-white/10">
+                <video
+                  className="w-full h-auto rounded-2xl"
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                >
+                  <source src="/Meet%20syra%20your%20ai%20builder.mp4" type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
               </div>
               <div className="mt-6 md:mt-0 md:w-2/5">
                 <p className="text-white text-base md:text-lg font-medium leading-relaxed mb-3">
@@ -327,13 +330,13 @@ export default function LandingPage() {
               ))}
             </div>
 
-            {/* Green uptime bars — static, uniform height */}
-            <div className="absolute bottom-4 md:bottom-8 left-6 md:left-8 flex items-end gap-[3px]">
-              {Array.from({ length: 15 }).map((_, i) => (
+            {/* Green uptime bars — full-width, tall, evenly spaced */}
+            <div className="absolute bottom-6 md:bottom-10 left-6 md:left-8 right-6 md:right-8 flex items-end justify-between">
+              {Array.from({ length: 20 }).map((_, i) => (
                 <div
                   key={i}
-                  className="w-[6px] md:w-[8px] rounded-full bg-[#22c55e]"
-                  style={{ height: '32px' }}
+                  className="w-2 md:w-2.5 rounded-full bg-[#22c55e]"
+                  style={{ height: '48px' }}
                 />
               ))}
             </div>
