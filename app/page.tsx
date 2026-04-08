@@ -144,13 +144,10 @@ export default function LandingPage() {
           <div className="relative z-10 flex flex-col items-center md:items-start justify-start h-full px-6 md:px-8 pt-20 md:pt-28 pb-8 md:pb-12 max-w-6xl mx-auto">
 
             {/* Headline */}
-            <h1 className="text-[28px] md:text-5xl lg:text-6xl font-bold leading-tight tracking-tight mb-5 md:mb-6 text-center md:text-left">
+            <h1 className="text-[32px] md:text-5xl lg:text-6xl font-bold leading-tight tracking-tight mb-5 md:mb-6 text-center md:text-left max-w-[320px] md:max-w-none mx-auto md:mx-0">
               <span className="text-white">Create </span>
-              <span className="text-[#8A8E91]">your</span>
-              <span className="text-[#8A8E91]"> website </span>
-              <span className="text-white">under 5</span>
-              <br />
-              <span className="text-white">minute!</span>
+              <span className="text-[#8A8E91]">your website </span>
+              <span className="text-white">under 5 minutes!</span>
             </h1>
 
             {/* Description */}
@@ -212,7 +209,7 @@ export default function LandingPage() {
             className={`rounded-t-[40px] md:rounded-t-[72px] pt-10 md:pt-14 pb-8 md:pb-10 overflow-hidden transition-all duration-700 ${
               isVideoInView 
                 ? 'bg-[#101010] border-transparent' 
-                : 'bg-[#101010]/85 backdrop-blur-xl border border-white/10'
+                : 'bg-[#101010] backdrop-blur-xl border border-white/10'
             }`}
           >
             <RevealSection className="w-full py-6 md:py-16 px-4 md:px-8 relative">
