@@ -37,6 +37,7 @@ import {
   Smartphone,
   Monitor,
   Eye,
+  EyeOff,
   CheckCircle2,
   Folder,
   FolderOpen,
@@ -567,6 +568,8 @@ export default function SiteSettingsPage() {
   const [newEnvValue, setNewEnvValue] = useState("")
   const [integrationCategory, setIntegrationCategory] = useState<string>("All")
   const [connectedIntegrations, setConnectedIntegrations] = useState<Set<string>>(new Set())
+  const [showIntegrationToken, setShowIntegrationToken] = useState(false)
+  const [integrationSaveError, setIntegrationSaveError] = useState<string | null>(null)
 
   const fetchLogs = async (repoIdOverride?: string) => {
     const targetId = repoIdOverride || project?.githubRepoId
@@ -703,7 +706,7 @@ export default function SiteSettingsPage() {
           setConnectedIntegrations(new Set(ids))
         }
       })
-      .catch(() => {})
+      .catch((err) => { console.error("[Integrations] Failed to load connected integrations:", err) })
   }, [activeTab, project?._id])
 
   const handleStyleSelect = (style: string) => {
@@ -1898,35 +1901,54 @@ export default function SiteSettingsPage() {
                           </div>
                         ) : expandedIntegration === integration.id ? (
                           <div className="space-y-2 mt-auto animate-in fade-in duration-150">
-                            <Input
-                              placeholder={integration.placeholder}
-                              type="password"
-                              value={integrationEnvValue}
-                              onChange={(e) => setIntegrationEnvValue(e.target.value)}
-                              className="h-8 bg-white/[0.03] border-white/[0.06] text-xs font-mono"
-                              autoFocus
-                            />
+                            <div className="relative">
+                              <Input
+                                placeholder={integration.placeholder}
+                                type={showIntegrationToken ? "text" : "password"}
+                                value={integrationEnvValue}
+                                onChange={(e) => { setIntegrationEnvValue(e.target.value); setIntegrationSaveError(null) }}
+                                className="h-8 bg-white/[0.03] border-white/[0.06] text-xs font-mono pr-8"
+                                autoFocus
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowIntegrationToken((v) => !v)}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
+                              >
+                                {showIntegrationToken ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                              </button>
+                            </div>
+                            {integrationSaveError && (
+                              <p className="text-[10px] text-red-400">{integrationSaveError}</p>
+                            )}
                             <div className="flex gap-2">
                               <Button
                                 size="sm"
                                 className="h-7 text-[11px] flex-1 rounded-lg"
                                 disabled={!integrationEnvValue.trim()}
                                 onClick={async () => {
-                                  await fetch(`/api/projects/${project._id}/env`, {
-                                    method: "POST",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({
-                                      key: integration.envKey,
-                                      value: integrationEnvValue.trim(),
-                                      integration: integration.id,
-                                    }),
-                                  })
-                                  setConnectedIntegrations((prev) => new Set([...prev, integration.id]))
-                                  if (["mongodb", "supabase", "firebase", "supabase-auth"].includes(integration.id)) {
-                                    setDatabaseConnected(true)
+                                  setIntegrationSaveError(null)
+                                  try {
+                                    const res = await fetch(`/api/projects/${project._id}/env`, {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({
+                                        key: integration.envKey,
+                                        value: integrationEnvValue.trim(),
+                                        integration: integration.id,
+                                      }),
+                                    })
+                                    if (!res.ok) throw new Error("Failed to save")
+                                    setConnectedIntegrations((prev) => new Set([...prev, integration.id]))
+                                    if (["mongodb", "supabase", "firebase", "supabase-auth"].includes(integration.id)) {
+                                      setDatabaseConnected(true)
+                                    }
+                                    setExpandedIntegration(null)
+                                    setIntegrationEnvValue("")
+                                    setShowIntegrationToken(false)
+                                  } catch {
+                                    setIntegrationSaveError("Failed to save. Please try again.")
                                   }
-                                  setExpandedIntegration(null)
-                                  setIntegrationEnvValue("")
                                 }}
                               >
                                 Save
@@ -1935,7 +1957,7 @@ export default function SiteSettingsPage() {
                                 size="sm"
                                 variant="ghost"
                                 className="h-7 text-[11px] rounded-lg text-zinc-500"
-                                onClick={() => { setExpandedIntegration(null); setIntegrationEnvValue("") }}
+                                onClick={() => { setExpandedIntegration(null); setIntegrationEnvValue(""); setShowIntegrationToken(false); setIntegrationSaveError(null) }}
                               >
                                 Cancel
                               </Button>
@@ -1943,7 +1965,7 @@ export default function SiteSettingsPage() {
                           </div>
                         ) : (
                           <button
-                            onClick={() => { setExpandedIntegration(integration.id); setIntegrationEnvValue("") }}
+                            onClick={() => { setExpandedIntegration(integration.id); setIntegrationEnvValue(""); setShowIntegrationToken(false); setIntegrationSaveError(null) }}
                             className="mt-auto w-full py-1.5 rounded-lg text-[11px] font-medium bg-white/[0.04] text-zinc-400 hover:bg-white/[0.08] hover:text-zinc-200 transition-colors border border-white/[0.06]"
                           >
                             Connect
@@ -1986,14 +2008,19 @@ export default function SiteSettingsPage() {
                             disabled={!newEnvKey.trim()}
                             onClick={async () => {
                               if (!newEnvKey.trim()) return
-                              await fetch(`/api/projects/${project._id}/env`, {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ key: newEnvKey.trim(), value: newEnvValue }),
-                              })
-                              setNewEnvKey("")
-                              setNewEnvValue("")
-                              setShowAddEnv(false)
+                              try {
+                                const res = await fetch(`/api/projects/${project._id}/env`, {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ key: newEnvKey.trim(), value: newEnvValue }),
+                                })
+                                if (!res.ok) throw new Error("Failed to save")
+                                setNewEnvKey("")
+                                setNewEnvValue("")
+                                setShowAddEnv(false)
+                              } catch (err) {
+                                console.error("[Integrations] Failed to save custom env var:", err)
+                              }
                             }}
                           >
                             Save
