@@ -17,6 +17,7 @@ import { ObjectId } from "mongodb"
 // API Configurations
 const GOOGLE_API_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
 const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions"
+const VERCEL_AI_API_URL = "https://api.vercel.ai/v1/chat/completions"
 
 // Map models to their specific endpoints and Env Vars
 const MODEL_CONFIGS: Record<string, { url: string, envVar: string, provider: string }> = {
@@ -25,7 +26,8 @@ const MODEL_CONFIGS: Record<string, { url: string, envVar: string, provider: str
   "gemini-2.0-flash": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
   "gemini-1.5-flash": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
   "gemini-1.5-pro": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
-  "deepseek-v3.2-exp": { url: DEEPSEEK_API_URL, envVar: "DEEPSEEK_API", provider: "DeepSeek" }
+  "deepseek-v3.2-exp": { url: DEEPSEEK_API_URL, envVar: "DEEPSEEK_API", provider: "DeepSeek" },
+  "alibaba/qwen3-coder": { url: VERCEL_AI_API_URL, envVar: "VERCEL_AI_API", provider: "Vercel" }
 }
 
 export async function POST(request: Request) {

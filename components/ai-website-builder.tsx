@@ -56,6 +56,7 @@ const MODELS = [
   { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", provider: "Google" },
   { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", provider: "Google" },
   { id: "deepseek-v3.2-exp", name: "DeepSeek V3", provider: "DeepSeek" },
+  { id: "alibaba/qwen3-coder", name: "test", provider: "Vercel" },
 ]
 
 // Log-analysis constants — keep in sync with dashboard page fetchLogs
