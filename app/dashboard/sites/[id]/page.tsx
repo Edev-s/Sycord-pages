@@ -55,6 +55,9 @@ import {
   BadgeCheck,
   Coins,
   RefreshCw,
+  Key,
+  Mail,
+  Github,
 } from "lucide-react"
 import { currencySymbols } from "@/lib/webshop-types"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -562,6 +565,8 @@ export default function SiteSettingsPage() {
   const [showAddEnv, setShowAddEnv] = useState(false)
   const [newEnvKey, setNewEnvKey] = useState("")
   const [newEnvValue, setNewEnvValue] = useState("")
+  const [integrationCategory, setIntegrationCategory] = useState<string>("All")
+  const [connectedIntegrations, setConnectedIntegrations] = useState<Set<string>>(new Set())
 
   const fetchLogs = async (repoIdOverride?: string) => {
     const targetId = repoIdOverride || project?.githubRepoId
@@ -684,6 +689,22 @@ export default function SiteSettingsPage() {
       })
       .catch(() => { console.warn("[Sycord] Could not fetch user status from /api/user/status; defaulting to free Sycord plan credits.") })
   }, [])
+
+  // Fetch already-connected integrations when the integrations tab becomes active
+  useEffect(() => {
+    if (activeTab !== "integrations" || !project?._id) return
+    fetch(`/api/projects/${project._id}/env`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data.envVars)) {
+          const ids = data.envVars
+            .filter((v: any) => v.integration)
+            .map((v: any) => v.integration as string)
+          setConnectedIntegrations(new Set(ids))
+        }
+      })
+      .catch(() => {})
+  }, [activeTab, project?._id])
 
   const handleStyleSelect = (style: string) => {
     console.log("[v0] Selected style:", style)
@@ -1728,357 +1749,262 @@ export default function SiteSettingsPage() {
             )}
 
             {/* TAB CONTENT: INTEGRATIONS */}
-            {activeTab === "integrations" && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 max-w-4xl">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-lg font-semibold">Integrations</h2>
-                    <p className="text-sm text-zinc-500 mt-0.5">
-                      Connect services and manage environment variables for deployment.
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setShowAddEnv(!showAddEnv)
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.06] text-xs font-medium text-zinc-300 hover:bg-white/10 transition-colors border border-white/[0.06]"
-                  >
-                    <Plus className="h-3.5 w-3.5" /> Add Custom Env
-                  </button>
-                </div>
+            {activeTab === "integrations" && (() => {
+              const allIntegrations = [
+                // Database
+                { id: "mongodb", name: "MongoDB", envKey: "MONGODB_URI", placeholder: "mongodb+srv://user:pass@cluster.mongodb.net/db", category: "Database", free: true, description: "With login you receive 500mb of database", iconColor: "#00ED64", iconBg: "#00684A33" },
+                { id: "supabase", name: "Supabase", envKey: "SUPABASE_URL", placeholder: "https://abc.supabase.co", category: "Database", free: true, description: "Free Postgres database with realtime & auth", iconColor: "#3ECF8E", iconBg: "#3ECF8E22" },
+                { id: "firebase", name: "Firebase", envKey: "FIREBASE_API_KEY", placeholder: "AIzaSy...", category: "Database", free: true, description: "Google cloud database with free Spark plan", iconColor: "#FFCA28", iconBg: "#FFCA2822" },
+                { id: "upstash", name: "Upstash Redis", envKey: "UPSTASH_REDIS_REST_URL", placeholder: "https://...-upstash.io", category: "Database", free: true, description: "Serverless Redis with 10K requests/day free", iconColor: "#00E9A3", iconBg: "#00E9A322" },
+                // Auth
+                { id: "nextauth", name: "NextAuth.js", envKey: "NEXTAUTH_SECRET", placeholder: "your-nextauth-secret", category: "Auth", free: true, description: "Complete authentication solution for Next.js", iconColor: "#8B5CF6", iconBg: "#8B5CF622" },
+                { id: "clerk", name: "Clerk", envKey: "CLERK_SECRET_KEY", placeholder: "sk_live_...", category: "Auth", free: true, description: "Drop-in auth with up to 10K monthly users free", iconColor: "#6C47FF", iconBg: "#6C47FF22" },
+                { id: "supabase-auth", name: "Supabase Auth", envKey: "SUPABASE_ANON_KEY", placeholder: "eyJhbGciOi...", category: "Auth", free: true, description: "Secure authentication built on Postgres", iconColor: "#3ECF8E", iconBg: "#3ECF8E22" },
+                // Payments
+                { id: "stripe", name: "Stripe", envKey: "STRIPE_SECRET_KEY", placeholder: "sk_live_...", category: "Payments", free: false, description: "The world's most powerful payments platform", iconColor: "#635BFF", iconBg: "#635BFF22" },
+                { id: "paypal", name: "PayPal", envKey: "PAYPAL_CLIENT_SECRET", placeholder: "your-paypal-client-secret", category: "Payments", free: false, description: "Accept PayPal and major credit cards globally", iconColor: "#009CDE", iconBg: "#00308722" },
+                // Services
+                { id: "openai", name: "OpenAI", envKey: "OPENAI_API_KEY", placeholder: "sk-...", category: "Services", free: false, description: "Access GPT-4, DALL·E and Whisper APIs", iconColor: "#10A37F", iconBg: "#10A37F22" },
+                { id: "resend", name: "Resend", envKey: "RESEND_API_KEY", placeholder: "re_...", category: "Services", free: true, description: "3,000 free emails/month with a modern API", iconColor: "#FFFFFF", iconBg: "#FFFFFF11" },
+                { id: "github", name: "GitHub", envKey: "GITHUB_TOKEN", placeholder: "ghp_...", category: "Services", free: true, description: "Automate workflows and connect repositories", iconColor: "#FFFFFF", iconBg: "#FFFFFF11" },
+              ]
 
-                {/* Inline Add Env Form */}
-                {showAddEnv && (
-                  <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4 space-y-3 animate-in fade-in duration-200">
-                    <p className="text-xs font-medium text-white/60">Add Custom Environment Variable</p>
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="KEY_NAME"
-                        value={newEnvKey}
-                        onChange={(e) => setNewEnvKey(e.target.value)}
-                        className="h-9 bg-white/[0.03] border-white/[0.06] text-sm font-mono flex-1"
-                      />
-                      <Input
-                        placeholder="value"
-                        value={newEnvValue}
-                        onChange={(e) => setNewEnvValue(e.target.value)}
-                        className="h-9 bg-white/[0.03] border-white/[0.06] text-sm flex-1"
-                      />
-                      <Button
-                        size="sm"
-                        className="h-9 px-4 text-xs rounded-lg"
-                        disabled={!newEnvKey.trim()}
-                        onClick={async () => {
-                          if (!newEnvKey.trim()) return
-                          await fetch(`/api/projects/${project._id}/env`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ key: newEnvKey.trim(), value: newEnvValue }),
-                          })
-                          setNewEnvKey("")
-                          setNewEnvValue("")
-                          setShowAddEnv(false)
-                        }}
+              const filtered = integrationCategory === "All" ? allIntegrations : allIntegrations.filter((i) => i.category === integrationCategory)
+
+              const renderIntegrationIcon = (id: string, color: string) => {
+                switch (id) {
+                  case "mongodb":
+                    return (
+                      <svg viewBox="0 0 24 24" className="w-5 h-5" fill={color}>
+                        <path d="M17.193 9.555c-1.264-5.58-4.252-7.414-4.573-8.115-.28-.394-.53-.954-.735-1.44-.036.495-.055.685-.523 1.184-.723.566-4.438 3.682-4.74 10.02-.282 5.912 4.27 9.435 4.888 9.884l.07.05A73.49 73.49 0 0111.91 24h.481c.114-1.032.284-2.056.51-3.07.417-.296.604-.463.85-.693a11.342 11.342 0 003.639-8.464c.01-.814-.103-1.662-.197-2.218zm-5.336 8.195s0-8.291.275-8.29c.213 0 .49 10.695.49 10.695-.381-.045-.765-1.76-.765-2.405z" />
+                      </svg>
+                    )
+                  case "supabase":
+                  case "supabase-auth":
+                    return (
+                      <svg viewBox="0 0 24 24" className="w-5 h-5" fill={color}>
+                        <path d="M11.9 1.036c-.015-.986-1.26-1.41-1.874-.637L.764 12.05C.131 12.876.712 14.064 1.748 14.064h9.545a.2.2 0 01.2.2L11.9 22.964c.015.986 1.26 1.41 1.874.637l9.262-11.652c.633-.825.052-2.013-1.016-2.013H13.55a.2.2 0 01-.2-.2L11.9 1.036z" />
+                      </svg>
+                    )
+                  case "firebase":
+                    return (
+                      <svg viewBox="0 0 24 24" className="w-5 h-5">
+                        <path fill="#FFA000" d="M3.89 15.672L6.255.461A.25.25 0 016.975.31l2.21 4.303 2.3-4.303a.25.25 0 01.44.12l.63 15.046z" />
+                        <path fill="#F57F17" d="M11.53 14.03l2.528-14.96.025-.07a.25.25 0 01.44.12l.63 15.046z" />
+                        <path fill="#FFCA28" d="M3.89 15.672l.01-.048 1.27-12.975.73 1.57L4.88 13.66l9.13-5.176L12 20z" />
+                      </svg>
+                    )
+                  case "stripe":
+                    return (
+                      <svg viewBox="0 0 24 24" className="w-5 h-5" fill={color}>
+                        <path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.992 3.757 7.218c0 4.039 2.467 5.76 6.476 7.219 2.585.92 3.445 1.574 3.445 2.583 0 .98-.84 1.545-2.354 1.545-1.875 0-4.965-.921-6.99-2.109l-.9 5.555C5.175 22.99 8.385 24 11.714 24c2.641 0 4.843-.624 6.328-1.813 1.664-1.305 2.525-3.236 2.525-5.732 0-4.128-2.524-5.851-6.594-7.305z" />
+                      </svg>
+                    )
+                  case "openai":
+                    return (
+                      <svg viewBox="0 0 24 24" className="w-5 h-5" fill={color}>
+                        <path d="M22.282 9.821a5.985 5.985 0 00-.516-4.91 6.046 6.046 0 00-6.51-2.9A6.065 6.065 0 004.981 4.18a5.985 5.985 0 00-3.998 2.9 6.046 6.046 0 00.743 7.097 5.98 5.98 0 00.51 4.911 6.051 6.051 0 006.515 2.9A5.985 5.985 0 0013.26 24a6.056 6.056 0 005.772-4.206 5.99 5.99 0 003.997-2.9 6.056 6.056 0 00-.747-7.073zM13.26 22.43a4.476 4.476 0 01-2.876-1.04l.141-.081 4.779-2.758a.795.795 0 00.392-.681v-6.737l2.02 1.168a.071.071 0 01.038.052v5.583a4.504 4.504 0 01-4.494 4.494zM3.6 18.304a4.47 4.47 0 01-.535-3.014l.142.085 4.783 2.759a.771.771 0 00.78 0l5.843-3.369v2.332a.08.08 0 01-.033.062L9.74 19.95a4.5 4.5 0 01-6.14-1.646zM2.34 7.896a4.485 4.485 0 012.366-1.973V11.6a.766.766 0 00.388.676l5.815 3.355-2.02 1.168a.076.076 0 01-.071 0l-4.83-2.786A4.504 4.504 0 012.34 7.872zm16.597 3.855l-5.843-3.37 2.019-1.168a.076.076 0 01.071 0l4.83 2.791a4.494 4.494 0 01-.676 8.105v-5.678a.79.79 0 00-.41-.676zm2.01-3.023l-.141-.085-4.774-2.782a.776.776 0 00-.785 0L9.409 9.23V6.897a.066.066 0 01.028-.061l4.83-2.787a4.5 4.5 0 016.68 4.66zm-12.64 4.135l-2.02-1.164a.08.08 0 01-.038-.057V6.075a4.5 4.5 0 017.375-3.453l-.142.08L8.704 5.46a.795.795 0 00-.393.681zm1.097-2.365l2.602-1.5 2.607 1.5v2.999l-2.597 1.5-2.607-1.5-.005-2.999z" />
+                      </svg>
+                    )
+                  case "github":
+                    return (
+                      <svg viewBox="0 0 24 24" className="w-5 h-5" fill={color}>
+                        <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
+                      </svg>
+                    )
+                  case "paypal":
+                    return (
+                      <svg viewBox="0 0 24 24" className="w-5 h-5" fill={color}>
+                        <path d="M7.076 21.337H2.47a.641.641 0 01-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.9l-1.12 7.106zm14.146-14.42a3.35 3.35 0 00-.607-.541c-.013.076-.026.175-.041.254-.93 4.778-4.005 7.201-9.138 7.201h-2.19a.563.563 0 00-.556.479l-1.187 7.527h-.506l-.24 1.516a.56.56 0 00.554.647h3.882c.46 0 .85-.334.922-.788.06-.26.76-4.852.816-5.09a.932.932 0 01.923-.788h.58c3.76 0 6.705-1.528 7.565-5.946.36-1.847.174-3.388-.777-4.471z" />
+                      </svg>
+                    )
+                  case "resend":
+                    return <Mail className="h-5 w-5" style={{ color }} />
+                  case "nextauth":
+                    return <Key className="h-5 w-5" style={{ color }} />
+                  case "clerk":
+                    return <Lock className="h-5 w-5" style={{ color }} />
+                  case "upstash":
+                    return <Database className="h-5 w-5" style={{ color }} />
+                  default:
+                    return <Zap className="h-5 w-5" style={{ color }} />
+                }
+              }
+
+              return (
+                <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 max-w-4xl">
+                  {/* Video preview */}
+                  <div className="relative rounded-2xl overflow-hidden bg-black/30 border border-white/[0.06]">
+                    <video
+                      src="/Integration.mp4"
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      className="w-full rounded-2xl"
+                    />
+                  </div>
+
+                  {/* Category filter pills */}
+                  <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+                    {["All", "Database", "Auth", "Payments", "Services"].map((cat) => (
+                      <button
+                        key={cat}
+                        onClick={() => setIntegrationCategory(cat)}
+                        className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-colors border ${
+                          integrationCategory === cat
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-white/[0.06] text-zinc-400 hover:bg-white/10 border-white/[0.06]"
+                        }`}
                       >
-                        Save
-                      </Button>
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Integration cards grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {filtered.map((integration) => (
+                      <div
+                        key={integration.id}
+                        className="rounded-2xl bg-[#1C1C1E] border border-white/[0.06] p-4 flex flex-col hover:border-white/[0.14] transition-colors"
+                      >
+                        {/* Icon */}
+                        <div
+                          className="h-12 w-12 rounded-xl flex items-center justify-center mb-3"
+                          style={{ backgroundColor: integration.iconBg }}
+                        >
+                          {renderIntegrationIcon(integration.id, integration.iconColor)}
+                        </div>
+
+                        {/* Name + badge */}
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <span className="text-sm font-semibold text-white">{integration.name}</span>
+                          {integration.free && (
+                            <span className="text-[10px] font-semibold bg-emerald-500 text-white px-2 py-0.5 rounded-full">
+                              free
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Description */}
+                        <p className="text-[11px] text-zinc-400 leading-relaxed mb-3">{integration.description}</p>
+
+                        {/* Connect / Connected state */}
+                        {connectedIntegrations.has(integration.id) ? (
+                          <div className="mt-auto flex items-center gap-1.5 text-emerald-400 text-[11px] font-medium">
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            Connected
+                          </div>
+                        ) : expandedIntegration === integration.id ? (
+                          <div className="space-y-2 mt-auto animate-in fade-in duration-150">
+                            <Input
+                              placeholder={integration.placeholder}
+                              type="password"
+                              value={integrationEnvValue}
+                              onChange={(e) => setIntegrationEnvValue(e.target.value)}
+                              className="h-8 bg-white/[0.03] border-white/[0.06] text-xs font-mono"
+                              autoFocus
+                            />
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                className="h-7 text-[11px] flex-1 rounded-lg"
+                                disabled={!integrationEnvValue.trim()}
+                                onClick={async () => {
+                                  await fetch(`/api/projects/${project._id}/env`, {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({
+                                      key: integration.envKey,
+                                      value: integrationEnvValue.trim(),
+                                      integration: integration.id,
+                                    }),
+                                  })
+                                  setConnectedIntegrations((prev) => new Set([...prev, integration.id]))
+                                  if (["mongodb", "supabase", "firebase", "supabase-auth"].includes(integration.id)) {
+                                    setDatabaseConnected(true)
+                                  }
+                                  setExpandedIntegration(null)
+                                  setIntegrationEnvValue("")
+                                }}
+                              >
+                                Save
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 text-[11px] rounded-lg text-zinc-500"
+                                onClick={() => { setExpandedIntegration(null); setIntegrationEnvValue("") }}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => { setExpandedIntegration(integration.id); setIntegrationEnvValue("") }}
+                            className="mt-auto w-full py-1.5 rounded-lg text-[11px] font-medium bg-white/[0.04] text-zinc-400 hover:bg-white/[0.08] hover:text-zinc-200 transition-colors border border-white/[0.06]"
+                          >
+                            Connect
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Custom Environment Variables */}
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-[11px] uppercase tracking-wider text-zinc-500 font-semibold">Custom Environment Variables</p>
+                      <button
+                        onClick={() => setShowAddEnv(!showAddEnv)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.06] text-xs font-medium text-zinc-300 hover:bg-white/10 transition-colors border border-white/[0.06]"
+                      >
+                        <Plus className="h-3.5 w-3.5" /> Add Custom Env
+                      </button>
                     </div>
-                  </div>
-                )}
-
-                {/* Auth & Identity */}
-                <div>
-                  <p className="text-[11px] uppercase tracking-wider text-zinc-500 font-semibold mb-3">Authentication</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {[
-                      {
-                        id: "nextauth",
-                        name: "NextAuth.js",
-                        envKey: "NEXTAUTH_SECRET",
-                        placeholder: "your-nextauth-secret",
-                        color: "#8B5CF6",
-                        description: "Auth.js / NextAuth",
-                      },
-                      {
-                        id: "clerk",
-                        name: "Clerk",
-                        envKey: "CLERK_SECRET_KEY",
-                        placeholder: "sk_live_...",
-                        color: "#6C47FF",
-                        description: "User management & auth",
-                      },
-                      {
-                        id: "supabase-auth",
-                        name: "Supabase Auth",
-                        envKey: "SUPABASE_ANON_KEY",
-                        placeholder: "eyJhbGciOi...",
-                        color: "#3ECF8E",
-                        description: "Auth with Supabase",
-                      },
-                    ].map((integration) => (
-                      <div key={integration.id} className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
-                        <div className="flex items-center gap-2.5 mb-3">
-                          <div
-                            className="h-8 w-8 rounded-lg flex items-center justify-center"
-                            style={{ backgroundColor: `${integration.color}15` }}
+                    {showAddEnv && (
+                      <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4 space-y-3 animate-in fade-in duration-200">
+                        <p className="text-xs font-medium text-white/60">Add Custom Environment Variable</p>
+                        <div className="flex gap-2 flex-wrap sm:flex-nowrap">
+                          <Input
+                            placeholder="KEY_NAME"
+                            value={newEnvKey}
+                            onChange={(e) => setNewEnvKey(e.target.value)}
+                            className="h-9 bg-white/[0.03] border-white/[0.06] text-sm font-mono flex-1"
+                          />
+                          <Input
+                            placeholder="value"
+                            value={newEnvValue}
+                            onChange={(e) => setNewEnvValue(e.target.value)}
+                            className="h-9 bg-white/[0.03] border-white/[0.06] text-sm flex-1"
+                          />
+                          <Button
+                            size="sm"
+                            className="h-9 px-4 text-xs rounded-lg"
+                            disabled={!newEnvKey.trim()}
+                            onClick={async () => {
+                              if (!newEnvKey.trim()) return
+                              await fetch(`/api/projects/${project._id}/env`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ key: newEnvKey.trim(), value: newEnvValue }),
+                              })
+                              setNewEnvKey("")
+                              setNewEnvValue("")
+                              setShowAddEnv(false)
+                            }}
                           >
-                            <Lock className="h-3.5 w-3.5" style={{ color: integration.color }} />
-                          </div>
-                          <div>
-                            <h3 className="text-xs font-semibold text-white">{integration.name}</h3>
-                            <p className="text-[10px] text-zinc-500">{integration.description}</p>
-                          </div>
+                            Save
+                          </Button>
                         </div>
-
-                        {expandedIntegration === integration.id ? (
-                          <div className="space-y-2 animate-in fade-in duration-150">
-                            <Input
-                              placeholder={integration.placeholder}
-                              value={integrationEnvValue}
-                              onChange={(e) => setIntegrationEnvValue(e.target.value)}
-                              className="h-8 bg-white/[0.03] border-white/[0.06] text-xs font-mono"
-                              autoFocus
-                            />
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                className="h-7 text-[11px] flex-1 rounded-lg"
-                                disabled={!integrationEnvValue.trim()}
-                                onClick={async () => {
-                                  await fetch(`/api/projects/${project._id}/env`, {
-                                    method: "POST",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({
-                                      key: integration.envKey,
-                                      value: integrationEnvValue.trim(),
-                                      integration: integration.id,
-                                    }),
-                                  })
-                                  setExpandedIntegration(null)
-                                  setIntegrationEnvValue("")
-                                }}
-                              >
-                                Connect
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-7 text-[11px] rounded-lg text-zinc-500"
-                                onClick={() => { setExpandedIntegration(null); setIntegrationEnvValue("") }}
-                              >
-                                Cancel
-                              </Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => { setExpandedIntegration(integration.id); setIntegrationEnvValue("") }}
-                            className="w-full py-2 rounded-lg text-[11px] font-medium bg-white/[0.04] text-zinc-400 hover:bg-white/[0.08] hover:text-zinc-200 transition-colors border border-white/[0.06]"
-                          >
-                            Connect
-                          </button>
-                        )}
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
-
-                {/* Databases & Backend */}
-                <div>
-                  <p className="text-[11px] uppercase tracking-wider text-zinc-500 font-semibold mb-3">Databases &amp; Backend</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {[
-                      {
-                        id: "mongodb",
-                        name: "MongoDB",
-                        envKey: "MONGODB_URI",
-                        placeholder: "mongodb+srv://user:pass@cluster.mongodb.net/db",
-                        color: "#00684A",
-                        description: "NoSQL document database",
-                      },
-                      {
-                        id: "supabase",
-                        name: "Supabase",
-                        envKey: "SUPABASE_URL",
-                        placeholder: "https://abc.supabase.co",
-                        color: "#3ECF8E",
-                        description: "Open source Firebase alternative",
-                      },
-                      {
-                        id: "firebase",
-                        name: "Firebase",
-                        envKey: "FIREBASE_API_KEY",
-                        placeholder: "AIzaSy...",
-                        color: "#FFCA28",
-                        description: "Google cloud platform",
-                      },
-                    ].map((integration) => (
-                      <div key={integration.id} className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
-                        <div className="flex items-center gap-2.5 mb-3">
-                          <div
-                            className="h-8 w-8 rounded-lg flex items-center justify-center"
-                            style={{ backgroundColor: `${integration.color}15` }}
-                          >
-                            <Database className="h-3.5 w-3.5" style={{ color: integration.color }} />
-                          </div>
-                          <div>
-                            <h3 className="text-xs font-semibold text-white">{integration.name}</h3>
-                            <p className="text-[10px] text-zinc-500">{integration.description}</p>
-                          </div>
-                        </div>
-
-                        {expandedIntegration === integration.id ? (
-                          <div className="space-y-2 animate-in fade-in duration-150">
-                            <Input
-                              placeholder={integration.placeholder}
-                              value={integrationEnvValue}
-                              onChange={(e) => setIntegrationEnvValue(e.target.value)}
-                              className="h-8 bg-white/[0.03] border-white/[0.06] text-xs font-mono"
-                              autoFocus
-                            />
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                className="h-7 text-[11px] flex-1 rounded-lg"
-                                disabled={!integrationEnvValue.trim()}
-                                onClick={async () => {
-                                  await fetch(`/api/projects/${project._id}/env`, {
-                                    method: "POST",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({
-                                      key: integration.envKey,
-                                      value: integrationEnvValue.trim(),
-                                      integration: integration.id,
-                                    }),
-                                  })
-                                  setExpandedIntegration(null)
-                                  setIntegrationEnvValue("")
-                                  setDatabaseConnected(true)
-                                }}
-                              >
-                                Connect
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-7 text-[11px] rounded-lg text-zinc-500"
-                                onClick={() => { setExpandedIntegration(null); setIntegrationEnvValue("") }}
-                              >
-                                Cancel
-                              </Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => { setExpandedIntegration(integration.id); setIntegrationEnvValue("") }}
-                            className="w-full py-2 rounded-lg text-[11px] font-medium bg-white/[0.04] text-zinc-400 hover:bg-white/[0.08] hover:text-zinc-200 transition-colors border border-white/[0.06]"
-                          >
-                            Connect
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Payments & Services */}
-                <div>
-                  <p className="text-[11px] uppercase tracking-wider text-zinc-500 font-semibold mb-3">Payments &amp; Services</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {[
-                      {
-                        id: "stripe",
-                        name: "Stripe",
-                        envKey: "STRIPE_SECRET_KEY",
-                        placeholder: "sk_live_...",
-                        color: "#635BFF",
-                        description: "Payment processing",
-                      },
-                      {
-                        id: "resend",
-                        name: "Resend",
-                        envKey: "RESEND_API_KEY",
-                        placeholder: "re_...",
-                        color: "#000000",
-                        description: "Email API",
-                      },
-                      {
-                        id: "openai",
-                        name: "OpenAI",
-                        envKey: "OPENAI_API_KEY",
-                        placeholder: "sk-...",
-                        color: "#10A37F",
-                        description: "AI API access",
-                      },
-                    ].map((integration) => (
-                      <div key={integration.id} className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
-                        <div className="flex items-center gap-2.5 mb-3">
-                          <div
-                            className="h-8 w-8 rounded-lg flex items-center justify-center"
-                            style={{ backgroundColor: `${integration.color}15` }}
-                          >
-                            <Zap className="h-3.5 w-3.5" style={{ color: integration.color === "#000000" ? "#fff" : integration.color }} />
-                          </div>
-                          <div>
-                            <h3 className="text-xs font-semibold text-white">{integration.name}</h3>
-                            <p className="text-[10px] text-zinc-500">{integration.description}</p>
-                          </div>
-                        </div>
-
-                        {expandedIntegration === integration.id ? (
-                          <div className="space-y-2 animate-in fade-in duration-150">
-                            <Input
-                              placeholder={integration.placeholder}
-                              value={integrationEnvValue}
-                              onChange={(e) => setIntegrationEnvValue(e.target.value)}
-                              className="h-8 bg-white/[0.03] border-white/[0.06] text-xs font-mono"
-                              autoFocus
-                            />
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                className="h-7 text-[11px] flex-1 rounded-lg"
-                                disabled={!integrationEnvValue.trim()}
-                                onClick={async () => {
-                                  await fetch(`/api/projects/${project._id}/env`, {
-                                    method: "POST",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({
-                                      key: integration.envKey,
-                                      value: integrationEnvValue.trim(),
-                                      integration: integration.id,
-                                    }),
-                                  })
-                                  setExpandedIntegration(null)
-                                  setIntegrationEnvValue("")
-                                }}
-                              >
-                                Connect
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-7 text-[11px] rounded-lg text-zinc-500"
-                                onClick={() => { setExpandedIntegration(null); setIntegrationEnvValue("") }}
-                              >
-                                Cancel
-                              </Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => { setExpandedIntegration(integration.id); setIntegrationEnvValue("") }}
-                            className="w-full py-2 rounded-lg text-[11px] font-medium bg-white/[0.04] text-zinc-400 hover:bg-white/[0.08] hover:text-zinc-200 transition-colors border border-white/[0.06]"
-                          >
-                            Connect
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
+              )
+            })()}
 
             {/* TAB CONTENT: SETTINGS */}
             {activeTab === "settings" && (
