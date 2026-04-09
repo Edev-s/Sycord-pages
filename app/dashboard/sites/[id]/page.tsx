@@ -1844,6 +1844,7 @@ export default function SiteSettingsPage() {
                       loop
                       muted
                       playsInline
+                      aria-label="Integration setup demonstration"
                       className="w-full rounded-2xl"
                     />
                   </div>
