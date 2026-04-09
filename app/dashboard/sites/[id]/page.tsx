@@ -324,6 +324,35 @@ const PLAN_CREDITS: Record<string, number> = {
 }
 const DEFAULT_PLAN_CREDIT = 2
 
+const DOMAIN_TLD_OPTIONS = [
+  { tld: ".com", price: "$10.44/yr" },
+  { tld: ".net", price: "$11.44/yr" },
+  { tld: ".org", price: "$11.44/yr" },
+  { tld: ".co",  price: "$28.98/yr" },
+  { tld: ".io",  price: "$32.94/yr" },
+  { tld: ".dev", price: "$14.28/yr" },
+  { tld: ".app", price: "$14.28/yr" },
+  { tld: ".store", price: "$5.00/yr" },
+  { tld: ".online", price: "$3.98/yr" },
+] as const
+
+const CloudflareIcon = () => (
+  <svg viewBox="0 0 100 100" className="h-6 w-6 shrink-0" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M86.5 55.5c-.4-1.4-1.7-2.3-3.1-2.3H23.2l-.5 1.6-.5 1.6h60.7c1.2 0 2.2.8 2.5 1.9l.1.4.6-1.6.4-1.6z" fill="#F6821F"/>
+    <path d="M71.3 66.5c.3-1 .2-2.1-.4-3-1-1.4-2.9-2.2-5-2.2H16.4l-.4 1.6-.5 1.6h49.3c1.5 0 2.8.7 3.2 1.8.2.5.2 1.1 0 1.6l.6-1.4h2.7z" fill="#F6821F"/>
+    <path d="M76.6 59.8c.2-.7.2-1.4 0-2.1-.5-1.5-2-2.6-3.8-2.6H23.2l-.5 1.7-.5 1.7h49.6c1 0 1.9.5 2.3 1.3.2.5.2 1 0 1.6l.6-1.6h1.9z" fill="#FBAD41"/>
+    <ellipse cx="65" cy="68" rx="18" ry="18" fill="#F6821F"/>
+    <ellipse cx="65" cy="68" rx="12" ry="12" fill="#FBAD41"/>
+    <path d="M47 68a18 18 0 1036 0 18 18 0 00-36 0z" fill="url(#cf-grad)"/>
+    <defs>
+      <radialGradient id="cf-grad" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(65 68) scale(18)">
+        <stop stopColor="#FBAD41"/>
+        <stop offset="1" stopColor="#F6821F"/>
+      </radialGradient>
+    </defs>
+  </svg>
+)
+
 const PLAN_LABELS: Record<string, string> = {
   "Sycord Enterprise": "Enterprise",
   "Sycord+": "Sycord+",
@@ -621,6 +650,7 @@ export default function SiteSettingsPage() {
   const [connectedIntegrations, setConnectedIntegrations] = useState<Set<string>>(new Set())
   const [showIntegrationToken, setShowIntegrationToken] = useState(false)
   const [integrationSaveError, setIntegrationSaveError] = useState<string | null>(null)
+  const [domainSearch, setDomainSearch] = useState("")
 
   const fetchLogs = async (repoIdOverride?: string) => {
     const targetId = repoIdOverride || project?.githubRepoId
@@ -1506,68 +1536,82 @@ export default function SiteSettingsPage() {
             })()}
 
             {/* TAB CONTENT: DOMAIN */}
-            {activeTab === "domain" && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 max-w-2xl">
-                <div>
-                  <h2 className="text-lg font-semibold">Domain</h2>
-                  <p className="text-sm text-muted-foreground mt-0.5">Manage your site's live URL and custom domain.</p>
-                </div>
+            {activeTab === "domain" && (() => {
+              const slug = domainSearch.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/^-+|-+$/g, "") || ""
 
-                {/* Current URL */}
-                <Card className="bg-card/50 backdrop-blur-sm border-white/10">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <Globe className="h-4 w-4 text-primary" />
-                      Live URL
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {displayUrl ? (
-                      <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.06]">
-                        <div className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
-                        <span className="flex-1 text-sm font-mono text-muted-foreground truncate">{displayUrl}</span>
-                        <button
-                          onClick={() => previewUrl && window.open(previewUrl, "_blank")}
-                          className="shrink-0 hover:text-foreground text-muted-foreground transition-colors"
-                          aria-label="Open site in new tab"
-                        >
-                          <ExternalLink className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.06]">
-                        <div className="h-2 w-2 rounded-full bg-zinc-600 shrink-0" />
-                        <span className="text-sm text-muted-foreground">No domain yet — deploy your site first.</span>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+              return (
+                <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 max-w-2xl">
+                  {/* Video preview */}
+                  <div className="relative rounded-2xl overflow-hidden bg-black/30 border border-white/[0.06]">
+                    <video
+                      src="/domain.mp4"
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      aria-label="Domain setup demonstration"
+                      className="w-full rounded-2xl"
+                    />
+                  </div>
 
-                {/* Custom Domain info */}
-                <Card className="bg-card/50 backdrop-blur-sm border-white/10">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <Rocket className="h-4 w-4 text-primary" />
-                      Custom Domain
-                    </CardTitle>
-                    <CardDescription>Connect your own domain name to this site.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4 space-y-2">
-                      <p className="text-xs font-semibold text-white/70">How it works</p>
-                      <ol className="text-xs text-muted-foreground space-y-1.5 list-decimal list-inside">
-                        <li>Purchase or choose an existing domain from your registrar.</li>
-                        <li>Add a <span className="font-mono text-white/70">CNAME</span> record pointing to your Sycord deployment URL above.</li>
-                        <li>Wait for DNS propagation (usually under 30 min).</li>
-                      </ol>
+                  {/* Included free subdomain */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-white/50 uppercase tracking-wide px-1">Included with your plan</p>
+                    <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-[#1C1C1E] border border-white/[0.06]">
+                      <Globe className="h-5 w-5 text-zinc-400 shrink-0" />
+                      <span className="flex-1 text-sm font-mono text-white truncate">
+                        {displayUrl || `${project?.businessName?.toLowerCase().replace(/[^a-z0-9]/g, "") || "yoursite"}.sycord.com`}
+                      </span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-[10px] font-semibold bg-emerald-500 text-white px-2 py-0.5 rounded-full">free</span>
+                        <span className="flex items-center gap-1 text-[11px] text-emerald-400 font-medium">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          owned
+                        </span>
+                      </div>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      Automatic custom-domain provisioning is coming soon. For now, configure your DNS records manually using the live URL above.
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
+                  </div>
+
+                  {/* Domain search */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-white/50 uppercase tracking-wide px-1">Find a custom domain</p>
+                    <div className="relative">
+                      <Globe className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500 pointer-events-none" />
+                      <input
+                        type="text"
+                        value={domainSearch}
+                        onChange={(e) => setDomainSearch(e.target.value)}
+                        placeholder="type your business name"
+                        className="w-full h-12 pl-10 pr-4 rounded-2xl bg-[#2C2C2E] border border-white/[0.06] text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-white/20 transition-colors"
+                      />
+                    </div>
+                  </div>
+
+                  {/* TLD results */}
+                  <div className="space-y-2">
+                    {slug.length > 0 ? DOMAIN_TLD_OPTIONS.map(({ tld, price }) => (
+                      <div
+                        key={tld}
+                        className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-[#1C1C1E] border border-white/[0.06] hover:border-white/[0.14] transition-colors cursor-pointer"
+                      >
+                        <CloudflareIcon />
+                        <span className="flex-1 text-sm font-medium text-white">{slug}{tld}</span>
+                        <span className="text-sm font-semibold text-white/70 shrink-0">{price}</span>
+                      </div>
+                    )) : DOMAIN_TLD_OPTIONS.map(({ tld }) => (
+                      <div
+                        key={tld}
+                        className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-[#1C1C1E] border border-white/[0.06]"
+                      >
+                        <div className="h-6 w-6 rounded-md bg-white/[0.06] shrink-0" />
+                        <div className="flex-1 h-3 rounded-full bg-white/[0.06]" />
+                        <div className="h-3 w-10 rounded-full bg-white/[0.06] shrink-0" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })()}
 
             {/* TAB CONTENT: ITEMS / PRODUCTS */}
             {activeTab === "items" && (
