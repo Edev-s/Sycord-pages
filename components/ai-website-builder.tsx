@@ -49,8 +49,18 @@ import {
 } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
 
-// Updated Models List — gemini-3.1-pro-preview is the default
-const MODELS = [
+// Model type for the chooser
+interface ModelOption {
+  id: string
+  name: string
+  provider: string
+  fast?: boolean
+}
+
+// Default model is the Vercel "test" model (alibaba/qwen3-coder)
+const DEFAULT_MODEL_ID = "alibaba/qwen3-coder"
+
+const MODELS: ModelOption[] = [
   { id: "gemini-3.1-pro-preview", name: "Gemini 3.1 Pro (Preview)", provider: "Google" },
   { id: "gemini-3.1-flash-lite-preview", name: "Gemini 3.1 Flash Lite ⚡", provider: "Google", fast: true },
   { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", provider: "Google" },
@@ -425,7 +435,7 @@ const InputBar = ({
   selectedModel, setSelectedModel,
 }: {
   input: string; setInput: (v: string) => void; onSend: () => void; disabled: boolean
-  selectedModel: typeof MODELS[0]; setSelectedModel: (m: typeof MODELS[0]) => void
+  selectedModel: ModelOption; setSelectedModel: (m: ModelOption) => void
 }) => {
   const taRef = useRef<HTMLTextAreaElement>(null)
 
@@ -465,7 +475,7 @@ const InputBar = ({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="h-8 rounded-full text-[11px] text-zinc-500 hover:text-zinc-300 hover:bg-white/5 px-3 gap-1.5 border border-white/[0.06]">
-                  {(selectedModel as any).fast ? <Zap className="h-3 w-3 text-yellow-500" /> : <Sparkles className="h-3 w-3 text-zinc-600" />}
+                  {selectedModel.fast ? <Zap className="h-3 w-3 text-yellow-500" /> : <Sparkles className="h-3 w-3 text-zinc-600" />}
                   <span>{selectedModel.name}</span>
                   <ChevronDown className="h-3 w-3 ml-0.5" />
                 </Button>
@@ -478,7 +488,7 @@ const InputBar = ({
                     className={cn("text-xs", selectedModel.id === m.id ? "text-white bg-white/10" : "text-zinc-400")}
                   >
                     <span className="flex items-center gap-2">
-                      {(m as any).fast ? <Zap className="h-3 w-3 text-yellow-500" /> : <Sparkles className="h-3 w-3 text-zinc-600" />}
+                      {m.fast ? <Zap className="h-3 w-3 text-yellow-500" /> : <Sparkles className="h-3 w-3 text-zinc-600" />}
                       {m.name}
                     </span>
                   </DropdownMenuItem>
@@ -674,7 +684,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
   const [showAutoDeploy, setShowAutoDeploy] = useState(false)
 
   const [instruction, setInstruction] = useState<string>("")
-  const [selectedModel, setSelectedModel] = useState(MODELS.find(m => m.name === "test") || MODELS[0])
+  const [selectedModel, setSelectedModel] = useState<ModelOption>(MODELS.find(m => m.id === DEFAULT_MODEL_ID) || MODELS[0])
 
   const [fixHistory, setFixHistory] = useState<any[]>([])
 
@@ -1072,11 +1082,11 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       try {
         data = await attemptGenerate(modelId)
       } catch (primaryErr) {
-        // If using the Vercel "test" model, fall back to first Google model
+        // If using the Vercel "test" model, fall back to first Google model for this file only
         if (selectedModel.provider === "Vercel" && !modelOverride) {
           const googleFallback = MODELS.find(m => m.provider === "Google")
           if (googleFallback) {
-            setFallbackMessage(`Vercel model unavailable - using ${googleFallback.name}`)
+            setFallbackMessage(`We've switched to ${googleFallback.name} for better reliability. Your website is still being built.`)
             data = await attemptGenerate(googleFallback.id)
           } else {
             throw primaryErr
@@ -1131,7 +1141,8 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       }
 
       setInstruction(data.updatedInstruction)
-      processNextStep(data.updatedInstruction, [...currentHistory, assistantMessage], modelOverride)
+      // Don't propagate modelOverride — each file retries the primary model first
+      processNextStep(data.updatedInstruction, [...currentHistory, assistantMessage])
 
     } catch (err: any) {
       setError(err.message)
