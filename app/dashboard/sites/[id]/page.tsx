@@ -1,8 +1,6 @@
 "use client"
 
-import type React from "react"
-
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -59,6 +57,8 @@ import {
   Key,
   Mail,
   Github,
+  ChevronDown,
+  Shield,
 } from "lucide-react"
 import { currencySymbols } from "@/lib/webshop-types"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -350,64 +350,114 @@ const SidebarContent = ({
   onManageAccess,
 }: any) => {
   const WebsiteIcon = getWebsiteIcon()
-
   const planLabel = getPlanLabel(subscription)
+
+  // Initialise open groups from each group's defaultOpen flag
+  const [openGroups, setOpenGroups] = React.useState<Set<string>>(() => {
+    const initial = new Set<string>()
+    for (const g of navGroups) {
+      if (g.defaultOpen) initial.add(g.key)
+    }
+    return initial
+  })
+
+  const toggleGroup = (key: string) => {
+    setOpenGroups((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  // Auto-open group containing the active tab
+  React.useEffect(() => {
+    for (const g of navGroups) {
+      if (g.items.some((i: any) => i.id === activeTab)) {
+        setOpenGroups((prev) => {
+          if (prev.has(g.key)) return prev
+          const next = new Set(prev)
+          next.add(g.key)
+          return next
+        })
+      }
+    }
+  }, [activeTab, navGroups])
 
   return (
     <div className="flex flex-col h-full p-4">
-      <div className="flex items-center gap-3 mb-8 px-2 text-foreground">
+      <div className="flex items-center gap-3 mb-6 px-2 text-foreground">
         <div className="p-2 rounded-lg bg-primary/10 flex-shrink-0">
           <WebsiteIcon className="h-5 w-5 text-primary" />
         </div>
         <span className="font-bold text-lg truncate">{project?.businessName || "Site Settings"}</span>
       </div>
 
-      <nav className="flex-1 space-y-6 overflow-y-auto custom-scrollbar">
-        {navGroups.map((group: any) => (
-          <div key={group.title}>
-            {group.title && (
-              <h3 className="px-3 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                {group.title}
-              </h3>
-            )}
-            <div className="space-y-1">
-              {group.items.map((item: any) => {
-                const Icon = item.icon
-                const isActive = activeTab === item.id
-                const isLocked = item.requiresDatabase && !databaseConnected
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      if (isLocked) return
-                      setActiveTab(item.id)
-                      setIsSidebarOpen(false)
-                    }}
-                    disabled={isLocked}
-                    title={isLocked ? "Connect a database to unlock this feature" : undefined}
-                    className={cn(
-                      "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 text-sm font-medium text-left",
-                      isActive
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : isLocked
-                        ? "text-muted-foreground/40 cursor-not-allowed"
-                        : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
-                    )}
-                  >
-                    <Icon className="h-4 w-4 flex-shrink-0" />
-                    <span className="truncate flex-1 text-left">{item.label}</span>
-                    {item.badge && (
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border border-white/25 bg-transparent text-foreground/70 shrink-0">
-                        {item.badge}
-                      </span>
-                    )}
-                    {isLocked && <Lock className="h-3 w-3 shrink-0 opacity-50" />}
-                  </button>
-                )
-              })}
+      <nav className="flex-1 space-y-1 overflow-y-auto custom-scrollbar">
+        {navGroups.map((group: any) => {
+          const isOpen = openGroups.has(group.key)
+          const groupHasActive = group.items.some((i: any) => i.id === activeTab)
+          return (
+            <div key={group.key} className="mb-1">
+              {/* Folder header */}
+              <button
+                onClick={() => toggleGroup(group.key)}
+                className={cn(
+                  "w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 text-xs font-semibold uppercase tracking-wider",
+                  groupHasActive
+                    ? "text-primary"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {isOpen
+                  ? <ChevronDown className="h-3.5 w-3.5 shrink-0 transition-transform" />
+                  : <ChevronRight className="h-3.5 w-3.5 shrink-0 transition-transform" />
+                }
+                <span className="flex-1 text-left">{group.title}</span>
+              </button>
+
+              {/* Folder items */}
+              {isOpen && (
+                <div className="mt-0.5 ml-3 pl-3 border-l border-white/[0.08] space-y-0.5">
+                  {group.items.map((item: any) => {
+                    const Icon = item.icon
+                    const isActive = activeTab === item.id
+                    const isLocked = item.requiresDatabase && !databaseConnected
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => {
+                          if (isLocked) return
+                          setActiveTab(item.id)
+                          setIsSidebarOpen(false)
+                        }}
+                        disabled={isLocked}
+                        title={isLocked ? "Connect a database to unlock this feature" : undefined}
+                        className={cn(
+                          "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 text-sm font-medium text-left",
+                          isActive
+                            ? "bg-primary text-primary-foreground shadow-sm"
+                            : isLocked
+                            ? "text-muted-foreground/40 cursor-not-allowed"
+                            : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                        )}
+                      >
+                        <Icon className="h-4 w-4 flex-shrink-0" />
+                        <span className="truncate flex-1 text-left">{item.label}</span>
+                        {item.badge && (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border border-white/25 bg-transparent text-foreground/70 shrink-0">
+                            {item.badge}
+                          </span>
+                        )}
+                        {isLocked && <Lock className="h-3 w-3 shrink-0 opacity-50" />}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          )
+        })}
       </nav>
 
       {/* Manage Access button */}
@@ -484,7 +534,7 @@ export default function SiteSettingsPage() {
   const [productError, setProductError] = useState<string | null>(null)
 
   const [activeTab, setActiveTab] = useState<
-    "overview" | "pages" | "ai" | "settings" | "items" | "promotions" | "payments" | "customers" | "posts" | "segments" | "integrations"
+    "overview" | "domain" | "pages" | "ai" | "settings" | "items" | "promotions" | "payments" | "customers" | "posts" | "segments" | "integrations"
   >("overview")
   const [selectedStyle, setSelectedStyle] = useState<string | null>(null)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
@@ -1046,19 +1096,22 @@ export default function SiteSettingsPage() {
 
   const navGroups = [
     {
-      title: null,
+      key: "main",
+      title: "Main",
+      defaultOpen: true,
       items: [
         { id: "overview", label: "Overview", icon: Layout },
+        { id: "domain", label: "Domain", icon: Globe },
         { id: "pages", label: "Pages", icon: FileText },
         { id: "ai", label: "Syra", icon: Zap },
-        { id: "integrations", label: "Integrations", icon: Database },
-        { id: "settings", label: "Settings", icon: Settings },
       ],
     },
     ...(siteType === "blog"
       ? [
           {
+            key: "blog",
             title: "Blog",
+            defaultOpen: true,
             items: [
               { id: "posts", label: "Posts", icon: BookOpen },
               { id: "segments", label: "Segments", icon: Layers },
@@ -1069,16 +1122,27 @@ export default function SiteSettingsPage() {
     ...(siteType === "shop" || databaseConnected
       ? [
           {
+            key: "shop",
             title: "Shop",
+            defaultOpen: true,
             items: [
               { id: "items", label: "Products", icon: ShoppingCart },
               { id: "promotions", label: "Promotions", icon: TrendingUp },
-              { id: "payments", label: "Payouts", icon: Wallet, badge: `${payoutBalance} lei` },
               { id: "customers", label: "Client", icon: Users },
+              { id: "payments", label: "Payout", icon: Wallet, badge: `${payoutBalance} lei` },
             ],
           },
         ]
       : []),
+    {
+      key: "utility",
+      title: "Utility",
+      defaultOpen: false,
+      items: [
+        { id: "integrations", label: "Integrations", icon: Database },
+        { id: "settings", label: "Settings", icon: Settings },
+      ],
+    },
   ]
 
   const planCredit = PLAN_CREDITS[subscription] ?? DEFAULT_PLAN_CREDIT
@@ -1439,6 +1503,70 @@ export default function SiteSettingsPage() {
                 </div>
               )
             })()}
+
+            {/* TAB CONTENT: DOMAIN */}
+            {activeTab === "domain" && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 max-w-2xl">
+                <div>
+                  <h2 className="text-lg font-semibold">Domain</h2>
+                  <p className="text-sm text-muted-foreground mt-0.5">Manage your site's live URL and custom domain.</p>
+                </div>
+
+                {/* Current URL */}
+                <Card className="bg-card/50 backdrop-blur-sm border-white/10">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Globe className="h-4 w-4 text-primary" />
+                      Live URL
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {displayUrl ? (
+                      <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.06]">
+                        <div className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
+                        <span className="flex-1 text-sm font-mono text-muted-foreground truncate">{displayUrl}</span>
+                        <button
+                          onClick={() => previewUrl && window.open(previewUrl, "_blank")}
+                          className="shrink-0 hover:text-foreground text-muted-foreground transition-colors"
+                          aria-label="Open site in new tab"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.06]">
+                        <div className="h-2 w-2 rounded-full bg-zinc-600 shrink-0" />
+                        <span className="text-sm text-muted-foreground">No domain yet — deploy your site first.</span>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Custom Domain info */}
+                <Card className="bg-card/50 backdrop-blur-sm border-white/10">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Rocket className="h-4 w-4 text-primary" />
+                      Custom Domain
+                    </CardTitle>
+                    <CardDescription>Connect your own domain name to this site.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4 space-y-2">
+                      <p className="text-xs font-semibold text-white/70">How it works</p>
+                      <ol className="text-xs text-muted-foreground space-y-1.5 list-decimal list-inside">
+                        <li>Purchase or choose an existing domain from your registrar.</li>
+                        <li>Add a <span className="font-mono text-white/70">CNAME</span> record pointing to your Sycord deployment URL above.</li>
+                        <li>Wait for DNS propagation (usually under 30 min).</li>
+                      </ol>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Automatic custom-domain provisioning is coming soon. For now, configure your DNS records manually using the live URL above.
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
 
             {/* TAB CONTENT: ITEMS / PRODUCTS */}
             {activeTab === "items" && (
