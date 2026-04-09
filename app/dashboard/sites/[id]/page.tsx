@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useMemo } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -353,7 +353,7 @@ const SidebarContent = ({
   const planLabel = getPlanLabel(subscription)
 
   // Initialise open groups from each group's defaultOpen flag
-  const [openGroups, setOpenGroups] = React.useState<Set<string>>(() => {
+  const [openGroups, setOpenGroups] = useState<Set<string>>(() => {
     const initial = new Set<string>()
     for (const g of navGroups) {
       if (g.defaultOpen) initial.add(g.key)
@@ -371,7 +371,7 @@ const SidebarContent = ({
   }
 
   // Auto-open group containing the active tab
-  React.useEffect(() => {
+  useEffect(() => {
     for (const g of navGroups) {
       if (g.items.some((i: any) => i.id === activeTab)) {
         setOpenGroups((prev) => {
@@ -1884,7 +1884,7 @@ export default function SiteSettingsPage() {
             {activeTab === "integrations" && (() => {
               const allIntegrations = [
                 // Database
-                { id: "mongodb", name: "MongoDB", envKey: "MONGODB_URI", placeholder: "mongodb+srv://user:pass@cluster.mongodb.net/db", category: "Database", free: true, description: "With login you receive 500mb of Database", iconColor: "#00ED64", iconBg: "#00684A33" },
+                { id: "mongodb", name: "MongoDB", envKey: "MONGODB_URI", placeholder: "mongodb+srv://user:pass@cluster.mongodb.net/db", category: "Database", free: true, description: "With login you receive 500mb of database", iconColor: "#00ED64", iconBg: "#00684A33" },
                 { id: "supabase", name: "Supabase", envKey: "SUPABASE_URL", placeholder: "https://abc.supabase.co", category: "Database", free: true, description: "Free Postgres database with realtime & auth", iconColor: "#3ECF8E", iconBg: "#3ECF8E22" },
                 { id: "firebase", name: "Firebase", envKey: "FIREBASE_API_KEY", placeholder: "AIzaSy...", category: "Database", free: true, description: "Google cloud database with free Spark plan", iconColor: "#FFCA28", iconBg: "#FFCA2822" },
                 { id: "upstash", name: "Upstash Redis", envKey: "UPSTASH_REDIS_REST_URL", placeholder: "https://...-upstash.io", category: "Database", free: true, description: "Serverless Redis with 10K requests/day free", iconColor: "#00E9A3", iconBg: "#00E9A322" },
