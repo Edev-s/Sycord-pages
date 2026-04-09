@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import React, { useState, useRef, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -66,7 +66,17 @@ const LOG_ERROR_PATTERNS   = ['error', 'fail', 'exception']
 // How long to wait after deploy before the first log check (build pipeline startup time)
 const DEPLOY_LOG_CHECK_DELAY_MS = 8000
 
-type Step = "idle" | "planning" | "needs_info" | "coding" | "fixing" | "done"
+type GenerationPhase =
+  | "idle"
+  | "planning"       // Step 1: Plan
+  | "searching"      // Step 2: Web Search
+  | "clarifying"     // Step 3: Optional Questions
+  | "structuring"    // Step 4: Structure / sitemap
+  | "integrating"    // Step 5: Integration check
+  | "building"       // Step 6: Content & Build
+  | "deploying"      // Step 7: Review & Deploy
+  | "done"
+  | "fixing"         // Auto-fix compatibility
 
 interface Message {
   id: string
@@ -240,56 +250,57 @@ const SaveCloudIcon = ({ className }: { className?: string }) => (
   </svg>
 )
 
-/** Step data for the generation pipeline — shown as a vertical list with icons */
-interface ThinkingStep {
-  id: string
-  icon: 'thinking' | 'searching' | 'creating' | 'saving'
-  label: string
-  detail?: string
-  status: 'pending' | 'active' | 'done'
-}
+/** Single active phase display — shows one large animated icon for the current generation phase */
+const PhaseDisplay = ({ phase, progress, currentFile }: {
+  phase: GenerationPhase
+  progress: { percent: number; done: number; total: number }
+  currentFile?: string
+}) => {
+  const displayablePhases = ["planning", "searching", "structuring", "integrating", "building", "deploying"] as const
+  if (!displayablePhases.includes(phase as typeof displayablePhases[number])) return null
 
-const StepIcon = ({ type, className }: { type: ThinkingStep['icon'], className?: string }) => {
-  switch (type) {
-    case 'thinking': return <BrainIcon className={className} />
-    case 'searching': return <SearchWebIcon className={className} />
-    case 'creating': return <CodeCreateIcon className={className} />
-    case 'saving': return <SaveCloudIcon className={className} />
+  const phaseConfig: Record<string, { icon: React.ReactNode; label: string; sublabels?: string[] }> = {
+    planning:    { icon: <BrainIcon className="h-10 w-10" />,      label: "Planning your project..." },
+    searching:   { icon: <Globe className="h-10 w-10" />,          label: "Searching the web..." },
+    structuring: { icon: <Layout className="h-10 w-10" />,         label: "Creating sitemap..." },
+    integrating: { icon: <Database className="h-10 w-10" />,       label: "Integrating services...", sublabels: ["model", "mongodb"] },
+    building:    { icon: <CodeCreateIcon className="h-10 w-10" />, label: "Building your website..." },
+    deploying:   { icon: <Rocket className="h-10 w-10" />,         label: "Deploying..." },
   }
-}
 
-const ThinkingStepRow = ({ step }: { step: ThinkingStep }) => (
-  <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-    <div className="flex items-center gap-2.5 py-2.5">
-      <div className={cn(
-        "h-7 w-7 rounded-full flex items-center justify-center shrink-0 border transition-colors duration-300",
-        step.status === 'active' ? "border-white/10 text-zinc-300" : "border-white/[0.06] text-zinc-500"
-      )}>
-        {step.status === 'active' ? (
-          <StepIcon type={step.icon} className="h-3.5 w-3.5 animate-pulse" />
-        ) : step.status === 'done' ? (
-          <StepIcon type={step.icon} className="h-3.5 w-3.5" />
-        ) : (
-          <StepIcon type={step.icon} className="h-3.5 w-3.5 opacity-40" />
-        )}
+  const config = phaseConfig[phase]
+  if (!config) return null
+
+  return (
+    <div className="flex flex-col items-center justify-center py-12 gap-4 animate-in fade-in zoom-in-95 duration-500" key={phase}>
+      <div className="h-20 w-20 rounded-full bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-zinc-300 animate-pulse">
+        {config.icon}
       </div>
-      <p className={cn(
-        "text-sm transition-colors duration-300",
-        step.status === 'active' ? "text-zinc-400" : step.status === 'done' ? "text-zinc-500" : "text-zinc-600"
-      )}>
-        {step.label}
-      </p>
+      <p className="text-sm font-medium text-zinc-400">{config.label}</p>
+      {config.sublabels && (
+        <div className="flex items-center gap-2">
+          {config.sublabels.map(s => (
+            <span key={s} className="text-[10px] text-zinc-600 px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.06]">{s}</span>
+          ))}
+        </div>
+      )}
+      {phase === "building" && progress.total > 0 && (
+        <div className="w-full max-w-xs space-y-2 mt-2">
+          {currentFile && (
+            <p className="text-xs text-zinc-500 text-center font-mono truncate">{currentFile}</p>
+          )}
+          <div className="flex items-center justify-between text-[11px] text-zinc-600 px-1">
+            <span>{progress.done} of {progress.total} files</span>
+            <span>{progress.percent}%</span>
+          </div>
+          <div className="h-1.5 w-full bg-zinc-800 rounded-full overflow-hidden">
+            <div className="h-full bg-zinc-400 rounded-full transition-all duration-500 ease-out" style={{ width: `${progress.percent}%` }} />
+          </div>
+        </div>
+      )}
     </div>
-    {step.detail && (
-      <p className={cn(
-        "text-sm leading-relaxed pl-0 mt-0 mb-2 transition-colors duration-300",
-        step.status === 'active' ? "text-zinc-500" : "text-zinc-600"
-      )}>
-        {step.detail}
-      </p>
-    )}
-  </div>
-)
+  )
+}
 
 // --- SITEMAP COMPONENT ---
 
@@ -409,129 +420,91 @@ const GeminiBadge = () => (
     </div>
 )
 
-const InputBar = ({ input, setInput, onSend, disabled }: { input: string, setInput: (v: string) => void, onSend: () => void, disabled: boolean }) => (
+const InputBar = ({
+  input, setInput, onSend, disabled,
+  selectedModel, setSelectedModel,
+}: {
+  input: string; setInput: (v: string) => void; onSend: () => void; disabled: boolean
+  selectedModel: typeof MODELS[0]; setSelectedModel: (m: typeof MODELS[0]) => void
+}) => {
+  const taRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    if (taRef.current) {
+      taRef.current.style.height = "auto"
+      taRef.current.style.height = Math.min(taRef.current.scrollHeight, 200) + "px"
+    }
+  }, [input])
+
+  return (
     <div className="w-full max-w-2xl mx-auto px-4 pb-6 md:pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 z-50 fixed bottom-0 left-0 right-0 md:static">
-        <div className={cn(
-            "rounded-[2.5rem] p-2 relative shadow-lg transition-all duration-300 border border-white/[0.06] bg-[#1c1c1c] flex items-center gap-2",
-            disabled ? "opacity-80 pointer-events-none" : "focus-within:border-white/10"
-        )}>
-            <Button variant="ghost" size="icon" className="h-11 w-11 rounded-full text-zinc-500 hover:text-zinc-300 hover:bg-white/5 transition-all shrink-0 ml-1" disabled={disabled}>
-                <Paperclip className="h-5 w-5" />
+      <div className={cn(
+        "rounded-2xl p-3 relative shadow-lg transition-all duration-300 border border-white/[0.06] bg-[#1c1c1c] flex flex-col gap-2",
+        disabled ? "opacity-80 pointer-events-none" : "focus-within:border-white/10"
+      )}>
+        {/* Multiline textarea */}
+        <textarea
+          ref={taRef}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend() } }}
+          placeholder="describe your project"
+          rows={1}
+          className="w-full border-none bg-transparent resize-none text-base text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-0 px-2 pt-1 min-h-[44px] max-h-[200px]"
+          disabled={disabled}
+          autoFocus={!disabled}
+        />
+
+        {/* Bottom row: + button | model pill | send */}
+        <div className="flex items-center justify-between px-1">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full text-zinc-500 hover:text-zinc-300 hover:bg-white/5 transition-all shrink-0" disabled={disabled}>
+              <span className="text-lg leading-none">+</span>
             </Button>
 
-            <Input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && onSend()}
-                placeholder="Describe the website you want"
-                className="flex-1 border-none bg-transparent dark:bg-transparent h-14 text-base text-zinc-200 placeholder:text-zinc-600 focus-visible:ring-0 px-0 shadow-none"
-                disabled={disabled}
-                autoFocus={!disabled}
-            />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 rounded-full text-[11px] text-zinc-500 hover:text-zinc-300 hover:bg-white/5 px-3 gap-1.5 border border-white/[0.06]">
+                  {(selectedModel as any).fast ? <Zap className="h-3 w-3 text-yellow-500" /> : <Sparkles className="h-3 w-3 text-zinc-600" />}
+                  <span>{selectedModel.name}</span>
+                  <ChevronDown className="h-3 w-3 ml-0.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="bg-[#1c1c1c] border-white/10 min-w-[220px]">
+                {MODELS.map(m => (
+                  <DropdownMenuItem
+                    key={m.id}
+                    onClick={() => setSelectedModel(m)}
+                    className={cn("text-xs", selectedModel.id === m.id ? "text-white bg-white/10" : "text-zinc-400")}
+                  >
+                    <span className="flex items-center gap-2">
+                      {(m as any).fast ? <Zap className="h-3 w-3 text-yellow-500" /> : <Sparkles className="h-3 w-3 text-zinc-600" />}
+                      {m.name}
+                    </span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
-            <Button
-                size="icon"
-                className={cn(
-                    "h-11 w-11 rounded-full transition-all active:scale-95 shrink-0 flex items-center justify-center bg-transparent border-none mr-1 shadow-none",
-                    input.trim() && !disabled ? "text-zinc-400 hover:text-white hover:bg-white/10" : "text-zinc-700 hover:bg-transparent"
-                )}
-                onClick={onSend}
-                disabled={!input.trim() || disabled}
-            >
-               {disabled ? <Loader2 className="h-5 w-5 animate-spin text-zinc-700" /> : <Send className="h-5 w-5" />}
-            </Button>
-        </div>
-    </div>
-)
-
-const ThinkingCard = ({ isActive, isDone }: { isActive: boolean, isDone: boolean }) => {
-    if (!isActive && !isDone) return null;
-
-    return (
-        <div className="flex flex-col items-center justify-center py-6 gap-3 group transition-all duration-500 animate-in fade-in slide-in-from-bottom-2">
-            <div className="flex items-center justify-center text-zinc-300">
-                <Brain className="h-6 w-6 animate-pulse" />
-            </div>
-            <h3 className={cn("text-sm font-medium transition-colors duration-300", isActive ? "text-zinc-200" : "text-zinc-400")}>
-                Thinking
-            </h3>
-            {isActive && (
-                <p className="text-xs text-zinc-500 animate-pulse">Architecting your website structure…</p>
+          <Button
+            size="icon"
+            className={cn(
+              "h-10 w-10 rounded-xl transition-all active:scale-95 shrink-0 flex items-center justify-center shadow-none",
+              input.trim() && !disabled ? "bg-zinc-700 text-white hover:bg-zinc-600" : "bg-zinc-800/50 text-zinc-700 hover:bg-zinc-800/50"
             )}
+            onClick={onSend}
+            disabled={!input.trim() || disabled}
+          >
+            {disabled ? <Loader2 className="h-5 w-5 animate-spin text-zinc-700" /> : <Send className="h-5 w-5" />}
+          </Button>
         </div>
-    )
+      </div>
+    </div>
+  )
 }
 
-interface ProgressCardProps {
-  isActive: boolean
-  isDone: boolean
-  progress: { percent: number; done: number; total: number }
-  currentFile?: string
-  currentFileUsedFor?: string
-}
-
-const ProgressCard = ({ isActive, isDone, progress, currentFile, currentFileUsedFor }: ProgressCardProps) => {
-    if (!isActive && !isDone) return null;
-
-    return (
-        <div className="flex flex-col items-center justify-center py-6 gap-5 group transition-all duration-500 delay-100 animate-in fade-in slide-in-from-bottom-2 w-full">
-            <div className="flex items-center gap-2 text-zinc-300">
-                <Hammer className="h-5 w-5" />
-                <h3 className="text-base font-medium">Building</h3>
-            </div>
-
-            <div className="flex flex-col items-center gap-3 w-full max-w-xs">
-                {isActive ? (
-                    <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
-                ) : (
-                    <CheckCircle2 className="h-6 w-6 text-zinc-400" />
-                )}
-
-                {/* Current file being generated */}
-                {currentFile && isActive && (
-                    <div className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-center space-y-1">
-                        <div className="flex items-center justify-center gap-1.5 text-[11px] text-zinc-500 uppercase tracking-wider font-semibold mb-1">
-                            <Code className="h-3 w-3" />
-                            Now generating
-                        </div>
-                        <p className="text-sm font-mono font-semibold text-white truncate">{currentFile}</p>
-                        {currentFileUsedFor && (
-                            <p className="text-xs text-zinc-400 leading-relaxed">{currentFileUsedFor}</p>
-                        )}
-                    </div>
-                )}
-
-                <div className="text-center space-y-2 w-full">
-                    <div className="flex items-center justify-between text-xs text-zinc-500 px-1">
-                        <span>{progress.done} of {progress.total} files</span>
-                        <span>{progress.percent}%</span>
-                    </div>
-                    <div className="h-1.5 w-full bg-zinc-800 rounded-full overflow-hidden">
-                        <div
-                            className="h-full bg-zinc-400 rounded-full transition-all duration-500 ease-out"
-                            style={{ width: `${progress.percent}%` }}
-                        />
-                    </div>
-                </div>
-            </div>
-        </div>
-    )
-}
-
-const SavingCard = ({ isActive, isDone }: { isActive: boolean, isDone: boolean }) => {
-    if (!isActive && !isDone) return null;
-
-    return (
-        <div className="flex flex-col items-center justify-center py-6 gap-3 group transition-all duration-500 delay-200 animate-in fade-in slide-in-from-bottom-2">
-            <div className="flex items-center justify-center text-zinc-300">
-               {isDone ? <Check className="h-6 w-6" /> : <Cloud className="h-6 w-6 animate-pulse" />}
-            </div>
-            <h3 className={cn("text-sm font-medium transition-colors duration-300", isActive ? "text-zinc-200" : "text-zinc-300")}>
-               {isDone ? "Saved to cloud" : "Saving"}
-            </h3>
-        </div>
-    )
-}
+// ThinkingCard, ProgressCard, SavingCard replaced by PhaseDisplay above
 
 
 const WebsitePreviewCardSkeleton = () => {
@@ -688,7 +661,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
 
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
-  const [step, setStep] = useState<Step>("idle")
+  const [step, setStep] = useState<GenerationPhase>("idle")
   const [currentPlan, setCurrentPlan] = useState("")
   const [error, setError] = useState<string | null>(null)
 
@@ -701,12 +674,9 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
   const [showAutoDeploy, setShowAutoDeploy] = useState(false)
 
   const [instruction, setInstruction] = useState<string>("")
-  const [selectedModel, setSelectedModel] = useState(MODELS[0])
+  const [selectedModel, setSelectedModel] = useState(MODELS.find(m => m.name === "test") || MODELS[0])
 
   const [fixHistory, setFixHistory] = useState<any[]>([])
-
-  // Thinking steps — shown during generation with icons matching the reference UI
-  const [thinkingSteps, setThinkingSteps] = useState<ThinkingStep[]>([])
 
   // Sitemap — parsed from the generation plan
   const [sitemap, setSitemap] = useState<SitemapNode[]>([])
@@ -714,18 +684,8 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
   // Per-message feedback: 'like' | 'dislike' | 'report' | null
   const [messageFeedback, setMessageFeedback] = useState<Record<string, 'like' | 'dislike' | 'report' | null>>({})
 
-  /** Helper: add or update a thinking step */
-  const upsertStep = (id: string, updates: Partial<ThinkingStep>) => {
-    setThinkingSteps(prev => {
-      const idx = prev.findIndex(s => s.id === id)
-      if (idx >= 0) {
-        const copy = [...prev]
-        copy[idx] = { ...copy[idx], ...updates }
-        return copy
-      }
-      return [...prev, { id, icon: 'thinking', label: '', status: 'pending', ...updates } as ThinkingStep]
-    })
-  }
+  // Fallback message when Vercel model fails and Google model is used
+  const [fallbackMessage, setFallbackMessage] = useState<string | null>(null)
 
   /** Parse sitemap nodes from the plan instruction text */
   const parseSitemap = (planText: string) => {
@@ -991,6 +951,9 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
     }
   }
 
+  /** Small delay helper for smooth phase transitions */
+  const phaseDelay = (ms = 500) => new Promise<void>(r => setTimeout(r, ms))
+
   const startGeneration = async () => {
     if (!input.trim()) return
 
@@ -1001,18 +964,14 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
     }
 
     setMessages(prev => [...prev, userMessage])
-    // setInput("")
-
     setError(null)
+    setFallbackMessage(null)
+    setShowAutoDeploy(false)
+    setSitemap([])
+
+    // ── Phase 1: Planning ──
     setStep("planning")
     setCurrentPlan("Architecting solution...")
-    setShowAutoDeploy(false)
-
-    // Initialize thinking steps
-    setThinkingSteps([
-      { id: 'think', icon: 'thinking', label: 'thinking', status: 'active' },
-    ])
-    setSitemap([])
 
     try {
       const planResponse = await fetch("/api/ai/generate-plan", {
@@ -1025,48 +984,44 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       const planData = await planResponse.json()
       const generatedInstruction = planData.instruction
 
-      // Mark thinking as done with descriptive detail like the reference UI
-      const businessGoal = generatedInstruction.match(/## 1\. Business Goal\s*(.*?)(?:\n|$)/)?.[1]?.trim()
-      upsertStep('think', {
-        status: 'done',
-        detail: businessGoal
-          ? `I successfully created the plan for ${businessGoal.substring(0, 60)}. Now I proceed to create the frontend`
-          : 'I successfully analysed the request. Now I proceed to create the app'
-      })
+      await phaseDelay()
 
-      // Check if AI needs more info
+      // ── Phase 2: Searching ──
+      setStep("searching")
+      try {
+        await fetch("/api/ai/web-search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: input.trim(), type: "general" }),
+        })
+      } catch { /* non-critical */ }
+
+      await phaseDelay()
+
+      // ── Phase 3: Clarifying ──
       const questionMatch = generatedInstruction.match(/\[QUESTION\]\s*(.*)/i)
       if (questionMatch) {
-          const questionText = questionMatch[1].trim()
-          setMessages(prev => [...prev, {
-              id: (Date.now() + 1).toString(),
-              role: "assistant",
-              content: questionText
-          }])
-          setStep("needs_info")
-          setInput("")
-          setThinkingSteps([])
-          return
+        setStep("clarifying")
+        const questionText = questionMatch[1].trim()
+        setMessages(prev => [...prev, {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: questionText,
+        }])
+        setInput("")
+        return
       }
 
-      // Web search — only when the plan indicates backend / data needs
-      const needsSearch = /database|backend|api|server|mongo|auth|payment|stripe|supabase/i.test(generatedInstruction)
-      if (needsSearch) {
-        upsertStep('search', { icon: 'searching', label: 'searching web for', detail: input.trim().substring(0, 60), status: 'active' })
-        try {
-          await fetch("/api/ai/web-search", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ query: input.trim(), type: "general" }),
-          })
-        } catch { /* non-critical */ }
-        upsertStep('search', { status: 'done' })
-      }
-
-      // Parse sitemap from plan
+      // ── Phase 4: Structuring ──
+      setStep("structuring")
       parseSitemap(generatedInstruction)
-
       setInstruction(generatedInstruction)
+
+      await phaseDelay()
+
+      // ── Phase 5: Integrating ──
+      setStep("integrating")
+      await phaseDelay(800)
 
       const planMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -1076,34 +1031,27 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       }
       setMessages(prev => [...prev, planMessage])
 
-      // Start coding step
-      upsertStep('code', { icon: 'creating', label: 'creating code for frontend', status: 'pending' })
-
+      // ── Phase 6: Building (delegated to processNextStep) ──
       processNextStep(generatedInstruction, [...messages, userMessage, planMessage])
     } catch (err: any) {
       setError(err.message || "Planning failed")
       setStep("idle")
-      setThinkingSteps([])
     }
   }
 
-  const processNextStep = async (currentInstruction: string, currentHistory: Message[]) => {
-    setStep("coding")
+  const processNextStep = async (currentInstruction: string, currentHistory: Message[], modelOverride?: string) => {
+    setStep("building")
     setCurrentPlan("Generating next file...")
 
-    // Update thinking step: coding is now active
-    upsertStep('code', { status: 'active' })
-
-    // Pattern matches: [N] filename.ext [usedfor]description[/usedfor]
-    // e.g. [1] index.html [usedfor]Main entry point[usedfor]
     const nextFileMatch = /\[\d+\]\s*([^\s:]+)(?:[:\-]?\s*\[usedfor\](.*?)\[usedfor\])?/.exec(currentInstruction)
     if (nextFileMatch) {
       setActiveFile(nextFileMatch[1])
       setActiveFileUsedFor(nextFileMatch[2]?.trim() || undefined)
-      upsertStep('code', { detail: `creating ${nextFileMatch[1]}` })
     }
 
-    try {
+    const modelId = modelOverride || selectedModel.id
+
+    const attemptGenerate = async (model: string): Promise<any> => {
       const response = await fetch("/api/ai/generate-website", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1111,23 +1059,41 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
           projectId,
           messages: currentHistory,
           instruction: currentInstruction,
-          model: selectedModel.id,
+          model,
           generatedPages: generatedPages.map(p => ({ name: p.name, code: p.code })),
         }),
       })
-
       if (!response.ok) throw new Error("Generation failed")
-      const data = await response.json()
+      return response.json()
+    }
+
+    try {
+      let data: any
+      try {
+        data = await attemptGenerate(modelId)
+      } catch (primaryErr) {
+        // If using the Vercel "test" model, fall back to first Google model
+        if (selectedModel.provider === "Vercel" && !modelOverride) {
+          const googleFallback = MODELS.find(m => m.provider === "Google")
+          if (googleFallback) {
+            setFallbackMessage(`Vercel model unavailable - using ${googleFallback.name}`)
+            data = await attemptGenerate(googleFallback.id)
+          } else {
+            throw primaryErr
+          }
+        } else {
+          throw primaryErr
+        }
+      }
 
       if (data.isComplete) {
-        upsertStep('code', { status: 'done', label: 'creating code for frontend', detail: undefined })
-        upsertStep('save', { icon: 'saving', label: 'saving', status: 'active' })
-        setStep("done")
+        // ── Phase 7: Deploying ──
+        setStep("deploying")
         setCurrentPlan("All files generated.")
         setActiveFile(undefined)
         setActiveFileUsedFor(undefined)
-        // Mark saving as done after a brief delay
-        setTimeout(() => upsertStep('save', { status: 'done' }), 800)
+        await new Promise(r => setTimeout(r, 800))
+        setStep("done")
         return
       }
 
@@ -1137,20 +1103,20 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
         content: `Generated ${data.pageName}`,
         code: data.code,
         pageName: data.pageName,
-        isIntermediate: true
+        isIntermediate: true,
       }
 
       setMessages(prev => [...prev, assistantMessage])
 
       if (data.code && data.pageName) {
         setGeneratedPages(prev => {
-           const filtered = prev.filter(p => p.name !== data.pageName)
-           return [...filtered, {
-             name: data.pageName,
-             code: data.code,
-             timestamp: Date.now(),
-             usedFor: data.usedFor
-           }]
+          const filtered = prev.filter(p => p.name !== data.pageName)
+          return [...filtered, {
+            name: data.pageName,
+            code: data.code,
+            timestamp: Date.now(),
+            usedFor: data.usedFor,
+          }]
         })
 
         await fetch(`/api/projects/${projectId}/pages`, {
@@ -1159,20 +1125,19 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
           body: JSON.stringify({
             name: data.pageName,
             content: data.code,
-            usedFor: data.usedFor || ''
-          })
+            usedFor: data.usedFor || "",
+          }),
         })
       }
 
       setInstruction(data.updatedInstruction)
-      processNextStep(data.updatedInstruction, [...currentHistory, assistantMessage])
+      processNextStep(data.updatedInstruction, [...currentHistory, assistantMessage], modelOverride)
 
     } catch (err: any) {
       setError(err.message)
       setStep("idle")
       setActiveFile(undefined)
       setActiveFileUsedFor(undefined)
-      setThinkingSteps([])
     }
   }
 
@@ -1248,32 +1213,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
 
   return (
     <div className="flex flex-col h-full bg-transparent text-zinc-100 font-sans relative">
-        {/* Model selector — pinned to top */}
-        <div className="w-full flex items-center justify-end px-4 py-2 z-20 shrink-0">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 rounded-full text-[11px] text-zinc-500 hover:text-zinc-300 hover:bg-white/5 px-3 gap-1.5 border border-white/[0.06]">
-                {(selectedModel as any).fast ? <Zap className="h-3 w-3 text-yellow-500" /> : <Sparkles className="h-3 w-3 text-zinc-600" />}
-                <span>{selectedModel.name}</span>
-                <ChevronDown className="h-3 w-3 ml-0.5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-[#1c1c1c] border-white/10 min-w-[220px]">
-              {MODELS.map(m => (
-                <DropdownMenuItem
-                  key={m.id}
-                  onClick={() => setSelectedModel(m)}
-                  className={cn("text-xs", selectedModel.id === m.id ? "text-white bg-white/10" : "text-zinc-400")}
-                >
-                  <span className="flex items-center gap-2">
-                    {(m as any).fast ? <Zap className="h-3 w-3 text-yellow-500" /> : <Sparkles className="h-3 w-3 text-zinc-600" />}
-                    {m.name}
-                  </span>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+
 
         {/* Background Accents - idle only */}
         {step === 'idle' && (
@@ -1383,35 +1323,17 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                             ))
                         }
 
-                        {/* ── Thinking Steps — icon-based like the reference UI ── */}
+                        {/* ── Single Active Phase Icon ── */}
+                        <PhaseDisplay phase={step} progress={progress} currentFile={activeFile} />
 
-                        {thinkingSteps.length > 0 && (step === 'planning' || step === 'coding' || step === 'fixing' || step === 'done') && (
-                            <div className="mt-4 space-y-2 animate-in fade-in duration-300">
-                                {thinkingSteps.map(s => (
-                                    <ThinkingStepRow key={s.id} step={s} />
-                                ))}
-                            </div>
+                        {/* Fallback message */}
+                        {fallbackMessage && (
+                            <p className="text-xs text-yellow-500/70 text-center mt-2 animate-in fade-in duration-300">{fallbackMessage}</p>
                         )}
 
                         {/* Sitemap visualization (parsed from plan) */}
-                        {sitemap.length > 0 && (step === 'coding' || step === 'done') && (
+                        {sitemap.length > 0 && (step === 'building' || step === 'done') && (
                             <SitemapVisualizer nodes={sitemap} />
-                        )}
-
-                        {/* Progress bar for coding */}
-                        {(step === 'coding' || step === 'fixing') && progress.total > 0 && (
-                            <div className="mt-2 px-1 space-y-1 animate-in fade-in duration-300">
-                                <div className="flex items-center justify-between text-[11px] text-zinc-600">
-                                    <span>{progress.done} of {progress.total} files</span>
-                                    <span>{progress.percent}%</span>
-                                </div>
-                                <div className="h-[2px] bg-zinc-800/80 rounded-full overflow-hidden">
-                                    <div
-                                        className="h-full bg-zinc-500 rounded-full transition-all duration-500 ease-out"
-                                        style={{ width: `${progress.percent}%` }}
-                                    />
-                                </div>
-                            </div>
                         )}
 
                         {step === 'done' && (
@@ -1442,6 +1364,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                                             setStep('idle')
                                             setInput("")
                                             setMessages([])
+                                            setFallbackMessage(null)
                                         }}
                                     >
                                         Create Another
@@ -1479,7 +1402,9 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                 input={input}
                 setInput={setInput}
                 onSend={startGeneration}
-                disabled={step !== 'idle' && step !== 'needs_info'}
+                disabled={step !== 'idle' && step !== 'clarifying'}
+                selectedModel={selectedModel}
+                setSelectedModel={setSelectedModel}
             />
         </div>
     </div>
