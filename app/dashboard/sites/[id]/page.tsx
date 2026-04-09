@@ -380,6 +380,7 @@ const SidebarContent = ({
           next.add(g.key)
           return next
         })
+        break
       }
     }
   }, [activeTab, navGroups])
@@ -1883,7 +1884,7 @@ export default function SiteSettingsPage() {
             {activeTab === "integrations" && (() => {
               const allIntegrations = [
                 // Database
-                { id: "mongodb", name: "MongoDB", envKey: "MONGODB_URI", placeholder: "mongodb+srv://user:pass@cluster.mongodb.net/db", category: "Database", free: true, description: "With login you receive 500mb of database", iconColor: "#00ED64", iconBg: "#00684A33" },
+                { id: "mongodb", name: "MongoDB", envKey: "MONGODB_URI", placeholder: "mongodb+srv://user:pass@cluster.mongodb.net/db", category: "Database", free: true, description: "With login you receive 500mb of Database", iconColor: "#00ED64", iconBg: "#00684A33" },
                 { id: "supabase", name: "Supabase", envKey: "SUPABASE_URL", placeholder: "https://abc.supabase.co", category: "Database", free: true, description: "Free Postgres database with realtime & auth", iconColor: "#3ECF8E", iconBg: "#3ECF8E22" },
                 { id: "firebase", name: "Firebase", envKey: "FIREBASE_API_KEY", placeholder: "AIzaSy...", category: "Database", free: true, description: "Google cloud database with free Spark plan", iconColor: "#FFCA28", iconBg: "#FFCA2822" },
                 { id: "upstash", name: "Upstash Redis", envKey: "UPSTASH_REDIS_REST_URL", placeholder: "https://...-upstash.io", category: "Database", free: true, description: "Serverless Redis with 10K requests/day free", iconColor: "#00E9A3", iconBg: "#00E9A322" },
@@ -1978,20 +1979,24 @@ export default function SiteSettingsPage() {
                   </div>
 
                   {/* Category filter pills */}
-                  <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
-                    {["All", "Database", "Auth", "Payments", "Services"].map((cat) => (
-                      <button
-                        key={cat}
-                        onClick={() => setIntegrationCategory(cat)}
-                        className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-colors border ${
-                          integrationCategory === cat
-                            ? "bg-primary text-primary-foreground border-primary"
-                            : "bg-white/[0.06] text-zinc-400 hover:bg-white/10 border-white/[0.06]"
-                        }`}
-                      >
-                        {cat}
-                      </button>
-                    ))}
+                  <div className="relative">
+                    <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+                      {["All", "Database", "Auth", "Payments", "Services"].map((cat) => (
+                        <button
+                          key={cat}
+                          onClick={() => setIntegrationCategory(cat)}
+                          className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-colors border ${
+                            integrationCategory === cat
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-white/[0.06] text-zinc-400 hover:bg-white/10 border-white/[0.06]"
+                          }`}
+                        >
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
+                    {/* Right-edge fade to indicate scrollable content */}
+                    <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent" />
                   </div>
 
                   {/* Integration cards grid */}
@@ -2069,7 +2074,7 @@ export default function SiteSettingsPage() {
                                     })
                                     if (!res.ok) throw new Error("Failed to save")
                                     setConnectedIntegrations((prev) => new Set([...prev, integration.id]))
-                                    if (["mongodb", "supabase", "firebase", "supabase-auth"].includes(integration.id)) {
+                                    if (integration.category === "Database") {
                                       setDatabaseConnected(true)
                                     }
                                     setExpandedIntegration(null)
