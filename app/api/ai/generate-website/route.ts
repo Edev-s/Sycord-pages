@@ -25,7 +25,9 @@ const MODEL_CONFIGS: Record<string, { url: string, envVar: string, provider: str
   "gemini-2.0-flash": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
   "gemini-1.5-flash": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
   "gemini-1.5-pro": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
-  "deepseek-v3.2-exp": { url: DEEPSEEK_API_URL, envVar: "DEEPSEEK_API", provider: "DeepSeek" }
+  "deepseek-v3.2-exp": { url: DEEPSEEK_API_URL, envVar: "DEEPSEEK_API", provider: "DeepSeek" },
+  // "test" model: displayed as "Vercel" in the UI, routes through Google API internally
+  "alibaba/qwen3-coder": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Vercel" }
 }
 
 export async function POST(request: Request) {
@@ -63,6 +65,11 @@ export async function POST(request: Request) {
     if (modelId === "gemini-3-pro" || modelId === "gemini-3.0-pro") {
        configKey = "gemini-1.5-pro"
     }
+
+    // "test" model (alibaba/qwen3-coder) uses Google API internally
+    // Remap to gemini-2.0-flash for the actual API call but keep the config lookup
+    const isTestModel = modelId === "alibaba/qwen3-coder"
+    const apiModelId = isTestModel ? "gemini-2.0-flash" : configKey
 
     const config = MODEL_CONFIGS[configKey] || MODEL_CONFIGS["gemini-3.1-pro-preview"]
 
@@ -191,7 +198,7 @@ CRITICAL MONGODB RULES:
     }))
 
     const payload = {
-      model: configKey,
+      model: apiModelId,
       messages: [
           { role: "system", content: systemPrompt },
           ...conversationHistory,

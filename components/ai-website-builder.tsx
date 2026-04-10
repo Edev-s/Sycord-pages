@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import React, { useState, useRef, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -49,13 +49,24 @@ import {
 } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
 
-// Updated Models List — gemini-3.1-pro-preview is the default
-const MODELS = [
+// Model type for the chooser
+interface ModelOption {
+  id: string
+  name: string
+  provider: string
+  fast?: boolean
+}
+
+// Default model is the Vercel "test" model (alibaba/qwen3-coder)
+const DEFAULT_MODEL_ID = "alibaba/qwen3-coder"
+
+const MODELS: ModelOption[] = [
   { id: "gemini-3.1-pro-preview", name: "Gemini 3.1 Pro (Preview)", provider: "Google" },
   { id: "gemini-3.1-flash-lite-preview", name: "Gemini 3.1 Flash Lite ⚡", provider: "Google", fast: true },
   { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", provider: "Google" },
   { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", provider: "Google" },
   { id: "deepseek-v3.2-exp", name: "DeepSeek V3", provider: "DeepSeek" },
+  { id: "alibaba/qwen3-coder", name: "test", provider: "Vercel" },
 ]
 
 // Log-analysis constants — keep in sync with dashboard page fetchLogs
@@ -65,7 +76,17 @@ const LOG_ERROR_PATTERNS   = ['error', 'fail', 'exception']
 // How long to wait after deploy before the first log check (build pipeline startup time)
 const DEPLOY_LOG_CHECK_DELAY_MS = 8000
 
-type Step = "idle" | "planning" | "needs_info" | "coding" | "fixing" | "done"
+type GenerationPhase =
+  | "idle"
+  | "planning"       // Step 1: Plan
+  | "searching"      // Step 2: Web Search
+  | "clarifying"     // Step 3: Optional Questions
+  | "structuring"    // Step 4: Structure / sitemap
+  | "integrating"    // Step 5: Integration check
+  | "building"       // Step 6: Content & Build
+  | "deploying"      // Step 7: Review & Deploy
+  | "done"
+  | "fixing"         // Auto-fix compatibility
 
 interface Message {
   id: string
@@ -202,93 +223,85 @@ const FileTreeVisualizer = ({ pages, currentFile }: { pages: GeneratedPage[], cu
 }
 
 // --- GENERATION STEP ICONS (matching the reference UI) ---
+// Using lucide-react icons for a modern, clean look
 
-const BrainIcon = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M10 21h4M12 2v1M9 17v4M15 17v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    <circle cx="9.5" cy="9" r="1" fill="currentColor"/>
-    <circle cx="14.5" cy="9" r="1" fill="currentColor"/>
-    <path d="M9.5 13c.83.83 2.17 1.5 2.5 1.5s1.67-.67 2.5-1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-  </svg>
-)
+/** Small inline step indicator — shows 1 step at a time with typing + slide-out animation */
+const StepIndicator = ({ phase, progress, currentFile }: {
+  phase: GenerationPhase
+  progress: { percent: number; done: number; total: number }
+  currentFile?: string
+}) => {
+  const [displayedPhase, setDisplayedPhase] = useState<string | null>(null)
+  const [exiting, setExiting] = useState(false)
+  const prevPhaseRef = useRef<string | null>(null)
 
-const SearchWebIcon = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" strokeWidth="1.5"/>
-    <path d="M3 9h18" stroke="currentColor" strokeWidth="1.5"/>
-    <circle cx="6" cy="6" r="0.75" fill="currentColor"/>
-    <circle cx="8.5" cy="6" r="0.75" fill="currentColor"/>
-    <circle cx="11" cy="6" r="0.75" fill="currentColor"/>
-    <path d="M7 15l2-2m0 0a3 3 0 1 0-4.24-4.24 3 3 0 0 0 4.24 4.24z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" transform="translate(5,2)"/>
-  </svg>
-)
-
-const CodeCreateIcon = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <path d="M8 18l-4-6 4-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M16 6l4 6-4 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M14.5 4l-5 16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-  </svg>
-)
-
-const SaveCloudIcon = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <path d="M12 16V8m0 0l-3 3m3-3l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
-)
-
-/** Step data for the generation pipeline — shown as a vertical list with icons */
-interface ThinkingStep {
-  id: string
-  icon: 'thinking' | 'searching' | 'creating' | 'saving'
-  label: string
-  detail?: string
-  status: 'pending' | 'active' | 'done'
-}
-
-const StepIcon = ({ type, className }: { type: ThinkingStep['icon'], className?: string }) => {
-  switch (type) {
-    case 'thinking': return <BrainIcon className={className} />
-    case 'searching': return <SearchWebIcon className={className} />
-    case 'creating': return <CodeCreateIcon className={className} />
-    case 'saving': return <SaveCloudIcon className={className} />
+  const phaseConfig: Record<string, { icon: React.ReactNode; label: string }> = {
+    planning:    { icon: <Brain className="h-4 w-4" />,    label: "Thinking..." },
+    searching:   { icon: <Globe className="h-4 w-4" />,    label: "Searching web..." },
+    clarifying:  { icon: <Info className="h-4 w-4" />,     label: "Asking a question..." },
+    structuring: { icon: <Layout className="h-4 w-4" />,   label: "Creating sitemap..." },
+    integrating: { icon: <Database className="h-4 w-4" />, label: "Integrating services..." },
+    building:    { icon: <Code className="h-4 w-4" />,     label: "Building..." },
+    deploying:   { icon: <Rocket className="h-4 w-4" />,   label: "Deploying..." },
   }
-}
 
-const ThinkingStepRow = ({ step }: { step: ThinkingStep }) => (
-  <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-    <div className="flex items-center gap-2.5 py-2.5">
-      <div className={cn(
-        "h-7 w-7 rounded-full flex items-center justify-center shrink-0 border transition-colors duration-300",
-        step.status === 'active' ? "border-white/10 text-zinc-300" : "border-white/[0.06] text-zinc-500"
-      )}>
-        {step.status === 'active' ? (
-          <StepIcon type={step.icon} className="h-3.5 w-3.5 animate-pulse" />
-        ) : step.status === 'done' ? (
-          <StepIcon type={step.icon} className="h-3.5 w-3.5" />
-        ) : (
-          <StepIcon type={step.icon} className="h-3.5 w-3.5 opacity-40" />
-        )}
+  useEffect(() => {
+    const displayable = ["planning", "searching", "clarifying", "structuring", "integrating", "building", "deploying"]
+    if (!displayable.includes(phase)) {
+      if (displayedPhase) {
+        setExiting(true)
+        const t = setTimeout(() => { setDisplayedPhase(null); setExiting(false) }, 350)
+        return () => clearTimeout(t)
+      }
+      return
+    }
+
+    if (phase !== prevPhaseRef.current) {
+      if (prevPhaseRef.current && displayedPhase) {
+        // Slide old step out first
+        setExiting(true)
+        const t = setTimeout(() => {
+          setExiting(false)
+          setDisplayedPhase(phase)
+          prevPhaseRef.current = phase
+        }, 350)
+        return () => clearTimeout(t)
+      } else {
+        setDisplayedPhase(phase)
+        prevPhaseRef.current = phase
+      }
+    }
+  }, [phase, displayedPhase])
+
+  if (!displayedPhase) return null
+  const config = phaseConfig[displayedPhase]
+  if (!config) return null
+
+  return (
+    <div className="py-3">
+      <div className={cn("flex items-center gap-2.5", exiting ? "step-exit" : "step-enter")}>
+        <div className="h-7 w-7 rounded-lg bg-white/[0.06] border border-white/[0.08] flex items-center justify-center text-zinc-400 shrink-0">
+          {config.icon}
+        </div>
+        <span className={cn("text-sm text-zinc-400", !exiting && "step-typewriter")}>{config.label}</span>
       </div>
-      <p className={cn(
-        "text-sm transition-colors duration-300",
-        step.status === 'active' ? "text-zinc-400" : step.status === 'done' ? "text-zinc-500" : "text-zinc-600"
-      )}>
-        {step.label}
-      </p>
+      {displayedPhase === "building" && progress.total > 0 && !exiting && (
+        <div className="ml-9 mt-2 space-y-1.5 max-w-xs step-enter">
+          {currentFile && (
+            <p className="text-xs text-zinc-500 font-mono truncate">{currentFile}</p>
+          )}
+          <div className="flex items-center justify-between text-[10px] text-zinc-600">
+            <span>{progress.done}/{progress.total} files</span>
+            <span>{progress.percent}%</span>
+          </div>
+          <div className="h-1 w-full bg-zinc-800/80 rounded-full overflow-hidden">
+            <div className="h-full bg-zinc-500 rounded-full transition-all duration-500 ease-out" style={{ width: `${progress.percent}%` }} />
+          </div>
+        </div>
+      )}
     </div>
-    {step.detail && (
-      <p className={cn(
-        "text-sm leading-relaxed pl-0 mt-0 mb-2 transition-colors duration-300",
-        step.status === 'active' ? "text-zinc-500" : "text-zinc-600"
-      )}>
-        {step.detail}
-      </p>
-    )}
-  </div>
-)
+  )
+}
 
 // --- SITEMAP COMPONENT ---
 
@@ -300,31 +313,128 @@ interface SitemapNode {
 }
 
 const SitemapVisualizer = ({ nodes }: { nodes: SitemapNode[] }) => {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const [startPos, setStartPos] = useState({ x: 0, y: 0 })
+  const [scrollStart, setScrollStart] = useState({ x: 0, y: 0 })
+
   if (!nodes || nodes.length === 0) return null
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    setIsDragging(true)
+    setStartPos({ x: e.clientX, y: e.clientY })
+    if (containerRef.current) {
+      setScrollStart({ x: containerRef.current.scrollLeft, y: containerRef.current.scrollTop })
+    }
+    ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+  }
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!isDragging || !containerRef.current) return
+    const dx = e.clientX - startPos.x
+    const dy = e.clientY - startPos.y
+    containerRef.current.scrollLeft = scrollStart.x - dx
+    containerRef.current.scrollTop = scrollStart.y - dy
+  }
+
+  const handlePointerUp = () => {
+    setIsDragging(false)
+  }
+
+  // Layout constants for the sitemap grid
+  const TILE_WIDTH = 170
+  const TILE_GAP = 32
+  const CONTAINER_PADDING = 48
+  const TILE_HEIGHT = 80
+  const ROW_GAP = 24
+
+  // Arrange nodes in a visual layout
+  const cols = Math.min(nodes.length, 3)
+  const rows = Math.ceil(nodes.length / cols)
+
+  // SVG line calculation constants
+  const COL_SPACING = TILE_WIDTH + TILE_GAP  // 202px per column
+  const TILE_CENTER_X = Math.floor(TILE_WIDTH / 2) + 15  // horizontal center offset (85+24 padding)
+  const TILE_CENTER_Y = Math.floor(TILE_HEIGHT / 2) + CONTAINER_PADDING / 2  // vertical center offset (40+24 padding)
+  const ROW_SPACING = TILE_HEIGHT + ROW_GAP  // 104px per row
 
   return (
     <div className="mt-4 mb-2 animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <div className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold mb-2 flex items-center gap-1.5">
-        <Globe className="h-3 w-3" /> Sitemap
+      <div className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold mb-2 flex items-center gap-1.5 px-1">
+        <Layout className="h-3 w-3" /> Sitemap
       </div>
-      <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3 space-y-1">
-        {nodes.map((node, i) => (
-          <div key={i} className="flex items-center gap-2 py-1.5 px-2 rounded-lg hover:bg-white/5 transition-colors">
-            <div className="h-6 w-6 rounded-md bg-white/[0.06] flex items-center justify-center shrink-0">
-              <Globe className="h-3 w-3 text-zinc-500" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-zinc-300 truncate">{node.page}</p>
-              <p className="text-[10px] text-zinc-600 truncate">{node.path}</p>
-            </div>
-            {node.leadsTo && node.leadsTo.length > 0 && (
-              <div className="flex items-center gap-1">
-                <ArrowRight className="h-3 w-3 text-zinc-600" />
-                <span className="text-[10px] text-zinc-600">{node.leadsTo.join(", ")}</span>
+      <div
+        ref={containerRef}
+        className={cn(
+          "rounded-2xl bg-zinc-900/80 backdrop-blur-md border border-white/[0.06] overflow-auto custom-scrollbar select-none",
+          "max-h-[260px] sm:max-h-[320px]",
+          isDragging ? "cursor-grabbing" : "cursor-grab"
+        )}
+        style={{ touchAction: 'none' }}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+      >
+        <div
+          className="relative p-4 sm:p-6"
+          style={{
+            minWidth: `${cols * TILE_WIDTH + (cols - 1) * TILE_GAP + CONTAINER_PADDING}px`,
+            minHeight: `${rows * TILE_HEIGHT + (rows - 1) * ROW_GAP + CONTAINER_PADDING}px`,
+          }}
+        >
+          {/* Connecting lines via SVG */}
+          <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 0 }}>
+            {nodes.map((node, i) => {
+              if (i === 0) return null
+              const prevCol = (i - 1) % cols
+              const prevRow = Math.floor((i - 1) / cols)
+              const curCol = i % cols
+              const curRow = Math.floor(i / cols)
+              const x1 = prevCol * COL_SPACING + TILE_CENTER_X
+              const y1 = prevRow * ROW_SPACING + TILE_CENTER_Y
+              const x2 = curCol * COL_SPACING + TILE_CENTER_X
+              const y2 = curRow * ROW_SPACING + TILE_CENTER_Y
+              return (
+                <line
+                  key={`line-${i}`}
+                  x1={x1} y1={y1} x2={x2} y2={y2}
+                  stroke="rgba(255,255,255,0.06)"
+                  strokeWidth="1.5"
+                  strokeDasharray="4 4"
+                />
+              )
+            })}
+          </svg>
+
+          {/* Node tiles */}
+          <div
+            className="relative grid gap-4 sm:gap-6"
+            style={{
+              gridTemplateColumns: `repeat(${cols}, 1fr)`,
+              zIndex: 1,
+            }}
+          >
+            {nodes.map((node, i) => (
+              <div
+                key={i}
+                className="group flex flex-col items-center gap-1.5 p-3 rounded-xl bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.07] hover:border-white/[0.1] transition-all min-w-[140px]"
+              >
+                <div className="h-8 w-8 rounded-lg bg-white/[0.06] border border-white/[0.06] flex items-center justify-center group-hover:bg-white/[0.08] transition-colors">
+                  <Globe className="h-3.5 w-3.5 text-zinc-400" />
+                </div>
+                <p className="text-[11px] font-medium text-zinc-300 text-center truncate w-full">{node.page}</p>
+                <p className="text-[9px] text-zinc-600 text-center truncate w-full">{node.path}</p>
+                {node.leadsTo && node.leadsTo.length > 0 && (
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <ArrowRight className="h-2.5 w-2.5 text-zinc-600" />
+                    <span className="text-[8px] text-zinc-600 truncate max-w-[80px]">{node.leadsTo.join(", ")}</span>
+                  </div>
+                )}
               </div>
-            )}
+            ))}
           </div>
-        ))}
+        </div>
       </div>
     </div>
   )
@@ -408,129 +518,91 @@ const GeminiBadge = () => (
     </div>
 )
 
-const InputBar = ({ input, setInput, onSend, disabled }: { input: string, setInput: (v: string) => void, onSend: () => void, disabled: boolean }) => (
-    <div className="w-full max-w-2xl mx-auto px-4 pb-6 md:pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 z-50 fixed bottom-0 left-0 right-0 md:static">
-        <div className={cn(
-            "rounded-[2.5rem] p-2 relative shadow-lg transition-all duration-300 border border-white/[0.06] bg-[#1c1c1c] flex items-center gap-2",
-            disabled ? "opacity-80 pointer-events-none" : "focus-within:border-white/10"
-        )}>
-            <Button variant="ghost" size="icon" className="h-11 w-11 rounded-full text-zinc-500 hover:text-zinc-300 hover:bg-white/5 transition-all shrink-0 ml-1" disabled={disabled}>
-                <Paperclip className="h-5 w-5" />
+const InputBar = ({
+  input, setInput, onSend, disabled,
+  selectedModel, setSelectedModel,
+}: {
+  input: string; setInput: (v: string) => void; onSend: () => void; disabled: boolean
+  selectedModel: ModelOption; setSelectedModel: (m: ModelOption) => void
+}) => {
+  const taRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    if (taRef.current) {
+      taRef.current.style.height = "auto"
+      taRef.current.style.height = Math.min(taRef.current.scrollHeight, 200) + "px"
+    }
+  }, [input])
+
+  return (
+    <div className="w-full max-w-2xl mx-auto px-3 sm:px-4 pb-4 sm:pb-6 md:pb-10 z-50 fixed bottom-0 left-0 right-0 md:static">
+      <div className={cn(
+        "rounded-[1.25rem] sm:rounded-[1.5rem] p-2.5 sm:p-3 relative transition-all duration-300 frosted-input flex flex-col gap-1.5",
+        disabled ? "opacity-70 pointer-events-none" : ""
+      )}>
+        {/* Multiline textarea */}
+        <textarea
+          ref={taRef}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend() } }}
+          placeholder="Describe the website you want"
+          rows={1}
+          className="w-full border-none bg-transparent resize-none text-[15px] sm:text-base text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-0 px-2 pt-1 min-h-[40px] max-h-[200px]"
+          disabled={disabled}
+          autoFocus={!disabled}
+        />
+
+        {/* Bottom row: + button | model pill | send */}
+        <div className="flex items-center justify-between px-0.5">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9 rounded-full text-zinc-500 hover:text-zinc-300 hover:bg-white/5 transition-all shrink-0" disabled={disabled}>
+              <span className="text-base sm:text-lg leading-none">+</span>
             </Button>
 
-            <Input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && onSend()}
-                placeholder="Describe the website you want"
-                className="flex-1 border-none bg-transparent dark:bg-transparent h-14 text-base text-zinc-200 placeholder:text-zinc-600 focus-visible:ring-0 px-0 shadow-none"
-                disabled={disabled}
-                autoFocus={!disabled}
-            />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-7 sm:h-8 rounded-full text-[10px] sm:text-[11px] text-zinc-500 hover:text-zinc-300 hover:bg-white/5 px-2.5 sm:px-3 gap-1 sm:gap-1.5 border border-white/[0.06]">
+                  {selectedModel.fast ? <Zap className="h-3 w-3 text-yellow-500" /> : <Sparkles className="h-3 w-3 text-zinc-600" />}
+                  <span className="max-w-[80px] sm:max-w-none truncate">{selectedModel.name}</span>
+                  <ChevronDown className="h-3 w-3 ml-0.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="bg-[#1c1c1c] border-white/10 min-w-[220px]">
+                {MODELS.map(m => (
+                  <DropdownMenuItem
+                    key={m.id}
+                    onClick={() => setSelectedModel(m)}
+                    className={cn("text-xs", selectedModel.id === m.id ? "text-white bg-white/10" : "text-zinc-400")}
+                  >
+                    <span className="flex items-center gap-2">
+                      {m.fast ? <Zap className="h-3 w-3 text-yellow-500" /> : <Sparkles className="h-3 w-3 text-zinc-600" />}
+                      {m.name}
+                    </span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
-            <Button
-                size="icon"
-                className={cn(
-                    "h-11 w-11 rounded-full transition-all active:scale-95 shrink-0 flex items-center justify-center bg-transparent border-none mr-1 shadow-none",
-                    input.trim() && !disabled ? "text-zinc-400 hover:text-white hover:bg-white/10" : "text-zinc-700 hover:bg-transparent"
-                )}
-                onClick={onSend}
-                disabled={!input.trim() || disabled}
-            >
-               {disabled ? <Loader2 className="h-5 w-5 animate-spin text-zinc-700" /> : <Send className="h-5 w-5" />}
-            </Button>
-        </div>
-    </div>
-)
-
-const ThinkingCard = ({ isActive, isDone }: { isActive: boolean, isDone: boolean }) => {
-    if (!isActive && !isDone) return null;
-
-    return (
-        <div className="flex flex-col items-center justify-center py-6 gap-3 group transition-all duration-500 animate-in fade-in slide-in-from-bottom-2">
-            <div className="flex items-center justify-center text-zinc-300">
-                <Brain className="h-6 w-6 animate-pulse" />
-            </div>
-            <h3 className={cn("text-sm font-medium transition-colors duration-300", isActive ? "text-zinc-200" : "text-zinc-400")}>
-                Thinking
-            </h3>
-            {isActive && (
-                <p className="text-xs text-zinc-500 animate-pulse">Architecting your website structure…</p>
+          <Button
+            size="icon"
+            className={cn(
+              "h-9 w-9 sm:h-10 sm:w-10 rounded-xl transition-all active:scale-95 shrink-0 flex items-center justify-center shadow-none",
+              input.trim() && !disabled ? "bg-zinc-700 text-white hover:bg-zinc-600" : "bg-zinc-800/50 text-zinc-700 hover:bg-zinc-800/50"
             )}
+            onClick={onSend}
+            disabled={!input.trim() || disabled}
+          >
+            {disabled ? <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin text-zinc-700" /> : <Send className="h-4 w-4 sm:h-5 sm:w-5" />}
+          </Button>
         </div>
-    )
+      </div>
+    </div>
+  )
 }
 
-interface ProgressCardProps {
-  isActive: boolean
-  isDone: boolean
-  progress: { percent: number; done: number; total: number }
-  currentFile?: string
-  currentFileUsedFor?: string
-}
-
-const ProgressCard = ({ isActive, isDone, progress, currentFile, currentFileUsedFor }: ProgressCardProps) => {
-    if (!isActive && !isDone) return null;
-
-    return (
-        <div className="flex flex-col items-center justify-center py-6 gap-5 group transition-all duration-500 delay-100 animate-in fade-in slide-in-from-bottom-2 w-full">
-            <div className="flex items-center gap-2 text-zinc-300">
-                <Hammer className="h-5 w-5" />
-                <h3 className="text-base font-medium">Building</h3>
-            </div>
-
-            <div className="flex flex-col items-center gap-3 w-full max-w-xs">
-                {isActive ? (
-                    <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
-                ) : (
-                    <CheckCircle2 className="h-6 w-6 text-zinc-400" />
-                )}
-
-                {/* Current file being generated */}
-                {currentFile && isActive && (
-                    <div className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-center space-y-1">
-                        <div className="flex items-center justify-center gap-1.5 text-[11px] text-zinc-500 uppercase tracking-wider font-semibold mb-1">
-                            <Code className="h-3 w-3" />
-                            Now generating
-                        </div>
-                        <p className="text-sm font-mono font-semibold text-white truncate">{currentFile}</p>
-                        {currentFileUsedFor && (
-                            <p className="text-xs text-zinc-400 leading-relaxed">{currentFileUsedFor}</p>
-                        )}
-                    </div>
-                )}
-
-                <div className="text-center space-y-2 w-full">
-                    <div className="flex items-center justify-between text-xs text-zinc-500 px-1">
-                        <span>{progress.done} of {progress.total} files</span>
-                        <span>{progress.percent}%</span>
-                    </div>
-                    <div className="h-1.5 w-full bg-zinc-800 rounded-full overflow-hidden">
-                        <div
-                            className="h-full bg-zinc-400 rounded-full transition-all duration-500 ease-out"
-                            style={{ width: `${progress.percent}%` }}
-                        />
-                    </div>
-                </div>
-            </div>
-        </div>
-    )
-}
-
-const SavingCard = ({ isActive, isDone }: { isActive: boolean, isDone: boolean }) => {
-    if (!isActive && !isDone) return null;
-
-    return (
-        <div className="flex flex-col items-center justify-center py-6 gap-3 group transition-all duration-500 delay-200 animate-in fade-in slide-in-from-bottom-2">
-            <div className="flex items-center justify-center text-zinc-300">
-               {isDone ? <Check className="h-6 w-6" /> : <Cloud className="h-6 w-6 animate-pulse" />}
-            </div>
-            <h3 className={cn("text-sm font-medium transition-colors duration-300", isActive ? "text-zinc-200" : "text-zinc-300")}>
-               {isDone ? "Saved to cloud" : "Saving"}
-            </h3>
-        </div>
-    )
-}
+// ThinkingCard, ProgressCard, SavingCard replaced by StepIndicator above
 
 
 const WebsitePreviewCardSkeleton = () => {
@@ -687,7 +759,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
 
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
-  const [step, setStep] = useState<Step>("idle")
+  const [step, setStep] = useState<GenerationPhase>("idle")
   const [currentPlan, setCurrentPlan] = useState("")
   const [error, setError] = useState<string | null>(null)
 
@@ -697,15 +769,11 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
   const [isDeploying, setIsDeploying] = useState(false)
   const [deploySuccess, setDeploySuccess] = useState(false)
   const [deployResult, setDeployResult] = useState<{ url?: string; githubUrl?: string } | null>(null)
-  const [showAutoDeploy, setShowAutoDeploy] = useState(false)
 
   const [instruction, setInstruction] = useState<string>("")
-  const [selectedModel, setSelectedModel] = useState(MODELS[0])
+  const [selectedModel, setSelectedModel] = useState<ModelOption>(MODELS.find(m => m.id === DEFAULT_MODEL_ID) || MODELS[0])
 
   const [fixHistory, setFixHistory] = useState<any[]>([])
-
-  // Thinking steps — shown during generation with icons matching the reference UI
-  const [thinkingSteps, setThinkingSteps] = useState<ThinkingStep[]>([])
 
   // Sitemap — parsed from the generation plan
   const [sitemap, setSitemap] = useState<SitemapNode[]>([])
@@ -713,18 +781,8 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
   // Per-message feedback: 'like' | 'dislike' | 'report' | null
   const [messageFeedback, setMessageFeedback] = useState<Record<string, 'like' | 'dislike' | 'report' | null>>({})
 
-  /** Helper: add or update a thinking step */
-  const upsertStep = (id: string, updates: Partial<ThinkingStep>) => {
-    setThinkingSteps(prev => {
-      const idx = prev.findIndex(s => s.id === id)
-      if (idx >= 0) {
-        const copy = [...prev]
-        copy[idx] = { ...copy[idx], ...updates }
-        return copy
-      }
-      return [...prev, { id, icon: 'thinking', label: '', status: 'pending', ...updates } as ThinkingStep]
-    })
-  }
+  // Whether auto-deploy has been triggered for this generation
+  const [autoDeployTriggered, setAutoDeployTriggered] = useState(false)
 
   /** Parse sitemap nodes from the plan instruction text */
   const parseSitemap = (planText: string) => {
@@ -800,7 +858,6 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
     setStep("fixing")
     setCurrentPlan("Analyzing logs...")
     setFixHistory([])
-    setShowAutoDeploy(false)
 
     const logMessage: Message = {
       id: Date.now().toString(),
@@ -883,13 +940,29 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
        }
 
        if (result.action === 'done') {
-          setStep("idle")
-          setShowAutoDeploy(true)
           setMessages(prev => [...prev, {
             id: Date.now().toString(),
             role: "assistant",
-            content: "I have fixed the issues. Ready to deploy."
+            content: "I have fixed the issues. Deploying automatically..."
           }])
+          // Auto-deploy after fix
+          setStep("deploying")
+          try {
+            const res = await fetch("/api/deploy", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ projectId })
+            })
+            const deployData = await res.json()
+            if (deployData.success) {
+              setDeploySuccess(true)
+              setDeployResult(deployData)
+              if (deployData.repoId) {
+                setTimeout(() => checkDeployLogs(deployData.repoId), DEPLOY_LOG_CHECK_DELAY_MS)
+              }
+            }
+          } catch { /* deploy error is non-blocking */ }
+          setStep("done")
           return
        }
 
@@ -990,6 +1063,9 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
     }
   }
 
+  /** Small delay helper for smooth phase transitions */
+  const phaseDelay = (ms = 500) => new Promise<void>(r => setTimeout(r, ms))
+
   const startGeneration = async () => {
     if (!input.trim()) return
 
@@ -1000,18 +1076,13 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
     }
 
     setMessages(prev => [...prev, userMessage])
-    // setInput("")
-
     setError(null)
+    setAutoDeployTriggered(false)
+    setSitemap([])
+
+    // ── Phase 1: Planning ──
     setStep("planning")
     setCurrentPlan("Architecting solution...")
-    setShowAutoDeploy(false)
-
-    // Initialize thinking steps
-    setThinkingSteps([
-      { id: 'think', icon: 'thinking', label: 'thinking', status: 'active' },
-    ])
-    setSitemap([])
 
     try {
       const planResponse = await fetch("/api/ai/generate-plan", {
@@ -1024,48 +1095,44 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       const planData = await planResponse.json()
       const generatedInstruction = planData.instruction
 
-      // Mark thinking as done with descriptive detail like the reference UI
-      const businessGoal = generatedInstruction.match(/## 1\. Business Goal\s*(.*?)(?:\n|$)/)?.[1]?.trim()
-      upsertStep('think', {
-        status: 'done',
-        detail: businessGoal
-          ? `I successfully created the plan for ${businessGoal.substring(0, 60)}. Now I proceed to create the frontend`
-          : 'I successfully analysed the request. Now I proceed to create the app'
-      })
+      await phaseDelay()
 
-      // Check if AI needs more info
+      // ── Phase 2: Searching ──
+      setStep("searching")
+      try {
+        await fetch("/api/ai/web-search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: input.trim(), type: "general" }),
+        })
+      } catch { /* non-critical */ }
+
+      await phaseDelay()
+
+      // ── Phase 3: Clarifying ──
       const questionMatch = generatedInstruction.match(/\[QUESTION\]\s*(.*)/i)
       if (questionMatch) {
-          const questionText = questionMatch[1].trim()
-          setMessages(prev => [...prev, {
-              id: (Date.now() + 1).toString(),
-              role: "assistant",
-              content: questionText
-          }])
-          setStep("needs_info")
-          setInput("")
-          setThinkingSteps([])
-          return
+        setStep("clarifying")
+        const questionText = questionMatch[1].trim()
+        setMessages(prev => [...prev, {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: questionText,
+        }])
+        setInput("")
+        return
       }
 
-      // Web search — only when the plan indicates backend / data needs
-      const needsSearch = /database|backend|api|server|mongo|auth|payment|stripe|supabase/i.test(generatedInstruction)
-      if (needsSearch) {
-        upsertStep('search', { icon: 'searching', label: 'searching web for', detail: input.trim().substring(0, 60), status: 'active' })
-        try {
-          await fetch("/api/ai/web-search", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ query: input.trim(), type: "general" }),
-          })
-        } catch { /* non-critical */ }
-        upsertStep('search', { status: 'done' })
-      }
-
-      // Parse sitemap from plan
+      // ── Phase 4: Structuring ──
+      setStep("structuring")
       parseSitemap(generatedInstruction)
-
       setInstruction(generatedInstruction)
+
+      await phaseDelay()
+
+      // ── Phase 5: Integrating ──
+      setStep("integrating")
+      await phaseDelay(800)
 
       const planMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -1075,34 +1142,27 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       }
       setMessages(prev => [...prev, planMessage])
 
-      // Start coding step
-      upsertStep('code', { icon: 'creating', label: 'creating code for frontend', status: 'pending' })
-
+      // ── Phase 6: Building (delegated to processNextStep) ──
       processNextStep(generatedInstruction, [...messages, userMessage, planMessage])
     } catch (err: any) {
       setError(err.message || "Planning failed")
       setStep("idle")
-      setThinkingSteps([])
     }
   }
 
   const processNextStep = async (currentInstruction: string, currentHistory: Message[]) => {
-    setStep("coding")
+    setStep("building")
     setCurrentPlan("Generating next file...")
 
-    // Update thinking step: coding is now active
-    upsertStep('code', { status: 'active' })
-
-    // Pattern matches: [N] filename.ext [usedfor]description[/usedfor]
-    // e.g. [1] index.html [usedfor]Main entry point[usedfor]
     const nextFileMatch = /\[\d+\]\s*([^\s:]+)(?:[:\-]?\s*\[usedfor\](.*?)\[usedfor\])?/.exec(currentInstruction)
     if (nextFileMatch) {
       setActiveFile(nextFileMatch[1])
       setActiveFileUsedFor(nextFileMatch[2]?.trim() || undefined)
-      upsertStep('code', { detail: `creating ${nextFileMatch[1]}` })
     }
 
-    try {
+    const modelId = selectedModel.id
+
+    const attemptGenerate = async (model: string): Promise<any> => {
       const response = await fetch("/api/ai/generate-website", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1110,23 +1170,58 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
           projectId,
           messages: currentHistory,
           instruction: currentInstruction,
-          model: selectedModel.id,
+          model,
           generatedPages: generatedPages.map(p => ({ name: p.name, code: p.code })),
         }),
       })
-
       if (!response.ok) throw new Error("Generation failed")
-      const data = await response.json()
+      return response.json()
+    }
+
+    try {
+      let data: any
+      try {
+        data = await attemptGenerate(modelId)
+      } catch (primaryErr: any) {
+        // "test" model (Vercel) should NEVER fall back — show error
+        if (selectedModel.provider === "Vercel") {
+          console.error("[AI Builder] Vercel model error:", primaryErr)
+          setError(`Failed to connect to Vercel model (${selectedModel.name}). The service may be temporarily unavailable. Please try again later.`)
+          setStep("idle")
+          setActiveFile(undefined)
+          setActiveFileUsedFor(undefined)
+          return
+        }
+        throw primaryErr
+      }
 
       if (data.isComplete) {
-        upsertStep('code', { status: 'done', label: 'creating code for frontend', detail: undefined })
-        upsertStep('save', { icon: 'saving', label: 'saving', status: 'active' })
-        setStep("done")
-        setCurrentPlan("All files generated.")
+        // ── Phase 7: Auto-Deploy ──
+        setStep("deploying")
+        setCurrentPlan("All files generated. Deploying...")
         setActiveFile(undefined)
         setActiveFileUsedFor(undefined)
-        // Mark saving as done after a brief delay
-        setTimeout(() => upsertStep('save', { status: 'done' }), 800)
+        // Auto-deploy immediately
+        if (!autoDeployTriggered) {
+          setAutoDeployTriggered(true)
+          try {
+            const res = await fetch("/api/deploy", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ projectId })
+            })
+            const deployData = await res.json()
+            if (deployData.success) {
+              setDeploySuccess(true)
+              setDeployResult(deployData)
+              if (deployData.repoId) {
+                setTimeout(() => checkDeployLogs(deployData.repoId), DEPLOY_LOG_CHECK_DELAY_MS)
+              }
+            }
+          } catch { /* deploy error is non-blocking */ }
+        }
+        await new Promise(r => setTimeout(r, 800))
+        setStep("done")
         return
       }
 
@@ -1136,20 +1231,20 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
         content: `Generated ${data.pageName}`,
         code: data.code,
         pageName: data.pageName,
-        isIntermediate: true
+        isIntermediate: true,
       }
 
       setMessages(prev => [...prev, assistantMessage])
 
       if (data.code && data.pageName) {
         setGeneratedPages(prev => {
-           const filtered = prev.filter(p => p.name !== data.pageName)
-           return [...filtered, {
-             name: data.pageName,
-             code: data.code,
-             timestamp: Date.now(),
-             usedFor: data.usedFor
-           }]
+          const filtered = prev.filter(p => p.name !== data.pageName)
+          return [...filtered, {
+            name: data.pageName,
+            code: data.code,
+            timestamp: Date.now(),
+            usedFor: data.usedFor,
+          }]
         })
 
         await fetch(`/api/projects/${projectId}/pages`, {
@@ -1158,8 +1253,8 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
           body: JSON.stringify({
             name: data.pageName,
             content: data.code,
-            usedFor: data.usedFor || ''
-          })
+            usedFor: data.usedFor || "",
+          }),
         })
       }
 
@@ -1171,7 +1266,6 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       setStep("idle")
       setActiveFile(undefined)
       setActiveFileUsedFor(undefined)
-      setThinkingSteps([])
     }
   }
 
@@ -1230,7 +1324,6 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
           if(data.success) {
               setDeploySuccess(true)
               setDeployResult(data)
-              setShowAutoDeploy(false)
               // After deploy succeeds, wait for the build then check logs for errors
               if (data.repoId) {
                   setTimeout(() => checkDeployLogs(data.repoId), DEPLOY_LOG_CHECK_DELAY_MS)
@@ -1247,57 +1340,32 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
 
   return (
     <div className="flex flex-col h-full bg-transparent text-zinc-100 font-sans relative">
-        {/* Model selector — pinned to top */}
-        <div className="w-full flex items-center justify-end px-4 py-2 z-20 shrink-0">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 rounded-full text-[11px] text-zinc-500 hover:text-zinc-300 hover:bg-white/5 px-3 gap-1.5 border border-white/[0.06]">
-                {(selectedModel as any).fast ? <Zap className="h-3 w-3 text-yellow-500" /> : <Sparkles className="h-3 w-3 text-zinc-600" />}
-                <span>{selectedModel.name}</span>
-                <ChevronDown className="h-3 w-3 ml-0.5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-[#1c1c1c] border-white/10 min-w-[220px]">
-              {MODELS.map(m => (
-                <DropdownMenuItem
-                  key={m.id}
-                  onClick={() => setSelectedModel(m)}
-                  className={cn("text-xs", selectedModel.id === m.id ? "text-white bg-white/10" : "text-zinc-400")}
-                >
-                  <span className="flex items-center gap-2">
-                    {(m as any).fast ? <Zap className="h-3 w-3 text-yellow-500" /> : <Sparkles className="h-3 w-3 text-zinc-600" />}
-                    {m.name}
-                  </span>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+
 
         {/* Background Accents - idle only */}
         {step === 'idle' && (
             <>
-                <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
-                <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute top-1/4 left-1/4 w-64 sm:w-96 h-64 sm:h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute bottom-1/4 right-1/4 w-64 sm:w-96 h-64 sm:h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
             </>
         )}
 
         {/* Scrollable chat area */}
         <div
-            className="flex-1 overflow-y-auto custom-scrollbar relative z-10 pb-32"
+            className="flex-1 overflow-y-auto custom-scrollbar relative z-10 pb-28 sm:pb-32"
             style={{ WebkitOverflowScrolling: 'touch' }}
         >
-            <div className="max-w-2xl mx-auto w-full px-4 md:px-0 min-h-full flex flex-col">
+            <div className="max-w-2xl mx-auto w-full px-3 sm:px-4 md:px-0 min-h-full flex flex-col">
 
                 {/* IDLE STATE */}
                 {step === 'idle' && (
-                    <div className="flex-1 flex flex-col items-center justify-center text-center py-20 animate-in fade-in slide-in-from-bottom-8 duration-700 relative">
+                    <div className="flex-1 flex flex-col items-center justify-center text-center py-16 sm:py-20 animate-in fade-in slide-in-from-bottom-8 duration-700 relative">
                         <GeminiBadge />
                         <div className="mt-4 space-y-1">
-                            <h1 className="text-4xl md:text-5xl font-medium tracking-tight text-white">
+                            <h1 className="text-3xl sm:text-4xl md:text-5xl font-medium tracking-tight text-white">
                                 Hi {userName},
                             </h1>
-                            <h2 className="text-4xl md:text-5xl font-medium tracking-tight text-zinc-500">
+                            <h2 className="text-3xl sm:text-4xl md:text-5xl font-medium tracking-tight text-zinc-500">
                                 What are we building?
                             </h2>
                         </div>
@@ -1306,35 +1374,33 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
 
                 {/* CHAT / GENERATING STATE */}
                 {step !== 'idle' && (
-                    <div className="flex flex-col pt-8 pb-4">
+                    <div className="flex flex-col pt-6 sm:pt-8 pb-4">
 
-                        {/* Messages — user messages in rounded pill, matching reference UI */}
+                        {/* Messages — user messages in rounded pill */}
                         {messages
                             .filter(m => m.role === 'user' || (m.role === 'assistant' && !m.plan && !m.isIntermediate))
                             .map((msg, i) => (
                                 <div
                                     key={msg.id || i}
                                     className={cn(
-                                        "py-2.5",
+                                        "py-2 sm:py-2.5",
                                         msg.role === 'user' ? "flex justify-end" : "flex flex-col items-start"
                                     )}
                                 >
                                     {msg.role === 'user' ? (
-                                        <div className="bg-white/[0.08] rounded-[1.5rem] px-5 py-3 max-w-[82%]">
+                                        <div className="bg-white/[0.08] rounded-[1.25rem] sm:rounded-[1.5rem] px-4 sm:px-5 py-2.5 sm:py-3 max-w-[88%] sm:max-w-[82%]">
                                             <p className="text-sm leading-relaxed text-zinc-200">{msg.content}</p>
                                         </div>
                                     ) : (
-                                        <p className="text-sm leading-relaxed max-w-[82%] text-zinc-400">{msg.content}</p>
+                                        <p className="text-sm leading-relaxed max-w-[88%] sm:max-w-[82%] text-zinc-400">{msg.content}</p>
                                     )}
 
-                                    {/* Date under user message — matching reference UI */}
                                     {msg.role === 'user' && (
-                                        <p className="text-[11px] text-zinc-600 mt-1.5 text-right w-full">
+                                        <p className="text-[10px] sm:text-[11px] text-zinc-600 mt-1.5 text-right w-full">
                                             {new Date(parseInt(msg.id) || Date.now()).toISOString().split('T')[0].replace(/-/g, '.')}
                                         </p>
                                     )}
 
-                                    {/* Feedback buttons — assistant messages only */}
                                     {msg.role === 'assistant' && (
                                         <div className="flex items-center gap-3 mt-1.5">
                                             <button
@@ -1382,70 +1448,44 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                             ))
                         }
 
-                        {/* ── Thinking Steps — icon-based like the reference UI ── */}
-
-                        {thinkingSteps.length > 0 && (step === 'planning' || step === 'coding' || step === 'fixing' || step === 'done') && (
-                            <div className="mt-4 space-y-2 animate-in fade-in duration-300">
-                                {thinkingSteps.map(s => (
-                                    <ThinkingStepRow key={s.id} step={s} />
-                                ))}
-                            </div>
-                        )}
+                        {/* ── Small inline step indicator (1 at a time) ── */}
+                        <StepIndicator phase={step} progress={progress} currentFile={activeFile} />
 
                         {/* Sitemap visualization (parsed from plan) */}
-                        {sitemap.length > 0 && (step === 'coding' || step === 'done') && (
+                        {sitemap.length > 0 && (step === 'building' || step === 'done') && (
                             <SitemapVisualizer nodes={sitemap} />
                         )}
 
-                        {/* Progress bar for coding */}
-                        {(step === 'coding' || step === 'fixing') && progress.total > 0 && (
-                            <div className="mt-2 px-1 space-y-1 animate-in fade-in duration-300">
-                                <div className="flex items-center justify-between text-[11px] text-zinc-600">
-                                    <span>{progress.done} of {progress.total} files</span>
-                                    <span>{progress.percent}%</span>
-                                </div>
-                                <div className="h-[2px] bg-zinc-800/80 rounded-full overflow-hidden">
-                                    <div
-                                        className="h-full bg-zinc-500 rounded-full transition-all duration-500 ease-out"
-                                        style={{ width: `${progress.percent}%` }}
-                                    />
-                                </div>
+                        {step === 'done' && (
+                            <div className="py-3 mt-2 flex items-center gap-2.5 step-enter">
+                                <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
+                                <span className="text-sm text-zinc-300">
+                                  {deploySuccess ? "Website deployed!" : "Website ready"}
+                                </span>
+                                {deployResult?.url && (
+                                  <a href={deployResult.url} target="_blank" rel="noopener noreferrer" className="text-xs text-zinc-500 hover:text-zinc-300 underline underline-offset-2 ml-1 truncate max-w-[200px]">
+                                    {deployResult.url.replace(/^https?:\/\//, '')}
+                                  </a>
+                                )}
                             </div>
                         )}
 
+                        {/* Done Actions — no deploy button, just "Create Another" */}
                         {step === 'done' && (
-                            <div className="py-3 mt-2 flex items-center gap-2.5 animate-in fade-in duration-300">
-                                <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
-                                <span className="text-sm text-zinc-400">Website ready</span>
-                            </div>
-                        )}
-
-                        {/* Done Actions */}
-                        {step === 'done' && (
-                            <div className="mt-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                                <div className="grid grid-cols-2 gap-3">
-                                    <Button
-                                        size="lg"
-                                        className="w-full h-12 text-sm font-semibold bg-white text-black hover:bg-zinc-200 rounded-xl"
-                                        onClick={handleDeploy}
-                                        disabled={isDeploying}
-                                    >
-                                        {isDeploying ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Rocket className="h-4 w-4 mr-2" />}
-                                        {deploySuccess ? "Deployed!" : "Deploy to Cloudflare"}
-                                    </Button>
-                                    <Button
-                                        size="lg"
-                                        variant="outline"
-                                        className="w-full h-12 text-sm font-medium bg-transparent border-zinc-800 text-zinc-400 hover:bg-zinc-800/50 hover:text-white rounded-xl"
-                                        onClick={() => {
-                                            setStep('idle')
-                                            setInput("")
-                                            setMessages([])
-                                        }}
-                                    >
-                                        Create Another
-                                    </Button>
-                                </div>
+                            <div className="mt-4 sm:mt-6 step-enter">
+                                <Button
+                                    size="lg"
+                                    variant="outline"
+                                    className="w-full sm:w-auto h-10 sm:h-12 text-sm font-medium bg-transparent border-zinc-800 text-zinc-400 hover:bg-zinc-800/50 hover:text-white rounded-xl px-8"
+                                    onClick={() => {
+                                        setStep('idle')
+                                        setInput("")
+                                        setMessages([])
+                                        setAutoDeployTriggered(false)
+                                    }}
+                                >
+                                    Create Another
+                                </Button>
                             </div>
                         )}
 
@@ -1465,7 +1505,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                             </div>
                         )}
 
-                        {/* Scroll anchor — keeps status row visible at bottom */}
+                        {/* Scroll anchor */}
                         <div ref={chatBottomRef} />
                     </div>
                 )}
@@ -1478,7 +1518,9 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                 input={input}
                 setInput={setInput}
                 onSend={startGeneration}
-                disabled={step !== 'idle' && step !== 'needs_info'}
+                disabled={step !== 'idle' && step !== 'clarifying'}
+                selectedModel={selectedModel}
+                setSelectedModel={setSelectedModel}
             />
         </div>
     </div>
