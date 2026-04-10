@@ -1,0 +1,13 @@
+--- a/components/ai-website-builder.tsx
++++ b/components/ai-website-builder.tsx
+@@ -1174,7 +1174,10 @@
+           generatedPages: generatedPages.map(p => ({ name: p.name, code: p.code })),
+         }),
+       })
+-      if (!response.ok) throw new Error("Generation failed")
++      if (!response.ok) {
++         const errData = await response.json().catch(() => ({}))
++         throw new Error(errData.message || `Generation failed with status ${response.status}`)
++      }
+       return response.json()
+     }

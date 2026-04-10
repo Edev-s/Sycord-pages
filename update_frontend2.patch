@@ -1,0 +1,11 @@
+--- a/components/ai-website-builder.tsx
++++ b/components/ai-website-builder.tsx
+@@ -1185,7 +1185,7 @@
+       } catch (primaryErr: any) {
+         // "test" model (Vercel) should NEVER fall back — show error
+         if (selectedModel.provider === "Vercel") {
+-          console.error("[AI Builder] Vercel model error:", primaryErr)
++          console.error("[AI Builder] Vercel model error:", primaryErr.message)
+           setError(`Failed to connect to Vercel model (${selectedModel.name}). The service may be temporarily unavailable. Please try again later.`)
+           setStep("idle")
+           setActiveFile(undefined)

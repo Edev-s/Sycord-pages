@@ -76,9 +76,6 @@ export async function POST(request: Request) {
     if (config.provider === "Google" && !apiKey) {
         apiKey = process.env.GOOGLE_API_KEY
     }
-    if (config.provider === "Vercel" && !apiKey) {
-        apiKey = process.env.VERCEL_API_TOKEN || process.env.VERCEL_API_KEY || process.env.VERCEL_TOKEN
-    }
 
     if (!apiKey) {
       return NextResponse.json({ message: `AI service not configured (${config.provider})` }, { status: 500 })
@@ -172,7 +169,7 @@ CRITICAL MONGODB RULES:
     const designSystem = extractDesignSystem(previousFiles)
     // Keep legacy memory as fallback / additional signal
     const shortTermMemory = getShortTermMemory(instruction)
-    
+
     let fileRules = ""
     if (isHTML) fileRules = `- Use <!DOCTYPE html>. Include <script src="https://cdn.tailwindcss.com"></script>. Include <script type="module" src="/src/main.ts"></script>.`
     if (isTS) fileRules = `- Write valid TypeScript. Use 'export' for modules. Import from relative paths (e.g. './utils'). DOM manipulation must be type-safe (use 'as HTMLElement' if needed). ALL functions must have explicit return types. IMPORTANT: Do NOT access DOM elements at the top level. Wrap all DOM access in exported functions (e.g. init() or render()).`
