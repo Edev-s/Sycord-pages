@@ -17,6 +17,7 @@ import { ObjectId } from "mongodb"
 // API Configurations
 const GOOGLE_API_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
 const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions"
+const VERCEL_API_URL = "https://api.v0.dev/v1/chat/completions"
 
 // Map models to their specific endpoints and Env Vars
 const MODEL_CONFIGS: Record<string, { url: string, envVar: string, provider: string }> = {
@@ -26,8 +27,8 @@ const MODEL_CONFIGS: Record<string, { url: string, envVar: string, provider: str
   "gemini-1.5-flash": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
   "gemini-1.5-pro": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
   "deepseek-v3.2-exp": { url: DEEPSEEK_API_URL, envVar: "DEEPSEEK_API", provider: "DeepSeek" },
-  // "test" model: displayed as "Vercel" in the UI, routes through Google API internally
-  "alibaba/qwen3-coder": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Vercel" }
+  // "test" model: displayed as "Vercel" in the UI, routes through Vercel API internally
+  "alibaba/qwen3-coder": { url: VERCEL_API_URL, envVar: "VERCEL_API_TOKEN", provider: "Vercel" }
 }
 
 export async function POST(request: Request) {
@@ -66,10 +67,8 @@ export async function POST(request: Request) {
        configKey = "gemini-1.5-pro"
     }
 
-    // "test" model (alibaba/qwen3-coder) uses Google API internally
-    // Remap to gemini-2.0-flash for the actual API call but keep the config lookup
-    const isTestModel = modelId === "alibaba/qwen3-coder"
-    const apiModelId = isTestModel ? "gemini-2.0-flash" : configKey
+    // "test" model (alibaba/qwen3-coder) now uses Vercel API
+    const apiModelId = configKey
 
     const config = MODEL_CONFIGS[configKey] || MODEL_CONFIGS["gemini-3.1-pro-preview"]
 
