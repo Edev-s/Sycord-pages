@@ -57,7 +57,7 @@ interface ModelOption {
   fast?: boolean
 }
 
-// Default model is the Vercel "test" model (alibaba/qwen3-coder)
+// Default model is the Qwen Coder "test" model (alibaba/qwen3-coder)
 const DEFAULT_MODEL_ID = "alibaba/qwen3-coder"
 
 const MODELS: ModelOption[] = [
@@ -1088,7 +1088,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       const planResponse = await fetch("/api/ai/generate-plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: [...messages, userMessage] }),
+        body: JSON.stringify({ messages: [...messages, userMessage], model: selectedModel.id }),
       })
 
       if (!planResponse.ok) throw new Error("Failed to generate plan")
@@ -1174,7 +1174,10 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
           generatedPages: generatedPages.map(p => ({ name: p.name, code: p.code })),
         }),
       })
-      if (!response.ok) throw new Error("Generation failed")
+      if (!response.ok) {
+        const errBody = await response.json().catch(() => ({ message: `HTTP ${response.status}` }))
+        throw new Error(errBody.message || `Generation failed (HTTP ${response.status})`)
+      }
       return response.json()
     }
 
@@ -1183,10 +1186,16 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       try {
         data = await attemptGenerate(modelId)
       } catch (primaryErr: any) {
-        // "test" model (Vercel) should NEVER fall back — show error
+        // "test" model (Qwen Coder / Vercel AI Gateway) should NEVER fall back — show detailed error
         if (selectedModel.provider === "Vercel") {
-          console.error("[AI Builder] Vercel model error:", primaryErr)
-          setError(`Failed to connect to Vercel model (${selectedModel.name}). The service may be temporarily unavailable. Please try again later.`)
+          const errMsg = primaryErr?.message || String(primaryErr) || "Unknown error"
+          console.error("[AI Builder] Vercel AI Gateway model error:", primaryErr)
+          setError(
+            `Model "${selectedModel.name}" (${selectedModel.id}) failed.\n` +
+            `Provider: ${selectedModel.provider} AI Gateway\n` +
+            `Debug: ${errMsg}\n` +
+            `Possible causes: AI_GATEWAY_API_KEY not configured, insufficient Vercel credits, model unavailable, or rate limit exceeded.`
+          )
           setStep("idle")
           setActiveFile(undefined)
           setActiveFileUsedFor(undefined)
@@ -1384,7 +1393,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                                     key={msg.id || i}
                                     className={cn(
                                         "py-2 sm:py-2.5",
-                                        msg.role === 'user' ? "flex justify-end" : "flex flex-col items-start"
+                                        msg.role === 'user' ? "flex flex-col items-end" : "flex flex-col items-start"
                                     )}
                                 >
                                     {msg.role === 'user' ? (

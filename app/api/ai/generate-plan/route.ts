@@ -5,6 +5,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai"
 import { getSystemPrompts } from "@/lib/ai-prompts"
 
 const PLAN_MODEL = "gemini-3.1-pro-preview"
+const VERCEL_AI_GATEWAY_URL = "https://ai-gateway.vercel.sh/v1/chat/completions"
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions)
@@ -13,24 +14,14 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { messages } = await request.json()
+    const { messages, model } = await request.json()
 
-    // Use GOOGLE_AI_API by default, fallback to GOOGLE_API_KEY
-    const apiKey = process.env.GOOGLE_AI_API || process.env.GOOGLE_API_KEY
-    if (!apiKey) {
-      console.error("[v0] GOOGLE_AI_API (or GOOGLE_API_KEY) not configured")
-      return NextResponse.json({ message: "AI service not configured (Google)" }, { status: 500 })
-    }
-
-    const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({
-        model: PLAN_MODEL,
-    })
-
-    const lastUserMessage = messages[messages.length - 1]
+    const isQwenModel = model === "alibaba/qwen3-coder"
 
     // Fetch Global Prompt
     const { builderPlan: systemContextTemplate } = await getSystemPrompts()
+
+    const lastUserMessage = messages[messages.length - 1]
 
     // Combine history for context
     const historyText = messages.map((m: any) => `${m.role.toUpperCase()}: ${m.content}`).join("\n\n")
@@ -39,9 +30,61 @@ export async function POST(request: Request) {
         .replace("{{HISTORY}}", historyText)
         .replace("{{REQUEST}}", lastUserMessage.content)
 
+    // Route Qwen model through Vercel AI Gateway (uses Vercel credits)
+    if (isQwenModel) {
+      const gatewayKey = process.env.AI_GATEWAY_API_KEY
+      if (!gatewayKey) {
+        console.error("[v0] AI_GATEWAY_API_KEY not configured for Qwen model plan generation")
+        return NextResponse.json({ message: "AI service not configured (Vercel AI Gateway). Set AI_GATEWAY_API_KEY env var." }, { status: 500 })
+      }
+
+      console.log(`[v0] Generating plan with Qwen model via Vercel AI Gateway: ${model}`)
+
+      const response = await fetch(VERCEL_AI_GATEWAY_URL, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${gatewayKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: model,
+          messages: [
+            { role: "system", content: finalPrompt },
+            { role: "user", content: lastUserMessage.content },
+          ],
+          temperature: 0.2,
+        }),
+      })
+
+      if (!response.ok) {
+        let errorBody = ""
+        try { errorBody = await response.text() } catch { /* ignore */ }
+        const debugInfo = `Vercel AI Gateway error: HTTP ${response.status} | Model: ${model} | Response: ${errorBody.slice(0, 300)}`
+        console.error("[v0] " + debugInfo)
+        return NextResponse.json({ message: debugInfo }, { status: 500 })
+      }
+
+      const data = await response.json()
+      const responseText = data.choices?.[0]?.message?.content || ""
+
+      return NextResponse.json({ instruction: responseText })
+    }
+
+    // Default: Google Generative AI path
+    const apiKey = process.env.GOOGLE_AI_API || process.env.GOOGLE_API_KEY
+    if (!apiKey) {
+      console.error("[v0] GOOGLE_AI_API (or GOOGLE_API_KEY) not configured")
+      return NextResponse.json({ message: "AI service not configured (Google)" }, { status: 500 })
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey)
+    const genModel = genAI.getGenerativeModel({
+        model: PLAN_MODEL,
+    })
+
     console.log(`[v0] Generating plan with Google model: ${PLAN_MODEL}`)
 
-    const result = await model.generateContent(finalPrompt)
+    const result = await genModel.generateContent(finalPrompt)
     const response = await result.response
     const responseText = response.text()
 
