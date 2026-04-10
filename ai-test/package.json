@@ -1,0 +1,17 @@
+{
+  "name": "ai-gateway-test",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "ai": "^6.0.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "tsx": "^4.17.0",
+    "typescript": "^5.7.2"
+  }
+}
