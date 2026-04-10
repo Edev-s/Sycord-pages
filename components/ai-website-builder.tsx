@@ -223,42 +223,7 @@ const FileTreeVisualizer = ({ pages, currentFile }: { pages: GeneratedPage[], cu
 }
 
 // --- GENERATION STEP ICONS (matching the reference UI) ---
-
-const BrainIcon = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M10 21h4M12 2v1M9 17v4M15 17v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    <circle cx="9.5" cy="9" r="1" fill="currentColor"/>
-    <circle cx="14.5" cy="9" r="1" fill="currentColor"/>
-    <path d="M9.5 13c.83.83 2.17 1.5 2.5 1.5s1.67-.67 2.5-1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-  </svg>
-)
-
-const SearchWebIcon = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" strokeWidth="1.5"/>
-    <path d="M3 9h18" stroke="currentColor" strokeWidth="1.5"/>
-    <circle cx="6" cy="6" r="0.75" fill="currentColor"/>
-    <circle cx="8.5" cy="6" r="0.75" fill="currentColor"/>
-    <circle cx="11" cy="6" r="0.75" fill="currentColor"/>
-    <path d="M7 15l2-2m0 0a3 3 0 1 0-4.24-4.24 3 3 0 0 0 4.24 4.24z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" transform="translate(5,2)"/>
-  </svg>
-)
-
-const CodeCreateIcon = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <path d="M8 18l-4-6 4-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M16 6l4 6-4 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M14.5 4l-5 16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-  </svg>
-)
-
-const SaveCloudIcon = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <path d="M12 16V8m0 0l-3 3m3-3l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
-)
+// Using lucide-react icons for a modern, clean look
 
 /** Small inline step indicator — shows 1 step at a time with typing + slide-out animation */
 const StepIndicator = ({ phase, progress, currentFile }: {
@@ -271,12 +236,12 @@ const StepIndicator = ({ phase, progress, currentFile }: {
   const prevPhaseRef = useRef<string | null>(null)
 
   const phaseConfig: Record<string, { icon: React.ReactNode; label: string }> = {
-    planning:    { icon: <BrainIcon className="h-4 w-4" />,      label: "Thinking..." },
-    searching:   { icon: <Globe className="h-4 w-4" />,          label: "Searching web..." },
-    structuring: { icon: <Layout className="h-4 w-4" />,         label: "Creating sitemap..." },
-    integrating: { icon: <Database className="h-4 w-4" />,       label: "Integrating model · mongodb" },
-    building:    { icon: <CodeCreateIcon className="h-4 w-4" />, label: "Building..." },
-    deploying:   { icon: <Rocket className="h-4 w-4" />,         label: "Deploying..." },
+    planning:    { icon: <Brain className="h-4 w-4" />,    label: "Thinking..." },
+    searching:   { icon: <Globe className="h-4 w-4" />,    label: "Searching web..." },
+    structuring: { icon: <Layout className="h-4 w-4" />,   label: "Creating sitemap..." },
+    integrating: { icon: <Database className="h-4 w-4" />, label: "Integrating services..." },
+    building:    { icon: <Code className="h-4 w-4" />,     label: "Building..." },
+    deploying:   { icon: <Rocket className="h-4 w-4" />,   label: "Deploying..." },
   }
 
   useEffect(() => {
@@ -314,7 +279,7 @@ const StepIndicator = ({ phase, progress, currentFile }: {
   return (
     <div className="py-3">
       <div className={cn("flex items-center gap-2.5", exiting ? "step-exit" : "step-enter")}>
-        <div className="h-7 w-7 rounded-full bg-white/[0.06] border border-white/[0.08] flex items-center justify-center text-zinc-400 shrink-0">
+        <div className="h-7 w-7 rounded-lg bg-white/[0.06] border border-white/[0.08] flex items-center justify-center text-zinc-400 shrink-0">
           {config.icon}
         </div>
         <span className={cn("text-sm text-zinc-400", !exiting && "step-typewriter")}>{config.label}</span>
@@ -347,31 +312,115 @@ interface SitemapNode {
 }
 
 const SitemapVisualizer = ({ nodes }: { nodes: SitemapNode[] }) => {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const [startPos, setStartPos] = useState({ x: 0, y: 0 })
+  const [scrollStart, setScrollStart] = useState({ x: 0, y: 0 })
+
   if (!nodes || nodes.length === 0) return null
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    setIsDragging(true)
+    setStartPos({ x: e.clientX, y: e.clientY })
+    if (containerRef.current) {
+      setScrollStart({ x: containerRef.current.scrollLeft, y: containerRef.current.scrollTop })
+    }
+    ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
+  }
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!isDragging || !containerRef.current) return
+    const dx = e.clientX - startPos.x
+    const dy = e.clientY - startPos.y
+    containerRef.current.scrollLeft = scrollStart.x - dx
+    containerRef.current.scrollTop = scrollStart.y - dy
+  }
+
+  const handlePointerUp = () => {
+    setIsDragging(false)
+  }
+
+  // Arrange nodes in a visual layout
+  const cols = Math.min(nodes.length, 3)
+  const rows = Math.ceil(nodes.length / cols)
 
   return (
     <div className="mt-4 mb-2 animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <div className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold mb-2 flex items-center gap-1.5">
-        <Globe className="h-3 w-3" /> Sitemap
+      <div className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold mb-2 flex items-center gap-1.5 px-1">
+        <Layout className="h-3 w-3" /> Sitemap
       </div>
-      <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3 space-y-1">
-        {nodes.map((node, i) => (
-          <div key={i} className="flex items-center gap-2 py-1.5 px-2 rounded-lg hover:bg-white/5 transition-colors">
-            <div className="h-6 w-6 rounded-md bg-white/[0.06] flex items-center justify-center shrink-0">
-              <Globe className="h-3 w-3 text-zinc-500" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-zinc-300 truncate">{node.page}</p>
-              <p className="text-[10px] text-zinc-600 truncate">{node.path}</p>
-            </div>
-            {node.leadsTo && node.leadsTo.length > 0 && (
-              <div className="flex items-center gap-1">
-                <ArrowRight className="h-3 w-3 text-zinc-600" />
-                <span className="text-[10px] text-zinc-600">{node.leadsTo.join(", ")}</span>
+      <div
+        ref={containerRef}
+        className={cn(
+          "rounded-2xl bg-zinc-900/80 backdrop-blur-md border border-white/[0.06] overflow-auto custom-scrollbar select-none",
+          "max-h-[260px] sm:max-h-[320px]",
+          isDragging ? "cursor-grabbing" : "cursor-grab"
+        )}
+        style={{ touchAction: 'none' }}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+      >
+        <div
+          className="relative p-4 sm:p-6"
+          style={{
+            minWidth: `${cols * 170 + (cols - 1) * 32 + 48}px`,
+            minHeight: `${rows * 80 + (rows - 1) * 24 + 48}px`,
+          }}
+        >
+          {/* Connecting lines via SVG */}
+          <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 0 }}>
+            {nodes.map((node, i) => {
+              if (i === 0) return null
+              const prevCol = (i - 1) % cols
+              const prevRow = Math.floor((i - 1) / cols)
+              const curCol = i % cols
+              const curRow = Math.floor(i / cols)
+              const x1 = prevCol * 202 + 85 + 24
+              const y1 = prevRow * 104 + 40 + 24
+              const x2 = curCol * 202 + 85 + 24
+              const y2 = curRow * 104 + 40 + 24
+              return (
+                <line
+                  key={`line-${i}`}
+                  x1={x1} y1={y1} x2={x2} y2={y2}
+                  stroke="rgba(255,255,255,0.06)"
+                  strokeWidth="1.5"
+                  strokeDasharray="4 4"
+                />
+              )
+            })}
+          </svg>
+
+          {/* Node tiles */}
+          <div
+            className="relative grid gap-4 sm:gap-6"
+            style={{
+              gridTemplateColumns: `repeat(${cols}, 1fr)`,
+              zIndex: 1,
+            }}
+          >
+            {nodes.map((node, i) => (
+              <div
+                key={i}
+                className="group flex flex-col items-center gap-1.5 p-3 rounded-xl bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.07] hover:border-white/[0.1] transition-all min-w-[140px]"
+              >
+                <div className="h-8 w-8 rounded-lg bg-white/[0.06] border border-white/[0.06] flex items-center justify-center group-hover:bg-white/[0.08] transition-colors">
+                  <Globe className="h-3.5 w-3.5 text-zinc-400" />
+                </div>
+                <p className="text-[11px] font-medium text-zinc-300 text-center truncate w-full">{node.page}</p>
+                <p className="text-[9px] text-zinc-600 text-center truncate w-full">{node.path}</p>
+                {node.leadsTo && node.leadsTo.length > 0 && (
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <ArrowRight className="h-2.5 w-2.5 text-zinc-600" />
+                    <span className="text-[8px] text-zinc-600 truncate max-w-[80px]">{node.leadsTo.join(", ")}</span>
+                  </div>
+                )}
               </div>
-            )}
+            ))}
           </div>
-        ))}
+        </div>
       </div>
     </div>
   )
@@ -483,7 +532,7 @@ const InputBar = ({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend() } }}
-          placeholder="describe your project"
+          placeholder="Describe the website you want"
           rows={1}
           className="w-full border-none bg-transparent resize-none text-[15px] sm:text-base text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-0 px-2 pt-1 min-h-[40px] max-h-[200px]"
           disabled={disabled}
