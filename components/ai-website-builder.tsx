@@ -305,7 +305,7 @@ const StepIndicator = ({ phase, progress, currentFile }: {
         prevPhaseRef.current = phase
       }
     }
-  }, [phase])
+  }, [phase, displayedPhase])
 
   if (!displayedPhase) return null
   const config = phaseConfig[displayedPhase]
@@ -718,8 +718,6 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
   // Per-message feedback: 'like' | 'dislike' | 'report' | null
   const [messageFeedback, setMessageFeedback] = useState<Record<string, 'like' | 'dislike' | 'report' | null>>({})
 
-  // Fallback message when Vercel model fails and Google model is used
-  const [fallbackMessage, setFallbackMessage] = useState<string | null>(null)
   // Whether auto-deploy has been triggered for this generation
   const [autoDeployTriggered, setAutoDeployTriggered] = useState(false)
 
@@ -1016,7 +1014,6 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
 
     setMessages(prev => [...prev, userMessage])
     setError(null)
-    setFallbackMessage(null)
     setAutoDeployTriggered(false)
     setSitemap([])
 
@@ -1090,7 +1087,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
     }
   }
 
-  const processNextStep = async (currentInstruction: string, currentHistory: Message[], modelOverride?: string) => {
+  const processNextStep = async (currentInstruction: string, currentHistory: Message[]) => {
     setStep("building")
     setCurrentPlan("Generating next file...")
 
@@ -1100,7 +1097,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       setActiveFileUsedFor(nextFileMatch[2]?.trim() || undefined)
     }
 
-    const modelId = modelOverride || selectedModel.id
+    const modelId = selectedModel.id
 
     const attemptGenerate = async (model: string): Promise<any> => {
       const response = await fetch("/api/ai/generate-website", {
@@ -1122,10 +1119,11 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       let data: any
       try {
         data = await attemptGenerate(modelId)
-      } catch (primaryErr) {
+      } catch (primaryErr: any) {
         // "test" model (Vercel) should NEVER fall back — show error
         if (selectedModel.provider === "Vercel") {
-          setError("Vercel model is currently unavailable. Please try again or select a different model.")
+          console.error("[AI Builder] Vercel model error:", primaryErr)
+          setError(`Failed to connect to Vercel model (${selectedModel.name}). The service may be temporarily unavailable. Please try again later.`)
           setStep("idle")
           setActiveFile(undefined)
           setActiveFileUsedFor(undefined)
@@ -1198,7 +1196,6 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       }
 
       setInstruction(data.updatedInstruction)
-      // Don't propagate modelOverride — each file retries the primary model first
       processNextStep(data.updatedInstruction, [...currentHistory, assistantMessage])
 
     } catch (err: any) {
@@ -1391,11 +1388,6 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                         {/* ── Small inline step indicator (1 at a time) ── */}
                         <StepIndicator phase={step} progress={progress} currentFile={activeFile} />
 
-                        {/* Fallback message */}
-                        {fallbackMessage && (
-                            <p className="text-xs text-yellow-500/70 text-center mt-2 animate-in fade-in duration-300">{fallbackMessage}</p>
-                        )}
-
                         {/* Sitemap visualization (parsed from plan) */}
                         {sitemap.length > 0 && (step === 'building' || step === 'done') && (
                             <SitemapVisualizer nodes={sitemap} />
@@ -1426,7 +1418,6 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                                         setStep('idle')
                                         setInput("")
                                         setMessages([])
-                                        setFallbackMessage(null)
                                         setAutoDeployTriggered(false)
                                     }}
                                 >
