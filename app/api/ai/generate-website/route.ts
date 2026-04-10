@@ -26,7 +26,7 @@ const MODEL_CONFIGS: Record<string, { url: string, envVar: string, provider: str
   "gemini-1.5-flash": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
   "gemini-1.5-pro": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
   "deepseek-v3.2-exp": { url: DEEPSEEK_API_URL, envVar: "DEEPSEEK_API", provider: "DeepSeek" },
-  // "test" model routes through Google API using gemini-2.0-flash as the underlying model
+  // "test" model: displayed as "Vercel" in the UI, routes through Google API internally
   "alibaba/qwen3-coder": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Vercel" }
 }
 

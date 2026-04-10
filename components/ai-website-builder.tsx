@@ -238,6 +238,7 @@ const StepIndicator = ({ phase, progress, currentFile }: {
   const phaseConfig: Record<string, { icon: React.ReactNode; label: string }> = {
     planning:    { icon: <Brain className="h-4 w-4" />,    label: "Thinking..." },
     searching:   { icon: <Globe className="h-4 w-4" />,    label: "Searching web..." },
+    clarifying:  { icon: <Info className="h-4 w-4" />,     label: "Asking a question..." },
     structuring: { icon: <Layout className="h-4 w-4" />,   label: "Creating sitemap..." },
     integrating: { icon: <Database className="h-4 w-4" />, label: "Integrating services..." },
     building:    { icon: <Code className="h-4 w-4" />,     label: "Building..." },
@@ -245,7 +246,7 @@ const StepIndicator = ({ phase, progress, currentFile }: {
   }
 
   useEffect(() => {
-    const displayable = ["planning", "searching", "structuring", "integrating", "building", "deploying"]
+    const displayable = ["planning", "searching", "clarifying", "structuring", "integrating", "building", "deploying"]
     if (!displayable.includes(phase)) {
       if (displayedPhase) {
         setExiting(true)
@@ -325,7 +326,7 @@ const SitemapVisualizer = ({ nodes }: { nodes: SitemapNode[] }) => {
     if (containerRef.current) {
       setScrollStart({ x: containerRef.current.scrollLeft, y: containerRef.current.scrollTop })
     }
-    ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
+    ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
   }
 
   const handlePointerMove = (e: React.PointerEvent) => {
@@ -340,9 +341,22 @@ const SitemapVisualizer = ({ nodes }: { nodes: SitemapNode[] }) => {
     setIsDragging(false)
   }
 
+  // Layout constants for the sitemap grid
+  const TILE_WIDTH = 170
+  const TILE_GAP = 32
+  const CONTAINER_PADDING = 48
+  const TILE_HEIGHT = 80
+  const ROW_GAP = 24
+
   // Arrange nodes in a visual layout
   const cols = Math.min(nodes.length, 3)
   const rows = Math.ceil(nodes.length / cols)
+
+  // SVG line calculation constants
+  const COL_SPACING = TILE_WIDTH + TILE_GAP  // 202px per column
+  const TILE_CENTER_X = Math.floor(TILE_WIDTH / 2) + 15  // horizontal center offset (85+24 padding)
+  const TILE_CENTER_Y = Math.floor(TILE_HEIGHT / 2) + CONTAINER_PADDING / 2  // vertical center offset (40+24 padding)
+  const ROW_SPACING = TILE_HEIGHT + ROW_GAP  // 104px per row
 
   return (
     <div className="mt-4 mb-2 animate-in fade-in slide-in-from-bottom-2 duration-500">
@@ -365,8 +379,8 @@ const SitemapVisualizer = ({ nodes }: { nodes: SitemapNode[] }) => {
         <div
           className="relative p-4 sm:p-6"
           style={{
-            minWidth: `${cols * 170 + (cols - 1) * 32 + 48}px`,
-            minHeight: `${rows * 80 + (rows - 1) * 24 + 48}px`,
+            minWidth: `${cols * TILE_WIDTH + (cols - 1) * TILE_GAP + CONTAINER_PADDING}px`,
+            minHeight: `${rows * TILE_HEIGHT + (rows - 1) * ROW_GAP + CONTAINER_PADDING}px`,
           }}
         >
           {/* Connecting lines via SVG */}
@@ -377,10 +391,10 @@ const SitemapVisualizer = ({ nodes }: { nodes: SitemapNode[] }) => {
               const prevRow = Math.floor((i - 1) / cols)
               const curCol = i % cols
               const curRow = Math.floor(i / cols)
-              const x1 = prevCol * 202 + 85 + 24
-              const y1 = prevRow * 104 + 40 + 24
-              const x2 = curCol * 202 + 85 + 24
-              const y2 = curRow * 104 + 40 + 24
+              const x1 = prevCol * COL_SPACING + TILE_CENTER_X
+              const y1 = prevRow * ROW_SPACING + TILE_CENTER_Y
+              const x2 = curCol * COL_SPACING + TILE_CENTER_X
+              const y2 = curRow * ROW_SPACING + TILE_CENTER_Y
               return (
                 <line
                   key={`line-${i}`}
