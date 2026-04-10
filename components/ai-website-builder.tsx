@@ -1183,10 +1183,8 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       const inputToUse = pendingInput
       setPendingInput("")
       setInput(inputToUse)
-      // Use a small delay to let state settle, then trigger generation
-      setTimeout(() => {
-        startGenerationDirect(inputToUse)
-      }, 100)
+      // startGenerationDirect uses its parameter directly, not React state
+      startGenerationDirect(inputToUse)
     } catch (e: any) {
       setError("Failed to delete existing pages: " + e.message)
     } finally {
@@ -1200,9 +1198,8 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
     const inputToUse = pendingInput
     setPendingInput("")
     setInput(inputToUse)
-    setTimeout(() => {
-      startGenerationDirect(inputToUse)
-    }, 100)
+    // startGenerationDirect uses its parameter directly, not React state
+    startGenerationDirect(inputToUse)
   }
 
   const processNextStep = async (currentInstruction: string, currentHistory: Message[]) => {
@@ -1481,6 +1478,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                                     </Button>
 
                                     <button
+                                        type="button"
                                         onClick={() => {
                                             setShowFreshStartPrompt(false)
                                             setPendingInput("")
