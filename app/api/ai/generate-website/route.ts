@@ -76,6 +76,9 @@ export async function POST(request: Request) {
     if (config.provider === "Google" && !apiKey) {
         apiKey = process.env.GOOGLE_API_KEY
     }
+    if (config.provider === "Vercel" && !apiKey) {
+        apiKey = process.env.VERCEL_API_TOKEN || process.env.VERCEL_API_KEY || process.env.VERCEL_TOKEN
+    }
 
     if (!apiKey) {
       return NextResponse.json({ message: `AI service not configured (${config.provider})` }, { status: 500 })

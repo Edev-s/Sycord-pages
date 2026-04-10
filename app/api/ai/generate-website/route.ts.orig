@@ -215,7 +215,10 @@ CRITICAL MONGODB RULES:
       body: JSON.stringify(payload),
     })
 
-    if (!response.ok) throw new Error(`${config.provider} API error: ${response.status}`)
+    if (!response.ok) {
+      const errText = await response.text().catch(() => "")
+      throw new Error(`${config.provider} API error: ${response.status} ${errText}`)
+    }
     const data = await response.json()
     const responseText = data.choices?.[0]?.message?.content || ""
 
