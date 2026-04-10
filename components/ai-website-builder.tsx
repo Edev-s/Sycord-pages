@@ -260,51 +260,76 @@ const SaveCloudIcon = ({ className }: { className?: string }) => (
   </svg>
 )
 
-/** Single active phase display — shows one large animated icon for the current generation phase */
-const PhaseDisplay = ({ phase, progress, currentFile }: {
+/** Small inline step indicator — shows 1 step at a time with typing + slide-out animation */
+const StepIndicator = ({ phase, progress, currentFile }: {
   phase: GenerationPhase
   progress: { percent: number; done: number; total: number }
   currentFile?: string
 }) => {
-  const displayablePhases = ["planning", "searching", "structuring", "integrating", "building", "deploying"] as const
-  if (!displayablePhases.includes(phase as typeof displayablePhases[number])) return null
+  const [displayedPhase, setDisplayedPhase] = useState<string | null>(null)
+  const [exiting, setExiting] = useState(false)
+  const prevPhaseRef = useRef<string | null>(null)
 
-  const phaseConfig: Record<string, { icon: React.ReactNode; label: string; sublabels?: string[] }> = {
-    planning:    { icon: <BrainIcon className="h-10 w-10" />,      label: "Planning your project..." },
-    searching:   { icon: <Globe className="h-10 w-10" />,          label: "Searching the web..." },
-    structuring: { icon: <Layout className="h-10 w-10" />,         label: "Creating sitemap..." },
-    integrating: { icon: <Database className="h-10 w-10" />,       label: "Integrating services...", sublabels: ["model", "mongodb"] },
-    building:    { icon: <CodeCreateIcon className="h-10 w-10" />, label: "Building your website..." },
-    deploying:   { icon: <Rocket className="h-10 w-10" />,         label: "Deploying..." },
+  const phaseConfig: Record<string, { icon: React.ReactNode; label: string }> = {
+    planning:    { icon: <BrainIcon className="h-4 w-4" />,      label: "Thinking..." },
+    searching:   { icon: <Globe className="h-4 w-4" />,          label: "Searching web..." },
+    structuring: { icon: <Layout className="h-4 w-4" />,         label: "Creating sitemap..." },
+    integrating: { icon: <Database className="h-4 w-4" />,       label: "Integrating model · mongodb" },
+    building:    { icon: <CodeCreateIcon className="h-4 w-4" />, label: "Building..." },
+    deploying:   { icon: <Rocket className="h-4 w-4" />,         label: "Deploying..." },
   }
 
-  const config = phaseConfig[phase]
+  useEffect(() => {
+    const displayable = ["planning", "searching", "structuring", "integrating", "building", "deploying"]
+    if (!displayable.includes(phase)) {
+      if (displayedPhase) {
+        setExiting(true)
+        const t = setTimeout(() => { setDisplayedPhase(null); setExiting(false) }, 350)
+        return () => clearTimeout(t)
+      }
+      return
+    }
+
+    if (phase !== prevPhaseRef.current) {
+      if (prevPhaseRef.current && displayedPhase) {
+        // Slide old step out first
+        setExiting(true)
+        const t = setTimeout(() => {
+          setExiting(false)
+          setDisplayedPhase(phase)
+          prevPhaseRef.current = phase
+        }, 350)
+        return () => clearTimeout(t)
+      } else {
+        setDisplayedPhase(phase)
+        prevPhaseRef.current = phase
+      }
+    }
+  }, [phase])
+
+  if (!displayedPhase) return null
+  const config = phaseConfig[displayedPhase]
   if (!config) return null
 
   return (
-    <div className="flex flex-col items-center justify-center py-12 gap-4 animate-in fade-in zoom-in-95 duration-500" key={phase}>
-      <div className="h-20 w-20 rounded-full bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-zinc-300 animate-pulse">
-        {config.icon}
-      </div>
-      <p className="text-sm font-medium text-zinc-400">{config.label}</p>
-      {config.sublabels && (
-        <div className="flex items-center gap-2">
-          {config.sublabels.map(s => (
-            <span key={s} className="text-[10px] text-zinc-600 px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.06]">{s}</span>
-          ))}
+    <div className="py-3">
+      <div className={cn("flex items-center gap-2.5", exiting ? "step-exit" : "step-enter")}>
+        <div className="h-7 w-7 rounded-full bg-white/[0.06] border border-white/[0.08] flex items-center justify-center text-zinc-400 shrink-0">
+          {config.icon}
         </div>
-      )}
-      {phase === "building" && progress.total > 0 && (
-        <div className="w-full max-w-xs space-y-2 mt-2">
+        <span className={cn("text-sm text-zinc-400", !exiting && "step-typewriter")}>{config.label}</span>
+      </div>
+      {displayedPhase === "building" && progress.total > 0 && !exiting && (
+        <div className="ml-9 mt-2 space-y-1.5 max-w-xs step-enter">
           {currentFile && (
-            <p className="text-xs text-zinc-500 text-center font-mono truncate">{currentFile}</p>
+            <p className="text-xs text-zinc-500 font-mono truncate">{currentFile}</p>
           )}
-          <div className="flex items-center justify-between text-[11px] text-zinc-600 px-1">
-            <span>{progress.done} of {progress.total} files</span>
+          <div className="flex items-center justify-between text-[10px] text-zinc-600">
+            <span>{progress.done}/{progress.total} files</span>
             <span>{progress.percent}%</span>
           </div>
-          <div className="h-1.5 w-full bg-zinc-800 rounded-full overflow-hidden">
-            <div className="h-full bg-zinc-400 rounded-full transition-all duration-500 ease-out" style={{ width: `${progress.percent}%` }} />
+          <div className="h-1 w-full bg-zinc-800/80 rounded-full overflow-hidden">
+            <div className="h-full bg-zinc-500 rounded-full transition-all duration-500 ease-out" style={{ width: `${progress.percent}%` }} />
           </div>
         </div>
       )}
@@ -447,10 +472,10 @@ const InputBar = ({
   }, [input])
 
   return (
-    <div className="w-full max-w-2xl mx-auto px-4 pb-6 md:pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 z-50 fixed bottom-0 left-0 right-0 md:static">
+    <div className="w-full max-w-2xl mx-auto px-3 sm:px-4 pb-4 sm:pb-6 md:pb-10 z-50 fixed bottom-0 left-0 right-0 md:static">
       <div className={cn(
-        "rounded-2xl p-3 relative shadow-lg transition-all duration-300 border border-white/[0.06] bg-[#1c1c1c] flex flex-col gap-2",
-        disabled ? "opacity-80 pointer-events-none" : "focus-within:border-white/10"
+        "rounded-[1.25rem] sm:rounded-[1.5rem] p-2.5 sm:p-3 relative transition-all duration-300 frosted-input flex flex-col gap-1.5",
+        disabled ? "opacity-70 pointer-events-none" : ""
       )}>
         {/* Multiline textarea */}
         <textarea
@@ -460,23 +485,23 @@ const InputBar = ({
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend() } }}
           placeholder="describe your project"
           rows={1}
-          className="w-full border-none bg-transparent resize-none text-base text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-0 px-2 pt-1 min-h-[44px] max-h-[200px]"
+          className="w-full border-none bg-transparent resize-none text-[15px] sm:text-base text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-0 px-2 pt-1 min-h-[40px] max-h-[200px]"
           disabled={disabled}
           autoFocus={!disabled}
         />
 
         {/* Bottom row: + button | model pill | send */}
-        <div className="flex items-center justify-between px-1">
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full text-zinc-500 hover:text-zinc-300 hover:bg-white/5 transition-all shrink-0" disabled={disabled}>
-              <span className="text-lg leading-none">+</span>
+        <div className="flex items-center justify-between px-0.5">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9 rounded-full text-zinc-500 hover:text-zinc-300 hover:bg-white/5 transition-all shrink-0" disabled={disabled}>
+              <span className="text-base sm:text-lg leading-none">+</span>
             </Button>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 rounded-full text-[11px] text-zinc-500 hover:text-zinc-300 hover:bg-white/5 px-3 gap-1.5 border border-white/[0.06]">
+                <Button variant="ghost" size="sm" className="h-7 sm:h-8 rounded-full text-[10px] sm:text-[11px] text-zinc-500 hover:text-zinc-300 hover:bg-white/5 px-2.5 sm:px-3 gap-1 sm:gap-1.5 border border-white/[0.06]">
                   {selectedModel.fast ? <Zap className="h-3 w-3 text-yellow-500" /> : <Sparkles className="h-3 w-3 text-zinc-600" />}
-                  <span>{selectedModel.name}</span>
+                  <span className="max-w-[80px] sm:max-w-none truncate">{selectedModel.name}</span>
                   <ChevronDown className="h-3 w-3 ml-0.5" />
                 </Button>
               </DropdownMenuTrigger>
@@ -500,13 +525,13 @@ const InputBar = ({
           <Button
             size="icon"
             className={cn(
-              "h-10 w-10 rounded-xl transition-all active:scale-95 shrink-0 flex items-center justify-center shadow-none",
+              "h-9 w-9 sm:h-10 sm:w-10 rounded-xl transition-all active:scale-95 shrink-0 flex items-center justify-center shadow-none",
               input.trim() && !disabled ? "bg-zinc-700 text-white hover:bg-zinc-600" : "bg-zinc-800/50 text-zinc-700 hover:bg-zinc-800/50"
             )}
             onClick={onSend}
             disabled={!input.trim() || disabled}
           >
-            {disabled ? <Loader2 className="h-5 w-5 animate-spin text-zinc-700" /> : <Send className="h-5 w-5" />}
+            {disabled ? <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin text-zinc-700" /> : <Send className="h-4 w-4 sm:h-5 sm:w-5" />}
           </Button>
         </div>
       </div>
@@ -514,7 +539,7 @@ const InputBar = ({
   )
 }
 
-// ThinkingCard, ProgressCard, SavingCard replaced by PhaseDisplay above
+// ThinkingCard, ProgressCard, SavingCard replaced by StepIndicator above
 
 
 const WebsitePreviewCardSkeleton = () => {
@@ -681,7 +706,6 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
   const [isDeploying, setIsDeploying] = useState(false)
   const [deploySuccess, setDeploySuccess] = useState(false)
   const [deployResult, setDeployResult] = useState<{ url?: string; githubUrl?: string } | null>(null)
-  const [showAutoDeploy, setShowAutoDeploy] = useState(false)
 
   const [instruction, setInstruction] = useState<string>("")
   const [selectedModel, setSelectedModel] = useState<ModelOption>(MODELS.find(m => m.id === DEFAULT_MODEL_ID) || MODELS[0])
@@ -696,6 +720,8 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
 
   // Fallback message when Vercel model fails and Google model is used
   const [fallbackMessage, setFallbackMessage] = useState<string | null>(null)
+  // Whether auto-deploy has been triggered for this generation
+  const [autoDeployTriggered, setAutoDeployTriggered] = useState(false)
 
   /** Parse sitemap nodes from the plan instruction text */
   const parseSitemap = (planText: string) => {
@@ -771,7 +797,6 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
     setStep("fixing")
     setCurrentPlan("Analyzing logs...")
     setFixHistory([])
-    setShowAutoDeploy(false)
 
     const logMessage: Message = {
       id: Date.now().toString(),
@@ -854,13 +879,29 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
        }
 
        if (result.action === 'done') {
-          setStep("idle")
-          setShowAutoDeploy(true)
           setMessages(prev => [...prev, {
             id: Date.now().toString(),
             role: "assistant",
-            content: "I have fixed the issues. Ready to deploy."
+            content: "I have fixed the issues. Deploying automatically..."
           }])
+          // Auto-deploy after fix
+          setStep("deploying")
+          try {
+            const res = await fetch("/api/deploy", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ projectId })
+            })
+            const deployData = await res.json()
+            if (deployData.success) {
+              setDeploySuccess(true)
+              setDeployResult(deployData)
+              if (deployData.repoId) {
+                setTimeout(() => checkDeployLogs(deployData.repoId), DEPLOY_LOG_CHECK_DELAY_MS)
+              }
+            }
+          } catch { /* deploy error is non-blocking */ }
+          setStep("done")
           return
        }
 
@@ -976,7 +1017,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
     setMessages(prev => [...prev, userMessage])
     setError(null)
     setFallbackMessage(null)
-    setShowAutoDeploy(false)
+    setAutoDeployTriggered(false)
     setSitemap([])
 
     // ── Phase 1: Planning ──
@@ -1082,26 +1123,42 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       try {
         data = await attemptGenerate(modelId)
       } catch (primaryErr) {
-        // If using the Vercel "test" model, fall back to first Google model for this file only
-        if (selectedModel.provider === "Vercel" && !modelOverride) {
-          const googleFallback = MODELS.find(m => m.provider === "Google")
-          if (googleFallback) {
-            setFallbackMessage(`We've switched to ${googleFallback.name} for better reliability. Your website is still being built.`)
-            data = await attemptGenerate(googleFallback.id)
-          } else {
-            throw primaryErr
-          }
-        } else {
-          throw primaryErr
+        // "test" model (Vercel) should NEVER fall back — show error
+        if (selectedModel.provider === "Vercel") {
+          setError("Vercel model is currently unavailable. Please try again or select a different model.")
+          setStep("idle")
+          setActiveFile(undefined)
+          setActiveFileUsedFor(undefined)
+          return
         }
+        throw primaryErr
       }
 
       if (data.isComplete) {
-        // ── Phase 7: Deploying ──
+        // ── Phase 7: Auto-Deploy ──
         setStep("deploying")
-        setCurrentPlan("All files generated.")
+        setCurrentPlan("All files generated. Deploying...")
         setActiveFile(undefined)
         setActiveFileUsedFor(undefined)
+        // Auto-deploy immediately
+        if (!autoDeployTriggered) {
+          setAutoDeployTriggered(true)
+          try {
+            const res = await fetch("/api/deploy", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ projectId })
+            })
+            const deployData = await res.json()
+            if (deployData.success) {
+              setDeploySuccess(true)
+              setDeployResult(deployData)
+              if (deployData.repoId) {
+                setTimeout(() => checkDeployLogs(deployData.repoId), DEPLOY_LOG_CHECK_DELAY_MS)
+              }
+            }
+          } catch { /* deploy error is non-blocking */ }
+        }
         await new Promise(r => setTimeout(r, 800))
         setStep("done")
         return
@@ -1207,7 +1264,6 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
           if(data.success) {
               setDeploySuccess(true)
               setDeployResult(data)
-              setShowAutoDeploy(false)
               // After deploy succeeds, wait for the build then check logs for errors
               if (data.repoId) {
                   setTimeout(() => checkDeployLogs(data.repoId), DEPLOY_LOG_CHECK_DELAY_MS)
@@ -1229,27 +1285,27 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
         {/* Background Accents - idle only */}
         {step === 'idle' && (
             <>
-                <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
-                <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute top-1/4 left-1/4 w-64 sm:w-96 h-64 sm:h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute bottom-1/4 right-1/4 w-64 sm:w-96 h-64 sm:h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
             </>
         )}
 
         {/* Scrollable chat area */}
         <div
-            className="flex-1 overflow-y-auto custom-scrollbar relative z-10 pb-32"
+            className="flex-1 overflow-y-auto custom-scrollbar relative z-10 pb-28 sm:pb-32"
             style={{ WebkitOverflowScrolling: 'touch' }}
         >
-            <div className="max-w-2xl mx-auto w-full px-4 md:px-0 min-h-full flex flex-col">
+            <div className="max-w-2xl mx-auto w-full px-3 sm:px-4 md:px-0 min-h-full flex flex-col">
 
                 {/* IDLE STATE */}
                 {step === 'idle' && (
-                    <div className="flex-1 flex flex-col items-center justify-center text-center py-20 animate-in fade-in slide-in-from-bottom-8 duration-700 relative">
+                    <div className="flex-1 flex flex-col items-center justify-center text-center py-16 sm:py-20 animate-in fade-in slide-in-from-bottom-8 duration-700 relative">
                         <GeminiBadge />
                         <div className="mt-4 space-y-1">
-                            <h1 className="text-4xl md:text-5xl font-medium tracking-tight text-white">
+                            <h1 className="text-3xl sm:text-4xl md:text-5xl font-medium tracking-tight text-white">
                                 Hi {userName},
                             </h1>
-                            <h2 className="text-4xl md:text-5xl font-medium tracking-tight text-zinc-500">
+                            <h2 className="text-3xl sm:text-4xl md:text-5xl font-medium tracking-tight text-zinc-500">
                                 What are we building?
                             </h2>
                         </div>
@@ -1258,35 +1314,33 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
 
                 {/* CHAT / GENERATING STATE */}
                 {step !== 'idle' && (
-                    <div className="flex flex-col pt-8 pb-4">
+                    <div className="flex flex-col pt-6 sm:pt-8 pb-4">
 
-                        {/* Messages — user messages in rounded pill, matching reference UI */}
+                        {/* Messages — user messages in rounded pill */}
                         {messages
                             .filter(m => m.role === 'user' || (m.role === 'assistant' && !m.plan && !m.isIntermediate))
                             .map((msg, i) => (
                                 <div
                                     key={msg.id || i}
                                     className={cn(
-                                        "py-2.5",
+                                        "py-2 sm:py-2.5",
                                         msg.role === 'user' ? "flex justify-end" : "flex flex-col items-start"
                                     )}
                                 >
                                     {msg.role === 'user' ? (
-                                        <div className="bg-white/[0.08] rounded-[1.5rem] px-5 py-3 max-w-[82%]">
+                                        <div className="bg-white/[0.08] rounded-[1.25rem] sm:rounded-[1.5rem] px-4 sm:px-5 py-2.5 sm:py-3 max-w-[88%] sm:max-w-[82%]">
                                             <p className="text-sm leading-relaxed text-zinc-200">{msg.content}</p>
                                         </div>
                                     ) : (
-                                        <p className="text-sm leading-relaxed max-w-[82%] text-zinc-400">{msg.content}</p>
+                                        <p className="text-sm leading-relaxed max-w-[88%] sm:max-w-[82%] text-zinc-400">{msg.content}</p>
                                     )}
 
-                                    {/* Date under user message — matching reference UI */}
                                     {msg.role === 'user' && (
-                                        <p className="text-[11px] text-zinc-600 mt-1.5 text-right w-full">
+                                        <p className="text-[10px] sm:text-[11px] text-zinc-600 mt-1.5 text-right w-full">
                                             {new Date(parseInt(msg.id) || Date.now()).toISOString().split('T')[0].replace(/-/g, '.')}
                                         </p>
                                     )}
 
-                                    {/* Feedback buttons — assistant messages only */}
                                     {msg.role === 'assistant' && (
                                         <div className="flex items-center gap-3 mt-1.5">
                                             <button
@@ -1334,8 +1388,8 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                             ))
                         }
 
-                        {/* ── Single Active Phase Icon ── */}
-                        <PhaseDisplay phase={step} progress={progress} currentFile={activeFile} />
+                        {/* ── Small inline step indicator (1 at a time) ── */}
+                        <StepIndicator phase={step} progress={progress} currentFile={activeFile} />
 
                         {/* Fallback message */}
                         {fallbackMessage && (
@@ -1348,39 +1402,36 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                         )}
 
                         {step === 'done' && (
-                            <div className="py-3 mt-2 flex items-center gap-2.5 animate-in fade-in duration-300">
-                                <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
-                                <span className="text-sm text-zinc-400">Website ready</span>
+                            <div className="py-3 mt-2 flex items-center gap-2.5 step-enter">
+                                <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
+                                <span className="text-sm text-zinc-300">
+                                  {deploySuccess ? "Website deployed!" : "Website ready"}
+                                </span>
+                                {deployResult?.url && (
+                                  <a href={deployResult.url} target="_blank" rel="noopener noreferrer" className="text-xs text-zinc-500 hover:text-zinc-300 underline underline-offset-2 ml-1 truncate max-w-[200px]">
+                                    {deployResult.url.replace(/^https?:\/\//, '')}
+                                  </a>
+                                )}
                             </div>
                         )}
 
-                        {/* Done Actions */}
+                        {/* Done Actions — no deploy button, just "Create Another" */}
                         {step === 'done' && (
-                            <div className="mt-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                                <div className="grid grid-cols-2 gap-3">
-                                    <Button
-                                        size="lg"
-                                        className="w-full h-12 text-sm font-semibold bg-white text-black hover:bg-zinc-200 rounded-xl"
-                                        onClick={handleDeploy}
-                                        disabled={isDeploying}
-                                    >
-                                        {isDeploying ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Rocket className="h-4 w-4 mr-2" />}
-                                        {deploySuccess ? "Deployed!" : "Deploy to Cloudflare"}
-                                    </Button>
-                                    <Button
-                                        size="lg"
-                                        variant="outline"
-                                        className="w-full h-12 text-sm font-medium bg-transparent border-zinc-800 text-zinc-400 hover:bg-zinc-800/50 hover:text-white rounded-xl"
-                                        onClick={() => {
-                                            setStep('idle')
-                                            setInput("")
-                                            setMessages([])
-                                            setFallbackMessage(null)
-                                        }}
-                                    >
-                                        Create Another
-                                    </Button>
-                                </div>
+                            <div className="mt-4 sm:mt-6 step-enter">
+                                <Button
+                                    size="lg"
+                                    variant="outline"
+                                    className="w-full sm:w-auto h-10 sm:h-12 text-sm font-medium bg-transparent border-zinc-800 text-zinc-400 hover:bg-zinc-800/50 hover:text-white rounded-xl px-8"
+                                    onClick={() => {
+                                        setStep('idle')
+                                        setInput("")
+                                        setMessages([])
+                                        setFallbackMessage(null)
+                                        setAutoDeployTriggered(false)
+                                    }}
+                                >
+                                    Create Another
+                                </Button>
                             </div>
                         )}
 
@@ -1400,7 +1451,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                             </div>
                         )}
 
-                        {/* Scroll anchor — keeps status row visible at bottom */}
+                        {/* Scroll anchor */}
                         <div ref={chatBottomRef} />
                     </div>
                 )}

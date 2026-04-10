@@ -297,3 +297,47 @@
   background: rgba(30, 30, 30, 0.8);
   border-color: rgba(255, 255, 255, 0.1);
 }
+
+/* ── AI Builder Step Animations ── */
+@keyframes step-typewriter {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+@keyframes step-slide-out {
+  0% { opacity: 1; transform: translateX(0); }
+  100% { opacity: 0; transform: translateX(40px); }
+}
+
+@keyframes step-fade-in {
+  0% { opacity: 0; transform: translateX(-12px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+
+.step-enter {
+  animation: step-fade-in 0.4s ease-out forwards;
+}
+
+.step-exit {
+  animation: step-slide-out 0.35s ease-in forwards;
+}
+
+.step-typewriter {
+  overflow: hidden;
+  white-space: nowrap;
+  animation: step-typewriter 0.6s steps(30, end) forwards;
+}
+
+/* ── Frosted Input Bar ── */
+.frosted-input {
+  background: rgba(28, 28, 30, 0.65);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 0.5px 0 rgba(255, 255, 255, 0.06);
+}
+
+.frosted-input:focus-within {
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4), inset 0 0.5px 0 rgba(255, 255, 255, 0.08);
+}
