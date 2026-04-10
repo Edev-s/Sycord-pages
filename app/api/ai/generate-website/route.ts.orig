@@ -169,7 +169,7 @@ CRITICAL MONGODB RULES:
     const designSystem = extractDesignSystem(previousFiles)
     // Keep legacy memory as fallback / additional signal
     const shortTermMemory = getShortTermMemory(instruction)
-    
+
     let fileRules = ""
     if (isHTML) fileRules = `- Use <!DOCTYPE html>. Include <script src="https://cdn.tailwindcss.com"></script>. Include <script type="module" src="/src/main.ts"></script>.`
     if (isTS) fileRules = `- Write valid TypeScript. Use 'export' for modules. Import from relative paths (e.g. './utils'). DOM manipulation must be type-safe (use 'as HTMLElement' if needed). ALL functions must have explicit return types. IMPORTANT: Do NOT access DOM elements at the top level. Wrap all DOM access in exported functions (e.g. init() or render()).`
@@ -215,10 +215,7 @@ CRITICAL MONGODB RULES:
       body: JSON.stringify(payload),
     })
 
-    if (!response.ok) {
-      const errText = await response.text().catch(() => "")
-      throw new Error(`${config.provider} API error: ${response.status} ${errText}`)
-    }
+    if (!response.ok) throw new Error(`${config.provider} API error: ${response.status}`)
     const data = await response.json()
     const responseText = data.choices?.[0]?.message?.content || ""
 

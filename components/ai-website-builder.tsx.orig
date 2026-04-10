@@ -1188,7 +1188,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       } catch (primaryErr: any) {
         // "test" model (Vercel) should NEVER fall back — show error
         if (selectedModel.provider === "Vercel") {
-          console.error("[AI Builder] Vercel model error:", primaryErr.message)
+          console.error("[AI Builder] Vercel model error:", primaryErr)
           setError(`Failed to connect to Vercel model (${selectedModel.name}). The service may be temporarily unavailable. Please try again later.`)
           setStep("idle")
           setActiveFile(undefined)
