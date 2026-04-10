@@ -16,7 +16,7 @@ export async function POST(request: Request) {
   try {
     const { messages, model: requestedModel } = await request.json()
 
-    const isQwenModel = requestedModel === "alibaba/qwen3-coder"
+    const isQwenModel = requestedModel === "alibaba/qwen-3-32b"
 
     // Fetch Global Prompt
     const { builderPlan: systemContextTemplate } = await getSystemPrompts()

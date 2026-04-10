@@ -35,6 +35,8 @@ import {
   ThumbsUp,
   ThumbsDown,
   Flag,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -57,8 +59,8 @@ interface ModelOption {
   fast?: boolean
 }
 
-// Default model is the Qwen Coder "test" model (alibaba/qwen3-coder)
-const DEFAULT_MODEL_ID = "alibaba/qwen3-coder"
+// Default model is the Qwen "test" model (alibaba/qwen-3-32b) via Vercel AI Gateway
+const DEFAULT_MODEL_ID = "alibaba/qwen-3-32b"
 
 const MODELS: ModelOption[] = [
   { id: "gemini-3.1-pro-preview", name: "Gemini 3.1 Pro (Preview)", provider: "Google" },
@@ -66,7 +68,7 @@ const MODELS: ModelOption[] = [
   { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", provider: "Google" },
   { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", provider: "Google" },
   { id: "deepseek-v3.2-exp", name: "DeepSeek V3", provider: "DeepSeek" },
-  { id: "alibaba/qwen3-coder", name: "test", provider: "Vercel" },
+  { id: "alibaba/qwen-3-32b", name: "test", provider: "Vercel" },
 ]
 
 // Log-analysis constants — keep in sync with dashboard page fetchLogs
@@ -784,6 +786,11 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
   // Whether auto-deploy has been triggered for this generation
   const [autoDeployTriggered, setAutoDeployTriggered] = useState(false)
 
+  // "Existing codebase" prompt — shown when user starts generation but project already has files
+  const [showFreshStartPrompt, setShowFreshStartPrompt] = useState(false)
+  const [pendingInput, setPendingInput] = useState("")
+  const [isDeletingAll, setIsDeletingAll] = useState(false)
+
   /** Parse sitemap nodes from the plan instruction text */
   const parseSitemap = (planText: string) => {
     const nodes: SitemapNode[] = []
@@ -1069,10 +1076,23 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
   const startGeneration = async () => {
     if (!input.trim()) return
 
+    // If project already has existing pages, show the fresh-start prompt
+    if (generatedPages.length > 0 && !showFreshStartPrompt) {
+      setPendingInput(input.trim())
+      setShowFreshStartPrompt(true)
+      return
+    }
+
+    startGenerationDirect(input.trim())
+  }
+
+  const startGenerationDirect = async (inputText: string) => {
+    if (!inputText.trim()) return
+
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
-      content: input,
+      content: inputText,
     }
 
     setMessages(prev => [...prev, userMessage])
@@ -1103,7 +1123,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
         await fetch("/api/ai/web-search", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: input.trim(), type: "general" }),
+          body: JSON.stringify({ query: inputText.trim(), type: "general" }),
         })
       } catch { /* non-critical */ }
 
@@ -1148,6 +1168,41 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       setError(err.message || "Planning failed")
       setStep("idle")
     }
+  }
+
+  /** Delete all existing pages from the project (frontend + DB) */
+  const handleDeleteAllPages = async () => {
+    setIsDeletingAll(true)
+    try {
+      // Clear from DB
+      await fetch(`/api/projects/${projectId}/pages?all=true`, { method: "DELETE" })
+      // Clear frontend state
+      setGeneratedPages([])
+      setShowFreshStartPrompt(false)
+      // Now start generation with the pending input
+      const inputToUse = pendingInput
+      setPendingInput("")
+      setInput(inputToUse)
+      // Use a small delay to let state settle, then trigger generation
+      setTimeout(() => {
+        startGenerationDirect(inputToUse)
+      }, 100)
+    } catch (e: any) {
+      setError("Failed to delete existing pages: " + e.message)
+    } finally {
+      setIsDeletingAll(false)
+    }
+  }
+
+  /** Proceed with overwrite — keep existing code, AI will overwrite files as needed */
+  const handleOverwrite = () => {
+    setShowFreshStartPrompt(false)
+    const inputToUse = pendingInput
+    setPendingInput("")
+    setInput(inputToUse)
+    setTimeout(() => {
+      startGenerationDirect(inputToUse)
+    }, 100)
   }
 
   const processNextStep = async (currentInstruction: string, currentHistory: Message[]) => {
@@ -1377,6 +1432,65 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                             <h2 className="text-3xl sm:text-4xl md:text-5xl font-medium tracking-tight text-zinc-500">
                                 What are we building?
                             </h2>
+                        </div>
+                    </div>
+                )}
+
+                {/* EXISTING CODEBASE PROMPT — red warning when project has files and user wants to generate new */}
+                {showFreshStartPrompt && (
+                    <div className="flex-1 flex flex-col items-center justify-center py-12 sm:py-16 animate-in fade-in zoom-in-95 duration-500 relative">
+                        <div className="w-full max-w-md mx-auto">
+                            <div className="rounded-2xl border border-red-500/30 bg-red-500/[0.06] p-6 sm:p-8 backdrop-blur-sm">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="h-10 w-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+                                        <AlertTriangle className="h-5 w-5 text-red-400" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-base font-semibold text-red-300">Existing Codebase Detected</h3>
+                                        <p className="text-xs text-red-400/70">{generatedPages.length} file{generatedPages.length !== 1 ? 's' : ''} found</p>
+                                    </div>
+                                </div>
+
+                                <p className="text-sm text-red-200/80 leading-relaxed mb-6">
+                                    This project already has generated code that may not match your new requirements.
+                                    You can <span className="font-medium text-red-200">delete everything</span> for a clean start, 
+                                    or <span className="font-medium text-red-200">overwrite</span> to let the AI update existing files.
+                                </p>
+
+                                <div className="space-y-2.5">
+                                    <Button
+                                        onClick={handleDeleteAllPages}
+                                        disabled={isDeletingAll}
+                                        className="w-full h-11 bg-red-500/20 hover:bg-red-500/30 text-red-200 border border-red-500/30 hover:border-red-500/50 rounded-xl font-medium text-sm transition-all"
+                                    >
+                                        {isDeletingAll ? (
+                                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                        ) : (
+                                            <Trash2 className="h-4 w-4 mr-2" />
+                                        )}
+                                        Delete Everything & Start Fresh
+                                    </Button>
+
+                                    <Button
+                                        onClick={handleOverwrite}
+                                        variant="outline"
+                                        className="w-full h-11 bg-transparent hover:bg-white/5 text-zinc-300 border-zinc-700 hover:border-zinc-600 rounded-xl font-medium text-sm transition-all"
+                                    >
+                                        <Wrench className="h-4 w-4 mr-2" />
+                                        Overwrite Existing Code
+                                    </Button>
+
+                                    <button
+                                        onClick={() => {
+                                            setShowFreshStartPrompt(false)
+                                            setPendingInput("")
+                                        }}
+                                        className="w-full text-xs text-zinc-600 hover:text-zinc-400 mt-2 py-1 transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}

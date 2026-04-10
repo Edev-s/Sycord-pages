@@ -27,8 +27,8 @@ const MODEL_CONFIGS: Record<string, { url: string, envVar: string, provider: str
   "gemini-1.5-flash": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
   "gemini-1.5-pro": { url: GOOGLE_API_URL, envVar: "GOOGLE_AI_API", provider: "Google" },
   "deepseek-v3.2-exp": { url: DEEPSEEK_API_URL, envVar: "DEEPSEEK_API", provider: "DeepSeek" },
-  // "test" model: Qwen Coder via Vercel AI Gateway (uses Vercel credits)
-  "alibaba/qwen3-coder": { url: VERCEL_AI_GATEWAY_URL, envVar: "AI_GATEWAY_API_KEY", provider: "Vercel" }
+  // "test" model: Qwen 3 32B via Vercel AI Gateway (uses Vercel credits)
+  "alibaba/qwen-3-32b": { url: VERCEL_AI_GATEWAY_URL, envVar: "AI_GATEWAY_API_KEY", provider: "Vercel" }
 }
 
 export async function POST(request: Request) {
