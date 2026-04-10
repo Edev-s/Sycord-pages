@@ -14,9 +14,9 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { messages, model } = await request.json()
+    const { messages, model: requestedModel } = await request.json()
 
-    const isQwenModel = model === "alibaba/qwen3-coder"
+    const isQwenModel = requestedModel === "alibaba/qwen3-coder"
 
     // Fetch Global Prompt
     const { builderPlan: systemContextTemplate } = await getSystemPrompts()
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ message: "AI service not configured (Vercel AI Gateway). Set AI_GATEWAY_API_KEY env var." }, { status: 500 })
       }
 
-      console.log(`[v0] Generating plan with Qwen model via Vercel AI Gateway: ${model}`)
+      console.log(`[v0] Generating plan with Qwen model via Vercel AI Gateway: ${requestedModel}`)
 
       const response = await fetch(VERCEL_AI_GATEWAY_URL, {
         method: "POST",
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: model,
+          model: requestedModel,
           messages: [
             { role: "system", content: finalPrompt },
             { role: "user", content: lastUserMessage.content },
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
       if (!response.ok) {
         let errorBody = ""
         try { errorBody = await response.text() } catch { /* ignore */ }
-        const debugInfo = `Vercel AI Gateway error: HTTP ${response.status} | Model: ${model} | Response: ${errorBody.slice(0, 300)}`
+        const debugInfo = `Vercel AI Gateway error: HTTP ${response.status} | Model: ${requestedModel} | Response: ${errorBody.slice(0, 300)}`
         console.error("[v0] " + debugInfo)
         return NextResponse.json({ message: debugInfo }, { status: 500 })
       }
