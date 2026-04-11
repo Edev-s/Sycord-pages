@@ -83,7 +83,7 @@ export async function GET() {
 
         return {
           tld: `.${tld}`,
-          price: typeof pricing === "number" ? pricing : parseFloat(pricing) || FALLBACK_PRICES[tld] ?? 0,
+          price: typeof pricing === "number" ? pricing : (parseFloat(pricing) || FALLBACK_PRICES[tld] ?? 0),
           currency: "USD",
           available: data?.result?.available ?? true,
           source: "cloudflare",
