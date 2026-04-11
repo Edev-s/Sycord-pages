@@ -56,8 +56,8 @@ export async function GET(request: Request) {
     const available = data?.result?.available ?? null
     const pricing = data?.result?.pricing?.registration?.price ?? null
 
-    // Build Cloudflare purchase URL
-    const purchaseUrl = `https://dash.cloudflare.com/?to=/:account/domains/register/${encodeURIComponent(domain)}`
+    // Build Cloudflare purchase URL — link directly to Cloudflare domain registration
+    const purchaseUrl = `https://www.cloudflare.com/products/registrar/`
 
     return NextResponse.json({
       success: true,

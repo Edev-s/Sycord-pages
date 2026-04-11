@@ -48,28 +48,14 @@ export async function GET() {
   }
 
   try {
-    // Cloudflare Registrar: list TLD pricing
-    // https://developers.cloudflare.com/api/resources/registrar/subresources/domains/methods/list/
-    const res = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${cfAccountId}/registrar/domains?per_page=100`,
-      {
-        headers: {
-          Authorization: `Bearer ${cfApiKey}`,
-          "Content-Type": "application/json",
-        },
-      }
-    )
-
-    // The registrar domains endpoint lists domains the account owns.
-    // For TLD pricing we use a different approach: check each TLD via the
-    // "check domain availability" endpoint which returns pricing info.
     // Cloudflare doesn't have a dedicated "list TLD prices" endpoint,
-    // so we query an example domain for each TLD to get current pricing.
+    // so we query a placeholder domain for each TLD to get current pricing
+    // via the "check domain availability" endpoint which returns pricing info.
 
     const tldResults = await Promise.allSettled(
       TARGET_TLDS.map(async (tld) => {
         const checkRes = await fetch(
-          `https://api.cloudflare.com/client/v4/accounts/${cfAccountId}/registrar/domains/example-price-check-${Date.now()}.${tld}/check`,
+          `https://api.cloudflare.com/client/v4/accounts/${cfAccountId}/registrar/domains/sycord-pricing-lookup.${tld}/check`,
           {
             headers: {
               Authorization: `Bearer ${cfApiKey}`,
