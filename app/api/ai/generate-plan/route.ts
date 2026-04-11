@@ -16,7 +16,7 @@ export async function POST(request: Request) {
   try {
     const { messages, model: requestedModel } = await request.json()
 
-    const isQwenModel = requestedModel === "alibaba/qwen-3-32b"
+    const isVercelGatewayModel = requestedModel === "anthropic/claude-haiku-4.5"
 
     // Fetch Global Prompt
     const { builderPlan: systemContextTemplate } = await getSystemPrompts()
@@ -30,15 +30,15 @@ export async function POST(request: Request) {
         .replace("{{HISTORY}}", historyText)
         .replace("{{REQUEST}}", lastUserMessage.content)
 
-    // Route Qwen model through Vercel AI Gateway (uses Vercel credits)
-    if (isQwenModel) {
+    // Route test model through Vercel AI Gateway (uses Vercel credits)
+    if (isVercelGatewayModel) {
       const gatewayKey = process.env.AI_GATEWAY_API_KEY
       if (!gatewayKey) {
-        console.error("[v0] AI_GATEWAY_API_KEY not configured for Qwen model plan generation")
+        console.error("[v0] AI_GATEWAY_API_KEY not configured for test model plan generation")
         return NextResponse.json({ message: "AI service not configured (Vercel AI Gateway). Set AI_GATEWAY_API_KEY env var." }, { status: 500 })
       }
 
-      console.log(`[v0] Generating plan with Qwen model via Vercel AI Gateway: ${requestedModel}`)
+      console.log(`[v0] Generating plan with test model via Vercel AI Gateway: ${requestedModel}`)
 
       const response = await fetch(VERCEL_AI_GATEWAY_URL, {
         method: "POST",

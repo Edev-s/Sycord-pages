@@ -59,8 +59,8 @@ interface ModelOption {
   fast?: boolean
 }
 
-// Default model is the Qwen "test" model (alibaba/qwen-3-32b) via Vercel AI Gateway
-const DEFAULT_MODEL_ID = "alibaba/qwen-3-32b"
+// Default model is the "test" model (anthropic/claude-haiku-4.5) via Vercel AI Gateway
+const DEFAULT_MODEL_ID = "anthropic/claude-haiku-4.5"
 
 const MODELS: ModelOption[] = [
   { id: "gemini-3.1-pro-preview", name: "Gemini 3.1 Pro (Preview)", provider: "Google" },
@@ -68,7 +68,7 @@ const MODELS: ModelOption[] = [
   { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", provider: "Google" },
   { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", provider: "Google" },
   { id: "deepseek-v3.2-exp", name: "DeepSeek V3", provider: "DeepSeek" },
-  { id: "alibaba/qwen-3-32b", name: "test", provider: "Vercel" },
+  { id: "anthropic/claude-haiku-4.5", name: "test", provider: "Vercel" },
 ]
 
 // Log-analysis constants — keep in sync with dashboard page fetchLogs
