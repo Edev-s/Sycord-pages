@@ -1193,7 +1193,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
           setMessages(prev => [...prev, {
             id: Date.now().toString(),
             role: "assistant",
-            content: `Issues found on : ${result.targetFile}`,
+            content: `Issues found on: ${result.targetFile}`,
             isErrorLog: true,
           }])
 
