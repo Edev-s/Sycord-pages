@@ -1238,7 +1238,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
       try {
         data = await attemptGenerate(modelId)
       } catch (primaryErr: any) {
-        // "test" model (Qwen Coder / Vercel AI Gateway) should NEVER fall back — show detailed error
+        // "test" model (Claude Haiku 4.5 / Vercel AI Gateway) should NEVER fall back — show detailed error
         if (selectedModel.provider === "Vercel") {
           const errMsg = primaryErr?.message || String(primaryErr) || "Unknown error"
           console.error("[AI Builder] Vercel AI Gateway model error:", primaryErr)
