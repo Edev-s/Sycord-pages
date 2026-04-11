@@ -89,6 +89,7 @@ type GenerationPhase =
   | "deploying"      // Step 7: Review & Deploy
   | "done"
   | "fixing"         // Auto-fix compatibility
+  | "investigating"  // Inline auto-fix: investigating file structure
 
 interface Message {
   id: string
@@ -238,17 +239,19 @@ const StepIndicator = ({ phase, progress, currentFile }: {
   const prevPhaseRef = useRef<string | null>(null)
 
   const phaseConfig: Record<string, { icon: React.ReactNode; label: string }> = {
-    planning:    { icon: <Brain className="h-4 w-4" />,    label: "Thinking..." },
-    searching:   { icon: <Globe className="h-4 w-4" />,    label: "Searching web..." },
-    clarifying:  { icon: <Info className="h-4 w-4" />,     label: "Asking a question..." },
-    structuring: { icon: <Layout className="h-4 w-4" />,   label: "Creating sitemap..." },
-    integrating: { icon: <Database className="h-4 w-4" />, label: "Integrating services..." },
-    building:    { icon: <Code className="h-4 w-4" />,     label: "Building..." },
-    deploying:   { icon: <Rocket className="h-4 w-4" />,   label: "Deploying..." },
+    planning:       { icon: <Brain className="h-4 w-4" />,    label: "Thinking..." },
+    searching:      { icon: <Globe className="h-4 w-4" />,    label: "Searching web..." },
+    clarifying:     { icon: <Info className="h-4 w-4" />,     label: "Asking a question..." },
+    structuring:    { icon: <Layout className="h-4 w-4" />,   label: "Creating sitemap..." },
+    integrating:    { icon: <Database className="h-4 w-4" />, label: "Integrating services..." },
+    building:       { icon: <Code className="h-4 w-4" />,     label: "Building..." },
+    deploying:      { icon: <Rocket className="h-4 w-4" />,   label: "Deploying..." },
+    investigating:  { icon: <FolderOpen className="h-4 w-4" />, label: "Investigating file structure..." },
+    fixing:         { icon: <Bug className="h-4 w-4" />,      label: "Fixing code..." },
   }
 
   useEffect(() => {
-    const displayable = ["planning", "searching", "clarifying", "structuring", "integrating", "building", "deploying"]
+    const displayable = ["planning", "searching", "clarifying", "structuring", "integrating", "building", "deploying", "investigating", "fixing"]
     if (!displayable.includes(phase)) {
       if (displayedPhase) {
         setExiting(true)
@@ -1070,6 +1073,248 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
     }
   }
 
+  /** Inline auto-fix: investigate existing code, find issues, fix them, and deploy */
+  const startInlineAutoFix = async (userPrompt: string) => {
+    setShowFreshStartPrompt(false)
+    setPendingInput("")
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: "user",
+      content: userPrompt,
+    }
+
+    setMessages(prev => [...prev, userMessage])
+    setError(null)
+    setFixHistory([])
+
+    // ── Phase 1: Investigating file structure ──
+    setStep("investigating")
+    setCurrentPlan("Investigating file structure...")
+
+    const fileStructure = generatedPages.map(p => p.name).join('\n')
+
+    setMessages(prev => [...prev, {
+      id: (Date.now() + 1).toString(),
+      role: "assistant",
+      content: `Investigating ${generatedPages.length} file${generatedPages.length !== 1 ? 's' : ''} in your project...`,
+    }])
+
+    await phaseDelay(800)
+
+    // ── Phase 2: Iterative fix loop ──
+    let history: any[] = []
+    let fileContent: { filename: string; code: string } | null = null
+    let lastAction: string | null = null
+    let iteration = 0
+    const maxIterations = 15
+
+    while (iteration < maxIterations) {
+      iteration++
+
+      try {
+        setStep("fixing")
+        setCurrentPlan(iteration === 1 ? "Analyzing codebase..." : `Fixing (step ${iteration})...`)
+
+        const fixedFiles = history
+          .filter(h => h.action === 'write' || h.action === 'fix')
+          .map(h => h.target)
+          .filter((v, i, a) => a.indexOf(v) === i)
+
+        const response: Response = await fetch('/api/ai/auto-fix-inline', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userPrompt,
+            fileStructure,
+            fileContent,
+            lastAction,
+            history: history.map(h => ({
+              action: h.action,
+              target: h.target,
+              result: h.action === 'read' ? 'read_success' : (h.result?.status || 'done'),
+              summary: h.summary
+            })),
+            fixedFiles
+          })
+        })
+
+        if (!response.ok) throw new Error("AI Fix request failed")
+        const result: any = await response.json()
+
+        // Show AI's explanation
+        if (result.explanation) {
+          setMessages(prev => [...prev, {
+            id: Date.now().toString(),
+            role: "assistant",
+            content: result.explanation,
+          }])
+        }
+
+        // ── Handle "done" ──
+        if (result.action === 'done') {
+          setMessages(prev => [...prev, {
+            id: Date.now().toString(),
+            role: "assistant",
+            content: "All issues resolved. Deploying your fixed code..."
+          }])
+
+          // Auto-deploy
+          setStep("deploying")
+          setCurrentPlan("Deploying fixed code...")
+          try {
+            const res = await fetch("/api/deploy", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ projectId })
+            })
+            const deployData = await res.json()
+            if (deployData.success) {
+              setDeploySuccess(true)
+              setDeployResult(deployData)
+              if (deployData.repoId) {
+                setTimeout(() => checkDeployLogs(deployData.repoId), DEPLOY_LOG_CHECK_DELAY_MS)
+              }
+            }
+          } catch { /* deploy error is non-blocking */ }
+
+          setStep("done")
+          return
+        }
+
+        let actionResult: any = { status: 'success' }
+        let actionSummary = ""
+
+        // ── Handle "read" — investigate a file ──
+        if (result.action === 'read') {
+          setStep("investigating")
+          setCurrentPlan(`Checking ${result.targetFile}...`)
+
+          setMessages(prev => [...prev, {
+            id: Date.now().toString(),
+            role: "assistant",
+            content: `Issues found on : ${result.targetFile}`,
+            isErrorLog: true,
+          }])
+
+          const page: GeneratedPage | undefined = generatedPages.find(p => p.name === result.targetFile)
+          if (page) {
+            fileContent = { filename: page.name, code: page.code }
+            actionResult = { status: 'success', code: page.code }
+            actionSummary = `Read ${result.targetFile} (${page.code.length} bytes)`
+          } else {
+            fileContent = null
+            actionResult = { status: 'error', message: 'File not found' }
+            actionSummary = `Failed to read ${result.targetFile}`
+          }
+          lastAction = 'take a look'
+        }
+        // ── Handle "write" — fix a file ──
+        else if (result.action === 'write') {
+          setStep("fixing")
+          setCurrentPlan(`Fixing ${result.targetFile}...`)
+
+          // Update file in state and DB
+          setGeneratedPages(prev => {
+            const exists = prev.find(p => p.name === result.targetFile)
+            if (exists) {
+              return prev.map(p => p.name === result.targetFile
+                ? { ...p, code: result.code, timestamp: Date.now() } : p)
+            } else {
+              return [...prev, { name: result.targetFile, code: result.code, timestamp: Date.now(), usedFor: 'Auto-fix' }]
+            }
+          })
+          await fetch(`/api/projects/${projectId}/pages`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: result.targetFile, content: result.code, usedFor: 'Auto-fix' })
+          })
+
+          setMessages(prev => [...prev, {
+            id: Date.now().toString(),
+            role: "assistant",
+            content: `Fixed ${result.targetFile}`,
+            code: result.code,
+            pageName: result.targetFile
+          }])
+          actionSummary = `Wrote to ${result.targetFile}`
+          fileContent = null
+          lastAction = 'fix'
+        }
+        // ── Handle "move" ──
+        else if (result.action === 'move') {
+          setStep("fixing")
+          setCurrentPlan(`Moving ${result.targetFile}...`)
+
+          const page = generatedPages.find(p => p.name === result.targetFile)
+          if (page) {
+            const newName = result.newPath
+            // Create new file
+            setGeneratedPages(prev => {
+              const filtered = prev.filter(p => p.name !== result.targetFile)
+              return [...filtered, { name: newName, code: page.code, timestamp: Date.now(), usedFor: page.usedFor }]
+            })
+            await fetch(`/api/projects/${projectId}/pages`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ name: newName, content: page.code, usedFor: page.usedFor || '' })
+            })
+            await fetch(`/api/projects/${projectId}/pages?name=${encodeURIComponent(result.targetFile)}`, { method: "DELETE" })
+
+            setMessages(prev => [...prev, {
+              id: Date.now().toString(),
+              role: "assistant",
+              content: `Moved ${result.targetFile} to ${result.newPath}`
+            }])
+            actionSummary = `Moved ${result.targetFile} to ${result.newPath}`
+          }
+          fileContent = null
+          lastAction = 'move'
+        }
+        // ── Handle "delete" ──
+        else if (result.action === 'delete') {
+          setStep("fixing")
+          setCurrentPlan(`Deleting ${result.targetFile}...`)
+
+          setGeneratedPages(prev => prev.filter(p => p.name !== result.targetFile))
+          await fetch(`/api/projects/${projectId}/pages?name=${encodeURIComponent(result.targetFile)}`, { method: "DELETE" })
+
+          setMessages(prev => [...prev, {
+            id: Date.now().toString(),
+            role: "assistant",
+            content: `Deleted ${result.targetFile}`
+          }])
+          actionSummary = `Deleted ${result.targetFile}`
+          fileContent = null
+          lastAction = 'delete'
+        }
+
+        history = [...history, {
+          action: result.action,
+          target: result.targetFile,
+          result: actionResult,
+          summary: actionSummary
+        }]
+
+        setFixHistory(history)
+
+      } catch (e: any) {
+        console.error("Inline auto-fix loop error", e)
+        setError(e.message)
+        setStep("idle")
+        return
+      }
+    }
+
+    // Exhausted iterations
+    setMessages(prev => [...prev, {
+      id: Date.now().toString(),
+      role: "system",
+      content: "Auto-fix session stopped after maximum attempts. Please review manually."
+    }])
+    setStep("idle")
+  }
+
   /** Small delay helper for smooth phase transitions */
   const phaseDelay = (ms = 500) => new Promise<void>(r => setTimeout(r, ms))
 
@@ -1451,6 +1696,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                                 <p className="text-sm text-red-200/80 leading-relaxed mb-6">
                                     This project already has generated code that may not match your new requirements.
                                     You can <span className="font-medium text-red-200">delete everything</span> for a clean start, 
+                                    <span className="font-medium text-red-200">fix existing code</span> to let the AI diagnose and repair issues,
                                     or <span className="font-medium text-red-200">overwrite</span> to let the AI update existing files.
                                 </p>
 
@@ -1466,6 +1712,15 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                                             <Trash2 className="h-4 w-4 mr-2" />
                                         )}
                                         Delete Everything & Start Fresh
+                                    </Button>
+
+                                    <Button
+                                        onClick={() => startInlineAutoFix(pendingInput)}
+                                        variant="outline"
+                                        className="w-full h-11 bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 border border-blue-500/30 hover:border-blue-500/50 rounded-xl font-medium text-sm transition-all"
+                                    >
+                                        <Bug className="h-4 w-4 mr-2" />
+                                        Fix Existing Code
                                     </Button>
 
                                     <Button
@@ -1499,7 +1754,7 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
 
                         {/* Messages — user messages in rounded pill */}
                         {messages
-                            .filter(m => m.role === 'user' || (m.role === 'assistant' && !m.plan && !m.isIntermediate))
+                            .filter(m => m.role === 'user' || (m.role === 'assistant' && !m.plan && !m.isIntermediate) || (m.role === 'system' && m.isErrorLog))
                             .map((msg, i) => (
                                 <div
                                     key={msg.id || i}
@@ -1511,6 +1766,13 @@ const AIWebsiteBuilder = ({ projectId, generatedPages, setGeneratedPages, autoFi
                                     {msg.role === 'user' ? (
                                         <div className="bg-white/[0.08] rounded-[1.25rem] sm:rounded-[1.5rem] px-4 sm:px-5 py-2.5 sm:py-3 max-w-[88%] sm:max-w-[82%]">
                                             <p className="text-sm leading-relaxed text-zinc-200">{msg.content}</p>
+                                        </div>
+                                    ) : msg.isErrorLog ? (
+                                        <div className="flex items-center gap-2.5 max-w-[88%] sm:max-w-[82%]">
+                                            <div className="h-7 w-7 rounded-lg bg-white/[0.06] border border-white/[0.08] flex items-center justify-center shrink-0">
+                                                <Bug className="h-4 w-4 text-zinc-400" />
+                                            </div>
+                                            <p className="text-sm leading-relaxed text-zinc-400">{msg.content}</p>
                                         </div>
                                     ) : (
                                         <p className="text-sm leading-relaxed max-w-[88%] sm:max-w-[82%] text-zinc-400">{msg.content}</p>
