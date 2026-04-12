@@ -652,6 +652,8 @@ export default function SiteSettingsPage() {
   const [integrationSaveError, setIntegrationSaveError] = useState<string | null>(null)
   const [domainSearch, setDomainSearch] = useState("")
   const [showDomainResults, setShowDomainResults] = useState(false)
+  const [domainResults, setDomainResults] = useState<any[]>([])
+  const [domainSearching, setDomainSearching] = useState(false)
 
   const fetchLogs = async (repoIdOverride?: string) => {
     const targetId = repoIdOverride || project?.githubRepoId
@@ -1582,43 +1584,82 @@ export default function SiteSettingsPage() {
                         <input
                           type="text"
                           value={domainSearch}
-                          onChange={(e) => setDomainSearch(e.target.value)}
-                          placeholder="type your business name"
-                          className="w-full h-12 pl-10 pr-4 rounded-2xl bg-[#2C2C2E] border border-white/[0.06] text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-white/20 transition-colors"
+                          onChange={(e) => {
+                            setDomainSearch(e.target.value)
+                            setShowDomainResults(false)
+                            setDomainResults([])
+                          }}
+                          placeholder="search for a domain"
+                          className="w-full h-12 pl-10 pr-4 rounded-2xl bg-[#2C2C2E] border border-white/[0.06] text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-white/20 transition-colors min-h-[44px]"
                         />
                       </div>
                       <button
-                        onClick={() => setShowDomainResults(true)}
-                        disabled={domainSearch.trim().length === 0}
-                        className="px-6 h-12 rounded-2xl bg-white/10 text-white font-semibold hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+                        onClick={async () => {
+                          if (domainSearch.trim().length < 2) return
+                          setDomainSearching(true)
+                          try {
+                            const res = await fetch(`/api/domains/search?q=${encodeURIComponent(domainSearch.trim())}`)
+                            const data = await res.json()
+                            setDomainResults(data.results || [])
+                            setShowDomainResults(true)
+                          } catch (err) {
+                            console.error("Domain search failed:", err)
+                          } finally {
+                            setDomainSearching(false)
+                          }
+                        }}
+                        disabled={domainSearch.trim().length < 2 || domainSearching}
+                        className="px-5 sm:px-6 h-12 rounded-2xl bg-white/10 text-white font-semibold hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap min-h-[44px] text-sm"
                       >
-                        Search
+                        {domainSearching ? "..." : "Search"}
                       </button>
                     </div>
-                    <p className="text-xs text-zinc-500 px-1">Click search to see availability and pricing</p>
+                    <p className="text-xs text-zinc-500 px-1">Click search to see all available TLDs with pricing</p>
                   </div>
 
-                  {/* TLD results - only show after search */}
-                  {showDomainResults && slug.length > 0 && (
+                  {/* Domain results - only show after search */}
+                  {showDomainResults && domainResults.length > 0 && (
                     <div className="space-y-2 animate-in fade-in">
-                      <p className="text-xs font-semibold text-white/50 uppercase tracking-wide px-1">Available domains</p>
+                      <p className="text-xs font-semibold text-white/50 uppercase tracking-wide px-1">
+                        {domainResults.length} domains found
+                      </p>
                       
-                      {/* Free Sycord subdomain */}
-                      <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30">
-                        <Globe className="h-5 w-5 text-emerald-400 shrink-0" />
-                        <span className="flex-1 text-sm font-medium text-white">{slug}.sycord.site</span>
-                        <span className="text-[10px] font-semibold bg-emerald-500 text-white px-2 py-0.5 rounded-full">Free</span>
-                      </div>
-                      
-                      {/* Premium TLD options */}
-                      {DOMAIN_TLD_OPTIONS.map(({ tld, price }) => (
+                      {domainResults.map((result: any) => (
                         <div
-                          key={tld}
-                          className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-[#1C1C1E] border border-white/[0.06] hover:border-white/[0.14] transition-colors cursor-pointer"
+                          key={result.domain}
+                          className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-colors cursor-pointer ${
+                            result.isFree 
+                              ? "bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/15" 
+                              : result.available 
+                                ? "bg-[#1C1C1E] border border-white/[0.06] hover:border-white/[0.14]"
+                                : "bg-[#1C1C1E]/50 border border-white/[0.03] opacity-60"
+                          }`}
                         >
-                          <CloudflareIcon />
-                          <span className="flex-1 text-sm font-medium text-white">{slug}{tld}</span>
-                          <span className="text-sm font-semibold text-white/70 shrink-0">{price}</span>
+                          {result.isFree ? (
+                            <Globe className="h-5 w-5 text-emerald-400 shrink-0" />
+                          ) : (
+                            <CloudflareIcon />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <span className={`text-sm font-medium block truncate ${result.isFree ? "text-white" : "text-white/90"}`}>
+                              {result.domain}
+                            </span>
+                            {result.popular && !result.isFree && (
+                              <span className="text-[10px] text-yellow-400/80">Popular</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {!result.available && !result.isFree && (
+                              <span className="text-[10px] text-red-400">Taken</span>
+                            )}
+                            <span className={`text-sm font-semibold shrink-0 ${
+                              result.isFree 
+                                ? "bg-emerald-500 text-white px-2 py-0.5 rounded-full text-[10px]" 
+                                : "text-white/70"
+                            }`}>
+                              {result.price}
+                            </span>
+                          </div>
                         </div>
                       ))}
                     </div>
