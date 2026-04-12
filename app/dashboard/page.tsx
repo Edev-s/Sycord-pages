@@ -199,7 +199,7 @@ function DashboardContent() {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => router.push("/profile")}>
                     <User className="mr-2 h-4 w-4" />
                     <span>Profil</span>
                   </DropdownMenuItem>
@@ -236,32 +236,35 @@ function DashboardContent() {
 
         <main className="container mx-auto px-4 py-6 md:py-8 pb-20 md:pb-6">
           <div className="flex flex-col gap-4 mb-6 md:mb-8">
-            <div className="flex items-center justify-between">
-              <h1 className="text-lg font-semibold text-foreground">Projektek</h1>
-              <Button onClick={() => router.push("/dashboard/create")} className="w-auto">
-                <Plus className="h-4 w-4 mr-2" />
-                Új Projekt
-              </Button>
+            <div className="flex items-center justify-between gap-4 flex-wrap md:flex-nowrap">
+              <h1 className="text-base md:text-lg font-semibold text-foreground">Projektek</h1>
+              <button
+                onClick={() => router.push("/dashboard/create")}
+                className="px-4 py-2.5 md:py-3 rounded-lg md:rounded-xl text-sm md:text-base font-medium text-white bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 hover:border-white/30 transition-all duration-200 shadow-lg shadow-black/5 flex items-center gap-2 whitespace-nowrap min-h-[44px]"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Új Projekt</span>
+              </button>
             </div>
-            <div className="flex gap-3 items-center">
-              <div className="relative flex-1">
+            <div className="flex gap-2 md:gap-3 items-center flex-wrap md:flex-nowrap">
+              <div className="relative flex-1 min-w-full md:min-w-0">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <input
                   type="text"
                   placeholder="Keresés a webhelyek között..."
-                  className="w-full pl-10 pr-4 py-3 border border-input rounded-xl bg-background/50 backdrop-blur-sm text-sm focus:ring-2 focus:ring-primary/20 transition-all outline-none"
+                  className="w-full pl-10 pr-4 py-2 md:py-3 border border-input rounded-lg md:rounded-xl bg-background/50 backdrop-blur-sm text-xs md:text-sm focus:ring-2 focus:ring-primary/20 transition-all outline-none min-h-[44px]"
                 />
               </div>
-              <div className="px-4 py-3 border border-input rounded-xl bg-muted/50 backdrop-blur-sm text-sm font-medium whitespace-nowrap">
+              <div className="px-3 md:px-4 py-2 md:py-3 border border-input rounded-lg md:rounded-xl bg-muted/50 backdrop-blur-sm text-xs md:text-sm font-medium whitespace-nowrap min-h-[44px] flex items-center">
                 {projects.length}/3
               </div>
             </div>
           </div>
 
           {isLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="border border-border rounded-lg overflow-hidden flex flex-col h-[300px]">
+                <div key={i} className="border border-border rounded-lg overflow-hidden flex flex-col aspect-video md:aspect-square">
                    <Skeleton className="h-full w-full" />
                 </div>
               ))}
@@ -280,11 +283,11 @@ function DashboardContent() {
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
               {projects.map((project: any) => (
                 <div
                   key={project._id}
-                  className="group relative border border-border/50 bg-card/30 backdrop-blur-sm rounded-xl overflow-hidden flex flex-col hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300"
+                  className="group relative border border-border/50 bg-card/30 backdrop-blur-sm rounded-xl overflow-hidden flex flex-col hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 aspect-video md:aspect-auto"
                 >
                   {((project.domain && project.deploymentId) || (project.pages && project.pages.some((p: any) => p.name === 'index.html'))) ? (
                     <WebsitePreviewCard
@@ -299,13 +302,13 @@ function DashboardContent() {
                       onDelete={() => handleDeleteProject(project._id)}
                     />
                   ) : (
-                    <div className="w-full h-64 sm:h-80 md:h-96 bg-gradient-to-br from-muted/50 to-muted/10 flex flex-col items-center justify-center p-6 text-center group-hover:bg-muted/30 transition-colors">
-                      <div className="h-16 w-16 rounded-full bg-background/50 flex items-center justify-center mb-4 shadow-sm border border-border/50">
-                        <LayoutTemplate className="h-8 w-8 text-muted-foreground/50" />
+                    <div className="w-full h-full bg-gradient-to-br from-muted/50 to-muted/10 flex flex-col items-center justify-center p-4 md:p-6 text-center group-hover:bg-muted/30 transition-colors">
+                      <div className="h-12 w-12 md:h-16 md:w-16 rounded-full bg-background/50 flex items-center justify-center mb-3 md:mb-4 shadow-sm border border-border/50">
+                        <LayoutTemplate className="h-6 w-6 md:h-8 md:w-8 text-muted-foreground/50" />
                       </div>
-                      <h3 className="font-medium text-foreground mb-1">{project.businessName}</h3>
-                      <p className="text-xs text-muted-foreground mb-4">Még nincs publikálva</p>
-                      <Button variant="outline" size="sm" onClick={() => router.push(`/dashboard/sites/${project._id}`)}>
+                      <h3 className="font-medium text-foreground mb-1 text-sm md:text-base">{project.businessName}</h3>
+                      <p className="text-xs text-muted-foreground mb-3 md:mb-4">Még nincs publikálva</p>
+                      <Button variant="outline" size="sm" onClick={() => router.push(`/dashboard/sites/${project._id}`)} className="text-xs md:text-sm">
                         Szerkesztés
                       </Button>
                     </div>

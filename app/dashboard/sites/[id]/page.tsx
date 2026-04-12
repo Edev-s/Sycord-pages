@@ -651,6 +651,7 @@ export default function SiteSettingsPage() {
   const [showIntegrationToken, setShowIntegrationToken] = useState(false)
   const [integrationSaveError, setIntegrationSaveError] = useState<string | null>(null)
   const [domainSearch, setDomainSearch] = useState("")
+  const [showDomainResults, setShowDomainResults] = useState(false)
 
   const fetchLogs = async (repoIdOverride?: string) => {
     const targetId = repoIdOverride || project?.githubRepoId
@@ -1128,10 +1129,10 @@ export default function SiteSettingsPage() {
   const navGroups = [
     {
       key: "main",
-      title: "Main",
+      title: "Overview & Setup",
       defaultOpen: true,
       items: [
-        { id: "overview", label: "Overview", icon: Layout },
+        { id: "overview", label: "Home", icon: Layout },
         { id: "domain", label: "Domain", icon: Globe },
         { id: "pages", label: "Pages", icon: FileText },
         { id: "ai", label: "Syra", icon: Zap },
@@ -1575,40 +1576,53 @@ export default function SiteSettingsPage() {
                   {/* Domain search */}
                   <div className="space-y-2">
                     <p className="text-xs font-semibold text-white/50 uppercase tracking-wide px-1">Find a custom domain</p>
-                    <div className="relative">
-                      <Globe className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500 pointer-events-none" />
-                      <input
-                        type="text"
-                        value={domainSearch}
-                        onChange={(e) => setDomainSearch(e.target.value)}
-                        placeholder="type your business name"
-                        className="w-full h-12 pl-10 pr-4 rounded-2xl bg-[#2C2C2E] border border-white/[0.06] text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-white/20 transition-colors"
-                      />
+                    <div className="flex gap-2 items-end">
+                      <div className="relative flex-1">
+                        <Globe className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500 pointer-events-none" />
+                        <input
+                          type="text"
+                          value={domainSearch}
+                          onChange={(e) => setDomainSearch(e.target.value)}
+                          placeholder="type your business name"
+                          className="w-full h-12 pl-10 pr-4 rounded-2xl bg-[#2C2C2E] border border-white/[0.06] text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-white/20 transition-colors"
+                        />
+                      </div>
+                      <button
+                        onClick={() => setShowDomainResults(true)}
+                        disabled={domainSearch.trim().length === 0}
+                        className="px-6 h-12 rounded-2xl bg-white/10 text-white font-semibold hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+                      >
+                        Search
+                      </button>
                     </div>
+                    <p className="text-xs text-zinc-500 px-1">Click search to see availability and pricing</p>
                   </div>
 
-                  {/* TLD results */}
-                  <div className="space-y-2">
-                    {slug.length > 0 ? DOMAIN_TLD_OPTIONS.map(({ tld, price }) => (
-                      <div
-                        key={tld}
-                        className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-[#1C1C1E] border border-white/[0.06] hover:border-white/[0.14] transition-colors cursor-pointer"
-                      >
-                        <CloudflareIcon />
-                        <span className="flex-1 text-sm font-medium text-white">{slug}{tld}</span>
-                        <span className="text-sm font-semibold text-white/70 shrink-0">{price}</span>
+                  {/* TLD results - only show after search */}
+                  {showDomainResults && slug.length > 0 && (
+                    <div className="space-y-2 animate-in fade-in">
+                      <p className="text-xs font-semibold text-white/50 uppercase tracking-wide px-1">Available domains</p>
+                      
+                      {/* Free Sycord subdomain */}
+                      <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30">
+                        <Globe className="h-5 w-5 text-emerald-400 shrink-0" />
+                        <span className="flex-1 text-sm font-medium text-white">{slug}.sycord.site</span>
+                        <span className="text-[10px] font-semibold bg-emerald-500 text-white px-2 py-0.5 rounded-full">Free</span>
                       </div>
-                    )) : DOMAIN_TLD_OPTIONS.map(({ tld }) => (
-                      <div
-                        key={tld}
-                        className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-[#1C1C1E] border border-white/[0.06]"
-                      >
-                        <div className="h-6 w-6 rounded-md bg-white/[0.06] shrink-0" />
-                        <div className="flex-1 h-3 rounded-full bg-white/[0.06]" />
-                        <div className="h-3 w-10 rounded-full bg-white/[0.06] shrink-0" />
-                      </div>
-                    ))}
-                  </div>
+                      
+                      {/* Premium TLD options */}
+                      {DOMAIN_TLD_OPTIONS.map(({ tld, price }) => (
+                        <div
+                          key={tld}
+                          className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-[#1C1C1E] border border-white/[0.06] hover:border-white/[0.14] transition-colors cursor-pointer"
+                        >
+                          <CloudflareIcon />
+                          <span className="flex-1 text-sm font-medium text-white">{slug}{tld}</span>
+                          <span className="text-sm font-semibold text-white/70 shrink-0">{price}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )
             })()}
