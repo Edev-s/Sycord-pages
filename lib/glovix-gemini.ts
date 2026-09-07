@@ -366,6 +366,8 @@ export interface GenerateRequest {
   temperature?: number
   maxOutputTokens?: number
   model?: string
+  /** Stops emitting to a client that has disconnected. */
+  signal?: AbortSignal
 }
 
 /** Allow only known Gemini ids from the client; fall back to env default. */
@@ -458,6 +460,10 @@ export function streamOpenAICompatible(req: GenerateRequest): Response {
         let firstFcSent = false
 
         for await (const chunk of genStream) {
+          if (req.signal?.aborted) {
+            controller.close()
+            return
+          }
           const parts: any[] = chunk.candidates?.[0]?.content?.parts ?? []
           for (const part of parts) {
             // Capture thoughtSignature from any part (thought parts, text parts,
@@ -559,6 +565,8 @@ export function streamOpenAICompatible(req: GenerateRequest): Response {
       "Content-Type": "text/event-stream; charset=utf-8",
       "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+      "Content-Encoding": "identity",
     },
   })
 }
