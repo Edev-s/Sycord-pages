@@ -87,6 +87,8 @@ export interface GenerateRequest {
   temperature?: number
   maxOutputTokens?: number
   model?: string
+  /** Cancels the upstream request when the browser disconnects. */
+  signal?: AbortSignal
 }
 
 export function streamGlmCompatible(req: GenerateRequest): Response {
@@ -97,9 +99,15 @@ export function streamGlmCompatible(req: GenerateRequest): Response {
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const id = `chatcmpl-${Date.now()}`
-      const sendRaw = (line: string) => controller.enqueue(encoder.encode(`${line}\n`))
+      let closed = false
+      const enqueue = (chunk: Uint8Array) => {
+        if (!closed) controller.enqueue(chunk)
+      }
+      const sendEvent = (data: string) => enqueue(encoder.encode(`data: ${data}\n\n`))
       const done = () => {
-        sendRaw("data: [DONE]")
+        if (closed) return
+        sendEvent("[DONE]")
+        closed = true
         controller.close()
       }
 
@@ -124,7 +132,7 @@ export function streamGlmCompatible(req: GenerateRequest): Response {
               Accept: "text/event-stream",
             },
             body: JSON.stringify(requestBody),
-            signal: AbortSignal.timeout(120_000),
+            signal: req.signal ? AbortSignal.any([req.signal, AbortSignal.timeout(120_000)]) : AbortSignal.timeout(120_000),
           }),
         )
 
@@ -135,13 +143,13 @@ export function streamGlmCompatible(req: GenerateRequest): Response {
             const parsed = JSON.parse(errText)
             errMsg = parsed.error?.message || parsed.message || errText
           } catch { /* raw text is fine */ }
-          sendRaw(`data: ${JSON.stringify({
+          sendEvent(JSON.stringify({
             id,
             object: "chat.completion.chunk",
             created: Math.floor(Date.now() / 1000),
             model: modelLabel,
             choices: [{ index: 0, delta: { content: `\n\n[GLM error] ${res.status}: ${errMsg}` }, finish_reason: "stop" }],
-          })}`)
+          }))
           done()
           return
         }
@@ -150,39 +158,35 @@ export function streamGlmCompatible(req: GenerateRequest): Response {
           throw new Error("No response body from GLM")
         }
 
+        // Byte-for-byte forwarding preserves SSE framing and minimizes TTFB.
         const reader = res.body.getReader()
-        const decoder = new TextDecoder()
-        let buffer = ""
-
-        while (true) {
-          const { done: streamDone, value } = await reader.read()
-          if (streamDone) break
-
-          buffer += decoder.decode(value, { stream: true })
-          const lines = buffer.split("\n")
-          buffer = lines.pop() || ""
-
-          for (const line of lines) {
-            const trimmed = line.trim()
-            if (!trimmed) continue
-            sendRaw(trimmed)
+        try {
+          while (!req.signal?.aborted) {
+            const { done: streamDone, value } = await reader.read()
+            if (streamDone) break
+            if (value?.byteLength) enqueue(value)
           }
+        } finally {
+          if (req.signal?.aborted) await reader.cancel().catch(() => undefined)
+          reader.releaseLock()
         }
-
-        if (buffer.trim()) {
-          sendRaw(buffer.trim())
+        if (!closed) {
+          closed = true
+          controller.close()
         }
-
-        done()
       } catch (err: any) {
+        if (req.signal?.aborted) {
+          if (!closed) controller.close()
+          return
+        }
         const message = err?.message || "GLM generation failed"
-        sendRaw(`data: ${JSON.stringify({
+        sendEvent(JSON.stringify({
           id,
           object: "chat.completion.chunk",
           created: Math.floor(Date.now() / 1000),
           model: modelLabel,
           choices: [{ index: 0, delta: { content: `\n\n[AI error] ${message}` }, finish_reason: "stop" }],
-        })}`)
+        }))
         done()
       }
     },
@@ -193,6 +197,8 @@ export function streamGlmCompatible(req: GenerateRequest): Response {
       "Content-Type": "text/event-stream; charset=utf-8",
       "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+      "Content-Encoding": "identity",
     },
   })
 }

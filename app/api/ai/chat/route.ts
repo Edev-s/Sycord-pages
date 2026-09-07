@@ -118,6 +118,7 @@ export async function POST(req: Request) {
       temperature: typeof body?.temperature === "number" ? body.temperature : undefined,
       maxOutputTokens: typeof body?.max_tokens === "number" ? body.max_tokens : undefined,
       model: model || undefined,
+      signal: req.signal,
     })
   }
 
@@ -138,6 +139,7 @@ export async function POST(req: Request) {
       temperature: typeof body?.temperature === "number" ? body.temperature : undefined,
       maxOutputTokens: typeof body?.max_tokens === "number" ? body.max_tokens : undefined,
       model: model || undefined,
+      signal: req.signal,
     })
   }
 
@@ -158,6 +160,7 @@ export async function POST(req: Request) {
       temperature: typeof body?.temperature === "number" ? body.temperature : undefined,
       maxOutputTokens: typeof body?.max_tokens === "number" ? body.max_tokens : undefined,
       model: model || undefined,
+      signal: req.signal,
     })
   }
 
@@ -178,5 +181,6 @@ export async function POST(req: Request) {
     temperature: typeof body?.temperature === "number" ? body.temperature : undefined,
     maxOutputTokens: typeof body?.max_tokens === "number" ? body.max_tokens : undefined,
     model: model || undefined,
+    signal: req.signal,
   })
 }
