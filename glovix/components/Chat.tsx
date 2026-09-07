@@ -136,6 +136,16 @@ const NEXT_ROUTE_FILES = new Set([
     'loading.tsx', 'error.tsx', 'not-found.tsx', 'template.tsx', 'default.tsx',
     'globals.css', 'index.tsx', 'index.ts',
 ]);
+
+const FILE_TOOL_NAMES = new Set([
+    'createfile', 'write_file', 'syte_write_file',
+    'editfile', 'edit_file', 'syte_edit_file',
+    'apply_patch', 'syte_apply_patch',
+    'readfile', 'read_file', 'syte_read_file', 'syte_read_file_lines',
+    'file_created', 'file_modified', 'file_deleted',
+    'deletefile', 'syte_delete_file',
+    'renamefile', 'syte_rename_file',
+]);
 const shortFilePath = (path: string): string => {
     if (!path) return '';
     const parts = path.replace(/\\/g, '/').replace(/\/+$/, '').split('/');
@@ -3459,9 +3469,10 @@ export function Chat({ scrollRef, onScroll, onOpenPreview, showPreviewButton = f
                                                 <AgentQuestionCard
                                                     key={`seg-${segIdx}`}
                                                     question={seg.question}
-                                                    isSubmitting={questionSubmitting}
+                                                    isDark={isDark}
+                                                    submitting={questionSubmitting}
                                                     error={questionError}
-                                                    onSubmit={handleAnswerQuestion}
+                                                    onSubmit={handleAgentQuestionSubmit}
                                                 />
                                             );
                                         }
