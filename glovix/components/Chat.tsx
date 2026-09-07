@@ -276,6 +276,20 @@ const getActionDisplayName = (toolName: string, args: string): string => {
     }
 };
 
+function parseArgs(args: unknown): Record<string, any> {
+    if (!args) return {};
+    if (typeof args === 'object' && args !== null) return args as Record<string, any>;
+    if (typeof args === 'string') {
+        try {
+            const parsed = JSON.parse(args);
+            if (typeof parsed === 'object' && parsed !== null) return parsed;
+        } catch {
+            return {};
+        }
+    }
+    return {};
+}
+
 function syncPlanFromTool(toolName: string, args: unknown, setGenerationPlan: (plan: any) => void) {
     const name = toolName.toLowerCase();
     if (name !== 'update_plan' && name !== 'planning' && name !== 'plan' && name !== 'syte_create_plan' && name !== 'syte_update_plan_step') return;
