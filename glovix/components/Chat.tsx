@@ -59,6 +59,7 @@ import {
     ThinkingTimelineItem,
     type StreamActionItem,
     type StreamPlan,
+    type StreamPlanStep,
 } from '@/components/agents/chronological-stream';
 import { getSystemPrompt } from '../lib/systemPrompts';
 import { buildInjectedProjectContext } from '../lib/project-context';
