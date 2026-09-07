@@ -1345,6 +1345,40 @@ export function Chat({ scrollRef, onScroll, onOpenPreview, showPreviewButton = f
                                 // Syte emits "Cloud agent accepted the durable request" —
                                 // keep an inline shimmer marker instead of a big thinking badge.
                                 break;
+                            case 'status': {
+                                const statusMsg = event.text || event.title || '';
+                                if (statusMsg) {
+                                    const toolName = (event.tool || '').toLowerCase();
+                                    const isThinkingStatus =
+                                        toolName === 'thinking' ||
+                                        toolName === 'thought' ||
+                                        statusMsg.toLowerCase().startsWith('thinking') ||
+                                        statusMsg.toLowerCase().startsWith('thought');
+
+                                    if (isThinkingStatus) {
+                                        if (!thinkingStartedAt) {
+                                            thinkingStartedAt = Date.now();
+                                            if (!replayHistoryOnly) setThinkingStartTime(thinkingStartedAt);
+                                        }
+                                        if (!replayHistoryOnly) setCurrentThinking(prev => prev || statusMsg);
+                                        let thinkSeg = segments.find(s => s.type === 'thinking');
+                                        if (!thinkSeg) {
+                                            thinkSeg = {
+                                                type: 'thinking',
+                                                id: `think_${Date.now()}`,
+                                                content: statusMsg,
+                                                isLive: !replayHistoryOnly,
+                                                duration: 1,
+                                            };
+                                            segments.unshift(thinkSeg);
+                                        } else {
+                                            if (!thinkSeg.content) thinkSeg.content = statusMsg;
+                                        }
+                                        syncHistMessage(assistantContent, typeof thinkSeg.content === 'string' ? thinkSeg.content : statusMsg);
+                                    }
+                                }
+                                break;
+                            }
                             case 'thinking': {
                                 if (!thinkingStartedAt) {
                                     thinkingStartedAt = Date.now();
@@ -1773,25 +1807,55 @@ export function Chat({ scrollRef, onScroll, onOpenPreview, showPreviewButton = f
                 case 'status': {
                     const statusMsg = event.text || event.title || '';
                     if (statusMsg) {
-                        const toolName = event.tool || 'status';
-                        const actionId = addAction(toolName, statusMsg, {
-                            id: event.toolCallId
-                                ? `agent_${tursoSessionId}_${event.toolCallId}`
-                                : `agent_${tursoSessionId}_status_${event.eventId || Date.now()}`,
-                            eventId: event.eventId,
-                            toolCallId: event.toolCallId,
-                            args: typeof event.arguments === 'string' ? event.arguments : JSON.stringify(event.arguments || {}),
-                        });
-                        updateAction(actionId, { status: 'running' });
-                        const actionItem: StreamActionItem = {
-                            id: actionId,
-                            toolName,
-                            displayName: statusMsg,
-                            status: 'running',
-                            args: event.arguments,
-                        };
-                        segments.push({ type: 'action', id: `action_${actionId}`, action: actionItem });
-                        syncLastMessage();
+                        const toolName = (event.tool || '').toLowerCase();
+                        const isThinkingStatus =
+                            toolName === 'thinking' ||
+                            toolName === 'thought' ||
+                            statusMsg.toLowerCase().startsWith('thinking') ||
+                            statusMsg.toLowerCase().startsWith('thought');
+
+                        if (isThinkingStatus) {
+                            if (!thinkingStartedAt) {
+                                thinkingStartedAt = Date.now();
+                                setThinkingStartTime(thinkingStartedAt);
+                            }
+                            setCurrentThinking(prev => prev || statusMsg);
+                            let thinkSeg = segments.find(s => s.type === 'thinking');
+                            if (!thinkSeg) {
+                                thinkSeg = {
+                                    type: 'thinking',
+                                    id: `think_${Date.now()}`,
+                                    content: statusMsg,
+                                    isLive: true,
+                                    duration: 1,
+                                };
+                                segments.unshift(thinkSeg);
+                            } else {
+                                if (!thinkSeg.content) thinkSeg.content = statusMsg;
+                                thinkSeg.isLive = true;
+                            }
+                            syncLastMessage(assistantContent, typeof thinkSeg.content === 'string' ? thinkSeg.content : statusMsg);
+                        } else {
+                            const actionId = addAction(event.tool || 'status', statusMsg, {
+                                id: event.toolCallId
+                                    ? `agent_${tursoSessionId}_${event.toolCallId}`
+                                    : `agent_${tursoSessionId}_status_${event.eventId || Date.now()}`,
+                                eventId: event.eventId,
+                                toolCallId: event.toolCallId,
+                                args: typeof event.arguments === 'string' ? event.arguments : JSON.stringify(event.arguments || {}),
+                            });
+                            updateAction(actionId, { status: 'running' });
+                            const actionItem: StreamActionItem = {
+                                id: actionId,
+                                toolName: event.tool || 'status',
+                                displayName: statusMsg,
+                                status: 'running',
+                                actionKind: 'status',
+                                args: event.arguments,
+                            };
+                            segments.push({ type: 'action', id: `action_${actionId}`, action: actionItem });
+                            syncLastMessage();
+                        }
                     }
                     break;
                 }
@@ -2206,10 +2270,19 @@ export function Chat({ scrollRef, onScroll, onOpenPreview, showPreviewButton = f
             // A proxy/mobile transport may drop immediately after Syte has
             // committed the terminal session state. Reconcile that durable
             // status before declaring the response incomplete.
-            if (!completed && result.status === 'completed') {
+            if (!completed && (result.status === 'completed' || result.status === 'done' || result.status === 'success' || (!result.status || result.status === 'open') && (assistantContent || segments.length > 0))) {
                 completed = true;
                 assistantContent ||= 'Done.';
-                updateLastMessage(assistantContent);
+                const dur = thinkingStartedAt ? Math.max(1, Math.round((Date.now() - thinkingStartedAt) / 1000)) : 1;
+                const thinkSeg = segments.find(s => s.type === 'thinking');
+                if (thinkSeg) {
+                    thinkSeg.isLive = false;
+                    thinkSeg.duration = dur;
+                }
+                for (const seg of segments) {
+                    if (seg.type === 'text') seg.isLive = false;
+                }
+                updateLastMessage(assistantContent, undefined, undefined, dur, [...segments]);
                 clearPendingQuestion();
                 markAgentTimelineLoaded();
             } else if (!completed && result.status === 'stopped') {
@@ -2226,7 +2299,7 @@ export function Chat({ scrollRef, onScroll, onOpenPreview, showPreviewButton = f
                 return;
             }
             if (errorText) throw new Error(errorText);
-            if (!completed) throw new Error('The project agent stopped before completing its response.');
+            if (!completed && !assistantContent && segments.length === 0) throw new Error('The project agent stopped before completing its response.');
 
             if (thinkingStartedAt) {
                 const duration = Math.max(1, Math.round((Date.now() - thinkingStartedAt) / 1000));

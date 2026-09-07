@@ -194,7 +194,35 @@ export function ActionRowItem({
     )
   }
 
-  // File action or other tool
+  // Check if this is truly a file action
+  const hasFilePath = Boolean(action.filePath)
+  const isFileAction =
+    action.actionKind === 'file' ||
+    hasFilePath ||
+    name.includes('file') ||
+    name.includes('patch') ||
+    name.includes('write') ||
+    name.includes('edit')
+
+  if (!isFileAction) {
+    // Render clean tool / status row
+    const label = action.displayName || action.toolName || 'Working...'
+    return (
+      <div className="flex items-center gap-2 py-1 px-0.5 text-xs text-zinc-300">
+        <span className="size-5 rounded flex items-center justify-center bg-zinc-800 border border-zinc-700/80 text-zinc-300 font-mono text-[9px] shrink-0 font-medium">
+          ⚙
+        </span>
+        <span className="font-medium text-foreground/90 truncate max-w-[320px]">
+          {label}
+        </span>
+        {action.status === 'running' && (
+          <span className="size-1.5 rounded-full bg-blue-400 animate-pulse ml-auto" />
+        )}
+      </div>
+    )
+  }
+
+  // File action
   const rawPath = action.filePath || action.displayName || ''
   const filename = rawPath.split('/').pop() || rawPath
   const badge = getFileBadge(filename)
