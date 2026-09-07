@@ -6,6 +6,7 @@ import { useStore } from '../store';
 import { sendMessage, Message, ToolCall, getProviderIconUrl, fetchAvailableModelChoices, type ModelChoice, type ModelType } from '../lib/ai';
 import {
     fetchPendingAgentQuestions,
+    findResumableAgentSession,
     getLatestAgentSession,
     getLatestTursoSessionId,
     resumeProjectAgent,
