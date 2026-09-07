@@ -1262,15 +1262,33 @@ export function Chat({ scrollRef, onScroll, onOpenPreview, showPreviewButton = f
                     : [];
                 const hasPersistedTimeline =
                     last?.role === 'assistant' &&
-                    (last.agentTimelineLoaded === true || Array.isArray(last.agentActions));
-                const replayHistoryOnly = Boolean(knownTursoId && !lastLooksIncomplete && !hasPersistedTimeline);
+                    (last.agentTimelineLoaded === true || (Array.isArray(last.agentActions) && last.agentActions.length > 0) || (Array.isArray(last.segments) && last.segments.length > 0));
 
-                // A completed turn with a saved timeline needs no replay. The
-                // saved message is now the source of truth for older activity.
-                if (knownTursoId && hasPersistedTimeline && !lastLooksIncomplete) {
+                // If not obviously incomplete and has timeline, only skip if there's no open Turso session in progress.
+                // We'll let findResumableAgentSession check if a session is still 'open' or if we need to poll.
+                let sessionToResume: { tursoSessionId: string; sessionNumber?: number; status?: string } | null = null;
+                try {
+                    sessionToResume = await findResumableAgentSession(projectId, {
+                        signal: controller.signal,
+                        allowCompleted: !hasPersistedTimeline || lastLooksIncomplete,
+                    });
+                } catch {
+                    // Ignore network error on probe
+                }
+
+                if (!sessionToResume && knownTursoId && hasPersistedTimeline && !lastLooksIncomplete) {
                     agentResumeDoneRef.current = true;
                     return;
                 }
+
+                if (!sessionToResume && !knownTursoId && !lastLooksIncomplete) {
+                    agentResumeDoneRef.current = true;
+                    return;
+                }
+
+                const targetTursoId = sessionToResume?.tursoSessionId || knownTursoId || '';
+                const isOpenSession = sessionToResume?.status === 'open';
+                const replayHistoryOnly = Boolean(!isOpenSession && !lastLooksIncomplete && !hasPersistedTimeline);
 
                 agentResumeDoneRef.current = true;
                 const actionByCall = new Map<string, string[]>();
@@ -1280,8 +1298,8 @@ export function Chat({ scrollRef, onScroll, onOpenPreview, showPreviewButton = f
                     // Continue from the persisted prefix when reconnecting after
                     // a mid-turn exit. Polling starts after its saved cursor, so
                     // clearing here would permanently discard earlier actions.
-                    replaceActions(lastLooksIncomplete ? savedActions : [], false);
-                    if (lastLooksIncomplete) {
+                    replaceActions(lastLooksIncomplete || isOpenSession ? savedActions : [], false);
+                    if (lastLooksIncomplete || isOpenSession) {
                         for (const action of savedActions) {
                             if (action.status !== 'running' && action.status !== 'pending') continue;
                             const key = action.toolCallId || action.toolName;
@@ -1292,13 +1310,13 @@ export function Chat({ scrollRef, onScroll, onOpenPreview, showPreviewButton = f
                     }
                     beginRun(controller);
 
-                    let assistantContent = '';
-                    let activeSession = getLatestAgentSession(msgs);
+                    let assistantContent = (last?.role === 'assistant' && typeof last.content === 'string' && !lastLooksIncomplete) ? last.content : '';
+                    let activeSession = sessionToResume?.sessionNumber || getLatestAgentSession(msgs);
                     let highestEventId = Number(last?.agentEventId) || 0;
                     let errorText = '';
                     let completed = false;
                     let thinkingStartedAt: number | null = null;
-                    let tursoSessionId = knownTursoId || '';
+                    let tursoSessionId = targetTursoId;
                     let addedBubble = false;
                     const segments: AssistantSegment[] = Array.isArray(last?.segments) ? [...last.segments] : [];
 
@@ -1308,9 +1326,21 @@ export function Chat({ scrollRef, onScroll, onOpenPreview, showPreviewButton = f
                         }
                     };
 
+                    const persistCursor = () => {
+                        const state = useStore.getState();
+                        const lastMessage = state.messages[state.messages.length - 1];
+                        if (lastMessage?.role === 'assistant') {
+                            if (activeSession) lastMessage.agentSession = activeSession;
+                            if (highestEventId) lastMessage.agentEventId = highestEventId;
+                            if (tursoSessionId) lastMessage.tursoSessionId = tursoSessionId;
+                            if (segments.length > 0) lastMessage.segments = [...segments];
+                            setMessages([...state.messages]);
+                        }
+                    };
+
                     const ensureAssistantBubble = () => {
                         if (addedBubble) return;
-                        if ((lastLooksIncomplete || replayHistoryOnly) && last?.role === 'assistant') {
+                        if ((lastLooksIncomplete || isOpenSession || replayHistoryOnly) && last?.role === 'assistant') {
                             if (!last.segments && segments.length > 0) last.segments = segments;
                             addedBubble = true;
                             return;
@@ -1329,16 +1359,6 @@ export function Chat({ scrollRef, onScroll, onOpenPreview, showPreviewButton = f
                                 : Math.max(activeSession, event.session);
                         }
                         if (event.eventId) highestEventId = Math.max(highestEventId, event.eventId);
-
-                        const state = useStore.getState();
-                        const lastMessage = state.messages[state.messages.length - 1];
-                        if (lastMessage?.role === 'assistant') {
-                            if (activeSession) lastMessage.agentSession = activeSession;
-                            if (highestEventId) lastMessage.agentEventId = highestEventId;
-                            if (tursoSessionId) lastMessage.tursoSessionId = tursoSessionId;
-                            if (segments.length > 0) lastMessage.segments = [...segments];
-                            setMessages([...state.messages]);
-                        }
 
                         switch (event.type) {
                             case 'processing':
@@ -1373,8 +1393,34 @@ export function Chat({ scrollRef, onScroll, onOpenPreview, showPreviewButton = f
                                             segments.unshift(thinkSeg);
                                         } else {
                                             if (!thinkSeg.content) thinkSeg.content = statusMsg;
+                                            thinkSeg.isLive = !replayHistoryOnly;
                                         }
                                         syncHistMessage(assistantContent, typeof thinkSeg.content === 'string' ? thinkSeg.content : statusMsg);
+                                    } else {
+                                        const actionId = addAction(event.tool || 'status', statusMsg, {
+                                            id: event.toolCallId
+                                                ? `agent_${tursoSessionId}_${event.toolCallId}`
+                                                : `agent_${tursoSessionId}_status_${event.eventId || Date.now()}`,
+                                            eventId: event.eventId,
+                                            toolCallId: event.toolCallId,
+                                            args: typeof event.arguments === 'string' ? event.arguments : JSON.stringify(event.arguments || {}),
+                                        });
+                                        updateAction(actionId, { status: 'running' });
+                                        const actionItem: StreamActionItem = {
+                                            id: actionId,
+                                            toolName: event.tool || 'status',
+                                            displayName: statusMsg,
+                                            status: 'running',
+                                            actionKind: 'status',
+                                            args: event.arguments,
+                                        };
+                                        const existingIdx = segments.findIndex(s => s.type === 'action' && s.action?.id === actionId);
+                                        if (existingIdx >= 0) {
+                                            segments[existingIdx] = { type: 'action', id: `action_${actionId}`, action: actionItem };
+                                        } else {
+                                            segments.push({ type: 'action', id: `action_${actionId}`, action: actionItem });
+                                        }
+                                        syncHistMessage();
                                     }
                                 }
                                 break;
@@ -1384,13 +1430,14 @@ export function Chat({ scrollRef, onScroll, onOpenPreview, showPreviewButton = f
                                     thinkingStartedAt = Date.now();
                                     if (!replayHistoryOnly) setThinkingStartTime(thinkingStartedAt);
                                 }
-                                const chunk = event.text || '';
+                                const chunk = event.delta || event.text || '';
                                 if (!replayHistoryOnly) {
-                                    setCurrentThinking(prev =>
-                                        event.fromStream && prev && chunk && !chunk.startsWith(prev)
-                                            ? prev + chunk
-                                            : chunk || prev,
-                                    );
+                                    setCurrentThinking(prev => {
+                                        if (!prev) return chunk;
+                                        if (chunk.startsWith(prev)) return chunk;
+                                        if (prev.endsWith(chunk)) return prev;
+                                        return prev + chunk;
+                                    });
                                 }
                                 let thinkSeg = segments.find(s => s.type === 'thinking');
                                 if (!thinkSeg) {
@@ -1403,9 +1450,13 @@ export function Chat({ scrollRef, onScroll, onOpenPreview, showPreviewButton = f
                                     };
                                     segments.unshift(thinkSeg);
                                 } else if (chunk) {
-                                    thinkSeg.content = event.fromStream && thinkSeg.content && !chunk.startsWith(String(thinkSeg.content))
-                                        ? String(thinkSeg.content) + chunk
-                                        : chunk;
+                                    const prevContent = String(thinkSeg.content || '');
+                                    thinkSeg.content = prevContent && chunk.startsWith(prevContent)
+                                        ? chunk
+                                        : prevContent.endsWith(chunk)
+                                        ? prevContent
+                                        : `${prevContent}${chunk}`;
+                                    thinkSeg.isLive = !replayHistoryOnly;
                                 }
                                 syncHistMessage(assistantContent, typeof thinkSeg.content === 'string' ? thinkSeg.content : undefined);
                                 break;
@@ -1463,6 +1514,20 @@ export function Chat({ scrollRef, onScroll, onOpenPreview, showPreviewButton = f
                                     subagentTaskId: event.subagentTaskId,
                                 });
                                 updateAction(actionId, { status: 'running', args });
+                                const actionItem: StreamActionItem = {
+                                    id: actionId,
+                                    toolName: 'subagent',
+                                    displayName: event.text || event.title || 'Subagent',
+                                    status: 'running',
+                                    args: event.arguments,
+                                };
+                                const existingIdx = segments.findIndex(s => s.type === 'action' && s.action?.id === actionId);
+                                if (existingIdx >= 0) {
+                                    segments[existingIdx] = { type: 'action', id: `action_${actionId}`, action: actionItem };
+                                } else {
+                                    segments.push({ type: 'action', id: `action_${actionId}`, action: actionItem });
+                                }
+                                syncHistMessage();
                                 break;
                             }
                             case 'subagent_scope': {
@@ -1499,6 +1564,12 @@ export function Chat({ scrollRef, onScroll, onOpenPreview, showPreviewButton = f
                                         subagentTaskId: event.subagentTaskId,
                                     });
                                 }
+                                const subSeg = segments.find(s => s.type === 'action' && (s.action?.id === key || s.action?.toolName === 'subagent'));
+                                if (subSeg && subSeg.type === 'action' && subSeg.action) {
+                                    subSeg.action.status = event.type === 'subagent_failed' ? 'error' : 'done';
+                                    subSeg.action.result = event.text;
+                                }
+                                syncHistMessage();
                                 break;
                             }
                             case 'tool_started': {
@@ -1520,6 +1591,29 @@ export function Chat({ scrollRef, onScroll, onOpenPreview, showPreviewButton = f
                                 if (!pendingActions.includes(actionId)) pendingActions.push(actionId);
                                 actionByCall.set(key, pendingActions);
                                 updateAction(actionId, { status: 'running', args });
+
+                                const parsed = parseArgs(args);
+                                const filePath = parsed.path || parsed.file || parsed.file_path || (FILE_TOOL_NAMES.has(tool.toLowerCase()) ? getActionDisplayName(tool, args) : undefined);
+                                const command = parsed.command || parsed.cmd || (tool.includes('command') ? getActionDisplayName(tool, args) : undefined);
+                                const actionItem: StreamActionItem = {
+                                    id: actionId,
+                                    toolName: tool,
+                                    displayName: getActionDisplayName(tool, args) || event.title || tool,
+                                    status: 'running',
+                                    args: parsed,
+                                    filePath,
+                                    command,
+                                    additions: parsed.additions,
+                                    deletions: parsed.deletions,
+                                    badges: Array.isArray(parsed.badges) ? parsed.badges : undefined,
+                                };
+                                const existingIdx = segments.findIndex(s => s.type === 'action' && s.action?.id === actionId);
+                                if (existingIdx >= 0) {
+                                    segments[existingIdx] = { type: 'action', id: `action_${actionId}`, action: actionItem };
+                                } else {
+                                    segments.push({ type: 'action', id: `action_${actionId}`, action: actionItem });
+                                }
+                                syncHistMessage();
                                 break;
                             }
                             case 'tool_finished': {
@@ -1565,6 +1659,7 @@ export function Chat({ scrollRef, onScroll, onOpenPreview, showPreviewButton = f
                                     command,
                                     additions: parsed.additions,
                                     deletions: parsed.deletions,
+                                    badges: Array.isArray(parsed.badges) ? parsed.badges : undefined,
                                 };
                                 const existingIdx = segments.findIndex(s => s.type === 'action' && s.action?.id === actionId);
                                 if (existingIdx >= 0) {
@@ -1588,10 +1683,21 @@ export function Chat({ scrollRef, onScroll, onOpenPreview, showPreviewButton = f
                                 break;
                             }
                             case 'question': {
-                                if (!replayHistoryOnly && event.question && event.question.status !== 'answered') {
-                                    setPendingQuestion(event.question);
-                                    setQuestionError(null);
-                                    setQuestionSubmitting(false);
+                                if (event.question) {
+                                    if (!replayHistoryOnly && event.question.status !== 'answered') {
+                                        setPendingQuestion(event.question);
+                                        setQuestionError(null);
+                                        setQuestionSubmitting(false);
+                                    }
+                                    const existingQ = segments.find(s => s.type === 'question' && s.question?.id === event.question?.id);
+                                    if (!existingQ) {
+                                        segments.push({
+                                            type: 'question',
+                                            id: `question_${event.question.id}`,
+                                            question: event.question,
+                                        });
+                                    }
+                                    syncHistMessage();
                                 }
                                 break;
                             }
@@ -1606,14 +1712,23 @@ export function Chat({ scrollRef, onScroll, onOpenPreview, showPreviewButton = f
                                 break;
                             }
                             case 'delta': {
-                                assistantContent += event.text || '';
-                                const lastSeg = segments[segments.length - 1];
-                                if (lastSeg && lastSeg.type === 'text') {
-                                    lastSeg.content = (typeof lastSeg.content === 'string' ? lastSeg.content : '') + (event.text || '');
-                                } else {
-                                    segments.push({ type: 'text', id: `text_${Date.now()}_${segments.length}`, content: event.text || '' });
+                                const textChunk = event.text || '';
+                                if (textChunk) {
+                                    assistantContent += textChunk;
+                                    const lastSeg = segments[segments.length - 1];
+                                    if (lastSeg && lastSeg.type === 'text') {
+                                        lastSeg.content = (typeof lastSeg.content === 'string' ? lastSeg.content : '') + textChunk;
+                                        lastSeg.isLive = !replayHistoryOnly;
+                                    } else {
+                                        segments.push({
+                                            type: 'text',
+                                            id: `text_${Date.now()}_${segments.length}`,
+                                            content: textChunk,
+                                            isLive: !replayHistoryOnly,
+                                        });
+                                    }
+                                    syncHistMessage();
                                 }
-                                syncHistMessage();
                                 break;
                             }
                             case 'message': {
@@ -1622,14 +1737,20 @@ export function Chat({ scrollRef, onScroll, onOpenPreview, showPreviewButton = f
                                     const lastSeg = segments[segments.length - 1];
                                     if (lastSeg && lastSeg.type === 'text') {
                                         lastSeg.content = event.text;
+                                        lastSeg.isLive = false;
                                     } else {
-                                        segments.push({ type: 'text', id: `text_${Date.now()}_${segments.length}`, content: event.text });
+                                        segments.push({
+                                            type: 'text',
+                                            id: `text_${Date.now()}_${segments.length}`,
+                                            content: event.text,
+                                            isLive: false,
+                                        });
                                     }
                                     syncHistMessage();
                                 }
                                 break;
                             }
-                            case 'done':
+                            case 'done': {
                                 if (!assistantContent && event.text) {
                                     assistantContent = event.text;
                                 }
@@ -1637,8 +1758,18 @@ export function Chat({ scrollRef, onScroll, onOpenPreview, showPreviewButton = f
                                 completed = true;
                                 clearPendingQuestion();
                                 markAgentTimelineLoaded();
-                                syncHistMessage();
+                                const duration = thinkingStartedAt ? Math.max(1, Math.round((Date.now() - thinkingStartedAt) / 1000)) : 1;
+                                const thinkSeg = segments.find(s => s.type === 'thinking');
+                                if (thinkSeg) {
+                                    thinkSeg.isLive = false;
+                                    thinkSeg.duration = duration;
+                                }
+                                for (const seg of segments) {
+                                    if (seg.type === 'text') seg.isLive = false;
+                                }
+                                syncHistMessage(assistantContent, undefined, duration);
                                 break;
+                            }
                             case 'stopped':
                                 if (!replayHistoryOnly && !assistantContent) {
                                     updateLastMessage(event.text || 'Stopped.');
@@ -1663,15 +1794,19 @@ export function Chat({ scrollRef, onScroll, onOpenPreview, showPreviewButton = f
                                 markAgentTimelineLoaded();
                                 break;
                         }
+
+                        if (tursoSessionId || activeSession > 0 || highestEventId > 0) {
+                            persistCursor();
+                        }
                     };
 
                     void syncPendingQuestions(projectId, controller.signal);
 
                     const resumed = await resumeProjectAgent({
                         projectId,
-                        tursoSessionId: knownTursoId || undefined,
-                        afterEventId: lastLooksIncomplete ? highestEventId : 0,
-                        allowCompleted: Boolean(knownTursoId),
+                        tursoSessionId: targetTursoId || undefined,
+                        afterEventId: lastLooksIncomplete || isOpenSession ? highestEventId : 0,
+                        allowCompleted: Boolean(targetTursoId),
                         signal: controller.signal,
                         onEvent: applyEvent,
                     });
